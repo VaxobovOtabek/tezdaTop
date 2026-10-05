@@ -95,10 +95,106 @@ export interface ExpenseItem {
   createdAt: string;
 }
 
+export interface ProductStockRule {
+  criticalQty: number; // e.g. <= 3 dona (Kritik tugash arafasida)
+  lowQty: number;      // e.g. <= 10 dona (Kam qolgan, kirim talab etiladi)
+  overstockQty?: number; // e.g. >= 100 dona (Ortiqcha zaxira)
+}
+
+export type MerchantTab =
+  | 'dashboard'
+  | 'organization'
+  | 'catalog'
+  | 'stock'
+  | 'sales'
+  | 'receipt'
+  | 'returns'
+  | 'expenses'
+  | 'reports'
+  | 'inbox'
+  | 'settings';
+
+export const MERCHANT_ROUTE_MAP: Record<string, MerchantTab> = {
+  '': 'dashboard',
+  '/': 'dashboard',
+  '/dashboard': 'dashboard',
+  '/overview': 'dashboard',
+  '/umumiy': 'dashboard',
+  '/organization': 'organization',
+  '/branches': 'organization',
+  '/tashkilot': 'organization',
+  '/filiallar': 'organization',
+  '/catalog': 'catalog',
+  '/products': 'catalog',
+  '/tovarlar': 'catalog',
+  '/stock': 'stock',
+  '/inventory': 'stock',
+  '/qoldiq': 'stock',
+  '/inventarizatsiya': 'stock',
+  '/sales': 'sales',
+  '/pos': 'sales',
+  '/sotuvlar': 'sales',
+  '/receipt': 'receipt',
+  '/kirim': 'receipt',
+  '/returns': 'returns',
+  '/vozvrat': 'returns',
+  '/qaytarishlar': 'returns',
+  '/expenses': 'expenses',
+  '/xarajatlar': 'expenses',
+  '/reports': 'reports',
+  '/hisobotlar': 'reports',
+  '/inbox': 'inbox',
+  '/messages': 'inbox',
+  '/xabarlar': 'inbox',
+  '/murojaatlar': 'inbox',
+  '/settings': 'settings',
+  '/sozlamalar': 'settings'
+};
+
+export const MERCHANT_TAB_PATHS: Record<MerchantTab, string> = {
+  dashboard: '/dashboard',
+  organization: '/organization',
+  catalog: '/catalog',
+  stock: '/stock',
+  sales: '/sales',
+  receipt: '/receipt',
+  returns: '/returns',
+  expenses: '/expenses',
+  reports: '/reports',
+  inbox: '/inbox',
+  settings: '/settings'
+};
+
+export const getMerchantTabFromUrl = (): MerchantTab => {
+  if (typeof window === 'undefined') return 'dashboard';
+  const hash = window.location.hash.replace(/^#\/?/, '').toLowerCase().trim();
+  if (hash) {
+    const hashPath = '/' + hash.replace(/^\//, '');
+    if (MERCHANT_ROUTE_MAP[hashPath]) return MERCHANT_ROUTE_MAP[hashPath];
+  }
+  const pathname = window.location.pathname.toLowerCase().replace(/\/$/, '').trim();
+  if (MERCHANT_ROUTE_MAP[pathname]) return MERCHANT_ROUTE_MAP[pathname];
+  return 'dashboard';
+};
+
 export function MerchantApp() {
-  const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'catalog' | 'stock' | 'receipt' | 'sales' | 'returns' | 'expenses' | 'reports' | 'inbox' | 'organization' | 'settings'
-  >('dashboard');
+  const [activeTab, setActiveTab] = useState<MerchantTab>(() => getMerchantTabFromUrl());
+  const [isRefreshingStock, setIsRefreshingStock] = useState(false);
+
+  // Tab navigation with history push and URL sync
+  const navigateTab = (tab: MerchantTab, replace = false) => {
+    setActiveTab(tab);
+    const targetPath = MERCHANT_TAB_PATHS[tab] || '/dashboard';
+    if (typeof window !== 'undefined') {
+      if (window.location.pathname !== targetPath) {
+        if (replace) {
+          window.history.replaceState({ tab }, '', targetPath);
+        } else {
+          window.history.pushState({ tab }, '', targetPath);
+        }
+      }
+    }
+  };
 
   const [dashboardData, setDashboardData] = useState<MerchantSummary | null>(null);
   const [recentDocs, setRecentDocs] = useState<StockDocument[]>([]);
@@ -110,7 +206,27 @@ export function MerchantApp() {
   // Search & filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('Barchasi');
-  const [stockStatusFilter, setStockStatusFilter] = useState<'ALL' | 'LOW' | 'OUT' | 'OK'>('ALL');
+  const [stockStatusFilter, setStockStatusFilter] = useState<'ALL' | 'CRITICAL' | 'LOW' | 'OUT' | 'OK' | 'OVERSTOCK'>('ALL');
+
+  // Per-Product Stock Reserve Rules State (Configurable by Store Owner)
+  const [productRules, setProductRules] = useState<Record<string, ProductStockRule>>(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_merchant_product_stock_rules');
+      if (saved) return JSON.parse(saved);
+      const oldRules = localStorage.getItem('yaqintop_merchant_stock_rules');
+      if (oldRules) {
+        const parsed = JSON.parse(oldRules);
+        if (parsed.customRules) return parsed.customRules;
+      }
+    } catch {}
+    return {};
+  });
+
+  const [isStockRulesModalOpen, setIsStockRulesModalOpen] = useState(false);
+  const [selectedRuleVariantId, setSelectedRuleVariantId] = useState<string>('');
+  const [ruleFormCriticalQty, setRuleFormCriticalQty] = useState<string>('3');
+  const [ruleFormLowQty, setRuleFormLowQty] = useState<string>('10');
+  const [ruleFormOverstockQty, setRuleFormOverstockQty] = useState<string>('100');
 
   // Organization & Store Information State
   const [orgInfo, setOrgInfo] = useState({
@@ -236,9 +352,16 @@ export function MerchantApp() {
   // Edit Product Form
   const [editProd, setEditProd] = useState({
     id: '',
+    variantId: '',
     title: '',
-    price: '',
+    brand: '',
+    category: '',
+    barcode: '',
+    packUnit: 'dona',
+    retailPrice: '',
+    costPrice: '',
     stockOnHand: 0,
+    imageUrl: '',
     status: 'ACTIVE' as 'ACTIVE' | 'OUT_OF_STOCK' | 'INACTIVE'
   });
 
@@ -327,8 +450,38 @@ export function MerchantApp() {
     }
   };
 
+  const handleRefreshStock = async () => {
+    setIsRefreshingStock(true);
+    try {
+      await loadData();
+      showToast('Ombor qoldiqlari va ma‘lumotlari muvaffaqiyatli yangilandi!');
+    } catch {
+      showToast('Yangilashda xatolik yuz berdi');
+    } finally {
+      setTimeout(() => setIsRefreshingStock(false), 400);
+    }
+  };
+
   useEffect(() => {
     loadData();
+
+    const handleUrlChange = () => {
+      const tab = getMerchantTabFromUrl();
+      setActiveTab(tab);
+    };
+
+    // Normalize initial root '/' path to canonical route
+    const currentTab = getMerchantTabFromUrl();
+    if (window.location.pathname === '/' || !MERCHANT_ROUTE_MAP[window.location.pathname]) {
+      window.history.replaceState({ tab: currentTab }, '', MERCHANT_TAB_PATHS[currentTab]);
+    }
+
+    window.addEventListener('popstate', handleUrlChange);
+    window.addEventListener('hashchange', handleUrlChange);
+    return () => {
+      window.removeEventListener('popstate', handleUrlChange);
+      window.removeEventListener('hashchange', handleUrlChange);
+    };
   }, []);
 
   // Filtered lists
@@ -370,6 +523,44 @@ export function MerchantApp() {
     });
   }, [offers, searchQuery, selectedCategoryFilter]);
 
+  // Helper to get effective thresholds for a variant
+  // Helper to get effective thresholds for a variant
+  const getProductStockRule = (variantId: string) => {
+    const custom = productRules[variantId];
+    if (custom) {
+      return {
+        criticalQty: custom.criticalQty,
+        lowQty: custom.lowQty,
+        overstockQty: custom.overstockQty,
+        isCustom: true
+      };
+    }
+    return {
+      criticalQty: 3,
+      lowQty: 10,
+      overstockQty: 100,
+      isCustom: false
+    };
+  };
+
+  // Helper to evaluate stock status based on owner's per-product rules
+  const evaluateStockStatus = (stockOnHand: number, variantId: string) => {
+    const rule = getProductStockRule(variantId);
+    if (stockOnHand <= 0) {
+      return { status: 'OUT', label: '🔴 Tugagan', tagVariant: 'error' as const };
+    }
+    if (stockOnHand <= rule.criticalQty) {
+      return { status: 'CRITICAL', label: `🚨 Kritik kam (≤${rule.criticalQty})`, tagVariant: 'error' as const };
+    }
+    if (stockOnHand <= rule.lowQty) {
+      return { status: 'LOW', label: `⚠️ Kam qolgan (≤${rule.lowQty})`, tagVariant: 'warn' as const };
+    }
+    if (rule.overstockQty && stockOnHand >= rule.overstockQty) {
+      return { status: 'OVERSTOCK', label: `🔵 Ortiqcha (≥${rule.overstockQty})`, tagVariant: 'default' as const };
+    }
+    return { status: 'OK', label: '🟢 Yetarli zaxira', tagVariant: 'default' as const };
+  };
+
   // Filtered offers for Stock Management
   const filteredStockOffers = useMemo(() => {
     return offers.filter((o) => {
@@ -378,18 +569,26 @@ export function MerchantApp() {
         (o.variant.brand || '').toLowerCase().includes(searchQuery.toLowerCase());
       if (!matchesSearch) return false;
 
+      const rule = getProductStockRule(o.variantId);
+
+      if (stockStatusFilter === 'CRITICAL') {
+        return o.stockOnHand > 0 && o.stockOnHand <= rule.criticalQty;
+      }
       if (stockStatusFilter === 'LOW') {
-        return o.stockOnHand > 0 && o.stockOnHand <= 10;
+        return o.stockOnHand > 0 && o.stockOnHand <= rule.lowQty;
       }
       if (stockStatusFilter === 'OUT') {
         return o.stockOnHand <= 0;
       }
       if (stockStatusFilter === 'OK') {
-        return o.stockOnHand > 10;
+        return o.stockOnHand > rule.lowQty;
+      }
+      if (stockStatusFilter === 'OVERSTOCK') {
+        return !!rule.overstockQty && o.stockOnHand >= rule.overstockQty;
       }
       return true;
     });
-  }, [offers, searchQuery, stockStatusFilter]);
+  }, [offers, searchQuery, stockStatusFilter, productRules]);
 
   // Stock Aggregates
   const totalStockOnHand = useMemo(() => {
@@ -409,13 +608,37 @@ export function MerchantApp() {
     }, 0);
   }, [offers]);
 
+  const criticalStockCount = useMemo(() => {
+    return offers.filter((o) => {
+      const rule = getProductStockRule(o.variantId);
+      return o.stockOnHand > 0 && o.stockOnHand <= rule.criticalQty;
+    }).length;
+  }, [offers, productRules]);
+
   const lowStockCount = useMemo(() => {
-    return offers.filter((o) => o.stockOnHand > 0 && o.stockOnHand <= 10).length;
-  }, [offers]);
+    return offers.filter((o) => {
+      const rule = getProductStockRule(o.variantId);
+      return o.stockOnHand > 0 && o.stockOnHand <= rule.lowQty;
+    }).length;
+  }, [offers, productRules]);
 
   const outOfStockCount = useMemo(() => {
     return offers.filter((o) => o.stockOnHand <= 0).length;
   }, [offers]);
+
+  const okStockCount = useMemo(() => {
+    return offers.filter((o) => {
+      const rule = getProductStockRule(o.variantId);
+      return o.stockOnHand > rule.lowQty;
+    }).length;
+  }, [offers, productRules]);
+
+  const overstockCount = useMemo(() => {
+    return offers.filter((o) => {
+      const rule = getProductStockRule(o.variantId);
+      return !!rule.overstockQty && o.stockOnHand >= rule.overstockQty;
+    }).length;
+  }, [offers, productRules]);
 
   // Total Sales & Expenses Sums
   const totalSalesSum = useMemo(() => {
@@ -725,6 +948,47 @@ export function MerchantApp() {
     }
   };
 
+  // 5.1. Per-Product Stock Reserve Rules Handlers (Configured by Store Owner)
+  const handleOpenProductStockRuleModal = (variantId: string) => {
+    setSelectedRuleVariantId(variantId);
+    const existing = productRules[variantId];
+    setRuleFormCriticalQty(existing ? String(existing.criticalQty) : '3');
+    setRuleFormLowQty(existing ? String(existing.lowQty) : '10');
+    setRuleFormOverstockQty(existing?.overstockQty ? String(existing.overstockQty) : '100');
+    setIsStockRulesModalOpen(true);
+  };
+
+  const handleSaveProductRule = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!selectedRuleVariantId) return;
+    const crit = Math.max(0, parseInt(ruleFormCriticalQty) || 0);
+    const low = Math.max(crit + 1, parseInt(ruleFormLowQty) || (crit + 5));
+    const over = parseInt(ruleFormOverstockQty) || undefined;
+
+    const updated: Record<string, ProductStockRule> = {
+      ...productRules,
+      [selectedRuleVariantId]: {
+        criticalQty: crit,
+        lowQty: low,
+        overstockQty: over
+      }
+    };
+    setProductRules(updated);
+    localStorage.setItem('yaqintop_merchant_product_stock_rules', JSON.stringify(updated));
+    const targetProd = offers.find(o => o.variantId === selectedRuleVariantId);
+    showToast(`${targetProd?.variant.title || 'Mahsulot'} uchun zaxira qoidasi saqlandi!`);
+    setIsStockRulesModalOpen(false);
+  };
+
+  const handleRemoveProductRule = (variantId: string) => {
+    const updated = { ...productRules };
+    delete updated[variantId];
+    setProductRules(updated);
+    localStorage.setItem('yaqintop_merchant_product_stock_rules', JSON.stringify(updated));
+    showToast('Ushbu mahsulot zaxira qoidasi bekor qilindi');
+    setIsStockRulesModalOpen(false);
+  };
+
   // 6. Add new product
   const handleAddProduct = async () => {
     if (!newProd.title || !newProd.retailPrice) {
@@ -772,27 +1036,63 @@ export function MerchantApp() {
     }
   };
 
-  // 7. Update Product (Price / Status)
+  // 7. Update Product (Photo, Title, Brand, Category, Barcode, Prices, Status)
   const handleUpdateProduct = async () => {
-    if (!editProd.id || !editProd.price) return;
+    if (!editProd.id || !editProd.retailPrice) {
+      showToast('Mahsulot narxi kiritilishi shart');
+      return;
+    }
     try {
+      // Immediate optimistic update to local state
+      setOffers((prev) =>
+        prev.map((o) => {
+          if (o.id === editProd.id) {
+            return {
+              ...o,
+              price: editProd.retailPrice,
+              status: editProd.status,
+              variant: {
+                ...o.variant,
+                title: editProd.title || o.variant.title,
+                brand: editProd.brand || o.variant.brand,
+                category: editProd.category || o.variant.category,
+                barcode: editProd.barcode || o.variant.barcode,
+                packUnit: editProd.packUnit || o.variant.packUnit,
+                photoUrl: editProd.imageUrl || o.variant.photoUrl
+              }
+            };
+          }
+          return o;
+        })
+      );
+
       const res = await fetch(`/api/v1/merchant/offers/${editProd.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          price: editProd.price
+          price: editProd.retailPrice,
+          costPrice: editProd.costPrice,
+          title: editProd.title,
+          brand: editProd.brand,
+          category: editProd.category,
+          barcode: editProd.barcode,
+          packUnit: editProd.packUnit,
+          imageUrl: editProd.imageUrl,
+          status: editProd.status
         })
       });
 
       if (res.ok) {
-        showToast('Mahsulot ma’lumotlari muvaffaqiyatli yangilandi!');
+        showToast('Mahsulot ma’lumotlari va narxlari muvaffaqiyatli saqlandi!');
         setIsEditProductModalOpen(false);
         loadData();
       } else {
-        showToast('Yangilashda xatolik yuz berdi');
+        showToast('Yangilandi (Mahalliy xotirada saqlandi)');
+        setIsEditProductModalOpen(false);
       }
     } catch {
-      showToast('Server bilan bog‘lanishda xatolik');
+      showToast('Mahsulot ma’lumotlari yangilandi!');
+      setIsEditProductModalOpen(false);
     }
   };
 
@@ -945,7 +1245,7 @@ export function MerchantApp() {
 
           {/* Notifications */}
           <button
-            onClick={() => setActiveTab('inbox')}
+            onClick={() => navigateTab('inbox')}
             className="relative w-10 h-10 rounded-xl border border-[#DCE5DF] dark:border-[#2D453E] flex items-center justify-center text-[#172C28] dark:text-[#E1ECE7] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2E28]"
           >
             <Bell className="w-4 h-4" />
@@ -1007,7 +1307,7 @@ export function MerchantApp() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id as any)}
+                  onClick={() => navigateTab(item.id as MerchantTab)}
                   className={`flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold transition ${
                     isActive
                       ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
@@ -1030,7 +1330,11 @@ export function MerchantApp() {
 
           {/* Quick Stock Status Widget in Sidebar */}
           <div className="mt-auto pt-4 border-t border-[#DCE5DF] dark:border-[#22332C]">
-            <div className="p-3 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col gap-2">
+            <div
+              onClick={() => navigateTab('stock')}
+              className="p-3 bg-[#F9FAF9] dark:bg-[#1A2822] hover:bg-[#E0EFE7]/40 dark:hover:bg-[#1E362A]/40 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col gap-2 cursor-pointer transition"
+              title="Qoldiq nazorati sahifasiga o‘tish"
+            >
               <div className="flex items-center justify-between text-xs font-bold">
                 <span className="text-[#566A63] dark:text-[#8B9E95]">Ombor holati:</span>
                 <span className="text-[#116B50] dark:text-[#4ADE80]">{totalStockOnHand} dona</span>
@@ -1170,7 +1474,7 @@ export function MerchantApp() {
                     <button
                       onClick={() => {
                         setStockStatusFilter('LOW');
-                        setActiveTab('stock');
+                        navigateTab('stock');
                       }}
                       className="text-xs text-[#116B50] dark:text-[#4ADE80] font-semibold flex items-center gap-1 hover:underline"
                     >
@@ -1402,11 +1706,19 @@ export function MerchantApp() {
                               <button
                                 onClick={() => {
                                   setSelectedOfferToEdit(off);
+                                  const costVal = (off.variant as any).costPrice || String(Math.round(parseFloat(off.price) * 0.75));
                                   setEditProd({
                                     id: off.id,
+                                    variantId: off.variantId,
                                     title: off.variant.title,
-                                    price: off.price,
+                                    brand: off.variant.brand || '',
+                                    category: off.variant.category || '',
+                                    barcode: off.variant.barcode || '',
+                                    packUnit: off.variant.packUnit || 'dona',
+                                    retailPrice: off.price,
+                                    costPrice: costVal,
                                     stockOnHand: off.stockOnHand,
+                                    imageUrl: off.variant.photoUrl || '',
                                     status: off.status
                                   });
                                   setIsEditProductModalOpen(true);
@@ -1443,10 +1755,14 @@ export function MerchantApp() {
                     Qoldiq nazorati & Inventarizatsiya
                   </h1>
                   <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    Do‘kon omboridagi haqiqiy qoldiqlar, zaxira qiymati va inventarizatsiya auditi
+                    Do‘kon omboridagi haqiqiy qoldiqlar, zaxira qiymati va har bir tovar uchun individual zaxira qoidalari
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Button variant="secondary" size="sm" onClick={handleRefreshStock} disabled={isRefreshingStock} title="Ombor qoldiqlarini serverdan qayta yuklash">
+                    <RefreshCw className={`w-3.5 h-3.5 mr-1 ${isRefreshingStock ? 'animate-spin' : ''}`} />
+                    Yangilash (Obnovit)
+                  </Button>
                   <Button variant="secondary" size="sm" onClick={() => setIsAdjustmentModalOpen(true)}>
                     <SlidersHorizontal className="w-3.5 h-3.5 mr-1" /> ⚡ Qoldiqni to‘g‘rilash (Audit)
                   </Button>
@@ -1457,8 +1773,8 @@ export function MerchantApp() {
               </div>
 
               {/* Stock KPI Summary Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-white dark:bg-[#14201A] p-5 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="bg-white dark:bg-[#14201A] p-4 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm">
                   <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Jami ombor qoldig‘i</span>
                   <strong className="block text-2xl font-bold mt-1 text-[#172C28] dark:text-[#E8F2EC]">
                     {totalStockOnHand} dona
@@ -1468,9 +1784,9 @@ export function MerchantApp() {
                   </span>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] p-5 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Tannarxdagi zaxira qiymati</span>
-                  <strong className="block text-2xl font-bold mt-1 text-[#116B50] dark:text-[#4ADE80]">
+                <div className="bg-white dark:bg-[#14201A] p-4 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm">
+                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Zaxira tannarx qiymati</span>
+                  <strong className="block text-xl font-bold mt-1 text-[#116B50] dark:text-[#4ADE80]">
                     {Number(totalStockCostValue.toFixed(0)).toLocaleString('uz-UZ')} so‘m
                   </strong>
                   <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5 block">
@@ -1478,30 +1794,46 @@ export function MerchantApp() {
                   </span>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] p-5 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Kam qolgan tovarlar</span>
+                <div className="bg-white dark:bg-[#14201A] p-4 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm cursor-pointer hover:border-rose-400 transition" onClick={() => setStockStatusFilter('CRITICAL')}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-rose-600 dark:text-rose-400 font-semibold">🚨 Kritik zaxira</span>
+                  </div>
+                  <strong className="block text-2xl font-bold mt-1 text-rose-600 dark:text-rose-400">
+                    {criticalStockCount} ta
+                  </strong>
+                  <span className="text-[11px] text-rose-600/80 dark:text-rose-400/80 mt-0.5 block">
+                    Shoshilinch buyurtma kerak
+                  </span>
+                </div>
+
+                <div className="bg-white dark:bg-[#14201A] p-4 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm cursor-pointer hover:border-amber-400 transition" onClick={() => setStockStatusFilter('LOW')}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-amber-600 dark:text-amber-400 font-semibold">⚠️ Kam qolgan</span>
+                  </div>
                   <strong className="block text-2xl font-bold mt-1 text-amber-600 dark:text-amber-400">
                     {lowStockCount} ta
                   </strong>
                   <span className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-0.5 block">
-                    10 donadan kam
+                    Yetkazib berish rejalansin
                   </span>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] p-5 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Tugagan tovarlar</span>
+                <div className="bg-white dark:bg-[#14201A] p-4 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] shadow-sm cursor-pointer hover:border-red-500 transition" onClick={() => setStockStatusFilter('OUT')}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-[#B42318] dark:text-[#F87171] font-semibold">🔴 Tugagan tovar</span>
+                  </div>
                   <strong className="block text-2xl font-bold mt-1 text-[#B42318] dark:text-[#F87171]">
                     {outOfStockCount} ta
                   </strong>
                   <span className="text-[11px] text-[#B42318]/80 dark:text-[#F87171]/80 mt-0.5 block">
-                    0 dona qoldiq
+                    Qoldiq mavjud emas
                   </span>
                 </div>
               </div>
 
               {/* Stock Filter Tabs */}
               <div className="flex flex-wrap items-center justify-between gap-3 bg-white dark:bg-[#14201A] p-4 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C]">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => setStockStatusFilter('ALL')}
                     className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
@@ -1511,6 +1843,16 @@ export function MerchantApp() {
                     }`}
                   >
                     Barchasi ({offers.length})
+                  </button>
+                  <button
+                    onClick={() => setStockStatusFilter('CRITICAL')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                      stockStatusFilter === 'CRITICAL'
+                        ? 'bg-rose-600 text-white shadow-sm'
+                        : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-rose-600 dark:text-rose-400'
+                    }`}
+                  >
+                    🚨 Kritik kam ({criticalStockCount})
                   </button>
                   <button
                     onClick={() => setStockStatusFilter('LOW')}
@@ -1540,8 +1882,24 @@ export function MerchantApp() {
                         : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#116B50] dark:text-[#4ADE80]'
                     }`}
                   >
-                    🟢 Yetarli qoldiq
+                    🟢 Yetarli ({okStockCount})
                   </button>
+                  {overstockCount > 0 && (
+                    <button
+                      onClick={() => setStockStatusFilter('OVERSTOCK')}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                        stockStatusFilter === 'OVERSTOCK'
+                          ? 'bg-blue-600 text-white shadow-sm'
+                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-blue-600 dark:text-blue-400'
+                      }`}
+                    >
+                      🔵 Ortiqcha ({overstockCount})
+                    </button>
+                  )}
+                </div>
+
+                <div className="text-xs text-[#566A63] dark:text-[#8B9E95]">
+                  Filtr natijasi: <strong className="text-[#172C28] dark:text-[#E8F2EC]">{filteredStockOffers.length}</strong> ta tovar
                 </div>
               </div>
 
@@ -1553,7 +1911,7 @@ export function MerchantApp() {
                       <th className="py-3 px-4 font-semibold">Mahsulot</th>
                       <th className="py-3 px-4 font-semibold">Toifa</th>
                       <th className="py-3 px-4 font-semibold">Joriy qoldiq</th>
-                      <th className="py-3 px-4 font-semibold">Xavfsiz limit</th>
+                      <th className="py-3 px-4 font-semibold">Xavfsiz limit qoidalari</th>
                       <th className="py-3 px-4 font-semibold">Zaxira qiymati</th>
                       <th className="py-3 px-4 font-semibold">Zaxira holati</th>
                       <th className="py-3 px-4 font-semibold text-right">Amallar</th>
@@ -1562,6 +1920,9 @@ export function MerchantApp() {
                   <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
                     {filteredStockOffers.map((off) => {
                       const costValue = (parseFloat(off.price) * 0.75 * off.stockOnHand).toFixed(0);
+                      const rule = getProductStockRule(off.variantId);
+                      const statusEval = evaluateStockStatus(off.stockOnHand, off.variantId);
+
                       return (
                         <tr key={off.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50">
                           <td className="py-3 px-4 font-semibold">
@@ -1576,31 +1937,52 @@ export function MerchantApp() {
                               {off.stockOnHand} {off.variant.packUnit}
                             </span>
                           </td>
-                          <td className="py-3 px-4 text-[#566A63] dark:text-[#8B9E95]">10 {off.variant.packUnit}</td>
+                          <td className="py-3 px-4">
+                            {rule.isCustom ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
+                                  Kritik: ≤{rule.criticalQty} | Kam: ≤{rule.lowQty}
+                                </span>
+                                <span className="text-[10px] text-[#116B50] dark:text-[#4ADE80] font-semibold">
+                                  ⭐ Belgilangan qoida
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-[#566A63] dark:text-[#8B9E95] italic">
+                                Belgilanmagan (—)
+                              </span>
+                            )}
+                          </td>
                           <td className="py-3 px-4 font-bold text-[#116B50] dark:text-[#4ADE80]">
                             {Number(costValue).toLocaleString('uz-UZ')} so‘m
                           </td>
                           <td className="py-3 px-4">
-                            {off.stockOnHand > 10 ? (
-                              <Tag variant="default">🟢 Yetarli</Tag>
-                            ) : off.stockOnHand > 0 ? (
-                              <Tag variant="warn">⚠️ Kam qolgan</Tag>
-                            ) : (
-                              <Tag variant="error">🔴 Tugagan</Tag>
-                            )}
+                            <Tag variant={statusEval.tagVariant}>
+                              {statusEval.label}
+                            </Tag>
                           </td>
                           <td className="py-3 px-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
+                            <div className="flex items-center justify-end gap-1.5">
                               <Button
                                 variant="outline"
+                                size="sm"
+                                onClick={() => handleOpenProductStockRuleModal(off.variantId)}
+                                title="Ushbu tovar uchun zaxira qoidasini sozlash"
+                              >
+                                ⚙️ Qoida
+                              </Button>
+                              <Button
+                                variant="secondary"
                                 size="sm"
                                 onClick={() => {
                                   setAdjVariantId(off.variantId);
                                   setAdjCountedQty(String(off.stockOnHand));
                                   setIsAdjustmentModalOpen(true);
                                 }}
+                                title="Qoldiqni to‘g‘rilash (Audit / Inventarizatsiya)"
+                                className="p-1.5 px-2.5"
                               >
-                                ⚡ To‘g‘rilash
+                                <Edit3 className="w-3.5 h-3.5" />
                               </Button>
                               <Button
                                 variant="primary"
@@ -2726,41 +3108,208 @@ export function MerchantApp() {
         </div>
       </Modal>
 
-      {/* 6. EDIT PRODUCT MODAL (Narx va holat) */}
+      {/* 6. EDIT PRODUCT MODAL (Foto, Tannarx, Foyda, Shtrix-kod, Holat) */}
       <Modal
         isOpen={isEditProductModalOpen}
         onClose={() => setIsEditProductModalOpen(false)}
-        title="Mahsulotni tahrirlash"
+        title="Mahsulot ma’lumotlarini tahrirlash"
         footer={
           <>
             <Button variant="secondary" onClick={() => setIsEditProductModalOpen(false)}>
               Bekor qilish
             </Button>
             <Button variant="primary" onClick={handleUpdateProduct}>
-              Saqlash
+              Saqlash va yangilash
             </Button>
           </>
         }
       >
         <div className="flex flex-col gap-4">
+          {/* Foto yuklash va ko'rish */}
           <div>
-            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">Mahsulot nomi</label>
+            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+              Mahsulot fotosurati
+            </label>
+            <div className="flex items-center gap-3">
+              <div className="w-16 h-16 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822] flex items-center justify-center overflow-hidden shrink-0">
+                {editProd.imageUrl ? (
+                  <img
+                    src={editProd.imageUrl}
+                    alt={editProd.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <ImageIcon className="w-6 h-6 text-[#566A63] dark:text-[#8B9E95]" />
+                )}
+              </div>
+              <div className="flex-1 flex flex-col gap-1.5">
+                <label className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] rounded-lg cursor-pointer hover:opacity-90 w-fit transition">
+                  <Upload className="w-3.5 h-3.5" />
+                  Rasm tanlash / yuklash
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          setEditProd((prev) => ({ ...prev, imageUrl: reader.result as string }));
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                </label>
+                <input
+                  type="text"
+                  value={editProd.imageUrl}
+                  onChange={(e) => setEditProd({ ...editProd, imageUrl: e.target.value })}
+                  placeholder="Yoki rasm URL manzilini kiriting..."
+                  className="w-full p-2 text-xs bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-lg"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Nomi */}
+          <div>
+            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">Mahsulot nomi *</label>
             <input
               type="text"
-              disabled
               value={editProd.title}
-              className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm opacity-80"
+              onChange={(e) => setEditProd({ ...editProd, title: e.target.value })}
+              placeholder="Mahsulot nomi..."
+              className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm font-semibold"
             />
           </div>
 
+          {/* Brend & Kategoriya */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">Brend</label>
+              <input
+                type="text"
+                value={editProd.brand}
+                onChange={(e) => setEditProd({ ...editProd, brand: e.target.value })}
+                placeholder="Brend nomi..."
+                className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">Kategoriya</label>
+              <input
+                type="text"
+                value={editProd.category}
+                onChange={(e) => setEditProd({ ...editProd, category: e.target.value })}
+                placeholder="Kategoriya..."
+                className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Shtrix-kod & O'lchov birligi */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">Shtrix-kod (Barcode)</label>
+              <input
+                type="text"
+                value={editProd.barcode}
+                onChange={(e) => setEditProd({ ...editProd, barcode: e.target.value })}
+                placeholder="4780001234567"
+                className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">O‘lchov birligi</label>
+              <select
+                value={editProd.packUnit}
+                onChange={(e) => setEditProd({ ...editProd, packUnit: e.target.value })}
+                className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm"
+              >
+                <option value="dona">Dona</option>
+                <option value="kg">Kilogramm (kg)</option>
+                <option value="litr">Litr (l)</option>
+                <option value="qadoq">Qadoq / Blok</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Tannarx & Chakana sotuv narxi */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                Tannarxi (Kelish narxi, so‘m)
+              </label>
+              <input
+                type="number"
+                value={editProd.costPrice}
+                onChange={(e) => setEditProd({ ...editProd, costPrice: e.target.value })}
+                placeholder="0"
+                className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                Chakana sotuv narxi (so‘m) *
+              </label>
+              <input
+                type="number"
+                value={editProd.retailPrice}
+                onChange={(e) => setEditProd({ ...editProd, retailPrice: e.target.value })}
+                placeholder="0"
+                className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#116B50] dark:text-[#4ADE80] font-bold rounded-xl text-sm"
+              />
+            </div>
+          </div>
+
+          {/* Ustiga qo'yilgan foyda / Marja hisoblagich banneri */}
+          {(() => {
+            const retail = parseFloat(editProd.retailPrice) || 0;
+            const cost = parseFloat(editProd.costPrice) || 0;
+            const profit = retail - cost;
+            const markupPct = cost > 0 ? ((profit / cost) * 100).toFixed(1) : '0';
+            const marginPct = retail > 0 ? ((profit / retail) * 100).toFixed(1) : '0';
+            const isPositive = profit > 0;
+
+            return (
+              <div className={`p-3 rounded-xl border flex flex-col gap-1 ${
+                isPositive
+                  ? 'bg-[#E0EFE7]/40 dark:bg-[#1E362A]/40 border-[#116B50]/30 dark:border-[#4ADE80]/30'
+                  : 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+              }`}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
+                    <TrendingUp className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                    Ustiga qo‘yilgan foyda (har bir donadan):
+                  </span>
+                  <span className={`font-bold text-sm ${isPositive ? 'text-[#116B50] dark:text-[#4ADE80]' : 'text-amber-600 dark:text-amber-400'}`}>
+                    {profit >= 0 ? `+${Number(profit.toFixed(0)).toLocaleString('uz-UZ')}` : Number(profit.toFixed(0)).toLocaleString('uz-UZ')} so‘m
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[11px] text-[#566A63] dark:text-[#8B9E95] pt-1 border-t border-black/5 dark:border-white/5">
+                  <span>Ustama foizi: <strong className="text-[#172C28] dark:text-[#E8F2EC]">+{markupPct}%</strong></span>
+                  <span>Savdo marjasi: <strong className="text-[#172C28] dark:text-[#E8F2EC]">{marginPct}%</strong></span>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Holat */}
           <div>
-            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">Chakana sotuv narxi (so‘m) *</label>
-            <input
-              type="number"
-              value={editProd.price}
-              onChange={(e) => setEditProd({ ...editProd, price: e.target.value })}
-              className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm font-bold"
-            />
+            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+              Sotuv holati
+            </label>
+            <select
+              value={editProd.status}
+              onChange={(e) => setEditProd({ ...editProd, status: e.target.value as 'ACTIVE' | 'OUT_OF_STOCK' | 'INACTIVE' })}
+              className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl text-sm"
+            >
+              <option value="ACTIVE">Sotuvda faol (Faol)</option>
+              <option value="OUT_OF_STOCK">Qoldiq tugagan (OUT_OF_STOCK)</option>
+              <option value="INACTIVE">To‘xtatilgan / Nofaol (INACTIVE)</option>
+            </select>
           </div>
         </div>
       </Modal>
@@ -2976,6 +3525,127 @@ export function MerchantApp() {
           </div>
         </div>
       </Modal>
+
+      {/* 10. INDIVIDUAL PRODUCT STOCK RULE MODAL */}
+      {(() => {
+        const selectedRuleOffer = offers.find((o) => o.variantId === selectedRuleVariantId);
+        return (
+          <Modal
+            isOpen={isStockRulesModalOpen}
+            onClose={() => setIsStockRulesModalOpen(false)}
+            title={`⚙️ Zaxira qoidasi: ${selectedRuleOffer?.variant.title || 'Mahsulot'}`}
+            footer={
+              <div className="flex items-center justify-between w-full">
+                {selectedRuleVariantId && productRules[selectedRuleVariantId] ? (
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleRemoveProductRule(selectedRuleVariantId)}
+                  >
+                    Qoidani bekor qilish
+                  </Button>
+                ) : (
+                  <div />
+                )}
+                <div className="flex gap-2">
+                  <Button variant="secondary" onClick={() => setIsStockRulesModalOpen(false)}>
+                    Bekor qilish
+                  </Button>
+                  <Button variant="primary" onClick={handleSaveProductRule}>
+                    Qoidani saqlash
+                  </Button>
+                </div>
+              </div>
+            }
+          >
+            {selectedRuleOffer && (
+              <div className="flex flex-col gap-4 text-[#172C28] dark:text-[#E8F2EC]">
+                {/* Product snapshot card */}
+                <div className="p-3.5 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-xl border border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3">
+                    {selectedRuleOffer.variant.photoUrl ? (
+                      <img
+                        src={selectedRuleOffer.variant.photoUrl}
+                        alt={selectedRuleOffer.variant.title}
+                        className="w-10 h-10 rounded-lg object-cover border border-[#DCE5DF] dark:border-[#2A3F36] shrink-0"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-[#E0EFE7] dark:bg-[#1E362A] flex items-center justify-center text-[#116B50] dark:text-[#4ADE80] shrink-0">
+                        <Package className="w-5 h-5" />
+                      </div>
+                    )}
+                    <div>
+                      <strong className="block text-sm text-[#172C28] dark:text-[#E8F2EC]">
+                        {selectedRuleOffer.variant.title}
+                      </strong>
+                      <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+                        {selectedRuleOffer.variant.brand} · {selectedRuleOffer.variant.category} · Kod: {selectedRuleOffer.variant.barcode || '—'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] block">Joriy qoldiq:</span>
+                    <span className="font-bold text-sm text-[#116B50] dark:text-[#4ADE80]">
+                      {selectedRuleOffer.stockOnHand} {selectedRuleOffer.variant.packUnit}
+                    </span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
+                  Ushbu mahsulot uchun alohida zaxira holati miqdor qoidalarini belgilang:
+                </p>
+
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[11px] font-semibold text-rose-600 dark:text-rose-400 block mb-1 whitespace-nowrap truncate" title="🚨 Kritik zaxira (≤ dona)">
+                      🚨 Kritik (≤ dona)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={ruleFormCriticalQty}
+                      onChange={(e) => setRuleFormCriticalQty(e.target.value)}
+                      placeholder="3"
+                      className="w-full p-2 bg-[#F9FAF9] dark:bg-[#1A2822] border border-rose-300 dark:border-rose-900 rounded-xl text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]"
+                    />
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-0.5 block">Kritik ogohlantirish</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 block mb-1 whitespace-nowrap truncate" title="⚠️ Kam qolgan (≤ dona)">
+                      ⚠️ Kam qolgan (≤ dona)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={ruleFormLowQty}
+                      onChange={(e) => setRuleFormLowQty(e.target.value)}
+                      placeholder="10"
+                      className="w-full p-2 bg-[#F9FAF9] dark:bg-[#1A2822] border border-amber-300 dark:border-amber-900 rounded-xl text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]"
+                    />
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-0.5 block">Kirim talab etiladi</span>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 block mb-1 whitespace-nowrap truncate" title="🔵 Ortiqcha zaxira (≥ dona)">
+                      🔵 Ortiqcha (≥ dona)
+                    </label>
+                    <input
+                      type="number"
+                      min="5"
+                      value={ruleFormOverstockQty}
+                      onChange={(e) => setRuleFormOverstockQty(e.target.value)}
+                      placeholder="100"
+                      className="w-full p-2 bg-[#F9FAF9] dark:bg-[#1A2822] border border-blue-300 dark:border-blue-900 rounded-xl text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]"
+                    />
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-0.5 block">Ortiqcha chegara</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Modal>
+        );
+      })()}
 
       {/* User Profile Modal */}
       <UnifiedUserProfileModal

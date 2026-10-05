@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Mail, Lock, Eye, EyeOff, LogIn, Sparkles, AlertTriangle } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, LogIn, Sparkles, AlertTriangle } from 'lucide-react';
 import { Button, Modal } from '@yaqintop/ui';
 
 export interface UnifiedLoginModalProps {
@@ -15,18 +15,18 @@ export function UnifiedLoginModal({
   onLoginSuccess,
   appTitle = 'Admin Paneli'
 }: UnifiedLoginModalProps) {
-  const [email, setEmail] = useState('admin@yaqintop.uz');
+  const [login, setLogin] = useState('admin');
   const [password, setPassword] = useState('DemoPass123!');
   const [showPassword, setShowPassword] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const handleLogin = async (loginEmail?: string, loginPassword?: string) => {
-    const targetEmail = (loginEmail || email).trim();
+  const handleLogin = async (loginUser?: string, loginPassword?: string) => {
+    const targetLogin = (loginUser || login).trim();
     const targetPass = (loginPassword || password).trim();
 
-    if (!targetEmail || !targetPass) {
-      setErrorMsg('Login (email) va parolni kiriting');
+    if (!targetLogin || !targetPass) {
+      setErrorMsg('Login (foydalanuvchi nomi yoki telefon) va parolni kiriting');
       return;
     }
 
@@ -38,7 +38,7 @@ export function UnifiedLoginModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: targetEmail, password: targetPass })
+        body: JSON.stringify({ email: targetLogin, login: targetLogin, password: targetPass })
       });
 
       const data = await res.json();
@@ -55,17 +55,17 @@ export function UnifiedLoginModal({
     }
   };
 
-  const handleQuickLogin = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
+  const handleQuickLogin = (demoLogin: string, demoPass: string) => {
+    setLogin(demoLogin);
     setPassword(demoPass);
-    handleLogin(demoEmail, demoPass);
+    handleLogin(demoLogin, demoPass);
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - Administrator Kirishi`}>
       <div className="flex flex-col gap-4 py-1">
         <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
-          Platforma boshqaruv markaziga kirish uchun administrator login va parolingizni kiriting.
+          Platforma boshqaruv markaziga kirish uchun administrator login yoki telefon raqamingizni kiriting.
         </p>
 
         {errorMsg && (
@@ -84,16 +84,16 @@ export function UnifiedLoginModal({
         >
           <div>
             <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
-              Admin Login / Email
+              Admin Login / Telefon raqam yoki Ism
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
+              <User className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
               <input
-                type="email"
+                type="text"
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="admin@yaqintop.uz"
+                value={login}
+                onChange={(e) => setLogin(e.target.value)}
+                placeholder="masalan: admin yoki +998905556677"
                 className="w-full h-10 pl-9 pr-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
@@ -147,24 +147,24 @@ export function UnifiedLoginModal({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => handleQuickLogin('admin@yaqintop.uz', 'DemoPass123!')}
+              onClick={() => handleQuickLogin('admin', 'DemoPass123!')}
               className="p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1C362A] text-left transition flex items-center justify-between"
             >
               <div>
                 <strong className="block text-xs font-bold text-[#172C28] dark:text-white">Boshqaruvchi Admin</strong>
-                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">admin@yaqintop.uz</span>
+                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">admin · +998905556677</span>
               </div>
               <span className="text-[10px] font-bold text-[#116B50] dark:text-[#4ADE80]">Kirish →</span>
             </button>
 
             <button
               type="button"
-              onClick={() => handleQuickLogin('moderator@yaqintop.uz', 'DemoPass123!')}
+              onClick={() => handleQuickLogin('moderator', 'DemoPass123!')}
               className="p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1C362A] text-left transition flex items-center justify-between"
             >
               <div>
                 <strong className="block text-xs font-bold text-[#172C28] dark:text-white">Nilufar (Moderator)</strong>
-                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">moderator@yaqintop.uz</span>
+                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">moderator · +998904445566</span>
               </div>
               <span className="text-[10px] font-bold text-[#116B50] dark:text-[#4ADE80]">Kirish →</span>
             </button>

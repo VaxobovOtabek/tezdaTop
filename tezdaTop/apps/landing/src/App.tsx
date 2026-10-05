@@ -4,6 +4,7 @@ import {
   MapPin,
   Store,
   Shield,
+  ShieldCheck,
   Smartphone,
   Navigation,
   BarChart3,
@@ -49,7 +50,7 @@ export function LandingApp() {
     }
   }, [isDarkMode]);
 
-  const [activeRoleTab, setActiveRoleTab] = useState<'customer' | 'merchant' | 'admin'>('customer');
+  const [activeRoleTab, setActiveRoleTab] = useState<'customer' | 'merchant' | 'moderator' | 'admin'>('customer');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   // Live search test simulator on landing page
@@ -128,6 +129,26 @@ export function LandingApp() {
       btnBg: 'bg-[#155E46] hover:bg-[#116B50]'
     },
     {
+      id: 'moderator',
+      url: 'http://localhost:3004',
+      title: 'Moderator Portali',
+      roleTitle: 'Moderatorlar va Kontent Nazoratchilari uchun',
+      badge: 'Moderatsiya Markazi',
+      badgeColor: 'bg-[#116B50]/15 text-[#116B50] dark:text-[#4ADE80] border-[#116B50]/30',
+      icon: ShieldCheck,
+      desc: 'Xarita moderatsiyasi, yangi do‘kon arizalari, xaridorlar shikoyat navbati, sharhlar nazorati, do‘kon xodimlari va murojaatlarni tezkor hal qilish.',
+      features: [
+        'Xarita & Moderatsiya markazida do‘konlar lokatsiyasi va ochiq/yopiq holatini tekshirish',
+        'Yangi ochilgan do‘konlar arizalarini ko‘rib chiqish va faollashtirish',
+        'Narx va manzil xatolari bo‘yicha xaridorlar shikoyatlarini zudlik bilan bartaraf etish',
+        'Tashkilotlarga xodimlarni qo‘shish va Telegram orqali tasdiqlash',
+        'Murojaatlar va savollarga rasmiy moderatsiya xulosalarini taqdim etish'
+      ],
+      previewImg: '🔍',
+      btnText: 'Moderator Portalini ochish →',
+      btnBg: 'bg-[#116B50] hover:bg-[#0D533E]'
+    },
+    {
       id: 'admin',
       url: 'http://localhost:3002',
       title: 'Boshqaruv Admin Paneli',
@@ -157,6 +178,10 @@ export function LandingApp() {
     {
       q: 'Tadbirkor o‘z do‘koni va tovarlarini qanday qo‘shadi?',
       a: 'Tadbirkor "Tashkilot va Do‘kon Boshqaruvi" orqali o‘z korxonasini ro‘yxatdan o‘tkazadi, lokatsiyasini kartada belgilaydi va Excel/CSV fayli orqali yoki qo‘lda tovarlarini bir zumda yuklaydi.'
+    },
+    {
+      q: 'Moderator va Admin rollari orasida qanday farq bor?',
+      a: 'Admin tizimning butun arxitekturasi, server DB xaritasi va API Explorer bilan ishlaydi. Moderator esa do‘konlar arizalari, xaridorlar shikoyatlari, sharhlar moderatsiyasi, xarita nuqtalari va xodimlar boshqaruvi bilan shug‘ullanadi.'
     },
     {
       q: 'Xaridor qidiruv maydonida hech narsa yozmasa nima bo‘ladi?',
@@ -235,6 +260,15 @@ export function LandingApp() {
             <span>Do‘kon</span>
           </a>
           <a
+            href="http://localhost:3004"
+            target="_blank"
+            rel="noreferrer"
+            className="px-3.5 py-1.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
+          >
+            <ShieldCheck className="w-3.5 h-3.5" />
+            <span>Moderator</span>
+          </a>
+          <a
             href="http://localhost:3002"
             target="_blank"
             rel="noreferrer"
@@ -247,7 +281,7 @@ export function LandingApp() {
       </header>
 
       {/* Hero Section */}
-      <section className="relative pt-12 md:pt-20 pb-16 px-4 md:px-8 max-w-6xl mx-auto text-center flex flex-col items-center">
+      <section className="relative pt-12 md:pt-20 pb-16 px-4 md:px-8 max-w-7xl mx-auto text-center flex flex-col items-center">
         {/* Badge */}
         <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#E0EFE7] dark:bg-[#162720] border border-[#116B50]/30 dark:border-[#4ADE80]/30 text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-6 shadow-sm">
           <Sparkles className="w-3.5 h-3.5" />
@@ -260,11 +294,11 @@ export function LandingApp() {
         </h1>
 
         <p className="text-base md:text-xl text-[#566A63] dark:text-[#9CB3A8] mt-5 max-w-2xl leading-relaxed font-medium">
-          YaqinTop — xaridorlar, savdo do‘konlari va ma’murlarni yagona aqlli xarita orqali birlashtiruvchi to‘liq mikroservisli ekotizim.
+          YaqinTop — xaridorlar, savdo do‘konlari, moderatorlar va boshqaruvchilarni yagona aqlli xarita orqali birlashtiruvchi to‘liq mikroservisli ekotizim.
         </p>
 
-        {/* 3 Main Role Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 w-full mt-10">
+        {/* 4 Main Role Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 w-full mt-10">
           {apps.map((app) => {
             const Icon = app.icon;
             return (
@@ -302,7 +336,7 @@ export function LandingApp() {
           })}
         </div>
 
-        {/* KPI Strip (Harmonized unified forest emerald theme without blue/orange) */}
+        {/* KPI Strip */}
         <div className="mt-14 w-full glass-panel rounded-3xl p-5 md:p-7 grid grid-cols-2 md:grid-cols-4 gap-4 text-center shadow-sm">
           <div>
             <div className="text-2xl md:text-3xl font-extrabold text-[#172C28] dark:text-white">50m – 3km</div>
@@ -317,7 +351,7 @@ export function LandingApp() {
             <div className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 font-semibold">Kassa qoldiqlari sinxroni</div>
           </div>
           <div>
-            <div className="text-2xl md:text-3xl font-extrabold text-[#2D6A4F] dark:text-[#74C69D]">Yagona Ekotizim</div>
+            <div className="text-2xl md:text-3xl font-extrabold text-[#2D6A4F] dark:text-[#74C69D]">4 Ta Portal</div>
             <div className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 font-semibold">Markaziy REST API</div>
           </div>
         </div>
@@ -336,36 +370,46 @@ export function LandingApp() {
         </div>
 
         {/* Role Switcher Tabs */}
-        <div className="flex justify-center gap-2 p-1.5 bg-[#E8F0EB] dark:bg-[#14221B] rounded-2xl max-w-md mx-auto mb-8 border border-[#DCE5DF] dark:border-white/10">
+        <div className="flex justify-center gap-2 p-1.5 bg-[#E8F0EB] dark:bg-[#14221B] rounded-2xl max-w-xl mx-auto mb-8 border border-[#DCE5DF] dark:border-white/10">
           <button
             onClick={() => setActiveRoleTab('customer')}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
               activeRoleTab === 'customer'
                 ? 'bg-[#116B50] text-white shadow-md'
                 : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
             }`}
           >
-            <Search className="w-4 h-4" /> Xaridor
+            <Search className="w-3.5 h-3.5" /> Xaridor
           </button>
           <button
             onClick={() => setActiveRoleTab('merchant')}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
               activeRoleTab === 'merchant'
                 ? 'bg-[#155E46] text-white shadow-md'
                 : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
             }`}
           >
-            <Store className="w-4 h-4" /> Do‘kon
+            <Store className="w-3.5 h-3.5" /> Do‘kon
+          </button>
+          <button
+            onClick={() => setActiveRoleTab('moderator')}
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
+              activeRoleTab === 'moderator'
+                ? 'bg-[#116B50] text-white shadow-md'
+                : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+            }`}
+          >
+            <ShieldCheck className="w-3.5 h-3.5" /> Moderator
           </button>
           <button
             onClick={() => setActiveRoleTab('admin')}
-            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2.5 text-xs font-bold rounded-xl transition flex items-center justify-center gap-1.5 ${
               activeRoleTab === 'admin'
                 ? 'bg-[#2D6A4F] text-white shadow-md'
                 : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
             }`}
           >
-            <Shield className="w-4 h-4" /> Admin
+            <Shield className="w-3.5 h-3.5" /> Admin
           </button>
         </div>
 
@@ -665,6 +709,15 @@ export function LandingApp() {
               <span>Do‘kon Kabineti</span>
             </a>
             <a
+              href="http://localhost:3004"
+              target="_blank"
+              rel="noreferrer"
+              className="px-6 py-3 rounded-2xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center gap-2 shadow-lg shadow-[#116B50]/30"
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>Moderator Portali</span>
+            </a>
+            <a
               href="http://localhost:3002"
               target="_blank"
               rel="noreferrer"
@@ -687,9 +740,10 @@ export function LandingApp() {
           <span>© 2026 Barcha huquqlar himoyalangan</span>
         </div>
 
-        <div className="flex items-center gap-4 font-semibold text-[11px]">
+        <div className="flex items-center gap-4 font-semibold text-[11px] flex-wrap">
           <a href="http://localhost:3000" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Xaridor Ilovasi</a>
           <a href="http://localhost:3001" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Do‘kon Kabineti</a>
+          <a href="http://localhost:3004" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Moderator Portali</a>
           <a href="http://localhost:3002" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Admin Paneli</a>
           <a href="http://localhost:4000/api/v1/health" target="_blank" rel="noreferrer" className="text-[#116B50] dark:text-[#4ADE80] hover:underline">API Holati</a>
         </div>

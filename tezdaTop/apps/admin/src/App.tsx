@@ -175,6 +175,13 @@ export function AdminApp() {
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL');
 
+  // Auto-switch restricted tabs if Moderator logs in
+  useEffect(() => {
+    if (currentUser?.role === 'MODERATOR' && (activeTab === 'architecture-db' || activeTab === 'api-explorer')) {
+      setActiveTab('overview');
+    }
+  }, [currentUser?.role, activeTab]);
+
   // Modals
   const [selectedApp, setSelectedApp] = useState<StoreType | null>(null);
   const [isAppModalOpen, setIsAppModalOpen] = useState(false);
@@ -188,7 +195,7 @@ export function AdminApp() {
   const [isOrgUsersModalOpen, setIsOrgUsersModalOpen] = useState(false);
   const [isLoadingOrgUsers, setIsLoadingOrgUsers] = useState(false);
 
-  // Add User to Organization Modal
+  // Add User Modal
   const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
   const [newUserForm, setNewUserForm] = useState({
     organizationId: '',
@@ -196,8 +203,8 @@ export function AdminApp() {
     email: '',
     password: 'Pass' + Math.floor(1000 + Math.random() * 9000) + '!',
     phone: '+998 90 ',
-    role: 'OPERATOR' as 'OWNER' | 'MANAGER' | 'OPERATOR',
-    verificationMethod: 'TELEGRAM' as 'TELEGRAM' | 'SMS',
+    role: 'OPERATOR' as 'ADMIN' | 'MODERATOR' | 'OWNER' | 'MANAGER' | 'OPERATOR' | 'CUSTOMER',
+    verificationMethod: 'TELEGRAM' as 'TELEGRAM',
     autoVerify: false
   });
 
@@ -446,8 +453,11 @@ export function AdminApp() {
 
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    const isModeratorUser = currentUser?.role === 'MODERATOR';
+    const isSystemRole = ['ADMIN', 'SUPERADMIN', 'MODERATOR', 'CUSTOMER'].includes(newUserForm.role);
     const orgId = newUserForm.organizationId || (selectedOrgForUsers ? selectedOrgForUsers.id : organizations[0]?.id);
-    if (!orgId) {
+
+    if (!isSystemRole && !orgId) {
       showToast('Tashkilot tanlanishi shart');
       return;
     }
@@ -456,12 +466,20 @@ export function AdminApp() {
       return;
     }
 
+    // Role creation security check for moderators
+    if (isModeratorUser && ['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(newUserForm.role)) {
+      showToast('Moderator faqat do‘kon xodimlari va xaridorlarni qo‘sha oladi');
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/v1/admin/organizations/${orgId}/users`, {
+      const endpoint = isSystemRole ? '/api/v1/admin/users' : `/api/v1/admin/organizations/${orgId}/users`;
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...newUserForm,
+          organizationId: isSystemRole ? undefined : orgId,
           phone: newUserForm.phone.trim()
         })
       });
@@ -880,17 +898,20 @@ export function AdminApp() {
                 id: 'architecture-db',
                 label: 'Arxitektura & DB Explorer',
                 icon: Cpu,
-                isSpecial: true
+                isSpecial: true,
+                adminOnly: true
               },
               { id: 'roles-guide', label: 'Rollar & Yo‘riqnoma', icon: Shield },
               { id: 'organizations', label: 'Tashkilotlar va Do‘konlar', icon: Building2, count: stores.length },
-              { id: 'api-explorer', label: 'API Explorer (Postman)', icon: Terminal },
+              { id: 'api-explorer', label: 'API Explorer (Postman)', icon: Terminal, adminOnly: true },
               { id: 'applications', label: 'Do‘kon arizalari', icon: Store, badge: overviewStats.pendingApps },
               { id: 'reports', label: 'Shikoyatlar navbati', icon: AlertTriangle, badge: overviewStats.openReports },
               { id: 'reviews', label: 'Sharhlar moderatsiyasi', icon: MessageSquare },
               { id: 'users', label: 'Foydalanuvchilar', icon: Users },
               { id: 'audit', label: 'Tizim auditi', icon: ShieldCheck }
-            ].map((item) => {
+            ]
+              .filter(item => !item.adminOnly || currentUser?.role !== 'MODERATOR')
+              .map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -967,8 +988,8 @@ export function AdminApp() {
             />
           )}
 
-          {/* ARCHITECTURE & DATABASE EXPLORER TAB */}
-          {activeTab === 'architecture-db' && (
+          {/* ARCHITECTURE & DATABASE EXPLORER TAB (ADMIN ONLY) */}
+          {activeTab === 'architecture-db' && currentUser?.role !== 'MODERATOR' && (
             <ArchitectureAndDbViewer />
           )}
 
@@ -1019,10 +1040,12 @@ export function AdminApp() {
               <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-6 shadow-sm">
                 <h2 className="text-base font-bold text-[#172C28] dark:text-white mb-3">Tezkor amallar</h2>
                 <div className="flex flex-wrap gap-3">
-                  <Button variant="primary" size="sm" onClick={() => setActiveTab('api-explorer')} className="bg-[#116B50] flex items-center gap-1.5">
-                    <Terminal className="w-4 h-4" />
-                    API Explorer (Postman Visual) ni ochish →
-                  </Button>
+                  {currentUser?.role !== 'MODERATOR' && (
+                    <Button variant="primary" size="sm" onClick={() => setActiveTab('api-explorer')} className="bg-[#116B50] flex items-center gap-1.5">
+                      <Terminal className="w-4 h-4" />
+                      API Explorer (Postman Visual) ni ochish →
+                    </Button>
+                  )}
                   <Button variant="secondary" size="sm" onClick={() => setActiveTab('organizations')}>
                     Do‘kon va tashkilotlarni boshqarish →
                   </Button>
@@ -1364,8 +1387,8 @@ export function AdminApp() {
             </div>
           )}
 
-          {/* API EXPLORER / POSTMAN TAB */}
-          {activeTab === 'api-explorer' && (
+          {/* API EXPLORER / POSTMAN TAB (ADMIN ONLY) */}
+          {activeTab === 'api-explorer' && currentUser?.role !== 'MODERATOR' && (
             <ApiExplorer />
           )}
 
@@ -2377,29 +2400,40 @@ export function AdminApp() {
       <Modal
         isOpen={isAddUserModalOpen}
         onClose={() => setIsAddUserModalOpen(false)}
-        title="Tashkilotga yangi foydalanuvchi va login/parol qo‘shish"
+        title="Yangi foydalanuvchi va hisob qo‘shish"
       >
         <form onSubmit={handleCreateUser} className="flex flex-col gap-4 text-xs">
-          {/* Organization selector */}
-          <div>
-            <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tashkilot *</label>
-            <select
-              required
-              value={newUserForm.organizationId || (selectedOrgForUsers ? selectedOrgForUsers.id : organizations[0]?.id || '')}
-              onChange={(e) => setNewUserForm({ ...newUserForm, organizationId: e.target.value })}
-              className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
-            >
-              {organizations.map((org) => (
-                <option key={org.id} value={org.id}>
-                  {org.name} ({org.type})
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Organization selector (Only for merchant branch roles) */}
+          {!['ADMIN', 'SUPERADMIN', 'MODERATOR', 'CUSTOMER'].includes(newUserForm.role) ? (
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tashkilot *</label>
+              <select
+                required
+                value={newUserForm.organizationId || (selectedOrgForUsers ? selectedOrgForUsers.id : organizations[0]?.id || '')}
+                onChange={(e) => setNewUserForm({ ...newUserForm, organizationId: e.target.value })}
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              >
+                {organizations.map((org) => (
+                  <option key={org.id} value={org.id}>
+                    {org.name} ({org.type})
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 text-xs text-blue-900 dark:text-blue-200 flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+              <span>
+                {newUserForm.role === 'CUSTOMER'
+                  ? 'Xaridor hisobi alohida savdo tashkilotiga bog‘lanmaydi.'
+                  : 'Admin va Moderator rollari butun platforma bo‘yicha amal qiladi va alohida savdo tashkilotiga bog‘lanmaydi.'}
+              </span>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Xodim F.I.Sh *</label>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">F.I.Sh *</label>
               <input
                 type="text"
                 required
@@ -2431,21 +2465,28 @@ export function AdminApp() {
                 required
                 value={newUserForm.email}
                 onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                placeholder="sardor@korzinka.uz"
+                placeholder="sardor@yaqintop.uz"
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
 
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Roli</label>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Roli *</label>
               <select
                 value={newUserForm.role}
                 onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value as any })}
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
               >
+                {currentUser?.role !== 'MODERATOR' && (
+                  <>
+                    <option value="ADMIN">Platforma Administratori (ADMIN)</option>
+                    <option value="MODERATOR">Moderatsiya Mutaxassisi (MODERATOR)</option>
+                  </>
+                )}
                 <option value="OWNER">Do‘kon egasi (OWNER)</option>
                 <option value="MANAGER">Menejer / Boshqaruvchi (MANAGER)</option>
                 <option value="OPERATOR">Kassir / Operator (OPERATOR)</option>
+                <option value="CUSTOMER">Xaridor (CUSTOMER)</option>
               </select>
             </div>
           </div>
@@ -2483,16 +2524,16 @@ export function AdminApp() {
               </button>
             </div>
             <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">
-              Ushbu parol bilan xodim o‘z kabinetiga (localhost:3001) kira oladi.
+              Ushbu parol bilan foydalanuvchi tizimga kira oladi.
             </span>
           </div>
 
-          {/* Verification Method Selection */}
+          {/* Verification Method Selection (Telegram and Direct Auto-verify only, SMS removed) */}
           <div>
             <label className="font-semibold block mb-2 text-[#172C28] dark:text-[#E8F2EC]">
-              Tasdiqlash usuli (SMS / Telegram)
+              Tasdiqlash usuli
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <label
                 className={`p-3 rounded-xl border cursor-pointer flex flex-col gap-1 transition ${
                   newUserForm.verificationMethod === 'TELEGRAM' && !newUserForm.autoVerify
@@ -2511,29 +2552,7 @@ export function AdminApp() {
                   <span>✈️ Telegram</span>
                 </div>
                 <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
-                  Telegram bot orqali tasdiqlash kodi yuboriladi
-                </span>
-              </label>
-
-              <label
-                className={`p-3 rounded-xl border cursor-pointer flex flex-col gap-1 transition ${
-                  newUserForm.verificationMethod === 'SMS' && !newUserForm.autoVerify
-                    ? 'border-[#116B50] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
-                    : 'border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-bold">
-                  <input
-                    type="radio"
-                    name="verifMethod"
-                    checked={newUserForm.verificationMethod === 'SMS' && !newUserForm.autoVerify}
-                    onChange={() => setNewUserForm({ ...newUserForm, verificationMethod: 'SMS', autoVerify: false })}
-                    className="accent-[#116B50]"
-                  />
-                  <span>💬 SMS</span>
-                </div>
-                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
-                  Telefon raqamiga 6 xonali SMS kod yuboriladi
+                  Telegram bot orqali 6 xonali tasdiqlash kodi yuboriladi
                 </span>
               </label>
 
@@ -2552,10 +2571,10 @@ export function AdminApp() {
                     onChange={() => setNewUserForm({ ...newUserForm, autoVerify: true })}
                     className="accent-[#116B50]"
                   />
-                  <span>⚡ Darhol faol</span>
+                  <span>⚡ Darhol faollashtirish</span>
                 </div>
                 <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
-                  Kodsiz darhol faollashtirish
+                  Kodsiz, hisob to‘g‘ridan-to‘g‘ri tasdiqlanadi va faollashtiriladi
                 </span>
               </label>
             </div>

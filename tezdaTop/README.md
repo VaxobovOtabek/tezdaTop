@@ -3,10 +3,12 @@
 YaqinTop — foydalanuvchilar o‘zlariga yaqin hududdagi (50 metrdan 3 km gacha) do‘konlardan kerakli tovarlarni, ularning narxini, ombordagi qoldig‘ini va yangilanish vaqtini topishlari hamda do‘konlar o‘z operatsiyalarini (kirim, sotuv, qaytarish, hisobotlar) yuritishlari uchun mo‘ljallangan to‘liq full-stack platformadir.
 
 Loyiha pnpm workspace monorepo sifatida ishlab chiqilgan:
-- `apps/customer`: Xaridorlar uchun responsiv veb ilova (React + TypeScript + Vite)
-- `apps/merchant`: Do‘kon boshqaruvi paneli (React + TypeScript + Vite)
-- `apps/admin`: Administrator va moderatsiya portali (React + TypeScript + Vite)
-- `apps/api`: REST API backend (Node.js LTS + TypeScript + Express)
+- `apps/customer`: Xaridorlar uchun responsiv veb ilova (React + TypeScript + Vite) — `http://localhost:3000`
+- `apps/merchant`: Do‘kon boshqaruvi paneli (React + TypeScript + Vite) — `http://localhost:3001`
+- `apps/admin`: Administrator portali (React + TypeScript + Vite) — `http://localhost:3002`
+- `apps/moderator`: Moderatsiya portali (React + TypeScript + Vite) — `http://localhost:3004`
+- `apps/landing`: Rasmiy lending sahifasi — `http://localhost:3003`
+- `apps/api`: REST API backend (Node.js LTS + TypeScript + Express) — `http://localhost:4000`
 - `packages/ui`: Umumiy foydalaniladigan vizual komponentlar to‘plami
 - `packages/contracts`: Zod sxemalari, TypeScript turlari va DTO modellari
 - `packages/config`: TypeScript va Tailwind umumiy konfiguratsiyalari
@@ -74,6 +76,12 @@ pnpm dev:merchant
 
 # Administrator portali (port 3002):
 pnpm dev:admin
+
+# Moderator portali (port 3004):
+pnpm dev:moderator
+
+# Landing sahifasi (port 3003):
+pnpm dev:landing
 ```
 
 ---

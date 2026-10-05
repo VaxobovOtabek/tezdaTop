@@ -31,9 +31,12 @@ export const UserSchema = z.object({
 export type User = z.infer<typeof UserSchema>;
 
 export const LoginRequestSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6)
-});
+  email: z.string().min(1).optional(),
+  login: z.string().min(1).optional(),
+  username: z.string().min(1).optional(),
+  phone: z.string().min(1).optional(),
+  password: z.string().min(1)
+}).passthrough();
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
 export const RegisterRequestSchema = z.object({

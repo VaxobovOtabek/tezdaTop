@@ -2,24 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --green: #116B50;
-  --ink: #172C28;
-  --muted: #566A63;
-  --bg: #F3F6F3;
-  --line: #DCE5DF;
-  --amber: #8A4B08;
+@layer base {
+  :root {
+    --color-forest: #116B50;
+    --color-pine: #172C28;
+    --color-sand: #F3F6F3;
+    --color-card: #FFFFFF;
+    --color-border: #DCE5DF;
+  }
 }
 
 body {
-  font-family: Inter, system-ui, -apple-system, sans-serif;
-  background-color: var(--bg);
-  color: var(--ink);
-}
-
-button:focus-visible, input:focus-visible, select:focus-visible {
-  outline: 3px solid #d59536;
-  outline-offset: 2px;
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--color-sand);
+  color: var(--color-pine);
+  -webkit-font-smoothing: antialiased;
 }
 
 .leaflet-container {

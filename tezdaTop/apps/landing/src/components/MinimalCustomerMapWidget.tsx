@@ -138,11 +138,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         attributionControl: false
       });
 
-      const tileUrl = isDarkMode
-        ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-        : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-      const tileLayer = L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
+      const tileLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
       tileLayerRef.current = tileLayer;
 
       const markersLayer = L.layerGroup().addTo(map);
@@ -191,21 +187,11 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
     };
   }, []);
 
-  // Update Tile Layer on Theme Change
+  // Update layout on Theme Change
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-
-    if (tileLayerRef.current) {
-      map.removeLayer(tileLayerRef.current);
-    }
-
-    const tileUrl = isDarkMode
-      ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-
-    const newLayer = L.tileLayer(tileUrl, { maxZoom: 19 }).addTo(map);
-    tileLayerRef.current = newLayer;
+    setTimeout(() => map.invalidateSize(), 50);
   }, [isDarkMode]);
 
   // Update Search Radius Circle
