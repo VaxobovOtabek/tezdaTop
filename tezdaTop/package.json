@@ -1,0 +1,21 @@
+{
+  "name": "yaqintop-monorepo",
+  "version": "1.0.0",
+  "packageManager": "pnpm@12.9.1",
+  "private": true,
+  "description": "YaqinTop local product discovery and merchant operations platform for Uzbekistan",
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:api": "pnpm --filter @yaqintop/api dev",
+    "dev:customer": "pnpm --filter @yaqintop/customer dev",
+    "dev:merchant": "pnpm --filter @yaqintop/merchant dev",
+    "dev:admin": "pnpm --filter @yaqintop/admin dev",
+    "build": "pnpm -r build",
+    "test": "pnpm --filter @yaqintop/api test",
+    "test:all": "pnpm -r test",
+    "lint": "pnpm -r lint"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}
