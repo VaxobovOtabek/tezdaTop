@@ -754,6 +754,223 @@ app.get('/api/v1/admin/audit', (req, res) => {
   res.json({ auditLogs: db.auditLogs.slice(-50).reverse() });
 });
 
+// ================= ADMIN ORGANIZATIONS & STORES =================
+app.get('/api/v1/admin/organizations', (req, res) => {
+  const orgs = Array.from(db.organizations.values()).map(org => {
+    const stores = Array.from(db.stores.values()).filter(s => s.organizationId === org.id);
+    return {
+      ...org,
+      stores
+    };
+  });
+  res.json({ organizations: orgs });
+});
+
+app.post('/api/v1/admin/organizations', (req, res) => {
+  const { name, type = 'RETAIL', status = 'ACTIVE', storeName, address, phone, lat, lng, hours, photoUrl } = req.body;
+  if (!name) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Tashkilot nomi kiritilishi shart' });
+    return;
+  }
+
+  const orgId = uuidv4();
+  const newOrg = {
+    id: orgId,
+    name,
+    type,
+    status: status || 'ACTIVE',
+    createdAt: new Date().toISOString()
+  };
+  db.organizations.set(orgId, newOrg);
+
+  let newStore = null;
+  if (storeName || address) {
+    const storeId = uuidv4();
+    newStore = {
+      id: storeId,
+      organizationId: orgId,
+      name: storeName || name,
+      address: address || 'Toshkent shahri',
+      phone: phone || '+998 90 123 45 67',
+      location: {
+        lat: parseFloat(lat || '41.311081'),
+        lng: parseFloat(lng || '69.240562')
+      },
+      rating: 5.0,
+      reviewCount: 0,
+      isVerified: true,
+      status: 'ACTIVE' as const,
+      type: type,
+      photoUrl: photoUrl || '',
+      hours: hours || [
+        { dayOfWeek: 1, openTime: '08:00', closeTime: '22:00', isClosed: false },
+        { dayOfWeek: 2, openTime: '08:00', closeTime: '22:00', isClosed: false },
+        { dayOfWeek: 3, openTime: '08:00', closeTime: '22:00', isClosed: false },
+        { dayOfWeek: 4, openTime: '08:00', closeTime: '22:00', isClosed: false },
+        { dayOfWeek: 5, openTime: '08:00', closeTime: '22:00', isClosed: false },
+        { dayOfWeek: 6, openTime: '08:00', closeTime: '22:00', isClosed: false },
+        { dayOfWeek: 0, openTime: '09:00', closeTime: '21:00', isClosed: false }
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.stores.set(storeId, newStore);
+  }
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: SEED_IDS.adminUserId,
+    actorEmail: 'admin@yaqintop.uz',
+    action: 'CREATE_ORGANIZATION',
+    entityType: 'ORGANIZATION',
+    entityId: orgId,
+    diff: { name, type, storeId: newStore?.id },
+    timestamp: new Date().toISOString()
+  });
+
+  res.status(201).json({ organization: newOrg, store: newStore });
+});
+
+app.get('/api/v1/admin/stores', (req, res) => {
+  const stores = Array.from(db.stores.values()).map(s => {
+    const org = db.organizations.get(s.organizationId);
+    return {
+      ...s,
+      organizationName: org?.name || 'Noma‘lum tashkilot'
+    };
+  });
+  res.json({ stores });
+});
+
+app.post('/api/v1/admin/stores', (req, res) => {
+  const { organizationId, name, address, phone, lat, lng, hours, photoUrl, status = 'ACTIVE', isVerified = true, type = 'RETAIL' } = req.body;
+  if (!name || !address) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Do‘kon nomi va manzili kiritilishi shart' });
+    return;
+  }
+
+  let orgId = organizationId;
+  if (!orgId || !db.organizations.has(orgId)) {
+    const firstOrg = Array.from(db.organizations.values())[0];
+    orgId = firstOrg ? firstOrg.id : uuidv4();
+    if (!firstOrg) {
+      db.organizations.set(orgId, {
+        id: orgId,
+        name: name + ' MChJ',
+        type: 'RETAIL',
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  const storeId = uuidv4();
+  const store = {
+    id: storeId,
+    organizationId: orgId,
+    name,
+    address,
+    phone: phone || '+998 90 000 00 00',
+    location: {
+      lat: parseFloat(lat || '41.311081'),
+      lng: parseFloat(lng || '69.240562')
+    },
+    rating: 5.0,
+    reviewCount: 0,
+    isVerified: isVerified !== false,
+    status: status || 'ACTIVE',
+    type: type || 'RETAIL',
+    photoUrl: photoUrl || '',
+    hours: hours || [
+      { dayOfWeek: 1, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 2, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 3, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 4, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 5, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 6, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 0, openTime: '09:00', closeTime: '21:00', isClosed: false }
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.stores.set(storeId, store);
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: SEED_IDS.adminUserId,
+    actorEmail: 'admin@yaqintop.uz',
+    action: 'CREATE_STORE',
+    entityType: 'STORE',
+    entityId: storeId,
+    diff: { name, address, location: store.location },
+    timestamp: new Date().toISOString()
+  });
+
+  res.status(201).json({ store });
+});
+
+app.patch('/api/v1/admin/stores/:id', (req, res) => {
+  const store = db.stores.get(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const { name, address, phone, location, hours, photoUrl, status, isVerified, type } = req.body;
+  if (name !== undefined) store.name = name;
+  if (address !== undefined) store.address = address;
+  if (phone !== undefined) store.phone = phone;
+  if (location !== undefined) {
+    store.location = {
+      lat: parseFloat(location.lat),
+      lng: parseFloat(location.lng)
+    };
+  }
+  if (hours !== undefined) store.hours = hours;
+  if (photoUrl !== undefined) store.photoUrl = photoUrl;
+  if (status !== undefined) store.status = status;
+  if (isVerified !== undefined) store.isVerified = isVerified;
+  if (type !== undefined) store.type = type;
+  store.updatedAt = new Date().toISOString();
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: SEED_IDS.adminUserId,
+    actorEmail: 'admin@yaqintop.uz',
+    action: 'UPDATE_STORE',
+    entityType: 'STORE',
+    entityId: store.id,
+    diff: req.body,
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({ store });
+});
+
+app.delete('/api/v1/admin/stores/:id', (req, res) => {
+  const store = db.stores.get(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  store.status = 'SUSPENDED';
+  store.updatedAt = new Date().toISOString();
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: SEED_IDS.adminUserId,
+    actorEmail: 'admin@yaqintop.uz',
+    action: 'SUSPEND_STORE',
+    entityType: 'STORE',
+    entityId: store.id,
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({ success: true, store });
+});
+
 // Seed database on startup
 seedDatabase().then(() => {
   app.listen(PORT, () => {

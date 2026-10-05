@@ -17,13 +17,33 @@ import {
   MessageSquare,
   AlertOctagon,
   Layers,
-  X
+  X,
+  Moon,
+  Sun
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
 import { InteractiveMap } from './components/InteractiveMap';
 
 export function CustomerApp() {
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    return localStorage.getItem('yaqintop_theme') === 'dark';
+  });
+
+  const toggleDarkMode = () => {
+    const next = !isDarkMode;
+    setIsDarkMode(next);
+    localStorage.setItem('yaqintop_theme', next ? 'dark' : 'light');
+  };
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   const [userLocation, setUserLocation] = useState({ lat: 41.311081, lng: 69.240562 });
   const [view, setView] = useState<'search' | 'detail' | 'route' | 'saved' | 'profile'>('search');
   const [mobileTab, setMobileTab] = useState<'xarita' | 'royxat'>('xarita');
@@ -171,16 +191,16 @@ export function CustomerApp() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F3F6F3] text-[#172C28] font-sans antialiased">
+    <div className={`h-screen w-screen flex flex-col font-sans antialiased overflow-hidden transition-colors ${isDarkMode ? 'dark bg-[#0E1713] text-[#E8F2EC]' : 'bg-[#F3F6F3] text-[#172C28]'}`}>
       {/* Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#172C28] text-white px-5 py-3 rounded-xl shadow-lg text-sm font-medium animate-in fade-in">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#172C28] dark:bg-[#1E3328] text-white dark:text-[#E8F2EC] px-5 py-3 rounded-xl shadow-lg text-sm font-medium animate-in fade-in border border-transparent dark:border-[#2E483A]">
           {toastMessage}
         </div>
       )}
 
       {/* Top Header */}
-      <header className="h-[68px] bg-white border-b border-[#DCE5DF] px-4 md:px-8 flex items-center justify-between sticky top-0 z-30">
+      <header className="h-[68px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
         <div className="flex items-center gap-3">
           <div
             onClick={() => setView('search')}
@@ -189,17 +209,27 @@ export function CustomerApp() {
             <div className="w-8 h-9 bg-[#116B50] rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl-sm flex items-center justify-center text-white font-extrabold text-xl shadow-sm">
               Y
             </div>
-            <span className="font-extrabold text-2xl tracking-tight text-[#172C28]">YaqinTop</span>
+            <span className="font-extrabold text-2xl tracking-tight text-[#172C28] dark:text-white">YaqinTop</span>
           </div>
-          <span className="text-xs text-[#566A63] hidden md:inline-block ml-2 border-l border-[#DCE5DF] pl-3">
+          <span className="text-xs text-[#566A63] dark:text-[#8B9E95] hidden md:inline-block ml-2 border-l border-[#DCE5DF] dark:border-[#22332C] pl-3">
             Toshkent · Pilot hudud
           </span>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
+          {/* Dark / Light Mode Toggle */}
+          <button
+            onClick={toggleDarkMode}
+            title={isDarkMode ? "Yorug' tema" : "Qorong'i tema"}
+            className="px-3 py-2 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center gap-1.5 text-xs font-semibold"
+          >
+            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
+            <span className="hidden sm:inline">{isDarkMode ? "Yorug'" : "Qorong'i"}</span>
+          </button>
+
           <button
             onClick={() => setIsLoginModalOpen(true)}
-            className="text-sm font-semibold px-4 py-2 rounded-lg border border-[#DCE5DF] bg-white hover:bg-[#EDF5F0] transition"
+            className="text-sm font-semibold px-4 py-2 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition"
           >
             Profil
           </button>
@@ -207,22 +237,21 @@ export function CustomerApp() {
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 flex flex-col md:flex-row relative overflow-hidden">
+      <main className="flex-1 flex flex-col md:flex-row relative overflow-hidden h-[calc(100vh-68px)]">
         {/* Left Column / Mobile Results */}
         <section
-          className={`w-full md:w-[420px] lg:w-[450px] bg-white border-r border-[#DCE5DF] flex flex-col overflow-y-auto ${
+          className={`w-full md:w-[420px] lg:w-[450px] bg-white dark:bg-[#14201A] border-r border-[#DCE5DF] dark:border-[#22332C] flex flex-col overflow-y-auto h-full ${
             mobileTab === 'xarita' && view === 'search' ? 'hidden md:flex' : 'flex'
           }`}
-          style={{ maxHeight: 'calc(100vh - 68px)' }}
         >
           {view === 'search' && (
             <div className="p-5 flex flex-col gap-4">
               {/* Search Box */}
               <div>
-                <span className="text-[11px] font-bold text-[#116B50] uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] uppercase tracking-wider">
                   Yaqiningizdan toping
                 </span>
-                <h1 className="text-2xl font-bold tracking-tight text-[#172C28] mt-1 mb-3">
+                <h1 className="text-2xl font-bold tracking-tight text-[#172C28] dark:text-white mt-1 mb-3">
                   Kerakli tovar. Yaqin do‘kon.
                 </h1>
                 <div className="flex gap-2">
@@ -233,7 +262,7 @@ export function CustomerApp() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && doSearch()}
                       placeholder="Mahsulot nomi, masalan: snikers"
-                      className="w-full h-11 pl-3.5 pr-8 bg-[#F3F6F3] border border-[#DCE5DF] rounded-xl text-sm text-[#172C28] focus:bg-white"
+                      className="w-full h-11 pl-3.5 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E]"
                     />
                     {searchQuery && (
                       <button
@@ -241,7 +270,7 @@ export function CustomerApp() {
                           setSearchQuery('');
                           doSearch();
                         }}
-                        className="absolute right-2.5 top-3 text-[#566A63] hover:text-[#172C28]"
+                        className="absolute right-2.5 top-3 text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -254,10 +283,10 @@ export function CustomerApp() {
               </div>
 
               {/* Radius Control */}
-              <div className="bg-[#F9FAF9] p-3.5 rounded-xl border border-[#DCE5DF]">
+              <div className="bg-[#F9FAF9] dark:bg-[#1A2822] p-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36]">
                 <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-[#566A63] font-medium">Qidiruv radiusi:</span>
-                  <strong className="text-sm text-[#116B50] font-bold">
+                  <span className="text-[#566A63] dark:text-[#8B9E95] font-medium">Qidiruv radiusi:</span>
+                  <strong className="text-sm text-[#116B50] dark:text-[#4ADE80] font-bold">
                     {radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`}
                   </strong>
                 </div>
@@ -268,7 +297,7 @@ export function CustomerApp() {
                   step="50"
                   value={radiusM}
                   onChange={(e) => setRadiusM(Number(e.target.value))}
-                  className="w-full accent-[#116B50] cursor-pointer"
+                  className="w-full accent-[#116B50] dark:accent-[#4ADE80] cursor-pointer"
                 />
                 <div className="flex justify-between gap-1 mt-2">
                   {[100, 500, 1000, 3000].map((r) => (
@@ -277,8 +306,8 @@ export function CustomerApp() {
                       onClick={() => setRadiusM(r)}
                       className={`text-[11px] px-2.5 py-1 rounded-md border ${
                         radiusM === r
-                          ? 'bg-[#116B50] text-white border-[#116B50] font-semibold'
-                          : 'bg-white text-[#566A63] border-[#DCE5DF] hover:bg-[#F3F6F3]'
+                          ? 'bg-[#116B50] dark:bg-[#4ADE80] text-white dark:text-[#0E1713] border-[#116B50] dark:border-[#4ADE80] font-bold'
+                          : 'bg-white dark:bg-[#14201A] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328]'
                       }`}
                     >
                       {r >= 1000 ? `${r / 1000} km` : `${r} m`}
@@ -293,8 +322,8 @@ export function CustomerApp() {
                   onClick={() => setOpenNow(!openNow)}
                   className={`text-xs px-3 py-1.5 rounded-lg border font-medium whitespace-nowrap transition ${
                     openNow
-                      ? 'bg-[#E0EFE7] text-[#116B50] border-[#116B50]'
-                      : 'bg-white text-[#172C28] border-[#DCE5DF]'
+                      ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] border-[#116B50] dark:border-[#4ADE80]'
+                      : 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] border-[#DCE5DF] dark:border-[#2A3F36]'
                   }`}
                 >
                   Hozir ochiq
@@ -303,8 +332,8 @@ export function CustomerApp() {
                   onClick={() => setInStock(!inStock)}
                   className={`text-xs px-3 py-1.5 rounded-lg border font-medium whitespace-nowrap transition ${
                     inStock
-                      ? 'bg-[#E0EFE7] text-[#116B50] border-[#116B50]'
-                      : 'bg-white text-[#172C28] border-[#DCE5DF]'
+                      ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] border-[#116B50] dark:border-[#4ADE80]'
+                      : 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] border-[#DCE5DF] dark:border-[#2A3F36]'
                   }`}
                 >
                   Mavjud
@@ -313,33 +342,33 @@ export function CustomerApp() {
                   onClick={() => setFreshOnly(!freshOnly)}
                   className={`text-xs px-3 py-1.5 rounded-lg border font-medium whitespace-nowrap transition ${
                     freshOnly
-                      ? 'bg-[#E0EFE7] text-[#116B50] border-[#116B50]'
-                      : 'bg-white text-[#172C28] border-[#DCE5DF]'
+                      ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] border-[#116B50] dark:border-[#4ADE80]'
+                      : 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] border-[#DCE5DF] dark:border-[#2A3F36]'
                   }`}
                 >
                   Faqat yangi
                 </button>
                 <button
                   onClick={() => setIsFilterModalOpen(true)}
-                  className="text-xs px-3 py-1.5 rounded-lg border border-[#DCE5DF] bg-white text-[#172C28] flex items-center gap-1 hover:bg-[#F3F6F3]"
+                  className="text-xs px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1 hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328]"
                 >
                   <Filter className="w-3 h-3" /> Filtrlar
                 </button>
               </div>
 
               {/* Result Meta */}
-              <div className="flex items-center justify-between text-xs text-[#566A63] border-b border-[#DCE5DF] pb-2">
-                <span className="font-semibold text-[#172C28]">
+              <div className="flex items-center justify-between text-xs text-[#566A63] dark:text-[#8B9E95] border-b border-[#DCE5DF] dark:border-[#2A3F36] pb-2">
+                <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">
                   {results.length} ta do‘kon topildi
                 </span>
                 <select
                   value={selectedSort}
                   onChange={(e: any) => setSelectedSort(e.target.value)}
-                  className="bg-transparent text-[#116B50] font-semibold text-xs border-none outline-none cursor-pointer"
+                  className="bg-transparent text-[#116B50] dark:text-[#4ADE80] font-semibold text-xs border-none outline-none cursor-pointer"
                 >
-                  <option value="relevance">Eng mos ▾</option>
-                  <option value="distance">Eng yaqin ▾</option>
-                  <option value="price">Eng arzon ▾</option>
+                  <option value="relevance" className="dark:bg-[#14201A]">Eng mos ▾</option>
+                  <option value="distance" className="dark:bg-[#14201A]">Eng yaqin ▾</option>
+                  <option value="price" className="dark:bg-[#14201A]">Eng arzon ▾</option>
                 </select>
               </div>
 
@@ -353,15 +382,15 @@ export function CustomerApp() {
                       onClick={() => handleSelectStore(item)}
                       className={`p-4 rounded-2xl border transition-all cursor-pointer ${
                         isSelected
-                          ? 'border-2 border-[#116B50] bg-[#F6FBF7] shadow-sm'
-                          : 'border-[#DCE5DF] bg-white hover:border-[#116B50]/40'
+                          ? 'border-2 border-[#116B50] dark:border-[#4ADE80] bg-[#F6FBF7] dark:bg-[#1B2F25] shadow-sm'
+                          : 'border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] hover:border-[#116B50]/40'
                       }`}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <h3 className="font-bold text-base text-[#172C28]">{item.store.name}</h3>
-                          <div className="flex items-center gap-2 text-xs text-[#566A63] mt-0.5">
-                            <span className={item.isOpenNow ? 'text-[#116B50] font-semibold' : 'text-[#B42318]'}>
+                          <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{item.store.name}</h3>
+                          <div className="flex items-center gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                            <span className={item.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] font-semibold' : 'text-[#B42318] dark:text-[#F87171]'}>
                               {item.isOpenNow ? '● Ochiq' : '○ Yopiq'}
                             </span>
                             <span>·</span>
@@ -378,14 +407,14 @@ export function CustomerApp() {
                       </div>
 
                       {/* Best Offer */}
-                      <div className="my-3 p-3 bg-[#F9FAF9] rounded-xl flex items-center justify-between border border-[#DCE5DF]/60">
+                      <div className="my-3 p-3 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-xl flex items-center justify-between border border-[#DCE5DF]/60 dark:border-[#2A3F36]">
                         <div>
-                          <span className="text-xs font-semibold text-[#172C28]">
+                          <span className="text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
                             {item.bestOffer.variant.title}
                           </span>
-                          <div className="text-xl font-extrabold text-[#116B50] mt-0.5">
+                          <div className="text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] mt-0.5">
                             {Number(item.bestOffer.price).toLocaleString('uz-UZ')}{' '}
-                            <span className="text-xs font-normal text-[#566A63]">so‘m / {item.bestOffer.variant.packUnit}</span>
+                            <span className="text-xs font-normal text-[#566A63] dark:text-[#8B9E95]">so‘m / {item.bestOffer.variant.packUnit}</span>
                           </div>
                         </div>
                         <div className="text-right">
@@ -402,7 +431,7 @@ export function CustomerApp() {
                               ? `${item.bestOffer.stockOnHand} dona`
                               : 'Tugagan'}
                           </Tag>
-                          <div className="text-[10px] text-[#566A63] mt-1">
+                          <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1">
                             {item.bestOffer.freshness === 'NEW'
                               ? '10 daqiqa oldin'
                               : item.bestOffer.freshness === 'STALE'
@@ -413,12 +442,12 @@ export function CustomerApp() {
                       </div>
 
                       {item.otherMatchingOfferCount > 0 && (
-                        <p className="text-xs text-[#566A63] mb-3">
+                        <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mb-3">
                           Yana {item.otherMatchingOfferCount} ta mos variant
                         </p>
                       )}
 
-                      <div className="flex items-center gap-2 pt-2 border-t border-[#DCE5DF]/60">
+                      <div className="flex items-center gap-2 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#2A3F36]">
                         <Button
                           variant="primary"
                           size="sm"
@@ -675,7 +704,7 @@ export function CustomerApp() {
 
         {/* Map Section (Desktop right side & Mobile Map view) */}
         <section
-          className={`flex-1 relative bg-[#EDF0E6] overflow-hidden min-h-[500px] flex flex-col ${
+          className={`flex-1 relative bg-[#EDF0E6] dark:bg-[#0E1713] overflow-hidden h-full flex flex-col ${
             mobileTab === 'royxat' && view === 'search' ? 'hidden md:flex' : 'flex'
           }`}
         >
@@ -689,60 +718,24 @@ export function CustomerApp() {
             onNavigate={(item) => fetchRoute(item.store, routeMode)}
             routeData={routeData}
             view={view}
+            isDarkMode={isDarkMode}
             onLocationChange={(lat, lng) => {
               setUserLocation({ lat, lng });
             }}
             onToast={showToast}
           />
-
-          {/* Mobile Bottom Floating Card */}
-          {selectedResult && view === 'search' && (
-            <div className="md:hidden absolute bottom-20 left-4 right-4 bg-white/95 backdrop-blur-md rounded-2xl p-4 shadow-xl border border-[#DCE5DF] z-20">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-bold text-sm text-[#172C28]">{selectedResult.store.name}</h3>
-                  <span className="text-xs text-[#566A63]">{selectedResult.bestOffer.variant.title}</span>
-                </div>
-                <div className="text-right">
-                  <span className="text-base font-extrabold text-[#116B50]">
-                    {Number(selectedResult.bestOffer.price).toLocaleString('uz-UZ')} so‘m
-                  </span>
-                  <div className="text-[11px] text-[#566A63]">
-                    {selectedResult.bestOffer.stockOnHand} dona · {selectedResult.distanceM} m
-                  </div>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-3">
-                <Button
-                  variant="primary"
-                  size="sm"
-                  fullWidth
-                  onClick={() => handleOpenDetail(selectedResult)}
-                >
-                  Do‘konni ko‘rish
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => fetchRoute(selectedResult.store, routeMode)}
-                >
-                  <Navigation className="w-3.5 h-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
         </section>
       </main>
 
-      {/* Mobile Bottom Navigation (Matching Screenshot) */}
-      <nav className="md:hidden h-16 bg-white border-t border-[#DCE5DF] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40">
+      {/* Mobile Bottom Navigation */}
+      <nav className="md:hidden h-16 bg-white dark:bg-[#14201A] border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40">
         <button
           onClick={() => {
             setView('search');
             setMobileTab('xarita');
           }}
           className={`flex flex-col items-center gap-1 text-[11px] font-semibold ${
-            view === 'search' ? 'text-[#116B50]' : 'text-[#566A63]'
+            view === 'search' ? 'text-[#116B50] dark:text-[#4ADE80]' : 'text-[#566A63] dark:text-[#8B9E95]'
           }`}
         >
           <Search className="w-5 h-5" />
@@ -752,21 +745,21 @@ export function CustomerApp() {
           onClick={() => {
             setMobileTab(mobileTab === 'xarita' ? 'royxat' : 'xarita');
           }}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63]"
+          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95]"
         >
           <Layers className="w-5 h-5" />
           <span>{mobileTab === 'xarita' ? 'Ro‘yxat' : 'Xarita'}</span>
         </button>
         <button
           onClick={() => showToast('Saqlangan do‘konlar')}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63]"
+          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95]"
         >
           <Bookmark className="w-5 h-5" />
           <span>Saqlangan</span>
         </button>
         <button
           onClick={() => setIsLoginModalOpen(true)}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63]"
+          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95]"
         >
           <div className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px]">
             ○

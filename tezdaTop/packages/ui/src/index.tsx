@@ -35,10 +35,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     
     const variants = {
       primary: 'bg-[#116B50] text-white hover:bg-[#0B563F] border border-[#116B50]',
-      secondary: 'bg-white text-[#172C28] hover:bg-[#EDF5F0] border border-[#DCE5DF]',
-      outline: 'bg-transparent text-[#116B50] hover:bg-[#E7F3EB] border border-[#116B50]',
-      quiet: 'bg-transparent text-[#172C28] hover:bg-[#EDF5F0] border-transparent',
-      danger: 'bg-[#FEF0EE] text-[#B42318] hover:bg-[#fddcd8] border border-[#FEF0EE]'
+      secondary: 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] border border-[#DCE5DF] dark:border-[#2A3F36]',
+      outline: 'bg-transparent text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E7F3EB] dark:hover:bg-[#1E3328] border border-[#116B50] dark:border-[#4ADE80]',
+      quiet: 'bg-transparent text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] border-transparent',
+      danger: 'bg-[#FEF0EE] dark:bg-[#381B18] text-[#B42318] dark:text-[#F87171] hover:bg-[#fddcd8] dark:hover:bg-[#4A201C] border border-[#FEF0EE] dark:border-[#4A201C]'
     };
 
     const sizes = {
@@ -67,10 +67,10 @@ export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export function Tag({ className, variant = 'default', children, ...props }: TagProps) {
   const variants = {
-    default: 'bg-[#E7F3EB] text-[#116B50]',
-    warn: 'bg-[#FFF2DC] text-[#8A4B08]',
-    error: 'bg-[#FEF0EE] text-[#B42318]',
-    gray: 'bg-[#EDF0EE] text-[#566A63]'
+    default: 'bg-[#E7F3EB] dark:bg-[#1C362A] text-[#116B50] dark:text-[#4ADE80]',
+    warn: 'bg-[#FFF2DC] dark:bg-[#382613] text-[#8A4B08] dark:text-[#FBBF24]',
+    error: 'bg-[#FEF0EE] dark:bg-[#381B18] text-[#B42318] dark:text-[#F87171]',
+    gray: 'bg-[#EDF0EE] dark:bg-[#202E27] text-[#566A63] dark:text-[#8B9E95]'
   };
 
   return (
@@ -98,7 +98,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="w-full flex flex-col gap-1 text-left">
         {label && (
-          <label htmlFor={id} className="text-xs font-semibold text-[#566A63]">
+          <label htmlFor={id} className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
             {label}
           </label>
         )}
@@ -106,7 +106,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={id}
           className={cn(
-            'w-full min-h-[44px] px-3.5 py-2.5 bg-white border border-[#DCE5DF] rounded-[10px] text-[#172C28] placeholder-[#566A63]/60 focus-visible:outline focus-visible:outline-3 focus-visible:outline-[#d59536] focus-visible:outline-offset-2 transition-colors',
+            'w-full min-h-[44px] px-3.5 py-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-[10px] text-[#172C28] dark:text-[#E8F2EC] placeholder-[#566A63]/60 dark:placeholder-[#8B9E95]/60 focus-visible:outline focus-visible:outline-3 focus-visible:outline-[#d59536] focus-visible:outline-offset-2 transition-colors',
             error && 'border-[#B42318] focus-visible:outline-[#B42318]',
             className
           )}
@@ -153,27 +153,27 @@ export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) 
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#142E27]/50 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#142E27]/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="w-full max-w-[550px] max-h-[90vh] overflow-y-auto bg-white rounded-[20px] p-7 shadow-2xl border border-[#DCE5DF] flex flex-col gap-5 text-[#172C28]"
+        className="w-full max-w-[550px] max-h-[90vh] overflow-y-auto bg-white dark:bg-[#14201A] rounded-[20px] p-7 shadow-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-5 text-[#172C28] dark:text-[#E8F2EC]"
       >
-        <div className="flex items-center justify-between pb-3 border-b border-[#DCE5DF]">
-          <h2 className="text-xl font-bold tracking-tight text-[#172C28]">{title}</h2>
+        <div className="flex items-center justify-between pb-3 border-b border-[#DCE5DF] dark:border-[#22332C]">
+          <h2 className="text-xl font-bold tracking-tight text-[#172C28] dark:text-[#E8F2EC]">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Yopish"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-[#566A63] hover:bg-[#F3F6F3] text-lg font-bold"
+            className="w-9 h-9 rounded-full flex items-center justify-center text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] text-lg font-bold"
           >
             ✕
           </button>
         </div>
         <div className="py-1">{children}</div>
-        {footer && <div className="pt-3 border-t border-[#DCE5DF] flex justify-end gap-3">{footer}</div>}
+        {footer && <div className="pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] flex justify-end gap-3">{footer}</div>}
       </div>
     </div>
   );
@@ -183,7 +183,7 @@ export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) 
 export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn('bg-white border border-[#DCE5DF] rounded-[16px] p-5 shadow-sm text-[#172C28]', className)}
+      className={cn('bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-[16px] p-5 shadow-sm text-[#172C28] dark:text-[#E8F2EC]', className)}
       {...props}
     >
       {children}
@@ -194,10 +194,10 @@ export function Card({ className, children, ...props }: React.HTMLAttributes<HTM
 // ================= STAR RATING =================
 export function StarRating({ rating, count }: { rating: number; count?: number }) {
   return (
-    <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#172C28]">
+    <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#172C28] dark:text-[#E8F2EC]">
       <span className="text-[#F5A623]">★</span>
       <span>{rating.toFixed(1)}</span>
-      {count !== undefined && <span className="text-xs text-[#566A63] font-normal">({count} ta sharh)</span>}
+      {count !== undefined && <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-normal">({count} ta sharh)</span>}
     </span>
   );
 }
