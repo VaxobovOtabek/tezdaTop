@@ -18,12 +18,17 @@ import {
   AlertOctagon,
   Layers,
   X,
+  XCircle,
   Moon,
   Sun
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
 import { InteractiveMap } from './components/InteractiveMap';
+import { StoreFullPageView } from './components/StoreFullPageView';
+import { UserPersonalHubView } from './components/UserPersonalHubView';
+import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
+import { UnifiedLoginModal } from './components/UnifiedLoginModal';
 
 export function CustomerApp() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -44,10 +49,22 @@ export function CustomerApp() {
     }
   }, [isDarkMode]);
 
+  // Current User Session State
+  const [currentUser, setCurrentUser] = useState<any>({
+    id: 'cccc1111-1111-4ccc-cccc-111111111111',
+    fullName: 'Otabek Xaridor',
+    email: 'customer@yaqintop.uz',
+    phone: '+998 90 111 22 33',
+    role: 'CUSTOMER',
+    status: 'ACTIVE'
+  });
+
   const [userLocation, setUserLocation] = useState({ lat: 41.311081, lng: 69.240562 });
-  const [view, setView] = useState<'search' | 'detail' | 'route' | 'saved' | 'profile'>('search');
+  const [view, setView] = useState<'search' | 'detail' | 'route' | 'hub'>('search');
+  const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history'>('favorites');
+  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
   const [mobileTab, setMobileTab] = useState<'xarita' | 'royxat'>('xarita');
-  const [searchQuery, setSearchQuery] = useState('snikers');
+  const [searchQuery, setSearchQuery] = useState('');
   const [radiusM, setRadiusM] = useState(1000);
   const [openNow, setOpenNow] = useState(false);
   const [inStock, setInStock] = useState(false);
@@ -56,6 +73,18 @@ export function CustomerApp() {
 
   const [results, setResults] = useState<StoreSearchResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<StoreSearchResult | null>(null);
+  
+  // Nearby Stores State (When search query is empty)
+  const [nearbyStores, setNearbyStores] = useState<any[]>([]);
+  const [selectedNearbyStore, setSelectedNearbyStore] = useState<any | null>(null);
+  
+  // Active Store Catalog in Detail View
+  const [activeStoreDetail, setActiveStoreDetail] = useState<any | null>(null);
+  const [activeStoreOffers, setActiveStoreOffers] = useState<Offer[]>([]);
+  const [storeOffersLoading, setStoreOffersLoading] = useState(false);
+  const [storeProductSearch, setStoreProductSearch] = useState('');
+  const [storeSelectedCategory, setStoreSelectedCategory] = useState('ALL');
+
   const [routeData, setRouteData] = useState<RouteResponse | null>(null);
   const [routeMode, setRouteMode] = useState<'walking' | 'driving'>('walking');
 
@@ -63,6 +92,7 @@ export function CustomerApp() {
   const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [isReviewModalOpen, setIsReviewModalOpen] = useState(false);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Review & Report Form states
@@ -77,15 +107,181 @@ export function CustomerApp() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // Fetch all nearby stores when no query
+  const loadNearbyStores = async () => {
+    try {
+      const uLat = userLocation?.lat ?? 41.311081;
+      const uLng = userLocation?.lng ?? 69.240562;
+      const res = await fetch(`/api/v1/stores?lat=${uLat}&lng=${uLng}&radiusM=${radiusM}${openNow ? '&openNow=true' : ''}`);
+      if (res.ok) {
+        const data = await res.json();
+        const items = (data.items || []).map((item: any) => {
+          const store = item.store || item;
+          if (!store.location && (store.latitude !== undefined || store.lat !== undefined)) {
+            store.location = {
+              lat: Number(store.latitude ?? store.lat),
+              lng: Number(store.longitude ?? store.lng)
+            };
+          }
+          return item;
+        });
+        setNearbyStores(items);
+        if (!selectedNearbyStore && items.length > 0) {
+          setSelectedNearbyStore(items[0]);
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching nearby stores:', err);
+    }
+  };
+
+  // Fetch full store details and all products/services
+  const loadStoreCatalog = async (storeId: string) => {
+    setStoreOffersLoading(true);
+    try {
+      const [detailRes, offersRes] = await Promise.all([
+        fetch(`/api/v1/stores/${storeId}`),
+        fetch(`/api/v1/stores/${storeId}/offers`)
+      ]);
+      if (detailRes.ok) {
+        const detailData = await detailRes.json();
+        if (!detailData.location && (detailData.latitude !== undefined || detailData.lat !== undefined)) {
+          detailData.location = {
+            lat: Number(detailData.latitude ?? detailData.lat),
+            lng: Number(detailData.longitude ?? detailData.lng)
+          };
+        }
+        setActiveStoreDetail(detailData);
+        if (!selectedResult || selectedResult.store?.id !== storeId) {
+          setSelectedResult({
+            store: detailData,
+            distanceM: detailData.distanceM || 200,
+            isOpenNow: true,
+            bestOffer: {
+              id: 'default',
+              storeId: detailData.id,
+              price: '0',
+              stockOnHand: 10,
+              freshness: 'FRESH',
+              status: 'ACTIVE',
+              variant: {
+                id: 'v-default',
+                title: detailData.name,
+                category: detailData.type === 'WHOLESALE' ? 'Ulgurji savdo' : 'Oziq-ovqat',
+                packUnit: 'dona'
+              }
+            } as any,
+            otherMatchingOfferCount: 0,
+            similarProducts: []
+          } as any);
+        }
+      }
+      if (offersRes.ok) {
+        const offersData = await offersRes.json();
+        setActiveStoreOffers(offersData.offers || []);
+      }
+    } catch (err) {
+      console.error('Error loading store catalog:', err);
+    } finally {
+      setStoreOffersLoading(false);
+    }
+  };
+
+  // URL Routing Sync
+  const handleRoute = (path: string) => {
+    const cleanPath = path.split('?')[0];
+    setCurrentPath(cleanPath);
+
+    if (cleanPath !== '/marshrut') {
+      setRouteData(null);
+    }
+
+    if (cleanPath === '/sevimlilar') {
+      setView('hub');
+      setHubSection('favorites');
+    } else if (cleanPath === '/sharhlarim') {
+      setView('hub');
+      setHubSection('reviews');
+    } else if (cleanPath === '/ariza' || cleanPath === '/murojaatlar') {
+      setView('hub');
+      setHubSection('inquiries');
+    } else if (cleanPath === '/tarix') {
+      setView('hub');
+      setHubSection('history');
+    } else if (cleanPath === '/marshrut') {
+      if (routeData) {
+        setView('route');
+      } else {
+        // Prevent history loop on back/forward or reload when route data is not in memory
+        window.history.replaceState(null, '', '/');
+        setCurrentPath('/');
+        setView('search');
+      }
+    } else if (cleanPath.startsWith('/dokon/')) {
+      const storeId = cleanPath.replace('/dokon/', '').trim();
+      if (storeId) {
+        loadStoreCatalog(storeId);
+        setView('detail');
+      }
+    } else {
+      setView('search');
+    }
+  };
+
+  const navigateTo = (path: string, options?: { replace?: boolean }) => {
+    if (options?.replace) {
+      window.history.replaceState(null, '', path);
+    } else {
+      window.history.pushState(null, '', path);
+    }
+    handleRoute(path);
+  };
+
+  const handleStopRoute = () => {
+    setRouteData(null);
+    setView('search');
+    window.history.replaceState(null, '', '/');
+    setCurrentPath('/');
+    showToast('Marshrut rejimi to‘xtatildi');
+  };
+
+  // Listen to popstate (browser back/forward button) and initial URL load
+  useEffect(() => {
+    handleRoute(window.location.pathname || '/');
+    const onPopState = () => {
+      handleRoute(window.location.pathname || '/');
+    };
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
   // Fetch search results from API
-  const doSearch = async (loc?: { lat: number; lng: number }) => {
+  const doSearch = async (queryStr?: string, loc?: { lat: number; lng: number }) => {
+    const q = (typeof queryStr === 'string' ? queryStr : searchQuery).trim();
+    if (!q) {
+      setResults([]);
+      setSelectedResult(null);
+      loadNearbyStores();
+      return;
+    }
+
+    // Save to search history
+    try {
+      const history = JSON.parse(localStorage.getItem('yaqintop_search_history') || '[]');
+      const newEntry = { query: q, timestamp: new Date().toISOString() };
+      const updated = [newEntry, ...history.filter((h: any) => h.query.toLowerCase() !== q.toLowerCase())].slice(0, 30);
+      localStorage.setItem('yaqintop_search_history', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+
     const targetLoc = loc || userLocation;
     try {
       const res = await fetch('/api/v1/search/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          q: searchQuery,
+          q,
           lat: targetLoc.lat,
           lng: targetLoc.lng,
           radiusM,
@@ -99,8 +295,10 @@ export function CustomerApp() {
       if (res.ok) {
         const data = await res.json();
         setResults(data.items || []);
-        if (data.items.length > 0 && !selectedResult) {
+        if (data.items && data.items.length > 0) {
           setSelectedResult(data.items[0]);
+        } else {
+          setSelectedResult(null);
         }
       }
     } catch (err) {
@@ -109,18 +307,69 @@ export function CustomerApp() {
   };
 
   useEffect(() => {
-    doSearch();
-  }, [userLocation, radiusM, openNow, inStock, freshOnly, selectedSort]);
+    if (searchQuery.trim()) {
+      doSearch();
+    } else {
+      setResults([]);
+      setSelectedResult(null);
+      loadNearbyStores();
+    }
+  }, [userLocation, radiusM, openNow, inStock, freshOnly, selectedSort, searchQuery]);
 
   // Fetch route
-  const fetchRoute = async (store: Store, mode: 'walking' | 'driving') => {
+  const fetchRoute = async (storeParam: any, mode: 'walking' | 'driving') => {
+    const targetStore = storeParam?.store || storeParam || selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail;
+    if (!targetStore) {
+      showToast('Do‘kon ma’lumotlari topilmadi');
+      return;
+    }
+
+    const sLat = Number(targetStore.entranceLocation?.lat ?? targetStore.location?.lat ?? targetStore.latitude ?? targetStore.lat ?? 41.311081);
+    const sLng = Number(targetStore.entranceLocation?.lng ?? targetStore.location?.lng ?? targetStore.longitude ?? targetStore.lng ?? 69.240562);
+
+    const normalizedStore = {
+      ...targetStore,
+      location: { lat: sLat, lng: sLng }
+    };
+
+    // Ensure selectedResult is set so the route panel displays the store info
+    const formattedResult: StoreSearchResult = {
+      store: normalizedStore,
+      distanceM: targetStore.distanceM || 250,
+      isOpenNow: true,
+      bestOffer: {
+        id: 'default',
+        storeId: targetStore.id,
+        price: '0',
+        stockOnHand: 10,
+        freshness: 'FRESH',
+        status: 'ACTIVE',
+        variant: {
+          id: 'v-default',
+          title: targetStore.name,
+          category: targetStore.type === 'WHOLESALE' ? 'Ulgurji' : 'Oziq-ovqat',
+          packUnit: 'dona'
+        }
+      } as any,
+      otherMatchingOfferCount: 0,
+      similarProducts: []
+    };
+    setSelectedResult(formattedResult);
+    setRouteMode(mode);
+
+    const dest = { lat: sLat, lng: sLng };
+    const origin = {
+      lat: Number(userLocation?.lat ?? 41.311081),
+      lng: Number(userLocation?.lng ?? 69.240562)
+    };
+
     try {
       const res = await fetch('/api/v1/routes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          origin: userLocation,
-          destination: store.entranceLocation || store.location,
+          origin,
+          destination: dest,
           mode
         })
       });
@@ -128,9 +377,58 @@ export function CustomerApp() {
         const data = await res.json();
         setRouteData(data);
         setView('route');
+        navigateTo('/marshrut', { replace: true });
+      } else {
+        // Fallback local route calculation
+        const straightM = Math.round(
+          Math.sqrt(
+            Math.pow((dest.lat - origin.lat) * 111000, 2) +
+            Math.pow((dest.lng - origin.lng) * 85000, 2)
+          )
+        ) || 300;
+        const durationSec = mode === 'walking' ? Math.round(straightM / 1.2) : Math.round(straightM / 8.3);
+        const fallbackRoute: RouteResponse = {
+          mode,
+          distanceM: straightM,
+          durationSec,
+          geometry: [[origin.lng, origin.lat], [dest.lng, dest.lat]],
+          steps: [
+            { instruction: 'Hozirgi joyingizdan to‘g‘ri harakatlaning', distanceM: Math.round(straightM * 0.4), durationSec: Math.round(durationSec * 0.4) },
+            { instruction: `${targetStore.name} do‘koniga yetib keldingiz`, distanceM: Math.round(straightM * 0.6), durationSec: Math.round(durationSec * 0.6) }
+          ],
+          provider: 'local-osrm-fallback',
+          isApproximateTraffic: true,
+          externalMapUrl: `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&travelmode=${mode}`
+        };
+        setRouteData(fallbackRoute);
+        setView('route');
+        navigateTo('/marshrut', { replace: true });
       }
-    } catch (err) {
-      showToast('Marshrut hisoblashda xatolik yuz berdi');
+    } catch {
+      // Fallback local route calculation on network error
+      const straightM = Math.round(
+        Math.sqrt(
+          Math.pow((dest.lat - origin.lat) * 111000, 2) +
+          Math.pow((dest.lng - origin.lng) * 85000, 2)
+        )
+      ) || 300;
+      const durationSec = mode === 'walking' ? Math.round(straightM / 1.2) : Math.round(straightM / 8.3);
+      const fallbackRoute: RouteResponse = {
+        mode,
+        distanceM: straightM,
+        durationSec,
+        geometry: [[origin.lng, origin.lat], [dest.lng, dest.lat]],
+        steps: [
+          { instruction: 'Hozirgi joyingizdan to‘g‘ri harakatlaning', distanceM: Math.round(straightM * 0.4), durationSec: Math.round(durationSec * 0.4) },
+          { instruction: `${targetStore.name} do‘koniga yetib keldingiz`, distanceM: Math.round(straightM * 0.6), durationSec: Math.round(durationSec * 0.6) }
+        ],
+        provider: 'local-osrm-fallback',
+        isApproximateTraffic: true,
+        externalMapUrl: `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&travelmode=${mode}`
+      };
+      setRouteData(fallbackRoute);
+      setView('route');
+      navigateTo('/marshrut', { replace: true });
     }
   };
 
@@ -138,16 +436,80 @@ export function CustomerApp() {
     setSelectedResult(item);
   };
 
+  const handleSelectNearbyStore = (item: any) => {
+    setSelectedNearbyStore(item);
+  };
+
+  const recordStoreView = (store: any) => {
+    try {
+      const viewed = JSON.parse(localStorage.getItem('yaqintop_viewed_stores') || '[]');
+      const newEntry = {
+        id: store.id,
+        name: store.name,
+        address: store.address || 'Toshkent shahri',
+        rating: store.rating || 4.8,
+        photoUrl: store.photoUrl,
+        timestamp: new Date().toISOString()
+      };
+      const updated = [newEntry, ...viewed.filter((v: any) => v.id !== store.id)].slice(0, 30);
+      localStorage.setItem('yaqintop_viewed_stores', JSON.stringify(updated));
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleOpenDetail = (item: StoreSearchResult) => {
     setSelectedResult(item);
-    setView('detail');
+    recordStoreView(item.store);
+    loadStoreCatalog(item.store.id);
+    navigateTo(`/dokon/${item.store.id}`);
   };
+
+  const handleOpenNearbyDetail = (item: any) => {
+    setSelectedNearbyStore(item);
+    recordStoreView(item.store);
+    setSelectedResult({
+      store: item.store,
+      distanceM: item.distanceM,
+      isOpenNow: item.isOpenNow,
+      bestOffer: {
+        id: 'default',
+        storeId: item.store.id,
+        price: '0',
+        stockOnHand: item.offersCount || 0,
+        freshness: 'FRESH',
+        status: 'ACTIVE',
+        variant: {
+          id: 'v-default',
+          title: item.store.name,
+          category: (item.store.type as string) === 'WHOLESALE' ? 'Ulgurji savdo' : 'Oziq-ovqat',
+          packUnit: 'dona'
+        }
+      } as any,
+      otherMatchingOfferCount: 0,
+      similarProducts: []
+    } as any);
+    loadStoreCatalog(item.store.id);
+    navigateTo(`/dokon/${item.store.id}`);
+  };
+
+  // Filtered store catalog products
+  const filteredOffers = activeStoreOffers.filter((off) => {
+    const matchesSearch = !storeProductSearch.trim() || 
+      off.variant.title.toLowerCase().includes(storeProductSearch.toLowerCase().trim()) ||
+      (off.variant.barcode && off.variant.barcode.includes(storeProductSearch.trim()));
+    const matchesCategory = storeSelectedCategory === 'ALL' || off.variant.category === storeSelectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const uniqueCategories = Array.from(new Set(activeStoreOffers.map(o => o.variant.category).filter((c): c is string => Boolean(c))));
 
   // Submit review
   const handleSubmitReview = async () => {
-    if (!selectedResult) return;
+    if (!selectedResult && !selectedNearbyStore) return;
+    const storeId = selectedResult?.store.id || selectedNearbyStore?.store.id;
     try {
-      const res = await fetch(`/api/v1/stores/${selectedResult.store.id}/reviews`, {
+      const res = await fetch(`/api/v1/stores/${storeId}/reviews`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
@@ -156,7 +518,8 @@ export function CustomerApp() {
         showToast('Sharhingiz qabul qilindi!');
         setIsReviewModalOpen(false);
         setReviewComment('');
-        doSearch();
+        if (searchQuery.trim()) doSearch();
+        else loadNearbyStores();
       } else {
         const err = await res.json();
         showToast(err.message || 'Xatolik yuz berdi');
@@ -168,14 +531,15 @@ export function CustomerApp() {
 
   // Submit report
   const handleSubmitReport = async () => {
-    if (!selectedResult) return;
+    if (!selectedResult && !selectedNearbyStore) return;
+    const storeId = selectedResult?.store.id || selectedNearbyStore?.store.id;
     try {
       const res = await fetch('/api/v1/reports', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          storeId: selectedResult.store.id,
-          offerId: selectedResult.bestOffer.id,
+          storeId,
+          offerId: selectedResult?.bestOffer?.id || undefined,
           reason: reportReason,
           details: reportDetails
         })
@@ -203,7 +567,7 @@ export function CustomerApp() {
       <header className="h-[68px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
         <div className="flex items-center gap-3">
           <div
-            onClick={() => setView('search')}
+            onClick={() => navigateTo('/')}
             className="flex items-center gap-2 cursor-pointer select-none"
           >
             <div className="w-8 h-9 bg-[#116B50] rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl-sm flex items-center justify-center text-white font-extrabold text-xl shadow-sm">
@@ -214,6 +578,69 @@ export function CustomerApp() {
           <span className="text-xs text-[#566A63] dark:text-[#8B9E95] hidden md:inline-block ml-2 border-l border-[#DCE5DF] dark:border-[#22332C] pl-3">
             Toshkent · Pilot hudud
           </span>
+
+          {/* Desktop Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-1.5 ml-4">
+            <button
+              onClick={() => navigateTo('/')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                view === 'search' || (view as string) === 'route'
+                  ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
+              }`}
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Xarita & Izlash</span>
+            </button>
+
+            <button
+              onClick={() => navigateTo('/sevimlilar')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                view === 'hub' && hubSection === 'favorites'
+                  ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
+              }`}
+            >
+              <Heart className="w-3.5 h-3.5" />
+              <span>Sevimlilar</span>
+            </button>
+
+            <button
+              onClick={() => navigateTo('/sharhlarim')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                view === 'hub' && hubSection === 'reviews'
+                  ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
+              }`}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span>Sharhlarim</span>
+            </button>
+
+            <button
+              onClick={() => navigateTo('/ariza')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                view === 'hub' && hubSection === 'inquiries'
+                  ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
+              }`}
+            >
+              <AlertTriangle className="w-3.5 h-3.5" />
+              <span>Arizalar & Murojaatlar</span>
+            </button>
+
+            <button
+              onClick={() => navigateTo('/tarix')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                view === 'hub' && hubSection === 'history'
+                  ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
+              }`}
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span>Tarix</span>
+            </button>
+          </nav>
         </div>
 
         <div className="flex items-center gap-2 md:gap-3">
@@ -221,29 +648,87 @@ export function CustomerApp() {
           <button
             onClick={toggleDarkMode}
             title={isDarkMode ? "Yorug' tema" : "Qorong'i tema"}
-            className="px-3 py-2 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center gap-1.5 text-xs font-semibold"
+            className="w-9 h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center justify-center shadow-sm"
           >
             {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
-            <span className="hidden sm:inline">{isDarkMode ? "Yorug'" : "Qorong'i"}</span>
           </button>
 
-          <button
-            onClick={() => setIsLoginModalOpen(true)}
-            className="text-sm font-semibold px-4 py-2 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition"
-          >
-            Profil
-          </button>
+          {/* User Profile Button */}
+          {currentUser ? (
+            <button
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition text-xs font-bold shadow-sm"
+            >
+              <div className="w-6 h-6 rounded-full bg-[#116B50] text-white text-[10px] font-bold flex items-center justify-center">
+                {currentUser.fullName ? currentUser.fullName.slice(0, 2).toUpperCase() : 'US'}
+              </div>
+              <span className="hidden sm:inline">{currentUser.fullName.split(' ')[0]}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
+              className="text-xs font-bold px-3.5 py-2 rounded-xl bg-[#116B50] text-white hover:bg-[#0B563F] transition shadow-sm"
+            >
+              Kirish
+            </button>
+          )}
         </div>
       </header>
 
       {/* Main Container */}
       <main className="flex-1 flex flex-col md:flex-row relative overflow-hidden h-[calc(100vh-68px)]">
-        {/* Left Column / Mobile Results */}
-        <section
-          className={`w-full md:w-[420px] lg:w-[450px] bg-white dark:bg-[#14201A] border-r border-[#DCE5DF] dark:border-[#22332C] flex flex-col overflow-y-auto h-full ${
-            mobileTab === 'xarita' && view === 'search' ? 'hidden md:flex' : 'flex'
-          }`}
-        >
+        {view === 'hub' ? (
+          <UserPersonalHubView
+            activeSection={hubSection}
+            onNavigateSection={(sec) => {
+              setHubSection(sec);
+              const pathToMap: Record<string, string> = {
+                favorites: '/sevimlilar',
+                reviews: '/sharhlarim',
+                inquiries: '/ariza',
+                history: '/tarix'
+              };
+              navigateTo(pathToMap[sec] || '/sevimlilar');
+            }}
+            onBackToSearch={() => navigateTo('/')}
+            onOpenStore={(storeId) => {
+              loadStoreCatalog(storeId);
+              navigateTo(`/dokon/${storeId}`);
+            }}
+            onGetRoute={(store) => {
+              fetchRoute(store, 'walking');
+            }}
+            onSearchQuery={(q) => {
+              setSearchQuery(q);
+              navigateTo('/');
+              doSearch(q);
+            }}
+            isDarkMode={isDarkMode}
+            currentUser={currentUser}
+            onShowToast={showToast}
+          />
+        ) : view === 'detail' && (selectedResult || selectedNearbyStore || activeStoreDetail) ? (
+          <StoreFullPageView
+            store={selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail}
+            organization={activeStoreDetail?.organization || selectedNearbyStore?.organization}
+            offers={activeStoreOffers}
+            loadingOffers={storeOffersLoading}
+            isDarkMode={isDarkMode}
+            userLocation={userLocation}
+            matchedOffer={selectedResult?.bestOffer?.id !== 'default' ? selectedResult?.bestOffer : null}
+            onBack={() => navigateTo('/')}
+            onGetRoute={(mode) => fetchRoute((selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail), mode)}
+            onReportError={() => setIsReportModalOpen(true)}
+            onShowToast={showToast}
+          />
+        ) : (
+          <>
+            {/* Left Column / Mobile Results */}
+            <section
+              className={`w-full md:w-[420px] lg:w-[450px] bg-white dark:bg-[#14201A] border-r border-[#DCE5DF] dark:border-[#22332C] flex flex-col overflow-y-auto h-full ${
+                mobileTab === 'xarita' && view === 'search' ? 'hidden md:flex' : 'flex'
+              }`}
+            >
           {view === 'search' && (
             <div className="p-5 flex flex-col gap-4">
               {/* Search Box */}
@@ -276,8 +761,9 @@ export function CustomerApp() {
                       </button>
                     )}
                   </div>
-                  <Button variant="primary" onClick={() => doSearch()} aria-label="Qidirish">
+                  <Button variant="primary" onClick={() => doSearch()} aria-label="Qidirish" className="px-4 flex items-center gap-1.5 font-bold">
                     <Search className="w-4 h-4" />
+                    <span>Izlash</span>
                   </Button>
                 </div>
               </div>
@@ -356,284 +842,294 @@ export function CustomerApp() {
                 </button>
               </div>
 
-              {/* Result Meta */}
-              <div className="flex items-center justify-between text-xs text-[#566A63] dark:text-[#8B9E95] border-b border-[#DCE5DF] dark:border-[#2A3F36] pb-2">
-                <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">
-                  {results.length} ta do‘kon topildi
-                </span>
-                <select
-                  value={selectedSort}
-                  onChange={(e: any) => setSelectedSort(e.target.value)}
-                  className="bg-transparent text-[#116B50] dark:text-[#4ADE80] font-semibold text-xs border-none outline-none cursor-pointer"
-                >
-                  <option value="relevance" className="dark:bg-[#14201A]">Eng mos ▾</option>
-                  <option value="distance" className="dark:bg-[#14201A]">Eng yaqin ▾</option>
-                  <option value="price" className="dark:bg-[#14201A]">Eng arzon ▾</option>
-                </select>
-              </div>
-
-              {/* Cards List */}
-              <div className="flex flex-col gap-3">
-                {results.map((item) => {
-                  const isSelected = selectedResult?.store.id === item.store.id;
-                  return (
-                    <article
-                      key={item.store.id}
-                      onClick={() => handleSelectStore(item)}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                        isSelected
-                          ? 'border-2 border-[#116B50] dark:border-[#4ADE80] bg-[#F6FBF7] dark:bg-[#1B2F25] shadow-sm'
-                          : 'border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] hover:border-[#116B50]/40'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{item.store.name}</h3>
-                          <div className="flex items-center gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                            <span className={item.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] font-semibold' : 'text-[#B42318] dark:text-[#F87171]'}>
-                              {item.isOpenNow ? '● Ochiq' : '○ Yopiq'}
-                            </span>
-                            <span>·</span>
-                            <span>{item.distanceM} m</span>
-                            <span>·</span>
-                            <StarRating rating={item.store.rating} />
-                          </div>
-                        </div>
-                        {item.store.isVerified && (
-                          <Tag variant="default" className="text-[10px]">
-                            Tasdiqlangan
-                          </Tag>
-                        )}
-                      </div>
-
-                      {/* Best Offer */}
-                      <div className="my-3 p-3 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-xl flex items-center justify-between border border-[#DCE5DF]/60 dark:border-[#2A3F36]">
-                        <div>
-                          <span className="text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
-                            {item.bestOffer.variant.title}
-                          </span>
-                          <div className="text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] mt-0.5">
-                            {Number(item.bestOffer.price).toLocaleString('uz-UZ')}{' '}
-                            <span className="text-xs font-normal text-[#566A63] dark:text-[#8B9E95]">so‘m / {item.bestOffer.variant.packUnit}</span>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <Tag
-                            variant={
-                              item.bestOffer.stockOnHand > 10
-                                ? 'default'
-                                : item.bestOffer.stockOnHand > 0
-                                ? 'warn'
-                                : 'error'
-                            }
-                          >
-                            {item.bestOffer.stockOnHand > 0
-                              ? `${item.bestOffer.stockOnHand} dona`
-                              : 'Tugagan'}
-                          </Tag>
-                          <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                            {item.bestOffer.freshness === 'NEW'
-                              ? '10 daqiqa oldin'
-                              : item.bestOffer.freshness === 'STALE'
-                              ? '2 kun oldin'
-                              : 'Tekshiring'}
-                          </div>
-                        </div>
-                      </div>
-
-                      {item.otherMatchingOfferCount > 0 && (
-                        <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mb-3">
-                          Yana {item.otherMatchingOfferCount} ta mos variant
-                        </p>
-                      )}
-
-                      <div className="flex items-center gap-2 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#2A3F36]">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          fullWidth
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDetail(item);
-                          }}
-                        >
-                          Do‘konni ko‘rish
-                        </Button>
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            fetchRoute(item.store, 'walking');
-                          }}
-                        >
-                          <Navigation className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                    </article>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* STORE DETAIL VIEW */}
-          {view === 'detail' && selectedResult && (
-            <div className="p-5 flex flex-col gap-4">
-              <button
-                onClick={() => setView('search')}
-                className="flex items-center gap-1.5 text-sm font-semibold text-[#116B50] hover:underline"
-              >
-                <ArrowLeft className="w-4 h-4" /> Natijalarga qaytish
-              </button>
-
-              {/* Store Photo Hero */}
-              <div className="w-full h-44 rounded-2xl bg-[#E2EEE4] relative flex items-center justify-center overflow-hidden border border-[#DCE5DF]">
-                <div className="text-center text-[#496154]">
-                  <div className="w-12 h-12 mx-auto bg-white/70 rounded-full flex items-center justify-center text-[#116B50] mb-2 font-bold text-xl">
-                    🏪
-                  </div>
-                  <span className="text-xs font-semibold">{selectedResult.store.name}</span>
-                </div>
-                <div className="absolute bottom-2.5 right-3 bg-black/60 text-white text-[11px] px-2 py-0.5 rounded-full font-medium">
-                  1/5
-                </div>
-              </div>
-
-              <div>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-[#172C28]">{selectedResult.store.name}</h2>
-                  {selectedResult.store.isVerified && <Tag variant="default">Tasdiqlangan</Tag>}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-[#566A63] mt-1">
-                  <StarRating rating={selectedResult.store.rating} count={selectedResult.store.reviewCount} />
-                  <span>·</span>
-                  <span>{selectedResult.distanceM} m</span>
-                </div>
-              </div>
-
-              {/* Store Meta Details */}
-              <div className="bg-[#F9FAF9] p-3.5 rounded-xl border border-[#DCE5DF] flex flex-col gap-2 text-xs text-[#172C28]">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-[#116B50]" />
-                  <span>
-                    <strong className="text-[#116B50]">Ochiq</strong> · bugun 08:00–23:00
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-[#116B50]" />
-                  <span>{selectedResult.store.address}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-[#116B50]" />
-                  <a href={`tel:${selectedResult.store.phone}`} className="hover:underline font-medium">
-                    {selectedResult.store.phone}
-                  </a>
-                </div>
-              </div>
-
-              {/* CTA Buttons */}
-              <div className="flex gap-2">
-                <Button
-                  variant="primary"
-                  fullWidth
-                  onClick={() => fetchRoute(selectedResult.store, 'walking')}
-                >
-                  <Navigation className="w-4 h-4 mr-1.5" /> Marshrut
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={() => showToast('Do‘kon saqlandi')}
-                >
-                  <Heart className="w-4 h-4 text-[#116B50]" />
-                </Button>
-              </div>
-
-              {/* Matching Offer in this Store */}
-              <div className="border-t border-[#DCE5DF] pt-4">
-                <h3 className="text-sm font-bold text-[#172C28] mb-2">Siz izlagan mahsulot</h3>
-                <div className="p-3.5 bg-white border border-[#116B50] rounded-xl flex items-center justify-between">
-                  <div>
-                    <h4 className="font-bold text-sm">{selectedResult.bestOffer.variant.title}</h4>
-                    <div className="text-lg font-extrabold text-[#116B50] mt-0.5">
-                      {Number(selectedResult.bestOffer.price).toLocaleString('uz-UZ')}{' '}
-                      <small className="text-xs font-normal text-[#566A63]">so‘m</small>
+              {/* Mode 1: No search query -> Display Nearby Stores & Organizations */}
+              {!searchQuery.trim() ? (
+                <div className="flex flex-col gap-3 mt-1">
+                  <div className="flex items-center justify-between pb-1 border-b border-[#DCE5DF] dark:border-[#2A3F36]">
+                    <div>
+                      <h3 className="font-bold text-sm text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
+                        <span>🏢</span> Atrofdagi tashkilotlar ({nearbyStores.length} ta)
+                      </h3>
+                      <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                        Tashkilotni tanlab, tovar va xizmatlarini ko‘ring
+                      </p>
                     </div>
                   </div>
-                  <Tag variant="default">{selectedResult.bestOffer.stockOnHand} dona</Tag>
-                </div>
-              </div>
 
-              {/* Similar Products in Same Store */}
-              {selectedResult.similarProducts.length > 0 && (
-                <div className="border-t border-[#DCE5DF] pt-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="text-sm font-bold text-[#172C28]">Shu do‘kondagi muqobillar</h3>
-                    <span className="text-xs text-[#116B50] font-semibold">Barchasi →</span>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {selectedResult.similarProducts.map((sim) => (
-                      <div
-                        key={sim.id}
-                        className="p-3 bg-white border border-[#DCE5DF] rounded-xl flex items-center justify-between"
+                  {/* Popular Tags */}
+                  <div className="flex flex-wrap gap-1.5 py-1">
+                    {['Snikers', 'Coca-cola', 'Non', 'Sut', 'Tuxum', 'Yog‘'].map((tag) => (
+                      <button
+                        key={tag}
+                        onClick={() => {
+                          setSearchQuery(tag);
+                          doSearch(tag);
+                        }}
+                        className="text-xs px-2.5 py-1 rounded-lg bg-[#F9FAF9] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#116B50] dark:text-[#4ADE80] font-medium hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition flex items-center gap-1"
                       >
-                        <div>
-                          <span className="text-xs font-semibold">{sim.variant.title}</span>
-                          <div className="text-sm font-bold text-[#116B50]">
-                            {Number(sim.price).toLocaleString('uz-UZ')} so‘m
-                          </div>
-                        </div>
-                        <span className="text-xs text-[#566A63]">{sim.stockOnHand} dona</span>
-                      </div>
+                        <span>🔍</span> {tag}
+                      </button>
                     ))}
                   </div>
-                </div>
-              )}
 
-              {/* Actions: Review & Report */}
-              <div className="border-t border-[#DCE5DF] pt-4 flex gap-2">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  fullWidth
-                  onClick={() => setIsReviewModalOpen(true)}
-                >
-                  <MessageSquare className="w-3.5 h-3.5 mr-1.5" /> Sharh yozish
-                </Button>
-                <Button
-                  variant="quiet"
-                  size="sm"
-                  onClick={() => setIsReportModalOpen(true)}
-                >
-                  <AlertOctagon className="w-3.5 h-3.5 mr-1" /> Xato haqida xabar
-                </Button>
-              </div>
+                  {/* Nearby Stores Cards List */}
+                  {nearbyStores.length === 0 ? (
+                    <div className="p-6 text-center bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36]">
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">Ushbu radiusda ochiq do‘konlar topilmadi</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-3">
+                      {nearbyStores.map((item) => {
+                        const isSelected = selectedNearbyStore?.store.id === item.store.id;
+                        const storeIcon = (item.store.type as string) === 'WHOLESALE' ? '📦' : item.store.type === 'MIXED' ? '🏢' : '🏪';
+                        return (
+                          <article
+                            key={item.store.id}
+                            onClick={() => handleSelectNearbyStore(item)}
+                            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                              isSelected
+                                ? 'border-2 border-[#116B50] dark:border-[#4ADE80] bg-[#F6FBF7] dark:bg-[#1B2F25] shadow-sm'
+                                : 'border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] hover:border-[#116B50]/40'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="text-lg">{storeIcon}</span>
+                                  <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{item.store.name}</h3>
+                                </div>
+                                {item.organization && (
+                                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium">
+                                    {item.organization.legalName || item.organization.name}
+                                    {item.organization.inn && ` · STIR: ${item.organization.inn}`}
+                                  </div>
+                                )}
+                                <div className="flex items-center gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5">
+                                  <span className={item.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] font-semibold' : 'text-[#B42318] dark:text-[#F87171]'}>
+                                    {item.isOpenNow ? '● Ochiq (08:00–23:00)' : '○ Yopiq'}
+                                  </span>
+                                  <span>·</span>
+                                  <span>{item.distanceM} m</span>
+                                  <span>·</span>
+                                  <StarRating rating={item.store.rating} />
+                                </div>
+                              </div>
+                              {item.store.isVerified && (
+                                <Tag variant="default" className="text-[10px] shrink-0">
+                                  Tasdiqlangan
+                                </Tag>
+                              )}
+                            </div>
+
+                            <div className="mt-3 pt-2.5 border-t border-[#DCE5DF]/60 dark:border-[#2A3F36] flex items-center justify-between">
+                              <span className="text-xs font-semibold text-[#116B50] dark:text-[#4ADE80]">
+                                {item.offersCount ? `🛍️ ${item.offersCount} ta tovar va xizmat` : '🛍️ Tovar katalogi'}
+                              </span>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenNearbyDetail(item);
+                                  }}
+                                >
+                                  Tovar va xizmatlar →
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    fetchRoute(item.store, 'walking');
+                                  }}
+                                >
+                                  <Navigation className="w-3.5 h-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              ) : results.length === 0 ? (
+                <div className="p-8 text-center flex flex-col items-center justify-center gap-2 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36] mt-2">
+                  <div className="w-12 h-12 rounded-full bg-amber-50 dark:bg-amber-950/40 flex items-center justify-center text-xl">
+                    📦
+                  </div>
+                  <h4 className="font-bold text-sm text-[#172C28] dark:text-[#E8F2EC]">Hech narsa topilmadi</h4>
+                  <p className="text-xs text-[#566A63] dark:text-[#8B9E95] max-w-xs mx-auto">
+                    "{searchQuery}" bo‘yicha {radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`} radiusda tovar topilmadi. Qidiruv radiusini kengaytirib ko‘ring.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Mode 2: Product Search Results */}
+                  <div className="flex items-center justify-between text-xs text-[#566A63] dark:text-[#8B9E95] border-b border-[#DCE5DF] dark:border-[#2A3F36] pb-2">
+                    <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">
+                      {results.length} ta do‘kon topildi
+                    </span>
+                    <select
+                      value={selectedSort}
+                      onChange={(e: any) => setSelectedSort(e.target.value)}
+                      className="bg-transparent text-[#116B50] dark:text-[#4ADE80] font-semibold text-xs border-none outline-none cursor-pointer"
+                    >
+                      <option value="relevance" className="dark:bg-[#14201A]">Eng mos ▾</option>
+                      <option value="distance" className="dark:bg-[#14201A]">Eng yaqin ▾</option>
+                      <option value="price" className="dark:bg-[#14201A]">Eng arzon ▾</option>
+                    </select>
+                  </div>
+
+                  {/* Cards List */}
+                  <div className="flex flex-col gap-3">
+                    {results.map((item) => {
+                      const isSelected = selectedResult?.store.id === item.store.id;
+                      return (
+                        <article
+                          key={item.store.id}
+                          onClick={() => handleSelectStore(item)}
+                          className={`p-4 rounded-2xl border transition-all cursor-pointer ${
+                            isSelected
+                              ? 'border-2 border-[#116B50] dark:border-[#4ADE80] bg-[#F6FBF7] dark:bg-[#1B2F25] shadow-sm'
+                              : 'border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] hover:border-[#116B50]/40'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{item.store.name}</h3>
+                              <div className="flex items-center gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                                <span className={item.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] font-semibold' : 'text-[#B42318] dark:text-[#F87171]'}>
+                                  {item.isOpenNow ? '● Ochiq' : '○ Yopiq'}
+                                </span>
+                                <span>·</span>
+                                <span>{item.distanceM} m</span>
+                                <span>·</span>
+                                <StarRating rating={item.store.rating} />
+                              </div>
+                            </div>
+                            {item.store.isVerified && (
+                              <Tag variant="default" className="text-[10px]">
+                                Tasdiqlangan
+                              </Tag>
+                            )}
+                          </div>
+
+                          {/* Best Offer */}
+                          <div className="my-3 p-3 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-xl flex items-center justify-between border border-[#DCE5DF]/60 dark:border-[#2A3F36]">
+                            <div>
+                              <span className="text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
+                                {item.bestOffer.variant.title}
+                              </span>
+                              <div className="text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] mt-0.5">
+                                {Number(item.bestOffer.price).toLocaleString('uz-UZ')}{' '}
+                                <span className="text-xs font-normal text-[#566A63] dark:text-[#8B9E95]">so‘m / {item.bestOffer.variant.packUnit}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <Tag
+                                variant={
+                                  item.bestOffer.stockOnHand > 10
+                                    ? 'default'
+                                    : item.bestOffer.stockOnHand > 0
+                                    ? 'warn'
+                                    : 'error'
+                                }
+                              >
+                                {item.bestOffer.stockOnHand > 0
+                                  ? `${item.bestOffer.stockOnHand} dona`
+                                  : 'Tugagan'}
+                              </Tag>
+                              <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1">
+                                {item.bestOffer.freshness === 'NEW'
+                                  ? '10 daqiqa oldin'
+                                  : item.bestOffer.freshness === 'STALE'
+                                  ? '2 kun oldin'
+                                  : 'Tekshiring'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {item.otherMatchingOfferCount > 0 && (
+                            <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mb-3">
+                              Yana {item.otherMatchingOfferCount} ta mos variant
+                            </p>
+                          )}
+
+                          <div className="flex items-center gap-2 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#2A3F36]">
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              fullWidth
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDetail(item);
+                              }}
+                            >
+                              Do‘konni ko‘rish
+                            </Button>
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fetchRoute(item.store, 'walking');
+                              }}
+                            >
+                              <Navigation className="w-3.5 h-3.5" />
+                            </Button>
+                          </div>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {/* ROUTE VIEW */}
-          {view === 'route' && selectedResult && routeData && (
+          {view === 'route' && (
             <div className="p-5 flex flex-col gap-4">
-              <button
-                onClick={() => setView('detail')}
-                className="flex items-center gap-1.5 text-sm font-semibold text-[#116B50] hover:underline"
-              >
-                <ArrowLeft className="w-4 h-4" /> Do‘konga qaytish
-              </button>
+              <div className="flex items-center justify-between bg-red-50 dark:bg-red-950/40 p-3 rounded-2xl border border-red-200 dark:border-red-900/50">
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                  <span className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">Marshrut rejimi faol</span>
+                </div>
 
-              <h1 className="text-2xl font-bold tracking-tight text-[#172C28]">Do‘konga yo‘l</h1>
+                <button
+                  onClick={handleStopRoute}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-bold shadow-sm transition cursor-pointer"
+                  title="Marshrutni to‘xtatish"
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span>To‘xtatish</span>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div>
+                  <h1 className="text-2xl font-bold tracking-tight text-[#172C28] dark:text-white">Do‘konga yo‘l</h1>
+                  {selectedResult?.store && (
+                    <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                      {selectedResult.store.name} · {selectedResult.store.address}
+                    </p>
+                  )}
+                </div>
+              </div>
 
               {/* Walking / Driving Selector */}
-              <div className="flex gap-2 p-1 bg-[#F3F6F3] rounded-xl border border-[#DCE5DF]">
+              <div className="flex gap-2 p-1 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36]">
                 <button
                   onClick={() => {
                     setRouteMode('walking');
-                    fetchRoute(selectedResult.store, 'walking');
+                    if (selectedResult?.store) fetchRoute(selectedResult.store, 'walking');
                   }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                     routeMode === 'walking'
                       ? 'bg-[#116B50] text-white shadow-sm'
-                      : 'text-[#566A63] hover:text-[#172C28]'
+                      : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
                   }`}
                 >
                   🚶 Piyoda
@@ -641,62 +1137,80 @@ export function CustomerApp() {
                 <button
                   onClick={() => {
                     setRouteMode('driving');
-                    fetchRoute(selectedResult.store, 'driving');
+                    if (selectedResult?.store) fetchRoute(selectedResult.store, 'driving');
                   }}
                   className={`flex-1 py-2 text-xs font-bold rounded-lg transition ${
                     routeMode === 'driving'
                       ? 'bg-[#116B50] text-white shadow-sm'
-                      : 'text-[#566A63] hover:text-[#172C28]'
+                      : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
                   }`}
                 >
                   🚗 Avtomobil
                 </button>
               </div>
 
-              {/* Route Summary */}
-              <div className="bg-[#E7F2EB] p-4 rounded-2xl border border-[#116B50]/20">
-                <span className="text-[11px] font-bold text-[#116B50] uppercase tracking-wider">
-                  Marshrut hisobi
-                </span>
-                <div className="text-3xl font-extrabold text-[#172C28] mt-1">
-                  {Math.round(routeData.durationSec / 60)} daqiqa{' '}
-                  <span className="text-base font-normal text-[#566A63]">
-                    · {routeData.distanceM} m
-                  </span>
-                </div>
-                <div className="text-xs text-[#566A63] mt-1">
-                  To‘g‘ri chiziq bo‘yicha {selectedResult.distanceM} m · Taxminiy vaqt
-                </div>
-              </div>
-
-              {/* Turn-by-Turn Steps */}
-              <div className="flex flex-col border border-[#DCE5DF] rounded-2xl bg-white divide-y divide-[#DCE5DF]/60">
-                {routeData.steps.map((st, i) => (
-                  <div key={i} className="p-3.5 flex items-start gap-3 text-xs text-[#172C28]">
-                    <span className="w-5 h-5 rounded-full bg-[#E0EFE7] text-[#116B50] font-bold flex items-center justify-center shrink-0">
-                      {i + 1}
+              {routeData ? (
+                <>
+                  {/* Route Summary */}
+                  <div className="bg-[#E7F2EB] dark:bg-[#183324] p-4 rounded-2xl border border-[#116B50]/20">
+                    <span className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] uppercase tracking-wider">
+                      Marshrut hisobi
                     </span>
-                    <div className="flex-1">
-                      <span className="font-semibold">{st.instruction}</span>
-                      <div className="text-[11px] text-[#566A63] mt-0.5">
-                        {st.distanceM} m · ~{Math.round(st.durationSec / 60) || 1} daqiqa
-                      </div>
+                    <div className="text-3xl font-extrabold text-[#172C28] dark:text-white mt-1">
+                      {Math.round(routeData.durationSec / 60) || 1} daqiqa{' '}
+                      <span className="text-base font-normal text-[#566A63] dark:text-[#8B9E95]">
+                        · {routeData.distanceM >= 1000 ? `${(routeData.distanceM / 1000).toFixed(1)} km` : `${routeData.distanceM} m`}
+                      </span>
+                    </div>
+                    <div className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
+                      {routeMode === 'walking' ? 'Piyoda yurish tezligi bo‘yicha' : 'Avtomobil harakati bo‘yicha'} · Aniq marshrut
                     </div>
                   </div>
-                ))}
-              </div>
 
-              {routeData.externalMapUrl && (
-                <a
-                  href={routeData.externalMapUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="w-full"
-                >
-                  <Button variant="primary" fullWidth>
-                    <ExternalLink className="w-4 h-4 mr-2" /> Tashqi xaritada ochish
-                  </Button>
-                </a>
+                  {/* Turn-by-Turn Steps */}
+                  <div className="flex flex-col border border-[#DCE5DF] dark:border-[#2A3F36] rounded-2xl bg-white dark:bg-[#16241E] divide-y divide-[#DCE5DF]/60 dark:divide-[#2A3F36]">
+                    {routeData.steps.map((st, i) => (
+                      <div key={i} className="p-3.5 flex items-start gap-3 text-xs text-[#172C28] dark:text-[#E8F2EC]">
+                        <span className="w-5 h-5 rounded-full bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold flex items-center justify-center shrink-0 text-[11px]">
+                          {i + 1}
+                        </span>
+                        <div className="flex-1">
+                          <span className="font-semibold">{st.instruction}</span>
+                          <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                            {st.distanceM} m · ~{Math.round(st.durationSec / 60) || 1} daqiqa
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {routeData.externalMapUrl && (
+                    <a
+                      href={routeData.externalMapUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="w-full"
+                    >
+                      <Button variant="primary" fullWidth className="font-bold py-2.5">
+                        <ExternalLink className="w-4 h-4 mr-2" /> Tashqi xaritada ochish (Google / Yandex)
+                      </Button>
+                    </a>
+                  )}
+
+                  {/* Stop Route Action Button */}
+                  <button
+                    onClick={handleStopRoute}
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-900/50 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/50 text-xs font-bold transition shadow-sm cursor-pointer active:scale-[0.99]"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    <span>Marshrutni yakunlash (Xaritaga qaytish)</span>
+                  </button>
+                </>
+              ) : (
+                <div className="p-12 text-center text-xs text-[#566A63] dark:text-[#8B9E95] flex flex-col items-center gap-3 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36]">
+                  <div className="w-6 h-6 border-2 border-[#116B50] border-t-transparent rounded-full animate-spin" />
+                  <span>Marshrut yuklanmoqda...</span>
+                </div>
               )}
             </div>
           )}
@@ -708,14 +1222,122 @@ export function CustomerApp() {
             mobileTab === 'royxat' && view === 'search' ? 'hidden md:flex' : 'flex'
           }`}
         >
+          {/* Mobile Floating Search Bar Overlay (Only on mobile when in search view) */}
+          {view === 'search' && (
+            <div className="md:hidden absolute top-2 left-2 right-2 z-20 flex flex-col gap-1.5 pointer-events-none">
+              <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-2.5 rounded-2xl border border-[#DCE5DF] dark:border-[#273B32] shadow-xl pointer-events-auto flex flex-col gap-2">
+                {/* Search input & Action Button */}
+                <div className="flex items-center gap-1.5">
+                  <div className="relative flex-1">
+                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95] pointer-events-none">
+                      <Search className="w-4 h-4" />
+                    </div>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && doSearch()}
+                      placeholder="Mahsulot nomi (masalan: snikers)..."
+                      className="w-full h-10 pl-8 pr-7 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-1 focus:ring-[#116B50]"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => {
+                          setSearchQuery('');
+                          doSearch();
+                        }}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => doSearch()}
+                    className="h-10 px-3.5 bg-[#116B50] hover:bg-[#0d533e] active:scale-95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm shrink-0 transition"
+                  >
+                    <Search className="w-3.5 h-3.5" />
+                    <span>Izlash</span>
+                  </button>
+                  <button
+                    onClick={() => setIsFilterModalOpen(true)}
+                    title="Filtrlar"
+                    className="h-10 px-2.5 bg-white dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl flex items-center justify-center shadow-sm shrink-0 hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328] transition"
+                  >
+                    <Filter className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                  </button>
+                </div>
+
+                {/* Quick filter badges */}
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-[11px]">
+                  <button
+                    onClick={() => setIsFilterModalOpen(true)}
+                    className="px-2.5 py-1 rounded-lg bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] border border-[#116B50]/30 font-bold whitespace-nowrap flex items-center gap-1 shrink-0"
+                  >
+                    <MapPin className="w-3 h-3" />
+                    {radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`} ▾
+                  </button>
+
+                  <button
+                    onClick={() => setOpenNow(!openNow)}
+                    className={`px-2.5 py-1 rounded-lg border font-semibold whitespace-nowrap shrink-0 transition ${
+                      openNow
+                        ? 'bg-[#116B50] text-white border-[#116B50]'
+                        : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
+                    }`}
+                  >
+                    ● Ochiq
+                  </button>
+
+                  <button
+                    onClick={() => setInStock(!inStock)}
+                    className={`px-2.5 py-1 rounded-lg border font-semibold whitespace-nowrap shrink-0 transition ${
+                      inStock
+                        ? 'bg-[#116B50] text-white border-[#116B50]'
+                        : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
+                    }`}
+                  >
+                    Mavjud
+                  </button>
+
+                  <button
+                    onClick={() => setFreshOnly(!freshOnly)}
+                    className={`px-2.5 py-1 rounded-lg border font-semibold whitespace-nowrap shrink-0 transition ${
+                      freshOnly
+                        ? 'bg-[#116B50] text-white border-[#116B50]'
+                        : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
+                    }`}
+                  >
+                    Yangi
+                  </button>
+
+                  <select
+                    value={selectedSort}
+                    onChange={(e: any) => setSelectedSort(e.target.value)}
+                    className="px-2 py-1 bg-[#F9FAF9] dark:bg-[#1A2822] text-[#116B50] dark:text-[#4ADE80] font-bold text-[11px] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-lg outline-none shrink-0"
+                  >
+                    <option value="relevance">Eng mos</option>
+                    <option value="distance">Eng yaqin</option>
+                    <option value="price">Eng arzon</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+
           <InteractiveMap
             userLocation={userLocation}
             radiusM={radiusM}
             results={results}
+            nearbyStores={nearbyStores}
             selectedResult={selectedResult}
+            selectedNearbyStore={selectedNearbyStore}
             onSelectStore={handleSelectStore}
+            onSelectNearbyStore={handleSelectNearbyStore}
             onOpenDetail={handleOpenDetail}
+            onOpenNearbyDetail={handleOpenNearbyDetail}
             onNavigate={(item) => fetchRoute(item.store, routeMode)}
+            onCancelRoute={handleStopRoute}
             routeData={routeData}
             view={view}
             isDarkMode={isDarkMode}
@@ -725,44 +1347,72 @@ export function CustomerApp() {
             onToast={showToast}
           />
         </section>
-      </main>
+      </>
+    )}
+  </main>
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden h-16 bg-white dark:bg-[#14201A] border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40">
         <button
           onClick={() => {
-            setView('search');
+            navigateTo('/');
             setMobileTab('xarita');
           }}
-          className={`flex flex-col items-center gap-1 text-[11px] font-semibold ${
-            view === 'search' ? 'text-[#116B50] dark:text-[#4ADE80]' : 'text-[#566A63] dark:text-[#8B9E95]'
+          className={`flex flex-col items-center gap-1 text-[10px] font-semibold ${
+            view === 'search' && mobileTab === 'xarita'
+              ? 'text-[#116B50] dark:text-[#4ADE80]'
+              : 'text-[#566A63] dark:text-[#8B9E95]'
           }`}
         >
-          <Search className="w-5 h-5" />
-          <span>Qidiruv</span>
+          <Search className="w-4 h-4" />
+          <span>Izlash</span>
         </button>
+
+        <button
+          onClick={() => navigateTo('/sevimlilar')}
+          className={`flex flex-col items-center gap-1 text-[10px] font-semibold ${
+            view === 'hub' && hubSection === 'favorites'
+              ? 'text-[#116B50] dark:text-[#4ADE80]'
+              : 'text-[#566A63] dark:text-[#8B9E95]'
+          }`}
+        >
+          <Heart className="w-4 h-4" />
+          <span>Sevimlilar</span>
+        </button>
+
+        <button
+          onClick={() => navigateTo('/ariza')}
+          className={`flex flex-col items-center gap-1 text-[10px] font-semibold ${
+            view === 'hub' && hubSection === 'inquiries'
+              ? 'text-[#116B50] dark:text-[#4ADE80]'
+              : 'text-[#566A63] dark:text-[#8B9E95]'
+          }`}
+        >
+          <AlertTriangle className="w-4 h-4" />
+          <span>Arizalar</span>
+        </button>
+
+        <button
+          onClick={() => navigateTo('/tarix')}
+          className={`flex flex-col items-center gap-1 text-[10px] font-semibold ${
+            view === 'hub' && hubSection === 'history'
+              ? 'text-[#116B50] dark:text-[#4ADE80]'
+              : 'text-[#566A63] dark:text-[#8B9E95]'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          <span>Tarix</span>
+        </button>
+
         <button
           onClick={() => {
-            setMobileTab(mobileTab === 'xarita' ? 'royxat' : 'xarita');
+            if (currentUser) setIsProfileModalOpen(true);
+            else setIsLoginModalOpen(true);
           }}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95]"
+          className="flex flex-col items-center gap-1 text-[10px] font-semibold text-[#566A63] dark:text-[#8B9E95]"
         >
-          <Layers className="w-5 h-5" />
-          <span>{mobileTab === 'xarita' ? 'Ro‘yxat' : 'Xarita'}</span>
-        </button>
-        <button
-          onClick={() => showToast('Saqlangan do‘konlar')}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95]"
-        >
-          <Bookmark className="w-5 h-5" />
-          <span>Saqlangan</span>
-        </button>
-        <button
-          onClick={() => setIsLoginModalOpen(true)}
-          className="flex flex-col items-center gap-1 text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95]"
-        >
-          <div className="w-5 h-5 rounded-full border border-current flex items-center justify-center text-[10px]">
-            ○
+          <div className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[9px] font-bold">
+            {currentUser?.fullName ? currentUser.fullName[0] : '○'}
           </div>
           <span>Profil</span>
         </button>
@@ -858,93 +1508,154 @@ export function CustomerApp() {
         </div>
       </Modal>
 
-      {/* 3. Login Modal */}
-      <Modal
+      {/* 3. User Profile Modal */}
+      <UnifiedUserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onLogout={() => {
+          setCurrentUser(null);
+          showToast('Tizimdan muvaffaqiyatli chiqildi');
+          setIsProfileModalOpen(false);
+          setIsLoginModalOpen(true);
+        }}
+        onLoginPrompt={() => {
+          setIsProfileModalOpen(false);
+          setIsLoginModalOpen(true);
+        }}
+        onUserUpdated={(updated) => {
+          setCurrentUser(updated);
+        }}
+      />
+
+      {/* 4. Login Modal */}
+      <UnifiedLoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
-        title="Tizimga kirish"
-        footer={
-          <Button
-            variant="primary"
-            fullWidth
-            onClick={() => {
-              showToast('Demo xaridor sifatida tizimga kirildi');
-              setIsLoginModalOpen(false);
-            }}
-          >
-            Kirish
-          </Button>
-        }
-      >
-        <div className="flex flex-col gap-3">
-          <div>
-            <label className="text-xs font-semibold text-[#566A63] block mb-1">Email</label>
-            <input
-              type="email"
-              defaultValue="customer@yaqintop.uz"
-              className="w-full p-2.5 border border-[#DCE5DF] rounded-xl text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-[#566A63] block mb-1">Parol</label>
-            <input
-              type="password"
-              defaultValue="DemoPass123!"
-              className="w-full p-2.5 border border-[#DCE5DF] rounded-xl text-sm"
-            />
-          </div>
-          <p className="text-xs text-[#566A63] mt-2">
-            Demo hisob: <code>customer@yaqintop.uz</code> / <code>DemoPass123!</code>
-          </p>
-        </div>
-      </Modal>
+        appTitle="YaqinTop Xaridor"
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          showToast(`Xush kelibsiz, ${user.fullName}!`);
+        }}
+      />
 
       {/* 4. Filter Modal */}
       <Modal
         isOpen={isFilterModalOpen}
         onClose={() => setIsFilterModalOpen(false)}
-        title="Qidiruv filtrlari"
+        title="Qidiruv filtrlari va radiusi"
         footer={
-          <Button
-            variant="primary"
-            fullWidth
-            onClick={() => {
-              setIsFilterModalOpen(false);
-              doSearch();
-            }}
-          >
-            Qo‘llash
-          </Button>
+          <div className="flex gap-2 w-full">
+            <Button
+              variant="secondary"
+              fullWidth
+              onClick={() => {
+                setRadiusM(1000);
+                setOpenNow(false);
+                setInStock(false);
+                setFreshOnly(false);
+                setSelectedSort('relevance');
+                setIsFilterModalOpen(false);
+                doSearch();
+              }}
+            >
+              Tozalash
+            </Button>
+            <Button
+              variant="primary"
+              fullWidth
+              onClick={() => {
+                setIsFilterModalOpen(false);
+                doSearch();
+              }}
+            >
+              Qo‘llash
+            </Button>
+          </div>
         }
       >
         <div className="flex flex-col gap-4">
-          <label className="flex items-center gap-2 text-sm font-medium">
+          {/* Radius Selection */}
+          <div className="bg-[#F9FAF9] dark:bg-[#1A2822] p-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36]">
+            <div className="flex items-center justify-between text-xs mb-1.5">
+              <span className="text-[#566A63] dark:text-[#8B9E95] font-medium">Qidiruv radiusi:</span>
+              <strong className="text-sm text-[#116B50] dark:text-[#4ADE80] font-bold">
+                {radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`}
+              </strong>
+            </div>
             <input
-              type="checkbox"
-              checked={openNow}
-              onChange={(e) => setOpenNow(e.target.checked)}
-              className="w-4 h-4 accent-[#116B50]"
+              type="range"
+              min="50"
+              max="3000"
+              step="50"
+              value={radiusM}
+              onChange={(e) => setRadiusM(Number(e.target.value))}
+              className="w-full accent-[#116B50] dark:accent-[#4ADE80] cursor-pointer"
             />
-            Faqat hozir ochiq do‘konlar
-          </label>
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={inStock}
-              onChange={(e) => setInStock(e.target.checked)}
-              className="w-4 h-4 accent-[#116B50]"
-            />
-            Faqat tovar qoldig‘i mavjud do‘konlar
-          </label>
-          <label className="flex items-center gap-2 text-sm font-medium">
-            <input
-              type="checkbox"
-              checked={freshOnly}
-              onChange={(e) => setFreshOnly(e.target.checked)}
-              className="w-4 h-4 accent-[#116B50]"
-            />
-            Faqat yangi ma’lumot (24 soat ichida tekshirilgan)
-          </label>
+            <div className="flex justify-between gap-1 mt-2">
+              {[100, 500, 1000, 3000].map((r) => (
+                <button
+                  key={r}
+                  type="button"
+                  onClick={() => setRadiusM(r)}
+                  className={`text-[11px] px-2.5 py-1 rounded-md border ${
+                    radiusM === r
+                      ? 'bg-[#116B50] dark:bg-[#4ADE80] text-white dark:text-[#0E1713] border-[#116B50] dark:border-[#4ADE80] font-bold'
+                      : 'bg-white dark:bg-[#14201A] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
+                  }`}
+                >
+                  {r >= 1000 ? `${r / 1000} km` : `${r} m`}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Sort selection */}
+          <div>
+            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1.5">
+              Saralash tartibi
+            </label>
+            <select
+              value={selectedSort}
+              onChange={(e: any) => setSelectedSort(e.target.value)}
+              className="w-full p-2.5 bg-white dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-sm text-[#172C28] dark:text-[#E8F2EC] outline-none"
+            >
+              <option value="relevance">Eng mos (Relevance)</option>
+              <option value="distance">Eng yaqin masofa (Distance)</option>
+              <option value="price">Eng arzon narx (Price)</option>
+            </select>
+          </div>
+
+          {/* Checkboxes */}
+          <div className="flex flex-col gap-2.5 pt-2 border-t border-[#DCE5DF] dark:border-[#2A3F36]">
+            <label className="flex items-center gap-2.5 text-sm font-medium text-[#172C28] dark:text-[#E8F2EC] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={openNow}
+                onChange={(e) => setOpenNow(e.target.checked)}
+                className="w-4 h-4 accent-[#116B50]"
+              />
+              Faqat hozir ochiq do‘konlar
+            </label>
+            <label className="flex items-center gap-2.5 text-sm font-medium text-[#172C28] dark:text-[#E8F2EC] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={inStock}
+                onChange={(e) => setInStock(e.target.checked)}
+                className="w-4 h-4 accent-[#116B50]"
+              />
+              Faqat tovar qoldig‘i mavjud do‘konlar
+            </label>
+            <label className="flex items-center gap-2.5 text-sm font-medium text-[#172C28] dark:text-[#E8F2EC] cursor-pointer">
+              <input
+                type="checkbox"
+                checked={freshOnly}
+                onChange={(e) => setFreshOnly(e.target.checked)}
+                className="w-4 h-4 accent-[#116B50]"
+              />
+              Faqat yangi ma’lumot (24 soat ichida tekshirilgan)
+            </label>
+          </div>
         </div>
       </Modal>
     </div>

@@ -14,11 +14,17 @@ export type UserRole = z.infer<typeof UserRoleSchema>;
 
 export const UserSchema = z.object({
   id: z.string().uuid(),
-  email: z.string().email(),
+  email: z.string(),
   fullName: z.string().min(1),
   phone: z.string().optional(),
   role: UserRoleSchema,
   status: z.enum(['ACTIVE', 'SUSPENDED', 'PENDING']),
+  organizationId: z.string().optional(),
+  organizationName: z.string().optional(),
+  verificationMethod: z.enum(['TELEGRAM', 'SMS', 'NONE']).optional(),
+  isVerified: z.boolean().optional(),
+  verificationCode: z.string().optional(),
+  plainPassword: z.string().optional(),
   createdAt: z.string(),
   updatedAt: z.string()
 });
@@ -66,11 +72,28 @@ export const StoreHoursSchema = z.object({
 });
 export type StoreHours = z.infer<typeof StoreHoursSchema>;
 
+export const OrganizationSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1),
+  inn: z.string().optional(),
+  type: OrganizationTypeSchema,
+  status: z.enum(['ACTIVE', 'SUSPENDED']),
+  region: z.string().optional(),
+  city: z.string().optional(),
+  district: z.string().optional(),
+  createdAt: z.string()
+});
+export type Organization = z.infer<typeof OrganizationSchema>;
+
 export const StoreSchema = z.object({
   id: z.string().uuid(),
   organizationId: z.string().uuid(),
   name: z.string().min(1),
+  inn: z.string().optional(),
   address: z.string().min(1),
+  region: z.string().optional(),
+  city: z.string().optional(),
+  district: z.string().optional(),
   phone: z.string().min(1),
   location: CoordinatesSchema,
   entranceLocation: CoordinatesSchema.optional(),
@@ -333,3 +356,72 @@ export const MerchantSummarySchema = z.object({
   )
 });
 export type MerchantSummary = z.infer<typeof MerchantSummarySchema>;
+
+// ================= CREDENTIAL CHANGE & ADMIN NOTIFICATIONS =================
+export const CredentialRequestStatusSchema = z.enum(['PENDING', 'APPROVED', 'REJECTED']);
+export type CredentialRequestStatus = z.infer<typeof CredentialRequestStatusSchema>;
+
+export const CredentialChangeRequestSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  userName: z.string(),
+  userEmail: z.string(),
+  userPhone: z.string().optional(),
+  userRole: UserRoleSchema.optional(),
+  organizationId: z.string().optional(),
+  organizationName: z.string().optional(),
+  requestedEmail: z.string().optional(),
+  requestedPassword: z.string().optional(),
+  requestedFullName: z.string().optional(),
+  requestedPhone: z.string().optional(),
+  reason: z.string().optional(),
+  status: CredentialRequestStatusSchema,
+  adminComment: z.string().optional(),
+  createdAt: z.string(),
+  resolvedAt: z.string().optional()
+});
+export type CredentialChangeRequest = z.infer<typeof CredentialChangeRequestSchema>;
+
+export const InquiryPrioritySchema = z.enum(['LOW', 'NORMAL', 'HIGH', 'URGENT']);
+export type InquiryPriority = z.infer<typeof InquiryPrioritySchema>;
+
+export const InquiryStatusSchema = z.enum(['PENDING', 'PENDING_MERCHANT_REPLY', 'MERCHANT_SUBMITTED', 'MERCHANT_REPLIED', 'RESOLVED', 'CLOSED']);
+export type InquiryStatus = z.infer<typeof InquiryStatusSchema>;
+
+export const AdminInquirySchema = z.object({
+  id: z.string().uuid(),
+  storeId: z.string().optional(),
+  storeName: z.string().optional(),
+  organizationId: z.string().optional(),
+  organizationName: z.string().optional(),
+  senderUserId: z.string().optional(),
+  senderName: z.string().optional(),
+  senderPhone: z.string().optional(),
+  senderEmail: z.string().optional(),
+  category: z.string().optional(),
+  subject: z.string().min(1),
+  message: z.string().min(1),
+  priority: InquiryPrioritySchema.default('NORMAL'),
+  status: InquiryStatusSchema.default('PENDING'),
+  merchantReply: z.string().optional(),
+  merchantRepliedAt: z.string().optional(),
+  merchantRepliedBy: z.string().optional(),
+  adminReply: z.string().optional(),
+  adminRepliedAt: z.string().optional(),
+  adminResolutionNotes: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+export type AdminInquiry = z.infer<typeof AdminInquirySchema>;
+
+export const UserNotificationSchema = z.object({
+  id: z.string().uuid(),
+  userId: z.string().uuid(),
+  title: z.string(),
+  message: z.string(),
+  type: z.enum(['INFO', 'SUCCESS', 'WARNING', 'ERROR']).default('INFO'),
+  isRead: z.boolean().default(false),
+  createdAt: z.string()
+});
+export type UserNotification = z.infer<typeof UserNotificationSchema>;
+

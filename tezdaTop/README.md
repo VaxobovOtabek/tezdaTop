@@ -84,3 +84,9 @@ pnpm dev:admin
 - **Kassir / Operator:** `operator@navbahor.uz` / `DemoPass123!`
 - **Moderator:** `moderator@yaqintop.uz` / `DemoPass123!`
 - **Superadmin:** `admin@yaqintop.uz` / `DemoPass123!`
+
+---
+
+## 🚀 Production Serverga Deploy Qilish
+Serverga (VPS, Ubuntu, Docker, Nginx, SSL, PM2) to‘liq o‘rnatish va ishga tushirish bo‘yicha qadamma-qadam qo‘llanma:
+👉 **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** faylida batafsil yoritilgan.

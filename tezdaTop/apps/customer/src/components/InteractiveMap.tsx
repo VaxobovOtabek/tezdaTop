@@ -1,17 +1,40 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { StoreSearchResult, RouteResponse } from '@yaqintop/contracts';
-import { Navigation, MapPin, Maximize2, Store as StoreIcon, Crosshair, CircleDot } from 'lucide-react';
+import { StoreSearchResult, RouteResponse, Store } from '@yaqintop/contracts';
+import { Navigation, MapPin, Maximize2, Store as StoreIcon, Crosshair, CircleDot, XCircle } from 'lucide-react';
+
+export interface NearbyStoreItem {
+  store: Store;
+  organization?: any;
+  distanceM: number;
+  isOpenNow: boolean;
+  offersCount?: number;
+}
+
+export const getStoreLatLng = (store?: any): [number, number] | null => {
+  if (!store) return null;
+  const lat = store.location?.lat ?? store.latitude ?? store.lat;
+  const lng = store.location?.lng ?? store.longitude ?? store.lng;
+  if (typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+    return [lat, lng];
+  }
+  return null;
+};
 
 interface InteractiveMapProps {
   userLocation: { lat: number; lng: number };
   radiusM: number;
   results: StoreSearchResult[];
+  nearbyStores?: NearbyStoreItem[];
   selectedResult: StoreSearchResult | null;
+  selectedNearbyStore?: NearbyStoreItem | null;
   onSelectStore: (store: StoreSearchResult) => void;
+  onSelectNearbyStore?: (store: NearbyStoreItem) => void;
   onOpenDetail: (store: StoreSearchResult) => void;
-  onNavigate: (store: StoreSearchResult) => void;
+  onOpenNearbyDetail?: (store: NearbyStoreItem) => void;
+  onNavigate: (store: StoreSearchResult | { store: Store; distanceM: number }) => void;
+  onCancelRoute?: () => void;
   routeData: RouteResponse | null;
   view: 'search' | 'detail' | 'route' | 'saved' | 'profile';
   isDarkMode?: boolean;
@@ -23,10 +46,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   userLocation,
   radiusM,
   results,
+  nearbyStores = [],
   selectedResult,
+  selectedNearbyStore,
   onSelectStore,
+  onSelectNearbyStore,
   onOpenDetail,
+  onOpenNearbyDetail,
   onNavigate,
+  onCancelRoute,
   routeData,
   view,
   isDarkMode = false,
@@ -44,6 +72,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
   const [mapReady, setMapReady] = useState(false);
 
+  const userLat = userLocation?.lat ?? 41.311081;
+  const userLng = userLocation?.lng ?? 69.240562;
+
   // Initialize Map
   useEffect(() => {
     if (!mapContainerRef.current) return;
@@ -57,7 +88,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     let map: L.Map;
     try {
       map = L.map(mapContainerRef.current, {
-        center: [userLocation.lat, userLocation.lng],
+        center: [userLat, userLng],
         zoom: 15,
         zoomControl: false,
         attributionControl: false
@@ -246,115 +277,219 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
     if (view === 'route') return;
 
-    results.forEach((item) => {
-      const isSelected = selectedResult?.store.id === item.store.id;
-      const formattedPrice = Number(item.bestOffer.price).toLocaleString('uz-UZ');
+    // Case 1: Product search active
+    if (results.length > 0) {
+      results.forEach((item) => {
+        const latLng = getStoreLatLng(item?.store);
+        if (!latLng) return;
 
-      const bgStyle = isSelected
-        ? 'background: #116B50; color: #ffffff; border: 2px solid #ffffff; box-shadow: 0 10px 18px -2px rgba(17,107,80,0.5);'
-        : item.isOpenNow
-        ? isDarkMode
-          ? 'background: #16241E; color: #E8F2EC; border: 2px solid #22C55E; box-shadow: 0 4px 8px rgba(0,0,0,0.4);'
-          : 'background: #ffffff; color: #172C28; border: 2px solid #116B50; box-shadow: 0 4px 8px rgba(0,0,0,0.15);'
-        : isDarkMode
-        ? 'background: #1F2937; color: #9CA3AF; border: 2px solid #4B5563; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'
-        : 'background: #F3F4F6; color: #6B7280; border: 2px solid #9CA3AF; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+        const isSelected = selectedResult?.store?.id === item.store?.id;
+        const formattedPrice = Number(item.bestOffer?.price || 0).toLocaleString('uz-UZ');
 
-      const arrowColor = isSelected
-        ? '#116B50'
-        : item.isOpenNow
-        ? (isDarkMode ? '#22C55E' : '#116B50')
-        : '#9CA3AF';
+        const bgStyle = isSelected
+          ? 'background: #116B50; color: #ffffff; border: 2px solid #ffffff; box-shadow: 0 10px 18px -2px rgba(17,107,80,0.5);'
+          : item.isOpenNow
+          ? isDarkMode
+            ? 'background: #16241E; color: #E8F2EC; border: 2px solid #22C55E; box-shadow: 0 4px 8px rgba(0,0,0,0.4);'
+            : 'background: #ffffff; color: #172C28; border: 2px solid #116B50; box-shadow: 0 4px 8px rgba(0,0,0,0.15);'
+          : isDarkMode
+          ? 'background: #1F2937; color: #9CA3AF; border: 2px solid #4B5563; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'
+          : 'background: #F3F4F6; color: #6B7280; border: 2px solid #9CA3AF; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
 
-      const customIcon = L.divIcon({
-        className: 'custom-store-pin',
-        html: `
-          <div style="transform: translate(-50%, -50%); cursor: pointer; transition: transform 0.2s;">
-            <div style="${bgStyle} padding: 6px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
-              <span>🛒</span>
-              <span>${formattedPrice} so‘m</span>
+        const arrowColor = isSelected
+          ? '#116B50'
+          : item.isOpenNow
+          ? (isDarkMode ? '#22C55E' : '#116B50')
+          : '#9CA3AF';
+
+        const customIcon = L.divIcon({
+          className: 'custom-store-pin',
+          html: `
+            <div style="transform: translate(-50%, -50%); cursor: pointer; transition: transform 0.2s;">
+              <div style="${bgStyle} padding: 6px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+                <span>🛒</span>
+                <span>${formattedPrice} so‘m</span>
+              </div>
+              <div style="width: 8px; height: 8px; background: ${arrowColor}; transform: rotate(45deg); margin: -4px auto 0 auto;"></div>
             </div>
-            <div style="width: 8px; height: 8px; background: ${arrowColor}; transform: rotate(45deg); margin: -4px auto 0 auto;"></div>
-          </div>
-        `,
-        iconSize: [120, 40],
-        iconAnchor: [60, 36]
-      });
+          `,
+          iconSize: [120, 40],
+          iconAnchor: [60, 36]
+        });
 
-      const marker = L.marker([item.store.location.lat, item.store.location.lng], {
-        icon: customIcon,
-        zIndexOffset: isSelected ? 500 : 100
-      });
+        const marker = L.marker(latLng, {
+          icon: customIcon,
+          zIndexOffset: isSelected ? 500 : 100
+        });
 
-      // Custom Popup
-      const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
-      const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
-      const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
-      const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
+        const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
+        const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
+        const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
+        const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
 
-      const popupContent = `
-        <div style="min-width: 200px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
-          <div style="font-weight: 700; font-size: 14px; color: ${popupTitle}; margin-bottom: 2px;">
-            ${item.store.name}
-          </div>
-          <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 6px;">
-            ${item.store.address}
-          </div>
-          <div style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px;">
-            <div style="font-size: 11px; color: ${popupMuted};">${item.bestOffer.variant.title}</div>
-            <div style="font-size: 14px; font-weight: 800; color: #116B50;">
-              ${formattedPrice} so‘m <span style="font-size: 10px; font-weight: normal; color: ${popupMuted};">/ ${item.bestOffer.variant.packUnit}</span>
+        const popupContent = `
+          <div style="min-width: 200px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="font-weight: 700; font-size: 14px; color: ${popupTitle}; margin-bottom: 2px;">
+              ${item.store.name}
+            </div>
+            <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 6px;">
+              ${item.store.address}
+            </div>
+            <div style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px;">
+              <div style="font-size: 11px; color: ${popupMuted};">${item.bestOffer?.variant?.title || 'Mahsulot'}</div>
+              <div style="font-size: 14px; font-weight: 800; color: #116B50;">
+                ${formattedPrice} so‘m <span style="font-size: 10px; font-weight: normal; color: ${popupMuted};">/ ${item.bestOffer?.variant?.packUnit || 'dona'}</span>
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button id="btn-detail-${item.store.id}" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                Do‘kon
+              </button>
+              <button id="btn-route-${item.store.id}" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                Marshrut
+              </button>
             </div>
           </div>
-          <div style="display: flex; gap: 6px;">
-            <button id="btn-detail-${item.store.id}" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; cursor: pointer;">
-              Do‘kon
-            </button>
-            <button id="btn-route-${item.store.id}" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer;">
-              Marshrut
-            </button>
+        `;
+
+        marker.bindPopup(popupContent, { offset: [0, -20] });
+        marker.on('click', () => onSelectStore(item));
+        marker.on('popupopen', () => {
+          const detailBtn = document.getElementById(`btn-detail-${item.store.id}`);
+          const routeBtn = document.getElementById(`btn-route-${item.store.id}`);
+          if (detailBtn) detailBtn.onclick = (e) => { e.stopPropagation(); onOpenDetail(item); };
+          if (routeBtn) routeBtn.onclick = (e) => { e.stopPropagation(); onNavigate(item); };
+        });
+
+        markersLayer.addLayer(marker);
+      });
+    } else if (nearbyStores.length > 0) {
+      // Case 2: No product search active -> display all nearby stores
+      nearbyStores.forEach((item) => {
+        const latLng = getStoreLatLng(item?.store);
+        if (!latLng) return;
+
+        const isSelected = selectedNearbyStore?.store?.id === item.store?.id;
+        const bgStyle = isSelected
+          ? 'background: #116B50; color: #ffffff; border: 2px solid #ffffff; box-shadow: 0 10px 18px -2px rgba(17,107,80,0.5);'
+          : item.isOpenNow
+          ? isDarkMode
+            ? 'background: #16241E; color: #E8F2EC; border: 2px solid #22C55E; box-shadow: 0 4px 8px rgba(0,0,0,0.4);'
+            : 'background: #ffffff; color: #172C28; border: 2px solid #116B50; box-shadow: 0 4px 8px rgba(0,0,0,0.15);'
+          : isDarkMode
+          ? 'background: #1F2937; color: #9CA3AF; border: 2px solid #4B5563; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'
+          : 'background: #F3F4F6; color: #6B7280; border: 2px solid #9CA3AF; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+
+        const arrowColor = isSelected
+          ? '#116B50'
+          : item.isOpenNow
+          ? (isDarkMode ? '#22C55E' : '#116B50')
+          : '#9CA3AF';
+
+        const storeIcon = (item.store?.type as string) === 'WHOLESALE' ? '📦' : item.store?.type === 'MIXED' ? '🏢' : '🏪';
+
+        const customIcon = L.divIcon({
+          className: 'custom-store-pin',
+          html: `
+            <div style="transform: translate(-50%, -50%); cursor: pointer; transition: transform 0.2s;">
+              <div style="${bgStyle} padding: 5px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 5px; white-space: nowrap; max-width: 170px; overflow: hidden; text-overflow: ellipsis;">
+                <span>${storeIcon}</span>
+                <span style="overflow: hidden; text-overflow: ellipsis;">${item.store.name}</span>
+                <span style="font-size: 9px; color: ${item.isOpenNow ? '#10B981' : '#EF4444'};">●</span>
+              </div>
+              <div style="width: 7px; height: 7px; background: ${arrowColor}; transform: rotate(45deg); margin: -3.5px auto 0 auto;"></div>
+            </div>
+          `,
+          iconSize: [140, 36],
+          iconAnchor: [70, 32]
+        });
+
+        const marker = L.marker(latLng, {
+          icon: customIcon,
+          zIndexOffset: isSelected ? 500 : 100
+        });
+
+        const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
+        const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
+        const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
+        const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
+
+        const popupContent = `
+          <div style="min-width: 210px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="font-weight: 700; font-size: 14px; color: ${popupTitle}; margin-bottom: 2px;">
+              ${item.store.name}
+            </div>
+            <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 6px;">
+              ${item.store.address}
+            </div>
+            <div style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px; font-size: 11px;">
+              <div style="color: ${item.isOpenNow ? '#10B981' : '#EF4444'}; font-weight: 600;">
+                ${item.isOpenNow ? '● Hozir ochiq (08:00–23:00)' : '○ Hozir yopiq'}
+              </div>
+              <div style="color: ${popupMuted}; margin-top: 2px;">
+                ${item.offersCount ? `${item.offersCount} ta tovar va xizmat` : 'Katalog mavjud'} · ${item.distanceM} m
+              </div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button id="btn-open-store-${item.store.id}" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                Tovar va xizmatlar 🛍️
+              </button>
+              <button id="btn-route-store-${item.store.id}" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                Marshrut
+              </button>
+            </div>
           </div>
-        </div>
-      `;
+        `;
 
-      marker.bindPopup(popupContent, { offset: [0, -20] });
+        marker.bindPopup(popupContent, { offset: [0, -20] });
+        marker.on('click', () => {
+          if (onSelectNearbyStore) onSelectNearbyStore(item);
+        });
+        marker.on('popupopen', () => {
+          const detailBtn = document.getElementById(`btn-open-store-${item.store.id}`);
+          const routeBtn = document.getElementById(`btn-route-store-${item.store.id}`);
+          if (detailBtn) {
+            detailBtn.onclick = (e) => {
+              e.stopPropagation();
+              if (onOpenNearbyDetail) onOpenNearbyDetail(item);
+            };
+          }
+          if (routeBtn) {
+            routeBtn.onclick = (e) => {
+              e.stopPropagation();
+              onNavigate({ store: item.store, distanceM: item.distanceM });
+            };
+          }
+        });
 
-      marker.on('click', () => {
-        onSelectStore(item);
+        markersLayer.addLayer(marker);
       });
+    }
+  }, [results, nearbyStores, selectedResult, selectedNearbyStore, view, isDarkMode, mapReady]);
 
-      marker.on('popupopen', () => {
-        const detailBtn = document.getElementById(`btn-detail-${item.store.id}`);
-        const routeBtn = document.getElementById(`btn-route-${item.store.id}`);
-
-        if (detailBtn) {
-          detailBtn.onclick = (e) => {
-            e.stopPropagation();
-            onOpenDetail(item);
-          };
-        }
-        if (routeBtn) {
-          routeBtn.onclick = (e) => {
-            e.stopPropagation();
-            onNavigate(item);
-          };
-        }
-      });
-
-      markersLayer.addLayer(marker);
-    });
-  }, [results, selectedResult, view, isDarkMode, mapReady]);
-
-  // Center selected result on change
+  // Center selected result or nearby store on change
   useEffect(() => {
     const map = mapInstanceRef.current;
-    if (!map || !selectedResult || view === 'route') return;
+    if (!map || view === 'route') return;
 
-    map.panTo([selectedResult.store.location.lat, selectedResult.store.location.lng], {
-      animate: true,
-      duration: 0.5
-    });
-  }, [selectedResult, view]);
+    if (selectedResult?.store) {
+      const latLng = getStoreLatLng(selectedResult.store);
+      if (latLng) {
+        map.panTo(latLng, {
+          animate: true,
+          duration: 0.5
+        });
+      }
+    } else if (selectedNearbyStore?.store) {
+      const latLng = getStoreLatLng(selectedNearbyStore.store);
+      if (latLng) {
+        map.panTo(latLng, {
+          animate: true,
+          duration: 0.5
+        });
+      }
+    }
+  }, [selectedResult, selectedNearbyStore, view]);
 
   // Update Route Polyline & Destination Marker
   useEffect(() => {
@@ -405,6 +540,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const map = mapInstanceRef.current;
     if (!map) return;
 
+    const uLat = userLocation?.lat ?? 41.311081;
+    const uLng = userLocation?.lng ?? 69.240562;
+
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -414,13 +552,13 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           if (onToast) onToast('GPS joylashuv aniqlandi!');
         },
         () => {
-          map.setView([userLocation.lat, userLocation.lng], 15, { animate: true });
+          map.setView([uLat, uLng], 15, { animate: true });
           if (onToast) onToast('Boshlang‘ich qidiruv nuqtasiga qaytildi');
         },
         { enableHighAccuracy: true, timeout: 5000 }
       );
     } else {
-      map.setView([userLocation.lat, userLocation.lng], 15, { animate: true });
+      map.setView([uLat, uLng], 15, { animate: true });
       if (onToast) onToast('Boshlang‘ich joylashuvga qaytildi');
     }
   };
@@ -438,13 +576,30 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   // Fit all markers in view
   const handleFitBounds = () => {
     const map = mapInstanceRef.current;
-    if (!map || results.length === 0) return;
+    if (!map) return;
 
-    const bounds = L.latLngBounds(
-      results.map((r) => [r.store.location.lat, r.store.location.lng] as [number, number])
-    );
-    bounds.extend([userLocation.lat, userLocation.lng]);
-    map.fitBounds(bounds, { padding: [50, 50], animate: true });
+    const uLat = userLocation?.lat ?? 41.311081;
+    const uLng = userLocation?.lng ?? 69.240562;
+
+    if (results.length > 0) {
+      const validPoints: [number, number][] = results
+        .map((r) => getStoreLatLng(r?.store))
+        .filter((pt): pt is [number, number] => pt !== null);
+      if (validPoints.length > 0) {
+        const bounds = L.latLngBounds(validPoints);
+        bounds.extend([uLat, uLng]);
+        map.fitBounds(bounds, { padding: [50, 50], animate: true });
+      }
+    } else if (nearbyStores.length > 0) {
+      const validPoints: [number, number][] = nearbyStores
+        .map((r) => getStoreLatLng(r?.store))
+        .filter((pt): pt is [number, number] => pt !== null);
+      if (validPoints.length > 0) {
+        const bounds = L.latLngBounds(validPoints);
+        bounds.extend([uLat, uLng]);
+        map.fitBounds(bounds, { padding: [50, 50], animate: true });
+      }
+    }
   };
 
   const handleZoomIn = () => {
@@ -469,24 +624,54 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         style={{ width: '100%', height: '100%' }}
       />
 
-      {/* Floating Top Bar */}
-      <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 flex justify-between items-center pointer-events-none z-10">
-        <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] px-3.5 py-2 rounded-xl text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC] shadow-md pointer-events-auto flex items-center gap-2">
-          <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
-          <span>Siz turgan joy · Toshkent ({radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`})</span>
-        </div>
+      {/* Floating Route Mode Top Notification / Stop Action */}
+      {view === 'route' && routeData && (
+        <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex justify-between items-center gap-2">
+          <div className="bg-[#116B50] text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2">
+            <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
+            <span>Marshrut faol · {Math.round(routeData.durationSec / 60) || 1} daqiqa ({routeData.distanceM >= 1000 ? `${(routeData.distanceM / 1000).toFixed(1)} km` : `${routeData.distanceM} m`})</span>
+          </div>
 
+          {onCancelRoute && (
+            <button
+              onClick={onCancelRoute}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-bold shadow-lg transition cursor-pointer"
+              title="Marshrutni to‘xtatish"
+            >
+              <XCircle className="w-4 h-4" />
+              <span>To‘xtatish</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Floating Top Bar (Desktop only, when not in route mode) */}
+      {view !== 'route' && (
+        <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 hidden md:flex justify-between items-center pointer-events-none z-10">
+          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] px-3.5 py-2 rounded-xl text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC] shadow-md pointer-events-auto flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
+            <span>Siz turgan joy · Toshkent ({radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`})</span>
+          </div>
+
+          <button
+            onClick={handleRecenter}
+            title="Mening joylashuvim"
+            className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-red-500 shadow-md pointer-events-auto hover:bg-[#FEE2E2] dark:hover:bg-[#2A1D1D] transition active:scale-95"
+          >
+            <Crosshair className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
+      {/* Floating Map Controls (Zoom, Recenter & Fit) */}
+      <div className="absolute right-3 md:right-4 bottom-44 md:bottom-28 flex flex-col gap-2 z-10">
         <button
           onClick={handleRecenter}
-          title="Mening joylashuvim"
-          className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-red-500 shadow-md pointer-events-auto hover:bg-[#FEE2E2] dark:hover:bg-[#2A1D1D] transition active:scale-95"
+          title="Mening joylashuvim (GPS)"
+          className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-red-500 shadow-md hover:bg-[#FEE2E2] dark:hover:bg-[#2A1D1D] transition active:scale-95 text-xs font-bold md:hidden"
         >
-          <Crosshair className="w-5 h-5" />
+          <Crosshair className="w-4 h-4" />
         </button>
-      </div>
-
-      {/* Floating Map Controls (Zoom & Fit) */}
-      <div className="absolute right-3 md:right-4 bottom-44 md:bottom-28 flex flex-col gap-2 z-10">
         <button
           onClick={handleFitRadius}
           title="Qidiruv maydonini to'liq ko'rsatish"
@@ -519,93 +704,188 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       </div>
 
-      {/* Bottom Information & Store Cards Carousel Bar */}
-      <div className="absolute bottom-20 md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-10 pointer-events-none">
-        <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] rounded-2xl p-3 shadow-xl pointer-events-auto flex flex-col gap-2.5 max-w-full">
-          {/* Top Info Strip */}
-          <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#DCE5DF]/60 dark:border-[#273B32]">
-            <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
-                <StoreIcon className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
-                {results.length} ta do‘kon topildi
-              </span>
-              {lowestPriceOffer && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#E0EFE7] dark:bg-[#1C3328] text-[#116B50] dark:text-[#4ADE80] font-semibold text-[11px]">
-                  ✨ Eng arzon: {Number(lowestPriceOffer.bestOffer.price).toLocaleString('uz-UZ')} so‘m ({lowestPriceOffer.store.name})
+      {/* Bottom Information & Store Cards Carousel Bar (Search Results Mode) */}
+      {results.length > 0 && view !== 'route' && (
+        <div className="absolute bottom-20 md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-10 pointer-events-none">
+          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] rounded-2xl p-3 shadow-xl pointer-events-auto flex flex-col gap-2.5 max-w-full">
+            {/* Top Info Strip */}
+            <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#DCE5DF]/60 dark:border-[#273B32]">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
+                  <StoreIcon className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                  {results.length} ta do‘kon topildi
                 </span>
-              )}
+                {lowestPriceOffer && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#E0EFE7] dark:bg-[#1C3328] text-[#116B50] dark:text-[#4ADE80] font-semibold text-[11px]">
+                    ✨ Eng arzon: {Number(lowestPriceOffer.bestOffer.price).toLocaleString('uz-UZ')} so‘m ({lowestPriceOffer.store.name})
+                  </span>
+                )}
+              </div>
+              <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] hidden lg:inline-block">
+                Tanlash uchun xaritadagi pin yoki kartochkani bosing
+              </span>
             </div>
-            <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] hidden lg:inline-block">
-              Tanlash uchun xaritadagi pin yoki kartochkani bosing
-            </span>
-          </div>
 
-          {/* Horizontal Scrollable Store Cards */}
-          <div
-            ref={cardListRef}
-            className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin"
-          >
-            {results.map((item) => {
-              const isSelected = selectedResult?.store.id === item.store.id;
-              const formattedPrice = Number(item.bestOffer.price).toLocaleString('uz-UZ');
+            {/* Horizontal Scrollable Store Cards */}
+            <div
+              ref={cardListRef}
+              className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin"
+            >
+              {results.map((item) => {
+                const isSelected = selectedResult?.store.id === item.store.id;
+                const formattedPrice = Number(item.bestOffer.price).toLocaleString('uz-UZ');
 
-              return (
-                <div
-                  key={item.store.id}
-                  onClick={() => onSelectStore(item)}
-                  className={`shrink-0 w-[240px] md:w-[280px] p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
-                    isSelected
-                      ? 'bg-[#F4FAF6] dark:bg-[#1B2F25] border-2 border-[#116B50] dark:border-[#4ADE80] shadow-sm'
-                      : 'bg-white dark:bg-[#16241E] border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50]/50 dark:hover:border-[#4ADE80]/50'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-1">
-                    <div className="truncate flex-1">
-                      <h4 className="font-bold text-xs text-[#172C28] dark:text-[#E8F2EC] truncate">{item.store.name}</h4>
-                      <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] truncate">{item.bestOffer.variant.title}</div>
-                    </div>
-                    <span className="shrink-0 text-xs font-extrabold text-[#116B50] dark:text-[#4ADE80]">
-                      {formattedPrice} <span className="text-[10px] font-normal text-[#566A63] dark:text-[#8B9E95]">so‘m</span>
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-[#DCE5DF]/50 dark:border-[#273B32] text-[11px]">
-                    <div className="flex items-center gap-1.5 text-[#566A63] dark:text-[#8B9E95]">
-                      <span className={item.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] font-semibold' : 'text-[#B42318] dark:text-[#F87171]'}>
-                        {item.isOpenNow ? '● Ochiq' : '○ Yopiq'}
+                return (
+                  <div
+                    key={item.store.id}
+                    onClick={() => onSelectStore(item)}
+                    className={`shrink-0 w-[240px] md:w-[280px] p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                      isSelected
+                        ? 'bg-[#F4FAF6] dark:bg-[#1B2F25] border-2 border-[#116B50] dark:border-[#4ADE80] shadow-sm'
+                        : 'bg-white dark:bg-[#16241E] border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50]/50 dark:hover:border-[#4ADE80]/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <div className="truncate flex-1">
+                        <h4 className="font-bold text-xs text-[#172C28] dark:text-[#E8F2EC] truncate">{item.store.name}</h4>
+                        <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] truncate">{item.bestOffer.variant.title}</div>
+                      </div>
+                      <span className="shrink-0 text-xs font-extrabold text-[#116B50] dark:text-[#4ADE80]">
+                        {formattedPrice} <span className="text-[10px] font-normal text-[#566A63] dark:text-[#8B9E95]">so‘m</span>
                       </span>
-                      <span>·</span>
-                      <span>{item.distanceM} m</span>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onOpenDetail(item);
-                        }}
-                        className="px-2 py-0.5 rounded bg-[#116B50] text-white text-[10px] font-semibold hover:bg-[#0d533e] transition"
-                      >
-                        Do‘kon
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onNavigate(item);
-                        }}
-                        className="p-1 rounded bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#d0e7dc] transition"
-                        title="Marshrut"
-                      >
-                        <Navigation className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-[#DCE5DF]/50 dark:border-[#273B32] text-[11px]">
+                      <div className="flex items-center gap-1.5 text-[#566A63] dark:text-[#8B9E95]">
+                        <span className={item.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] font-semibold' : 'text-[#B42318] dark:text-[#F87171]'}>
+                          {item.isOpenNow ? '● Ochiq' : '○ Yopiq'}
+                        </span>
+                        <span>·</span>
+                        <span>{item.distanceM} m</span>
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenDetail(item);
+                          }}
+                          className="px-2 py-0.5 rounded bg-[#116B50] text-white text-[10px] font-semibold hover:bg-[#0d533e] transition"
+                        >
+                          Do‘kon
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onNavigate(item);
+                          }}
+                          className="p-1 rounded bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#d0e7dc] transition"
+                          title="Marshrut"
+                        >
+                          <Navigation className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Bottom Information & Store Cards Carousel Bar (Nearby Stores Mode when no query) */}
+      {results.length === 0 && nearbyStores.length > 0 && view !== 'route' && (
+        <div className="absolute bottom-20 md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-10 pointer-events-none">
+          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] rounded-2xl p-3 shadow-xl pointer-events-auto flex flex-col gap-2 max-w-full">
+            {/* Top Info Strip */}
+            <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#DCE5DF]/60 dark:border-[#273B32]">
+              <span className="font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
+                <StoreIcon className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                Atrofdagi tashkilot va do‘konlar ({nearbyStores.length} ta)
+              </span>
+              <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] hidden md:inline-block">
+                Tashkilotni bosib tovar va xizmatlarini ko‘ring
+              </span>
+            </div>
+
+            {/* Horizontal Scrollable Nearby Stores */}
+            <div
+              ref={cardListRef}
+              className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin"
+            >
+              {nearbyStores.map((item) => {
+                const isSelected = selectedNearbyStore?.store.id === item.store.id;
+                const storeIcon = (item.store.type as string) === 'WHOLESALE' ? '📦' : item.store.type === 'MIXED' ? '🏢' : '🏪';
+
+                return (
+                  <div
+                    key={item.store.id}
+                    onClick={() => onSelectNearbyStore && onSelectNearbyStore(item)}
+                    className={`shrink-0 w-[240px] md:w-[270px] p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
+                      isSelected
+                        ? 'bg-[#F4FAF6] dark:bg-[#1B2F25] border-2 border-[#116B50] dark:border-[#4ADE80] shadow-sm'
+                        : 'bg-white dark:bg-[#16241E] border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50]/50 dark:hover:border-[#4ADE80]/50'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between gap-1.5">
+                      <div className="truncate flex-1">
+                        <h4 className="font-bold text-xs text-[#172C28] dark:text-[#E8F2EC] truncate flex items-center gap-1">
+                          <span>{storeIcon}</span> {item.store.name}
+                        </h4>
+                        <p className="text-[10px] text-[#566A63] dark:text-[#8B9E95] truncate mt-0.5">
+                          {item.store.address}
+                        </p>
+                      </div>
+                      <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
+                        item.isOpenNow
+                          ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                          : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'
+                      }`}>
+                        {item.isOpenNow ? 'Ochiq' : 'Yopiq'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-[#DCE5DF]/50 dark:border-[#273B32] text-[11px]">
+                      <div className="flex items-center gap-1.5 text-[#566A63] dark:text-[#8B9E95] text-[10px]">
+                        <span>{item.distanceM} m</span>
+                        {item.offersCount !== undefined && (
+                          <>
+                            <span>·</span>
+                            <span>{item.offersCount} ta tovar</span>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onOpenNearbyDetail) onOpenNearbyDetail(item);
+                          }}
+                          className="px-2 py-0.5 rounded bg-[#116B50] text-white text-[10px] font-semibold hover:bg-[#0d533e] transition"
+                        >
+                          Ko‘rish
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onNavigate({ store: item.store, distanceM: item.distanceM });
+                          }}
+                          className="p-1 rounded bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#d0e7dc] transition"
+                          title="Marshrut"
+                        >
+                          <Navigation className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

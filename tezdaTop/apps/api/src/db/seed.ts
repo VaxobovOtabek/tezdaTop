@@ -98,6 +98,10 @@ export async function seedDatabase() {
   db.organizations.set(SEED_IDS.navbahorOrgId, {
     id: SEED_IDS.navbahorOrgId,
     name: 'Navbahor Savdo MCHJ',
+    inn: '308123456',
+    region: 'Toshkent shahri',
+    city: 'Yunusobod',
+    district: 'Navbahor MFY',
     type: 'MIXED',
     status: 'ACTIVE',
     createdAt: new Date().toISOString()
@@ -107,6 +111,10 @@ export async function seedDatabase() {
   db.organizations.set(mahallaOrgId, {
     id: mahallaOrgId,
     name: 'Mahalla Savdo XK',
+    inn: '307654321',
+    region: 'Toshkent shahri',
+    city: 'Mirobod',
+    district: 'Oqtepa MFY',
     type: 'RETAIL',
     status: 'ACTIVE',
     createdAt: new Date().toISOString()
@@ -116,6 +124,10 @@ export async function seedDatabase() {
   db.organizations.set(barakaOrgId, {
     id: barakaOrgId,
     name: 'Baraka Minimarket XK',
+    inn: '306987654',
+    region: 'Toshkent shahri',
+    city: 'Chilonzor',
+    district: 'Do‘stlik MFY',
     type: 'RETAIL',
     status: 'ACTIVE',
     createdAt: new Date().toISOString()
@@ -125,6 +137,10 @@ export async function seedDatabase() {
   db.organizations.set(chorsuOrgId, {
     id: chorsuOrgId,
     name: 'Chorsu Ulgurji Baza MCHJ',
+    inn: '305112233',
+    region: 'Toshkent shahri',
+    city: 'Shayxontohur',
+    district: 'Chorsu MFY',
     type: 'WHOLESALE',
     status: 'ACTIVE',
     createdAt: new Date().toISOString()
@@ -134,6 +150,10 @@ export async function seedDatabase() {
   db.organizations.set(suspendedOrgId, {
     id: suspendedOrgId,
     name: 'To‘xtatilgan Savdo MCHJ',
+    inn: '304998877',
+    region: 'Samarqand viloyati',
+    city: 'Samarqand shahri',
+    district: 'Guliston MFY',
     type: 'RETAIL',
     status: 'SUSPENDED',
     createdAt: new Date().toISOString()
@@ -263,6 +283,10 @@ export async function seedDatabase() {
       id: SEED_IDS.navbahorStoreId,
       organizationId: SEED_IDS.navbahorOrgId,
       name: 'Navbahor Market',
+      inn: '308123456',
+      region: 'Toshkent shahri',
+      city: 'Yunusobod',
+      district: 'Navbahor MFY',
       address: 'Namuna ko‘chasi, 12-uy, Yunusobod tumani',
       phone: '+998 71 200 11 22',
       location: { lat: 41.311081, lng: 69.240562 },
@@ -280,6 +304,10 @@ export async function seedDatabase() {
       id: SEED_IDS.mahallaStoreId,
       organizationId: mahallaOrgId,
       name: 'Mahalla Savdo',
+      inn: '307654321',
+      region: 'Toshkent shahri',
+      city: 'Mirobod',
+      district: 'Oqtepa MFY',
       address: 'Amir Temur shoh ko‘chasi, 45-uy',
       phone: '+998 71 200 33 44',
       location: { lat: 41.3135, lng: 69.2435 },
@@ -297,6 +325,10 @@ export async function seedDatabase() {
       id: SEED_IDS.barakaStoreId,
       organizationId: barakaOrgId,
       name: 'Baraka Minimarket',
+      inn: '306987654',
+      region: 'Toshkent shahri',
+      city: 'Chilonzor',
+      district: 'Do‘stlik MFY',
       address: 'Mustaqillik shoh ko‘chasi, 8-uy',
       phone: '+998 71 200 55 66',
       location: { lat: 41.306, lng: 69.237 },
@@ -313,6 +345,10 @@ export async function seedDatabase() {
       id: SEED_IDS.chorsuWholesaleStoreId,
       organizationId: chorsuOrgId,
       name: 'Chorsu Ulgurji Baza',
+      inn: '305112233',
+      region: 'Toshkent shahri',
+      city: 'Shayxontohur',
+      district: 'Chorsu MFY',
       address: 'Zarqaynar ko‘chasi, 100-baza',
       phone: '+998 71 200 77 88',
       location: { lat: 41.325, lng: 69.235 },
@@ -329,6 +365,10 @@ export async function seedDatabase() {
       id: SEED_IDS.overnightStoreId,
       organizationId: SEED_IDS.navbahorOrgId,
       name: 'Tungi Market 24/7',
+      inn: '308123456',
+      region: 'Toshkent shahri',
+      city: 'Mirobod',
+      district: 'Bog‘iston MFY',
       address: 'Shahrisabz ko‘chasi, 3-uy',
       phone: '+998 71 200 99 00',
       location: { lat: 41.309, lng: 69.241 },
@@ -353,6 +393,10 @@ export async function seedDatabase() {
       id: SEED_IDS.pendingStoreId,
       organizationId: mahallaOrgId,
       name: 'Yangi Savdo (Ariza)',
+      inn: '307654321',
+      region: 'Toshkent shahri',
+      city: 'Yunusobod',
+      district: 'Mustaqillik MFY',
       address: 'Namuna manzil, 8-uy',
       phone: '+998 90 999 88 77',
       location: { lat: 41.315, lng: 69.246 },
@@ -369,6 +413,10 @@ export async function seedDatabase() {
       id: SEED_IDS.suspendedStoreId,
       organizationId: suspendedOrgId,
       name: 'To‘xtatilgan Do‘kon',
+      inn: '304998877',
+      region: 'Samarqand viloyati',
+      city: 'Samarqand shahri',
+      district: 'Guliston MFY',
       address: 'Yopiq ko‘cha, 1-uy',
       phone: '+998 71 111 00 00',
       location: { lat: 41.3115, lng: 69.241 },
@@ -656,6 +704,28 @@ export async function seedDatabase() {
     createdAt: new Date().toISOString()
   });
 
+  const repId2 = uuidv4();
+  db.reports.set(repId2, {
+    id: repId2,
+    reporterUserId: SEED_IDS.customerUserId,
+    storeId: SEED_IDS.barakaStoreId,
+    reason: 'UNAVAILABLE_PRODUCT',
+    details: 'Coca-Cola 1.5l tugagan deb aytishdi, lekin dasturda bor deb ko‘rsatilgan.',
+    status: 'OPEN',
+    createdAt: new Date().toISOString()
+  });
+
+  const repId3 = uuidv4();
+  db.reports.set(repId3, {
+    id: repId3,
+    reporterUserId: SEED_IDS.customerUserId,
+    storeId: SEED_IDS.barakaStoreId,
+    reason: 'WRONG_LOCATION',
+    details: 'Do‘kon kirish eshigi boshqa ko‘chada joylashgan.',
+    status: 'OPEN',
+    createdAt: new Date().toISOString()
+  });
+
   // 10. Seed Admin Correction Request
   const corId = uuidv4();
   db.corrections.set(corId, {
@@ -668,6 +738,81 @@ export async function seedDatabase() {
     status: 'OPEN',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
+  });
+
+  // 11. Seed Admin Inquiries (Murojaatlar va Rasmiy xabarlar)
+  const inq1 = uuidv4();
+  db.inquiries.set(inq1, {
+    id: inq1,
+    storeId: SEED_IDS.navbahorStoreId,
+    storeName: 'Navbahor Market',
+    organizationId: SEED_IDS.navbahorOrgId,
+    organizationName: 'Navbahor Savdo MCHJ',
+    subject: 'Do‘kon ish vaqtlari va kirish joyi fotosuratlari talabi',
+    message: 'Hurmatli do‘kon egasi! Mijozlar qulayligi uchun yangi kirish eshigi fotosuratlarini yuklashingiz va yakshanba kungi ish tartibingizni tasdiqlashingizni so‘raymiz.',
+    priority: 'HIGH',
+    status: 'PENDING_MERCHANT_REPLY',
+    createdAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 24 * 3600 * 1000).toISOString()
+  });
+
+  const inq2 = uuidv4();
+  db.inquiries.set(inq2, {
+    id: inq2,
+    storeId: SEED_IDS.navbahorStoreId,
+    storeName: 'Navbahor Market',
+    organizationId: SEED_IDS.navbahorOrgId,
+    organizationName: 'Navbahor Savdo MCHJ',
+    subject: 'Kassada to‘lov tizimlari (HUMO/Uzcard) integratsiyasi',
+    message: 'Assalomu alaykum. Do‘koningizda barcha turdagi plastik kartalar qabul qilinishini tekshirish yuzasidan so‘rov.',
+    priority: 'NORMAL',
+    status: 'MERCHANT_SUBMITTED',
+    merchantReply: 'Barcha terminallarimiz va QR-to‘lov tizimlarimiz to‘liq ishlamoqda. Har qanday karta orqali qabul qilinadi.',
+    merchantRepliedAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString(),
+    createdAt: new Date(Date.now() - 48 * 3600 * 1000).toISOString(),
+    updatedAt: new Date(Date.now() - 2 * 3600 * 1000).toISOString()
+  });
+
+  // 12. Seed Sample Credential Request
+  const credReq1 = uuidv4();
+  db.credentialRequests.set(credReq1, {
+    id: credReq1,
+    userId: SEED_IDS.operatorUserId,
+    userName: 'Sardor Qosim',
+    userEmail: 'operator@navbahor.uz',
+    userPhone: '+998903334455',
+    userRole: 'OPERATOR',
+    organizationId: SEED_IDS.navbahorOrgId,
+    organizationName: 'Navbahor Savdo MCHJ',
+    requestedEmail: 'sardor.operator@navbahor.uz',
+    requestedPassword: 'NewOperatorPass2026!',
+    requestedPhone: '+998903334455',
+    reason: 'Rasmiy korporativ elektron pochtaga o‘tkazish',
+    status: 'PENDING',
+    createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString()
+  });
+
+  // 13. Seed Sample Notifications
+  const notif1 = uuidv4();
+  db.notifications.set(notif1, {
+    id: notif1,
+    userId: SEED_IDS.ownerUserId,
+    title: 'Administrator xabari',
+    message: 'Do‘koningizga administrator tomonidan yangi rasmiy so‘rov yuborildi. Iltimos, xabarlar bo‘limida ko‘rib chiqing.',
+    type: 'INFO',
+    isRead: false,
+    createdAt: new Date().toISOString()
+  });
+
+  const notif2 = uuidv4();
+  db.notifications.set(notif2, {
+    id: notif2,
+    userId: SEED_IDS.customerUserId,
+    title: 'Xush kelibsiz!',
+    message: 'YaqinTop tizimiga muvaffaqiyatli ulandingiz. Yaqin atrofdagi tovarlarni izlashingiz mumkin.',
+    type: 'SUCCESS',
+    isRead: false,
+    createdAt: new Date().toISOString()
   });
 
   console.log('Database seeded successfully!');

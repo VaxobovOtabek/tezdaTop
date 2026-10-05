@@ -1,11 +1,11 @@
 {
-  "name": "@yaqintop/admin",
+  "name": "@yaqintop/landing",
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "dev": "vite --port 3002",
+    "dev": "vite --port 3003",
     "build": "tsc && vite build",
-    "preview": "vite preview --port 3002"
+    "preview": "vite preview --port 3003"
   },
   "dependencies": {
     "@yaqintop/contracts": "workspace:*",

@@ -38,6 +38,17 @@ export function searchProducts(query: SearchQuery): SearchResponse {
     throw new Error('Qidiruv radiusi 50 va 3000 metr oralig‘ida bo‘lishi shart');
   }
 
+  // If query text is empty, return empty results (do not return all stores/prices)
+  if (!query.q || !query.q.trim()) {
+    return {
+      items: [],
+      totalStores: 0,
+      totalOffers: 0,
+      nextCursor: null,
+      hasMore: false
+    };
+  }
+
   // 1. Gather all active stores within radius whose organization is ACTIVE
   const candidateStores: { store: Store; distanceM: number; isOpenNow: boolean }[] = [];
 

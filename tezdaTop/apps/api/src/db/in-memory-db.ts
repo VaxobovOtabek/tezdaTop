@@ -11,15 +11,22 @@ import {
   Report,
   CorrectionRequest,
   MerchantSummary,
-  FreshnessStatus
+  FreshnessStatus,
+  CredentialChangeRequest,
+  AdminInquiry,
+  UserNotification
 } from '@yaqintop/contracts';
 import { calculateWeightedAverageCost, sanitizeCsvField, calculateFinancialSummary } from '../services/ledger.service.js';
 
 export interface DBOrganization {
   id: string;
   name: string;
+  inn?: string;
   type: 'RETAIL' | 'WHOLESALE' | 'MIXED';
   status: 'ACTIVE' | 'SUSPENDED';
+  region?: string;
+  city?: string;
+  district?: string;
   createdAt: string;
 }
 
@@ -102,6 +109,9 @@ export class InMemoryDatabase {
   public reviews: Map<string, Review> = new Map();
   public reports: Map<string, Report> = new Map();
   public corrections: Map<string, CorrectionRequest> = new Map();
+  public credentialRequests: Map<string, CredentialChangeRequest> = new Map();
+  public inquiries: Map<string, AdminInquiry> = new Map();
+  public notifications: Map<string, UserNotification> = new Map();
   public bookmarks: Map<string, DBBookmark> = new Map();
   public auditLogs: DBAuditLog[] = [];
   public idempotencyRecords: Map<string, DBIdempotencyRecord> = new Map();

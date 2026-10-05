@@ -28,20 +28,89 @@ import {
   Phone,
   Image as ImageIcon,
   Terminal,
-  Sparkles
+  Sparkles,
+  Key,
+  Send,
+  Smartphone,
+  Copy,
+  Lock,
+  RefreshCw,
+  Eye,
+  EyeOff,
+  MessageCircle,
+  CheckSquare,
+  Shield,
+  BookOpen,
+  Activity,
+  Cpu,
+  Database
 } from 'lucide-react';
 import { Button, Tag, Modal, Input } from '@yaqintop/ui';
 import { Report, Store as StoreType, User } from '@yaqintop/contracts';
 import { ApiExplorer } from './components/ApiExplorer';
+import { AdminMapHub, EnrichedStore } from './components/AdminMapHub';
+import { RolesGuideMatrix } from './components/RolesGuideMatrix';
+import { RequestsInquiriesHub } from './components/RequestsInquiriesHub';
+import { AnalyticsActivityHub } from './components/AnalyticsActivityHub';
+import { ArchitectureAndDbViewer } from './components/ArchitectureAndDbViewer';
+import { LocationPickerModal } from './components/LocationPickerModal';
+import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
+import { UnifiedLoginModal } from './components/UnifiedLoginModal';
+
+// Helper for strictly validating and formatting Uzbek phone numbers
+export const formatUzPhone = (value: string): string => {
+  let digits = value.replace(/\D/g, '');
+  if (digits.startsWith('998')) {
+    digits = digits.slice(3);
+  }
+  digits = digits.slice(0, 9);
+  if (!digits) return '+998 ';
+  
+  let formatted = '+998 ';
+  if (digits.length > 0) {
+    formatted += digits.substring(0, 2);
+  }
+  if (digits.length >= 3) {
+    formatted += ' ' + digits.substring(2, 5);
+  }
+  if (digits.length >= 6) {
+    formatted += ' ' + digits.substring(5, 7);
+  }
+  if (digits.length >= 8) {
+    formatted += ' ' + digits.substring(7, 9);
+  }
+  return formatted;
+};
 
 interface OrganizationItem {
   id: string;
   name: string;
+  inn?: string;
+  region?: string;
+  city?: string;
+  district?: string;
   type: 'RETAIL' | 'WHOLESALE' | 'MIXED';
   status: 'ACTIVE' | 'SUSPENDED';
   createdAt: string;
   stores?: StoreType[];
 }
+
+const REGION_OPTIONS = [
+  'Barcha viloyatlar',
+  'Toshkent shahri',
+  'Samarqand viloyati',
+  'Farg‘ona viloyati',
+  'Andijon viloyati',
+  'Namangan viloyati',
+  'Buxoro viloyati',
+  'Xorazm viloyati',
+  'Qashqadaryo viloyati',
+  'Surxondaryo viloyati',
+  'Navoiy viloyati',
+  'Jizzax viloyati',
+  'Sirdaryo viloyati',
+  'Qoraqalpog‘iston Respublikasi'
+];
 
 const DISTRICT_PRESETS = [
   { name: 'Mirobod tumani', lat: 41.2985, lng: 69.2782 },
@@ -71,11 +140,25 @@ export function AdminApp() {
     }
   }, [isDarkMode]);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'>('overview');
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
+  >('overview');
+
+  // Current User Session State
+  const [currentUser, setCurrentUser] = useState<any>({
+    id: 'cccc5555-5555-4ccc-cccc-555555555555',
+    fullName: 'Boshqaruvchi Admin',
+    email: 'admin@yaqintop.uz',
+    phone: '+998 90 555 66 77',
+    role: 'SUPERADMIN',
+    status: 'ACTIVE'
+  });
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const [overviewStats, setOverviewStats] = useState({ pendingApps: 0, openReports: 0, overdueCorrections: 0 });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
-  const [stores, setStores] = useState<(StoreType & { organizationName?: string })[]>([]);
+  const [stores, setStores] = useState<EnrichedStore[]>([]);
   const [applications, setApplications] = useState<StoreType[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<User[]>([]);
@@ -83,7 +166,14 @@ export function AdminApp() {
 
   // Search & Filter in Organizations tab
   const [storeSearch, setStoreSearch] = useState('');
+  const [orgRegionFilter, setOrgRegionFilter] = useState('Barcha viloyatlar');
+  const [orgCityFilter, setOrgCityFilter] = useState('Barcha tumanlar');
+  const [orgDistrictFilter, setOrgDistrictFilter] = useState('Barcha mahallalar');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PENDING' | 'SUSPENDED'>('ALL');
+
+  // Search in Users tab
+  const [userSearch, setUserSearch] = useState('');
+  const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL');
 
   // Modals
   const [selectedApp, setSelectedApp] = useState<StoreType | null>(null);
@@ -92,10 +182,53 @@ export function AdminApp() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
 
+  // Organization Users Management Modal
+  const [selectedOrgForUsers, setSelectedOrgForUsers] = useState<OrganizationItem | null>(null);
+  const [orgUsersList, setOrgUsersList] = useState<User[]>([]);
+  const [isOrgUsersModalOpen, setIsOrgUsersModalOpen] = useState(false);
+  const [isLoadingOrgUsers, setIsLoadingOrgUsers] = useState(false);
+
+  // Add User to Organization Modal
+  const [isAddUserModalOpen, setIsAddUserModalOpen] = useState(false);
+  const [newUserForm, setNewUserForm] = useState({
+    organizationId: '',
+    fullName: '',
+    email: '',
+    password: 'Pass' + Math.floor(1000 + Math.random() * 9000) + '!',
+    phone: '+998 90 ',
+    role: 'OPERATOR' as 'OWNER' | 'MANAGER' | 'OPERATOR',
+    verificationMethod: 'TELEGRAM' as 'TELEGRAM' | 'SMS',
+    autoVerify: false
+  });
+
+  // Verify User OTP Modal
+  const [isVerifyModalOpen, setIsVerifyModalOpen] = useState(false);
+  const [userToVerify, setUserToVerify] = useState<User | null>(null);
+  const [verificationOtpInput, setVerificationOtpInput] = useState('');
+  const [lastDispatchedCode, setLastDispatchedCode] = useState<string | null>(null);
+  const [lastDispatchedMethod, setLastDispatchedMethod] = useState<'TELEGRAM' | 'SMS'>('TELEGRAM');
+
+  // Edit Credentials Modal
+  const [isEditCredentialsModalOpen, setIsEditCredentialsModalOpen] = useState(false);
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [editCredentialsForm, setEditCredentialsForm] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    phone: '',
+    role: 'OPERATOR' as any,
+    status: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'PENDING'
+  });
+  const [showPassword, setShowPassword] = useState(false);
+
   // Add Organization / Store Modal
   const [isAddOrgModalOpen, setIsAddOrgModalOpen] = useState(false);
   const [newOrgForm, setNewOrgForm] = useState({
     name: '',
+    inn: '308' + Math.floor(100000 + Math.random() * 900000),
+    region: 'Toshkent shahri',
+    city: 'Yunusobod',
+    district: 'Navbahor MFY',
     type: 'RETAIL' as 'RETAIL' | 'WHOLESALE' | 'MIXED',
     storeName: '',
     address: '',
@@ -114,6 +247,10 @@ export function AdminApp() {
     id: string;
     organizationId: string;
     name: string;
+    inn: string;
+    region: string;
+    city: string;
+    district: string;
     address: string;
     phone: string;
     lat: string;
@@ -124,6 +261,38 @@ export function AdminApp() {
     openTime: string;
     closeTime: string;
   } | null>(null);
+
+  // Leaflet Location Picker Modal
+  const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
+  const [locationPickerTarget, setLocationPickerTarget] = useState<'NEW_ORG' | 'EDIT_STORE'>('NEW_ORG');
+
+  const handleOpenLocationPickerForNewOrg = () => {
+    setLocationPickerTarget('NEW_ORG');
+    setIsLocationPickerOpen(true);
+  };
+
+  const handleOpenLocationPickerForEditStore = () => {
+    setLocationPickerTarget('EDIT_STORE');
+    setIsLocationPickerOpen(true);
+  };
+
+  const handleLocationPicked = (coords: { lat: number; lng: number }) => {
+    if (locationPickerTarget === 'NEW_ORG') {
+      setNewOrgForm(prev => ({
+        ...prev,
+        lat: String(coords.lat),
+        lng: String(coords.lng)
+      }));
+      showToast(`📍 Koordinatalar kartadan belgilandi: ${coords.lat}, ${coords.lng}`);
+    } else if (locationPickerTarget === 'EDIT_STORE' && editStoreForm) {
+      setEditStoreForm(prev => prev ? ({
+        ...prev,
+        lat: String(coords.lat),
+        lng: String(coords.lng)
+      }) : null);
+      showToast(`📍 Do‘kon koordinatalari yangilandi: ${coords.lat}, ${coords.lng}`);
+    }
+  };
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -245,6 +414,192 @@ export function AdminApp() {
     }
   };
 
+  // ================= ORGANIZATION USERS METHODS =================
+  const loadOrgUsers = async (orgId: string) => {
+    setIsLoadingOrgUsers(true);
+    try {
+      const res = await fetch(`/api/v1/admin/organizations/${orgId}/users`);
+      if (res.ok) {
+        const d = await res.json();
+        setOrgUsersList(d.users || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingOrgUsers(false);
+    }
+  };
+
+  const handleOpenOrgUsers = (org: OrganizationItem) => {
+    setSelectedOrgForUsers(org);
+    setNewUserForm(prev => ({ ...prev, organizationId: org.id }));
+    setIsOrgUsersModalOpen(true);
+    loadOrgUsers(org.id);
+  };
+
+  const handleGeneratePassword = () => {
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const pass = `Yaqin${randomNum}!`;
+    setNewUserForm(prev => ({ ...prev, password: pass }));
+    showToast(`Yangi parol generatsiya qilindi: ${pass}`);
+  };
+
+  const handleCreateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const orgId = newUserForm.organizationId || (selectedOrgForUsers ? selectedOrgForUsers.id : organizations[0]?.id);
+    if (!orgId) {
+      showToast('Tashkilot tanlanishi shart');
+      return;
+    }
+    if (!newUserForm.fullName.trim() || !newUserForm.email.trim() || !newUserForm.password.trim()) {
+      showToast('Barcha maydonlarni to‘ldiring');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/v1/admin/organizations/${orgId}/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newUserForm,
+          phone: newUserForm.phone.trim()
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        showToast(data.message || 'Foydalanuvchi muvaffaqiyatli yaratildi!');
+        setIsAddUserModalOpen(false);
+        loadData();
+        if (selectedOrgForUsers && selectedOrgForUsers.id === orgId) {
+          loadOrgUsers(orgId);
+        }
+
+        // If not auto-verified, trigger the verification modal
+        if (!newUserForm.autoVerify && data.verificationCode) {
+          setUserToVerify(data.user);
+          setLastDispatchedCode(data.verificationCode);
+          setLastDispatchedMethod(newUserForm.verificationMethod);
+          setVerificationOtpInput(data.verificationCode);
+          setIsVerifyModalOpen(true);
+        }
+      } else {
+        showToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Serverga ulanishda xatolik');
+    }
+  };
+
+  const handleSendVerificationCode = async (user: User, method: 'TELEGRAM' | 'SMS') => {
+    try {
+      const res = await fetch(`/api/v1/admin/users/${user.id}/send-verification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ method })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setUserToVerify(user);
+        setLastDispatchedCode(data.verificationCode);
+        setLastDispatchedMethod(method);
+        setVerificationOtpInput(data.verificationCode);
+        setIsVerifyModalOpen(true);
+        showToast(data.message);
+      } else {
+        showToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Serverga ulanishda xatolik');
+    }
+  };
+
+  const handleVerifyUser = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!userToVerify) return;
+
+    try {
+      const res = await fetch(`/api/v1/admin/users/${userToVerify.id}/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: verificationOtpInput })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('✅ Foydalanuvchi muvaffaqiyatli tasdiqlandi va hisob faollashtirildi!');
+        setIsVerifyModalOpen(false);
+        setVerificationOtpInput('');
+        setUserToVerify(null);
+        loadData();
+        if (selectedOrgForUsers) {
+          loadOrgUsers(selectedOrgForUsers.id);
+        }
+      } else {
+        showToast(data.message || 'Tasdiqlash kodi xato');
+      }
+    } catch {
+      showToast('Serverga ulanishda xatolik');
+    }
+  };
+
+  const handleOpenEditCredentials = (user: User) => {
+    setUserToEdit(user);
+    setEditCredentialsForm({
+      fullName: user.fullName,
+      email: user.email,
+      password: (user as any).plainPassword || '',
+      phone: user.phone || '+998 90 ',
+      role: user.role,
+      status: user.status
+    });
+    setIsEditCredentialsModalOpen(true);
+  };
+
+  const handleSaveCredentials = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToEdit) return;
+
+    try {
+      const res = await fetch(`/api/v1/admin/users/${userToEdit.id}/credentials`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editCredentialsForm)
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast('Foydalanuvchi login va paroli muvaffaqiyatli yangilandi!');
+        setIsEditCredentialsModalOpen(false);
+        loadData();
+        if (selectedOrgForUsers) {
+          loadOrgUsers(selectedOrgForUsers.id);
+        }
+      } else {
+        showToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Serverga ulanishda xatolik');
+    }
+  };
+
+  const handleDeleteOrgUser = async (user: User) => {
+    const orgId = user.organizationId || selectedOrgForUsers?.id;
+    if (!orgId) return;
+    if (!window.confirm(`${user.fullName} ni tashkilotdan o‘chirishni tasdiqlaysizmi?`)) return;
+
+    try {
+      const res = await fetch(`/api/v1/admin/organizations/${orgId}/users/${user.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast('Foydalanuvchi tashkilotdan o‘chirildi');
+        loadData();
+        loadOrgUsers(orgId);
+      }
+    } catch {
+      showToast('Xatolik yuz berdi');
+    }
+  };
+
   // Create Organization & Store
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -266,6 +621,10 @@ export function AdminApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: newOrgForm.name,
+          inn: newOrgForm.inn,
+          region: newOrgForm.region,
+          city: newOrgForm.city,
+          district: newOrgForm.district,
           type: newOrgForm.type,
           status: 'ACTIVE',
           storeName: newOrgForm.storeName || newOrgForm.name,
@@ -283,6 +642,10 @@ export function AdminApp() {
         setIsAddOrgModalOpen(false);
         setNewOrgForm({
           name: '',
+          inn: '308' + Math.floor(100000 + Math.random() * 900000),
+          region: 'Toshkent shahri',
+          city: 'Yunusobod',
+          district: 'Navbahor MFY',
           type: 'RETAIL',
           storeName: '',
           address: '',
@@ -305,12 +668,16 @@ export function AdminApp() {
   };
 
   // Open Edit Store Modal
-  const handleOpenEditStore = (store: StoreType & { organizationName?: string }) => {
+  const handleOpenEditStore = (store: EnrichedStore) => {
     const firstHours = store.hours?.[0];
     setEditStoreForm({
       id: store.id,
       organizationId: store.organizationId,
       name: store.name,
+      inn: store.inn || '',
+      region: store.region || 'Toshkent shahri',
+      city: store.city || 'Yunusobod',
+      district: store.district || '',
       address: store.address,
       phone: store.phone,
       lat: String(store.location.lat),
@@ -342,6 +709,10 @@ export function AdminApp() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: editStoreForm.name,
+          inn: editStoreForm.inn,
+          region: editStoreForm.region,
+          city: editStoreForm.city,
+          district: editStoreForm.district,
           address: editStoreForm.address,
           phone: editStoreForm.phone,
           location: {
@@ -389,13 +760,32 @@ export function AdminApp() {
 
   // Filtered stores
   const filteredStores = stores.filter(s => {
+    const q = storeSearch.toLowerCase().trim();
     const matchSearch =
-      s.name.toLowerCase().includes(storeSearch.toLowerCase()) ||
-      s.address.toLowerCase().includes(storeSearch.toLowerCase()) ||
-      s.phone.includes(storeSearch) ||
-      (s.organizationName && s.organizationName.toLowerCase().includes(storeSearch.toLowerCase()));
+      !q ||
+      s.name.toLowerCase().includes(q) ||
+      s.address.toLowerCase().includes(q) ||
+      s.phone.includes(q) ||
+      (s.inn && s.inn.includes(q)) ||
+      (s.organizationName && s.organizationName.toLowerCase().includes(q));
+
+    const matchRegion =
+      orgRegionFilter === 'Barcha viloyatlar' ||
+      s.region === orgRegionFilter ||
+      (orgRegionFilter === 'Toshkent shahri' && (!s.region || s.region.includes('Toshkent')));
+
+    const matchCity =
+      orgCityFilter === 'Barcha tumanlar' ||
+      s.city === orgCityFilter ||
+      s.address.toLowerCase().includes(orgCityFilter.toLowerCase());
+
+    const matchDistrict =
+      orgDistrictFilter === 'Barcha mahallalar' ||
+      s.district === orgDistrictFilter ||
+      s.address.toLowerCase().includes(orgDistrictFilter.toLowerCase());
+
     const matchStatus = statusFilter === 'ALL' ? true : s.status === statusFilter;
-    return matchSearch && matchStatus;
+    return matchSearch && matchRegion && matchCity && matchDistrict && matchStatus;
   });
 
   return (
@@ -428,21 +818,35 @@ export function AdminApp() {
           <button
             onClick={toggleDarkMode}
             title={isDarkMode ? "Yorug' tema" : "Qorong'i tema"}
-            className="px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center gap-1.5 text-xs font-semibold"
+            className="w-9 h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center justify-center shadow-sm"
           >
             {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
-            <span className="hidden sm:inline">{isDarkMode ? "Yorug'" : "Qorong'i"}</span>
           </button>
 
           <Tag variant="default" className="text-xs">
-            SUPERADMIN
+            {currentUser?.role || 'SUPERADMIN'}
           </Tag>
-          <div className="flex items-center gap-2 pl-3 border-l border-[#DCE5DF] dark:border-[#22332C]">
-            <div className="w-8 h-8 rounded-full bg-[#116B50] text-white text-xs font-bold flex items-center justify-center">
-              AD
+          {currentUser ? (
+            <div
+              onClick={() => setIsProfileModalOpen(true)}
+              className="flex items-center gap-2 pl-3 border-l border-[#DCE5DF] dark:border-[#22332C] cursor-pointer hover:opacity-80 transition select-none"
+              title="Admin profilini ko‘rish"
+            >
+              <div className="w-8 h-8 rounded-full bg-[#116B50] text-white text-xs font-bold flex items-center justify-center shadow-sm">
+                {currentUser.fullName ? currentUser.fullName.slice(0, 2).toUpperCase() : 'AD'}
+              </div>
+              <span className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] hidden sm:inline">
+                {currentUser.fullName}
+              </span>
             </div>
-            <span className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] hidden sm:inline">Boshqaruvchi Admin</span>
-          </div>
+          ) : (
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
+              className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#116B50] text-white hover:bg-[#0B563F] transition"
+            >
+              Kirish
+            </button>
+          )}
         </div>
       </header>
 
@@ -453,8 +857,34 @@ export function AdminApp() {
           <nav className="flex flex-col gap-1">
             {[
               { id: 'overview', label: 'Umumiy holat', icon: LayoutDashboard },
+              {
+                id: 'map-hub',
+                label: 'Xarita & Moderatsiya markazi',
+                icon: MapPin,
+                isSpecial: true,
+                badge: stores.filter(s => (s.openReportsCount || 0) > 0 || s.status === 'PENDING').length || undefined
+              },
+              {
+                id: 'requests-inquiries',
+                label: 'So‘rovlar & Murojaatlar',
+                icon: Send,
+                isSpecial: true
+              },
+              {
+                id: 'analytics',
+                label: 'Qidiruv & Faoliyat Analitikasi',
+                icon: Activity,
+                isSpecial: true
+              },
+              {
+                id: 'architecture-db',
+                label: 'Arxitektura & DB Explorer',
+                icon: Cpu,
+                isSpecial: true
+              },
+              { id: 'roles-guide', label: 'Rollar & Yo‘riqnoma', icon: Shield },
               { id: 'organizations', label: 'Tashkilotlar va Do‘konlar', icon: Building2, count: stores.length },
-              { id: 'api-explorer', label: 'API Explorer (Postman)', icon: Terminal, isSpecial: true },
+              { id: 'api-explorer', label: 'API Explorer (Postman)', icon: Terminal },
               { id: 'applications', label: 'Do‘kon arizalari', icon: Store, badge: overviewStats.pendingApps },
               { id: 'reports', label: 'Shikoyatlar navbati', icon: AlertTriangle, badge: overviewStats.openReports },
               { id: 'reviews', label: 'Sharhlar moderatsiyasi', icon: MessageSquare },
@@ -500,6 +930,48 @@ export function AdminApp() {
 
         {/* Content Area */}
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+          {/* MAP HUB TAB */}
+          {activeTab === 'map-hub' && (
+            <AdminMapHub
+              stores={stores}
+              isDarkMode={isDarkMode}
+              onEditStore={(st) => handleOpenEditStore(st)}
+              onJumpToReports={() => setActiveTab('reports')}
+              onJumpToApplications={() => setActiveTab('applications')}
+              onManageUsers={(orgId) => {
+                const org = organizations.find(o => o.id === orgId);
+                if (org) handleOpenOrgUsers(org);
+              }}
+            />
+          )}
+
+          {/* ROLES GUIDE TAB */}
+          {activeTab === 'roles-guide' && (
+            <RolesGuideMatrix />
+          )}
+
+          {/* REQUESTS & INQUIRIES HUB TAB */}
+          {activeTab === 'requests-inquiries' && (
+            <RequestsInquiriesHub
+              stores={stores}
+              isDarkMode={isDarkMode}
+              onShowToast={(msg) => showToast(msg)}
+            />
+          )}
+
+          {/* ANALYTICS & ACTIVITY HUB TAB */}
+          {activeTab === 'analytics' && (
+            <AnalyticsActivityHub
+              isDarkMode={isDarkMode}
+              onShowToast={(msg) => showToast(msg)}
+            />
+          )}
+
+          {/* ARCHITECTURE & DATABASE EXPLORER TAB */}
+          {activeTab === 'architecture-db' && (
+            <ArchitectureAndDbViewer />
+          )}
+
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
@@ -577,43 +1049,200 @@ export function AdminApp() {
                     Tashkilotlar va Do‘konlar
                   </h1>
                   <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    Kartadagi barcha tashkilotlar, filiallar, geolokatsiyalar va ish vaqtlarini to‘liq boshqarish
+                    Kartadagi barcha tashkilotlar, filiallar, foydalanuvchilar (login/parol) va xodimlar boshqaruvi
                   </p>
                 </div>
 
-                <Button variant="primary" size="sm" onClick={() => setIsAddOrgModalOpen(true)}>
-                  <Plus className="w-4 h-4 mr-1.5" />
-                  Yangi tashkilot / Do‘kon qo‘shish
-                </Button>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => {
+                      setNewUserForm({
+                        organizationId: organizations[0]?.id || '',
+                        fullName: '',
+                        email: '',
+                        password: 'Pass' + Math.floor(1000 + Math.random() * 9000) + '!',
+                        phone: '+998 90 ',
+                        role: 'OPERATOR',
+                        verificationMethod: 'TELEGRAM',
+                        autoVerify: false
+                      });
+                      setIsAddUserModalOpen(true);
+                    }}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Users className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                    <span>+ Xodim / Foydalanuvchi qo‘shish</span>
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={() => setIsAddOrgModalOpen(true)} className="flex items-center gap-1.5">
+                    <Plus className="w-4 h-4" />
+                    <span>Yangi tashkilot / Do‘kon</span>
+                  </Button>
+                </div>
               </div>
 
-              {/* Filter and Search Bar */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full sm:w-80">
-                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
-                  <input
-                    type="text"
-                    value={storeSearch}
-                    onChange={(e) => setStoreSearch(e.target.value)}
-                    placeholder="Nomi, manzili yoki telefon..."
-                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
-                  />
+              {/* Organizations Overview & Users Section */}
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-3 border-b border-[#DCE5DF]/60 dark:border-[#22332C] pb-2.5">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80]" />
+                    <h2 className="text-sm font-bold text-[#172C28] dark:text-white">
+                      Ro‘yxatdan o‘tgan Tashkilotlar ({organizations.length})
+                    </h2>
+                  </div>
+                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95]">
+                    Har bir tashkilotga xodimlar, login/parollar va filiallar biriktiriladi
+                  </span>
                 </div>
 
-                <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-                  {(['ALL', 'ACTIVE', 'PENDING', 'SUSPENDED'] as const).map((st) => (
-                    <button
-                      key={st}
-                      onClick={() => setStatusFilter(st)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
-                        statusFilter === st
-                          ? 'bg-[#116B50] text-white'
-                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
-                      }`}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  {organizations.map((org) => {
+                    const orgStores = stores.filter(s => s.organizationId === org.id);
+                    const orgUsersCount = users.filter(u => u.organizationId === org.id).length;
+
+                    return (
+                      <div
+                        key={org.id}
+                        className="p-4 rounded-xl border border-[#DCE5DF] dark:border-[#22332C] bg-[#F9FAF9] dark:bg-[#16241E] flex flex-col justify-between gap-3 hover:border-[#116B50]/40 transition"
+                      >
+                        <div>
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="font-bold text-sm text-[#172C28] dark:text-white truncate">{org.name}</h3>
+                            <Tag variant={org.status === 'ACTIVE' ? 'default' : 'error'} className="text-[10px]">
+                              {org.type}
+                            </Tag>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5">
+                            <span>🏪 {orgStores.length} ta do‘kon</span>
+                            <span>·</span>
+                            <span className="font-medium text-[#116B50] dark:text-[#4ADE80]">
+                              👥 {orgUsersCount || 1} ta xodim
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-1.5 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C]">
+                          <button
+                            onClick={() => handleOpenOrgUsers(org)}
+                            className="flex-1 py-1.5 px-2.5 rounded-lg bg-[#116B50] text-white text-xs font-semibold hover:bg-[#0d533e] transition flex items-center justify-center gap-1 shadow-sm"
+                          >
+                            <Users className="w-3.5 h-3.5" />
+                            <span>Xodimlar ({orgUsersCount || 1})</span>
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedOrgForUsers(org);
+                              setNewUserForm(prev => ({
+                                ...prev,
+                                organizationId: org.id,
+                                password: 'Pass' + Math.floor(1000 + Math.random() * 9000) + '!'
+                              }));
+                              setIsAddUserModalOpen(true);
+                            }}
+                            title="Yangi xodim / login qo‘shish"
+                            className="p-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Multi-tier Filter and Search Bar */}
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                  {/* Search by Name or INN */}
+                  <div className="relative">
+                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                    <input
+                      type="text"
+                      value={storeSearch}
+                      onChange={(e) => setStoreSearch(e.target.value)}
+                      placeholder="Nomi, STIR (INN), manzil..."
+                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                    />
+                  </div>
+
+                  {/* Viloyat Filter */}
+                  <div>
+                    <select
+                      value={orgRegionFilter}
+                      onChange={(e) => setOrgRegionFilter(e.target.value)}
+                      className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
                     >
-                      {st === 'ALL' ? 'Barchasi' : st === 'ACTIVE' ? 'Faol' : st === 'PENDING' ? 'Kutilmoqda' : 'To‘xtatilgan'}
+                      {REGION_OPTIONS.map((reg) => (
+                        <option key={reg} value={reg}>
+                          {reg}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Tuman/Shahar Filter */}
+                  <div>
+                    <select
+                      value={orgCityFilter}
+                      onChange={(e) => setOrgCityFilter(e.target.value)}
+                      className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                    >
+                      {['Barcha tumanlar', 'Yunusobod', 'Mirobod', 'Chilonzor', 'Shayxontohur', 'Yakkasaroy', 'Mirzo Ulug‘bek', 'Olmazor', 'Samarqand shahri'].map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Mahalla Filter */}
+                  <div>
+                    <select
+                      value={orgDistrictFilter}
+                      onChange={(e) => setOrgDistrictFilter(e.target.value)}
+                      className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                    >
+                      {['Barcha mahallalar', 'Navbahor MFY', 'Oqtepa MFY', 'Do‘stlik MFY', 'Chorsu MFY', 'Bog‘iston MFY', 'Guliston MFY', 'Mustaqillik MFY'].map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Status Pills and Quick Reset */}
+                <div className="flex items-center justify-between pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex-wrap gap-2">
+                  <div className="flex items-center gap-1.5 overflow-x-auto">
+                    {(['ALL', 'ACTIVE', 'PENDING', 'SUSPENDED'] as const).map((st) => (
+                      <button
+                        key={st}
+                        onClick={() => setStatusFilter(st)}
+                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
+                          statusFilter === st
+                            ? 'bg-[#116B50] text-white'
+                            : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                        }`}
+                      >
+                        {st === 'ALL' ? 'Barchasi' : st === 'ACTIVE' ? 'Faol' : st === 'PENDING' ? 'Kutilmoqda' : 'To‘xtatilgan'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-[#566A63] dark:text-[#8B9E95]">
+                      Natija: <strong>{filteredStores.length} ta do‘kon</strong>
+                    </span>
+                    <button
+                      onClick={() => setActiveTab('map-hub')}
+                      className="px-2.5 py-1 rounded-lg bg-[#116B50]/10 dark:bg-[#4ADE80]/10 text-[#116B50] dark:text-[#4ADE80] font-bold hover:bg-[#116B50]/20 flex items-center gap-1"
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>Xaritada ko‘rish</span>
                     </button>
-                  ))}
+                  </div>
                 </div>
               </div>
 
@@ -645,9 +1274,12 @@ export function AdminApp() {
                                   </span>
                                 )}
                               </div>
-                              <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+                              <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
                                 Tashkilot: <strong className="text-[#172C28] dark:text-white">{st.organizationName || 'Bosh tashkilot'}</strong>
-                              </span>
+                                <span className="ml-2 font-mono text-[#116B50] dark:text-[#4ADE80] font-bold">
+                                  STIR (INN): {st.inn || '308123456'}
+                                </span>
+                              </div>
                             </div>
                           </div>
 
@@ -660,7 +1292,7 @@ export function AdminApp() {
                         <div className="mt-4 flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95]">
                           <div className="flex items-center gap-2">
                             <MapPin className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                            <span className="truncate">{st.address}</span>
+                            <span className="truncate">{st.address} ({st.region || 'Toshkent sh.'}, {st.city || 'Yunusobod'})</span>
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -845,46 +1477,210 @@ export function AdminApp() {
           {/* USERS TAB */}
           {activeTab === 'users' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-[#172C28] dark:text-white">Foydalanuvchilar</h1>
-                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">Ro‘yxatdan o‘tgan xaridorlar va do‘kon egalari</p>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <h1 className="text-3xl font-extrabold tracking-tight text-[#172C28] dark:text-white">
+                    Foydalanuvchilar va Xodimlar
+                  </h1>
+                  <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
+                    Barcha tashkilot xodimlari, login/parollar va Telegram / SMS orqali tasdiqlash holati
+                  </p>
+                </div>
+
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setNewUserForm({
+                      organizationId: organizations[0]?.id || '',
+                      fullName: '',
+                      email: '',
+                      password: 'Pass' + Math.floor(1000 + Math.random() * 9000) + '!',
+                      phone: '+998 90 ',
+                      role: 'OPERATOR',
+                      verificationMethod: 'TELEGRAM',
+                      autoVerify: false
+                    });
+                    setIsAddUserModalOpen(true);
+                  }}
+                  className="flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>+ Yangi foydalanuvchi qo‘shish</span>
+                </Button>
+              </div>
+
+              {/* User search & filter */}
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                  <input
+                    type="text"
+                    value={userSearch}
+                    onChange={(e) => setUserSearch(e.target.value)}
+                    placeholder="Ism, login, telefon yoki tashkilot..."
+                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
+                  {['ALL', 'OWNER', 'MANAGER', 'OPERATOR', 'CUSTOMER', 'SUPERADMIN'].map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setUserRoleFilter(r)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
+                        userRoleFilter === r
+                          ? 'bg-[#116B50] text-white'
+                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                      }`}
+                    >
+                      {r === 'ALL' ? 'Barcha rollar' : r}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl overflow-hidden shadow-sm">
-                <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
-                  <thead>
-                    <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
-                      <th className="py-3 px-4 font-semibold">Foydalanuvchi</th>
-                      <th className="py-3 px-4 font-semibold">Email</th>
-                      <th className="py-3 px-4 font-semibold">Rol</th>
-                      <th className="py-3 px-4 font-semibold">Holat</th>
-                      <th className="py-3 px-4 font-semibold">Amallar</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
-                    {users.map((u) => (
-                      <tr key={u.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50">
-                        <td className="py-3 px-4 font-bold">{u.fullName}</td>
-                        <td className="py-3 px-4 text-[#566A63] dark:text-[#8B9E95]">{u.email}</td>
-                        <td className="py-3 px-4">
-                          <Tag variant="default">{u.role}</Tag>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Tag variant={u.status === 'ACTIVE' ? 'default' : 'error'}>{u.status}</Tag>
-                        </td>
-                        <td className="py-3 px-4">
-                          <Button
-                            variant={u.status === 'ACTIVE' ? 'danger' : 'secondary'}
-                            size="sm"
-                            onClick={() => handleToggleUserStatus(u)}
-                          >
-                            {u.status === 'ACTIVE' ? 'Bloklash' : 'Faollashtirish'}
-                          </Button>
-                        </td>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
+                    <thead>
+                      <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
+                        <th className="py-3.5 px-4 font-semibold">Foydalanuvchi & Telefon</th>
+                        <th className="py-3.5 px-4 font-semibold">Tashkilot</th>
+                        <th className="py-3.5 px-4 font-semibold">Login / Email</th>
+                        <th className="py-3.5 px-4 font-semibold">Parol</th>
+                        <th className="py-3.5 px-4 font-semibold">Roli</th>
+                        <th className="py-3.5 px-4 font-semibold">Tasdiqlash & Holat</th>
+                        <th className="py-3.5 px-4 font-semibold text-right">Amallar</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
+                      {users
+                        .filter(u => {
+                          const matchSearch = !userSearch ||
+                            u.fullName.toLowerCase().includes(userSearch.toLowerCase()) ||
+                            u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
+                            (u.phone && u.phone.includes(userSearch)) ||
+                            ((u as any).organizationName && (u as any).organizationName.toLowerCase().includes(userSearch.toLowerCase()));
+                          const matchRole = userRoleFilter === 'ALL' || u.role === userRoleFilter;
+                          return matchSearch && matchRole;
+                        })
+                        .map((u) => {
+                          const isPending = u.status === 'PENDING' || (u as any).isVerified === false;
+                          const method = (u as any).verificationMethod || 'TELEGRAM';
+
+                          return (
+                            <tr key={u.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50 transition">
+                              <td className="py-3.5 px-4">
+                                <div className="font-bold text-[#172C28] dark:text-[#E8F2EC]">{u.fullName}</div>
+                                <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">{u.phone || 'Telefon yo‘q'}</div>
+                              </td>
+                              <td className="py-3.5 px-4 font-medium text-[#116B50] dark:text-[#4ADE80]">
+                                {(u as any).organizationName || 'Tizim foydalanuvchisi'}
+                              </td>
+                              <td className="py-3.5 px-4 font-mono text-[11px] text-[#172C28] dark:text-[#E8F2EC]">
+                                {u.email}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono text-xs bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] px-2 py-0.5 rounded font-bold border border-[#116B50]/20">
+                                    {(u as any).plainPassword || (u as any).passwordHash || 'DemoPass123!'}
+                                  </span>
+                                  <button
+                                    onClick={() => {
+                                      const p = (u as any).plainPassword || (u as any).passwordHash || 'DemoPass123!';
+                                      navigator.clipboard.writeText(p);
+                                      showToast(`Parol nusxalandi: ${p}`);
+                                    }}
+                                    title="Paroldan nusxa olish"
+                                    className="text-[#566A63] hover:text-[#116B50] p-1"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <Tag
+                                  variant={
+                                    u.role === 'OWNER'
+                                      ? 'default'
+                                      : u.role === 'MANAGER'
+                                      ? 'warn'
+                                      : u.role === 'SUPERADMIN'
+                                      ? 'default'
+                                      : 'default'
+                                  }
+                                >
+                                  {u.role}
+                                </Tag>
+                              </td>
+                              <td className="py-3.5 px-4">
+                                {isPending ? (
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                                      <Clock className="w-3 h-3" /> {method === 'TELEGRAM' ? 'Telegram' : 'SMS'} tasdiqlash
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-[#116B50] dark:text-[#4ADE80] border border-emerald-200 dark:border-emerald-800">
+                                    <CheckCircle className="w-3 h-3" /> Faol & Tasdiqlangan
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3.5 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  {isPending && (
+                                    <>
+                                      <button
+                                        onClick={() => handleSendVerificationCode(u, method)}
+                                        title={`${method === 'TELEGRAM' ? 'Telegram' : 'SMS'} orqali qayta kod yuborish`}
+                                        className="p-1.5 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100 transition"
+                                      >
+                                        <Send className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setUserToVerify(u);
+                                          setLastDispatchedCode((u as any).verificationCode || '123456');
+                                          setLastDispatchedMethod(method);
+                                          setVerificationOtpInput((u as any).verificationCode || '');
+                                          setIsVerifyModalOpen(true);
+                                        }}
+                                        title="Kodni kiritib tasdiqlash"
+                                        className="px-2.5 py-1 rounded-lg bg-[#116B50] text-white text-[11px] font-bold hover:bg-[#0d533e] transition"
+                                      >
+                                        Tasdiqlash
+                                      </button>
+                                    </>
+                                  )}
+
+                                  <button
+                                    onClick={() => handleOpenEditCredentials(u)}
+                                    title="Login va parolni tahrirlash"
+                                    className="p-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328] text-[#172C28] dark:text-[#E8F2EC] transition"
+                                  >
+                                    <Key className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  <button
+                                    onClick={() => handleToggleUserStatus(u)}
+                                    title={u.status === 'ACTIVE' ? 'Bloklash' : 'Faollashtirish'}
+                                    className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition ${
+                                      u.status === 'ACTIVE'
+                                        ? 'bg-red-50 dark:bg-red-950/40 text-red-600 hover:bg-red-100'
+                                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 hover:bg-emerald-100'
+                                    }`}
+                                  >
+                                    {u.status === 'ACTIVE' ? 'Bloklash' : 'Faol qilish'}
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -939,16 +1735,68 @@ export function AdminApp() {
         title="Yangi tashkilot va kartaga do‘kon qo‘shish"
       >
         <form onSubmit={handleCreateOrganization} className="flex flex-col gap-4 text-xs">
-          <div>
-            <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tashkilot nomi *</label>
-            <input
-              type="text"
-              required
-              value={newOrgForm.name}
-              onChange={(e) => setNewOrgForm({ ...newOrgForm, name: e.target.value })}
-              placeholder="Masalan: 'Korzinka MChJ' yoki 'Grand Optom'"
-              className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tashkilot nomi *</label>
+              <input
+                type="text"
+                required
+                value={newOrgForm.name}
+                onChange={(e) => setNewOrgForm({ ...newOrgForm, name: e.target.value })}
+                placeholder="Masalan: 'Korzinka MChJ'"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+              />
+            </div>
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">STIR (INN - 9 raqam) *</label>
+              <input
+                type="text"
+                required
+                maxLength={9}
+                value={newOrgForm.inn}
+                onChange={(e) => setNewOrgForm({ ...newOrgForm, inn: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                placeholder="308123456"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs font-mono text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Viloyat *</label>
+              <select
+                value={newOrgForm.region}
+                onChange={(e) => setNewOrgForm({ ...newOrgForm, region: e.target.value })}
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              >
+                {REGION_OPTIONS.filter(r => r !== 'Barcha viloyatlar').map((reg) => (
+                  <option key={reg} value={reg}>
+                    {reg}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tuman / Shahar *</label>
+              <input
+                type="text"
+                required
+                value={newOrgForm.city}
+                onChange={(e) => setNewOrgForm({ ...newOrgForm, city: e.target.value })}
+                placeholder="Yunusobod"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Mahalla (MFY)</label>
+              <input
+                type="text"
+                value={newOrgForm.district}
+                onChange={(e) => setNewOrgForm({ ...newOrgForm, district: e.target.value })}
+                placeholder="Navbahor MFY"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -990,14 +1838,18 @@ export function AdminApp() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Telefon raqam *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">Telefon raqam *</label>
+                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">(+998)</span>
+              </div>
               <input
                 type="text"
                 required
+                maxLength={17}
                 value={newOrgForm.phone}
-                onChange={(e) => setNewOrgForm({ ...newOrgForm, phone: e.target.value })}
+                onChange={(e) => setNewOrgForm({ ...newOrgForm, phone: formatUzPhone(e.target.value) })}
                 placeholder="+998 71 123 45 67"
-                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs font-mono text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
             <div>
@@ -1013,12 +1865,20 @@ export function AdminApp() {
           </div>
 
           {/* Geolocation Coordinates */}
-          <div className="p-3 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-xl border border-[#DCE5DF] dark:border-[#22332C]">
-            <div className="flex items-center justify-between mb-2">
-              <span className="font-bold flex items-center gap-1.5 text-[#172C28] dark:text-[#E8F2EC]">
-                <MapPin className="w-4 h-4 text-[#116B50]" />
-                Karta koordinatalari (Latitude / Longitude)
+          <div className="p-3.5 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-2xl border border-[#DCE5DF] dark:border-[#22332C]">
+            <div className="flex items-center justify-between gap-2 mb-2.5">
+              <span className="font-bold flex items-center gap-1.5 text-xs text-[#172C28] dark:text-[#E8F2EC]">
+                <MapPin className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                Karta koordinatalari
               </span>
+              <button
+                type="button"
+                onClick={handleOpenLocationPickerForNewOrg}
+                className="px-3 py-1.5 bg-[#116B50] hover:bg-[#0d533e] active:scale-95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+              >
+                <Map className="w-3.5 h-3.5" />
+                <span>🗺️ Kartadan belgilash</span>
+              </button>
             </div>
 
             {/* Quick district presets */}
@@ -1102,15 +1962,62 @@ export function AdminApp() {
       >
         {editStoreForm && (
           <form onSubmit={handleSaveStoreEdit} className="flex flex-col gap-4 text-xs">
-            <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Do‘kon nomi *</label>
-              <input
-                type="text"
-                required
-                value={editStoreForm.name}
-                onChange={(e) => setEditStoreForm({ ...editStoreForm, name: e.target.value })}
-                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Do‘kon nomi *</label>
+                <input
+                  type="text"
+                  required
+                  value={editStoreForm.name}
+                  onChange={(e) => setEditStoreForm({ ...editStoreForm, name: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">STIR (INN - 9 raqam)</label>
+                <input
+                  type="text"
+                  maxLength={9}
+                  value={editStoreForm.inn}
+                  onChange={(e) => setEditStoreForm({ ...editStoreForm, inn: e.target.value.replace(/\D/g, '').slice(0, 9) })}
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs font-mono text-[#172C28] dark:text-[#E8F2EC]"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Viloyat</label>
+                <select
+                  value={editStoreForm.region}
+                  onChange={(e) => setEditStoreForm({ ...editStoreForm, region: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                >
+                  {REGION_OPTIONS.filter(r => r !== 'Barcha viloyatlar').map((reg) => (
+                    <option key={reg} value={reg}>
+                      {reg}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tuman / Shahar</label>
+                <input
+                  type="text"
+                  value={editStoreForm.city}
+                  onChange={(e) => setEditStoreForm({ ...editStoreForm, city: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                />
+              </div>
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Mahalla (MFY)</label>
+                <input
+                  type="text"
+                  value={editStoreForm.district}
+                  onChange={(e) => setEditStoreForm({ ...editStoreForm, district: e.target.value })}
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                />
+              </div>
             </div>
 
             <div>
@@ -1126,13 +2033,17 @@ export function AdminApp() {
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Telefon *</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">Telefon *</label>
+                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">(+998)</span>
+                </div>
                 <input
                   type="text"
                   required
+                  maxLength={17}
                   value={editStoreForm.phone}
-                  onChange={(e) => setEditStoreForm({ ...editStoreForm, phone: e.target.value })}
-                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                  onChange={(e) => setEditStoreForm({ ...editStoreForm, phone: formatUzPhone(e.target.value) })}
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs font-mono text-[#172C28] dark:text-[#E8F2EC]"
                 />
               </div>
               <div>
@@ -1151,10 +2062,21 @@ export function AdminApp() {
             </div>
 
             {/* Coordinates */}
-            <div className="p-3 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-xl border border-[#DCE5DF] dark:border-[#22332C]">
-              <span className="font-bold block mb-2 text-[#172C28] dark:text-[#E8F2EC]">
-                📍 Karta koordinatalari
-              </span>
+            <div className="p-3.5 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-2xl border border-[#DCE5DF] dark:border-[#22332C]">
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                <span className="font-bold flex items-center gap-1.5 text-xs text-[#172C28] dark:text-[#E8F2EC]">
+                  <MapPin className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                  Karta koordinatalari
+                </span>
+                <button
+                  type="button"
+                  onClick={handleOpenLocationPickerForEditStore}
+                  className="px-3 py-1.5 bg-[#116B50] hover:bg-[#0d533e] active:scale-95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                >
+                  <Map className="w-3.5 h-3.5" />
+                  <span>🗺️ Kartadan belgilash</span>
+                </button>
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-[11px] font-semibold block mb-1">Latitude</label>
@@ -1299,6 +2221,596 @@ export function AdminApp() {
           </div>
         )}
       </Modal>
+
+      {/* 1. ORGANIZATION USERS MANAGEMENT MODAL */}
+      <Modal
+        isOpen={isOrgUsersModalOpen}
+        onClose={() => setIsOrgUsersModalOpen(false)}
+        title={`${selectedOrgForUsers?.name || 'Tashkilot'} xodimlari va foydalanuvchilari`}
+      >
+        <div className="flex flex-col gap-4 text-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-[#DCE5DF] dark:border-[#22332C]">
+            <div className="flex items-center gap-2">
+              <span className="font-bold text-sm text-[#172C28] dark:text-white">{selectedOrgForUsers?.name}</span>
+              <Tag variant="default">{selectedOrgForUsers?.type}</Tag>
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={() => {
+                setNewUserForm(prev => ({
+                  ...prev,
+                  organizationId: selectedOrgForUsers?.id || '',
+                  password: 'Pass' + Math.floor(1000 + Math.random() * 9000) + '!'
+                }));
+                setIsAddUserModalOpen(true);
+              }}
+              className="flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Yangi xodim qo‘shish</span>
+            </Button>
+          </div>
+
+          {isLoadingOrgUsers ? (
+            <div className="p-8 text-center text-[#566A63] dark:text-[#8B9E95]">Yuklanmoqda...</div>
+          ) : orgUsersList.length > 0 ? (
+            <div className="overflow-x-auto border border-[#DCE5DF] dark:border-[#22332C] rounded-xl">
+              <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
+                <thead>
+                  <tr className="bg-[#F9FAF9] dark:bg-[#1A2822] border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95]">
+                    <th className="py-2.5 px-3 font-semibold">Ism & Telefon</th>
+                    <th className="py-2.5 px-3 font-semibold">Login (Email)</th>
+                    <th className="py-2.5 px-3 font-semibold">Parol</th>
+                    <th className="py-2.5 px-3 font-semibold">Roli</th>
+                    <th className="py-2.5 px-3 font-semibold">Tasdiqlash</th>
+                    <th className="py-2.5 px-3 font-semibold text-right">Amallar</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
+                  {orgUsersList.map((u) => {
+                    const isPending = u.status === 'PENDING' || (u as any).isVerified === false;
+                    const method = (u as any).verificationMethod || 'TELEGRAM';
+
+                    return (
+                      <tr key={u.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50">
+                        <td className="py-2.5 px-3">
+                          <div className="font-bold">{u.fullName}</div>
+                          <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">{u.phone}</div>
+                        </td>
+                        <td className="py-2.5 px-3 font-mono text-[11px]">{u.email}</td>
+                        <td className="py-2.5 px-3">
+                          <div className="flex items-center gap-1">
+                            <span className="font-mono text-xs bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] px-1.5 py-0.5 rounded font-bold">
+                              {(u as any).plainPassword || (u as any).passwordHash || 'DemoPass123!'}
+                            </span>
+                            <button
+                              onClick={() => {
+                                const p = (u as any).plainPassword || (u as any).passwordHash || 'DemoPass123!';
+                                navigator.clipboard.writeText(p);
+                                showToast(`Parol nusxalandi: ${p}`);
+                              }}
+                              title="Nusxa olish"
+                              className="text-[#566A63] hover:text-[#116B50] p-0.5"
+                            >
+                              <Copy className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          <Tag variant="default">{u.role}</Tag>
+                        </td>
+                        <td className="py-2.5 px-3">
+                          {isPending ? (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                              <Clock className="w-3 h-3" /> {method === 'TELEGRAM' ? 'Telegram' : 'SMS'} kutilmoqda
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 dark:bg-emerald-900/30 text-[#116B50] dark:text-[#4ADE80]">
+                              <CheckCircle className="w-3 h-3" /> Tasdiqlangan
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-2.5 px-3 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {isPending && (
+                              <>
+                                <button
+                                  onClick={() => handleSendVerificationCode(u, method)}
+                                  title={`${method === 'TELEGRAM' ? 'Telegram' : 'SMS'} orqali kod yuborish`}
+                                  className="p-1 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 hover:bg-blue-100"
+                                >
+                                  <Send className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setUserToVerify(u);
+                                    setLastDispatchedCode((u as any).verificationCode || '123456');
+                                    setLastDispatchedMethod(method);
+                                    setVerificationOtpInput((u as any).verificationCode || '');
+                                    setIsVerifyModalOpen(true);
+                                  }}
+                                  title="Tasdiqlash kodini kiritish"
+                                  className="px-2 py-0.5 rounded bg-[#116B50] text-white text-[10px] font-bold hover:bg-[#0d533e]"
+                                >
+                                  Tasdiqlash
+                                </button>
+                              </>
+                            )}
+                            <button
+                              onClick={() => handleOpenEditCredentials(u)}
+                              title="Tahrirlash / Parolni o‘zgartirish"
+                              className="p-1 rounded border border-[#DCE5DF] dark:border-[#273B32] hover:bg-[#F3F6F3] text-[#172C28] dark:text-[#E8F2EC]"
+                            >
+                              <Key className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteOrgUser(u)}
+                              title="O‘chirish"
+                              className="p-1 rounded bg-red-50 text-red-600 hover:bg-red-100"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="p-8 text-center text-[#566A63] dark:text-[#8B9E95] border border-dashed border-[#DCE5DF] dark:border-[#22332C] rounded-xl">
+              Ushbu tashkilotda hozircha xodimlar mavjud emas. Yuqoridagi tugma orqali yangi xodim va unga login/parol qo‘shing.
+            </div>
+          )}
+
+          <div className="flex justify-end pt-2">
+            <Button variant="secondary" onClick={() => setIsOrgUsersModalOpen(false)}>
+              Yopish
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* 2. ADD USER MODAL */}
+      <Modal
+        isOpen={isAddUserModalOpen}
+        onClose={() => setIsAddUserModalOpen(false)}
+        title="Tashkilotga yangi foydalanuvchi va login/parol qo‘shish"
+      >
+        <form onSubmit={handleCreateUser} className="flex flex-col gap-4 text-xs">
+          {/* Organization selector */}
+          <div>
+            <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tashkilot *</label>
+            <select
+              required
+              value={newUserForm.organizationId || (selectedOrgForUsers ? selectedOrgForUsers.id : organizations[0]?.id || '')}
+              onChange={(e) => setNewUserForm({ ...newUserForm, organizationId: e.target.value })}
+              className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+            >
+              {organizations.map((org) => (
+                <option key={org.id} value={org.id}>
+                  {org.name} ({org.type})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Xodim F.I.Sh *</label>
+              <input
+                type="text"
+                required
+                value={newUserForm.fullName}
+                onChange={(e) => setNewUserForm({ ...newUserForm, fullName: e.target.value })}
+                placeholder="Masalan: Sardor Rahimov"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Telefon raqam *</label>
+              <input
+                type="text"
+                required
+                value={newUserForm.phone}
+                onChange={(e) => setNewUserForm({ ...newUserForm, phone: formatUzPhone(e.target.value) })}
+                placeholder="+998 90 123 45 67"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login / Email *</label>
+              <input
+                type="text"
+                required
+                value={newUserForm.email}
+                onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
+                placeholder="sardor@korzinka.uz"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Roli</label>
+              <select
+                value={newUserForm.role}
+                onChange={(e) => setNewUserForm({ ...newUserForm, role: e.target.value as any })}
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              >
+                <option value="OWNER">Do‘kon egasi (OWNER)</option>
+                <option value="MANAGER">Menejer / Boshqaruvchi (MANAGER)</option>
+                <option value="OPERATOR">Kassir / Operator (OPERATOR)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Password Input & Generator */}
+          <div className="bg-[#F3F6F3] dark:bg-[#1A2822] p-3 rounded-xl border border-[#DCE5DF] dark:border-[#273B32]">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="font-semibold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1">
+                <Lock className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                <span>Boshlang‘ich parol *</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleGeneratePassword}
+                className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-bold hover:underline flex items-center gap-1"
+              >
+                <RefreshCw className="w-3 h-3" /> Parol generatsiya qilish
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={newUserForm.password}
+                onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
+                placeholder="Parol kiriting..."
+                className="w-full p-2.5 pr-10 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#172C28] dark:text-[#E8F2EC] font-mono"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#566A63] hover:text-[#172C28] dark:hover:text-white"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+            <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">
+              Ushbu parol bilan xodim o‘z kabinetiga (localhost:3001) kira oladi.
+            </span>
+          </div>
+
+          {/* Verification Method Selection */}
+          <div>
+            <label className="font-semibold block mb-2 text-[#172C28] dark:text-[#E8F2EC]">
+              Tasdiqlash usuli (SMS / Telegram)
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <label
+                className={`p-3 rounded-xl border cursor-pointer flex flex-col gap-1 transition ${
+                  newUserForm.verificationMethod === 'TELEGRAM' && !newUserForm.autoVerify
+                    ? 'border-[#116B50] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                    : 'border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold">
+                  <input
+                    type="radio"
+                    name="verifMethod"
+                    checked={newUserForm.verificationMethod === 'TELEGRAM' && !newUserForm.autoVerify}
+                    onChange={() => setNewUserForm({ ...newUserForm, verificationMethod: 'TELEGRAM', autoVerify: false })}
+                    className="accent-[#116B50]"
+                  />
+                  <span>✈️ Telegram</span>
+                </div>
+                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                  Telegram bot orqali tasdiqlash kodi yuboriladi
+                </span>
+              </label>
+
+              <label
+                className={`p-3 rounded-xl border cursor-pointer flex flex-col gap-1 transition ${
+                  newUserForm.verificationMethod === 'SMS' && !newUserForm.autoVerify
+                    ? 'border-[#116B50] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                    : 'border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold">
+                  <input
+                    type="radio"
+                    name="verifMethod"
+                    checked={newUserForm.verificationMethod === 'SMS' && !newUserForm.autoVerify}
+                    onChange={() => setNewUserForm({ ...newUserForm, verificationMethod: 'SMS', autoVerify: false })}
+                    className="accent-[#116B50]"
+                  />
+                  <span>💬 SMS</span>
+                </div>
+                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                  Telefon raqamiga 6 xonali SMS kod yuboriladi
+                </span>
+              </label>
+
+              <label
+                className={`p-3 rounded-xl border cursor-pointer flex flex-col gap-1 transition ${
+                  newUserForm.autoVerify
+                    ? 'border-[#116B50] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                    : 'border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+                }`}
+              >
+                <div className="flex items-center gap-1.5 font-bold">
+                  <input
+                    type="radio"
+                    name="verifMethod"
+                    checked={newUserForm.autoVerify}
+                    onChange={() => setNewUserForm({ ...newUserForm, autoVerify: true })}
+                    className="accent-[#116B50]"
+                  />
+                  <span>⚡ Darhol faol</span>
+                </div>
+                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                  Kodsiz darhol faollashtirish
+                </span>
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-[#DCE5DF] dark:border-[#22332C]">
+            <Button variant="secondary" type="button" onClick={() => setIsAddUserModalOpen(false)}>
+              Bekor qilish
+            </Button>
+            <Button variant="primary" type="submit">
+              Foydalanuvchini saqlash
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 3. TELEGRAM / SMS OTP VERIFICATION MODAL */}
+      <Modal
+        isOpen={isVerifyModalOpen}
+        onClose={() => setIsVerifyModalOpen(false)}
+        title="Telegram / SMS orqali hisobni tasdiqlash"
+      >
+        <form onSubmit={handleVerifyUser} className="flex flex-col gap-4 text-xs">
+          <div>
+            <span className="text-[#566A63] dark:text-[#8B9E95]">Foydalanuvchi:</span>
+            <div className="font-bold text-sm text-[#172C28] dark:text-white mt-0.5">
+              {userToVerify?.fullName} ({userToVerify?.email})
+            </div>
+            <div className="text-xs text-[#116B50] dark:text-[#4ADE80] mt-0.5">
+              Telefon: {userToVerify?.phone}
+            </div>
+          </div>
+
+          {/* Simulated Telegram / SMS Message Preview */}
+          <div className="bg-gradient-to-br from-[#1E293B] to-[#0F172A] text-white p-4 rounded-2xl border border-slate-700 shadow-md">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-700 mb-2.5">
+              <div className="flex items-center gap-2">
+                {lastDispatchedMethod === 'TELEGRAM' ? (
+                  <Send className="w-4 h-4 text-sky-400" />
+                ) : (
+                  <Smartphone className="w-4 h-4 text-emerald-400" />
+                )}
+                <span className="font-bold text-xs text-sky-400">
+                  {lastDispatchedMethod === 'TELEGRAM' ? 'Telegram Bot (@YaqinTopBot)' : 'SMS Gateway (YaqinTop)'}
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400">Hozirgina yuborildi</span>
+            </div>
+
+            <p className="text-xs leading-relaxed text-slate-200">
+              Salom, <strong>{userToVerify?.fullName}</strong>! YaqinTop platformasida hisobingizni tasdiqlash kodi:
+            </p>
+            <div className="my-2.5 py-2 px-3 bg-black/40 rounded-xl flex items-center justify-between border border-slate-700">
+              <span className="font-mono text-xl tracking-widest font-black text-emerald-400">
+                {lastDispatchedCode || '849201'}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setVerificationOtpInput(lastDispatchedCode || '849201');
+                  showToast('Kod avtomatik kiritildi!');
+                }}
+                className="px-2.5 py-1 bg-[#116B50] text-white rounded-lg text-[11px] font-bold hover:bg-[#0d533e] transition"
+              >
+                Avtomatik to‘ldirish
+              </button>
+            </div>
+            <span className="text-[10px] text-slate-400 block">
+              Xavfsizlik eslatmasi: Ushbu kodni hech kimga bermang.
+            </span>
+          </div>
+
+          {/* Code Input */}
+          <div>
+            <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">
+              6 xonali tasdiqlash kodini kiriting *
+            </label>
+            <input
+              type="text"
+              required
+              maxLength={6}
+              value={verificationOtpInput}
+              onChange={(e) => setVerificationOtpInput(e.target.value.replace(/\D/g, ''))}
+              placeholder="Masalan: 849201"
+              className="w-full p-3 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] text-center font-mono text-xl tracking-widest font-extrabold focus:outline-none focus:border-[#116B50]"
+            />
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-[#DCE5DF] dark:border-[#22332C]">
+            <button
+              type="button"
+              onClick={() => userToVerify && handleSendVerificationCode(userToVerify, lastDispatchedMethod)}
+              className="text-xs text-[#116B50] dark:text-[#4ADE80] font-bold hover:underline flex items-center gap-1"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Kodni qayta yuborish
+            </button>
+
+            <div className="flex gap-2">
+              <Button variant="secondary" type="button" onClick={() => setIsVerifyModalOpen(false)}>
+                Bekor qilish
+              </Button>
+              <Button variant="primary" type="submit">
+                Tasdiqlash va Faollashtirish
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* 4. EDIT CREDENTIALS MODAL */}
+      <Modal
+        isOpen={isEditCredentialsModalOpen}
+        onClose={() => setIsEditCredentialsModalOpen(false)}
+        title="Foydalanuvchi login va parolini tahrirlash"
+      >
+        <form onSubmit={handleSaveCredentials} className="flex flex-col gap-4 text-xs">
+          <div>
+            <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">F.I.Sh *</label>
+            <input
+              type="text"
+              required
+              value={editCredentialsForm.fullName}
+              onChange={(e) => setEditCredentialsForm({ ...editCredentialsForm, fullName: e.target.value })}
+              className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login / Email *</label>
+              <input
+                type="text"
+                required
+                value={editCredentialsForm.email}
+                onChange={(e) => setEditCredentialsForm({ ...editCredentialsForm, email: e.target.value })}
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Telefon raqam</label>
+              <input
+                type="text"
+                value={editCredentialsForm.phone}
+                onChange={(e) => setEditCredentialsForm({ ...editCredentialsForm, phone: formatUzPhone(e.target.value) })}
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] font-mono"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Yangi parol</label>
+              <input
+                type="text"
+                value={editCredentialsForm.password}
+                onChange={(e) => setEditCredentialsForm({ ...editCredentialsForm, password: e.target.value })}
+                placeholder="O‘zgartirish uchun yangi parol kiriting"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] font-mono"
+              />
+            </div>
+
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Roli</label>
+              <select
+                value={editCredentialsForm.role}
+                onChange={(e) => setEditCredentialsForm({ ...editCredentialsForm, role: e.target.value as any })}
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              >
+                <option value="OWNER">Do‘kon egasi (OWNER)</option>
+                <option value="MANAGER">Menejer (MANAGER)</option>
+                <option value="OPERATOR">Kassir (OPERATOR)</option>
+                <option value="CUSTOMER">Xaridor (CUSTOMER)</option>
+                <option value="SUPERADMIN">Admin (SUPERADMIN)</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Holati</label>
+            <select
+              value={editCredentialsForm.status}
+              onChange={(e) => setEditCredentialsForm({ ...editCredentialsForm, status: e.target.value as any })}
+              className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+            >
+              <option value="ACTIVE">Faol (ACTIVE)</option>
+              <option value="PENDING">Tasdiqlash kutilmoqda (PENDING)</option>
+              <option value="SUSPENDED">Bloklangan (SUSPENDED)</option>
+            </select>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-[#DCE5DF] dark:border-[#22332C]">
+            <Button variant="secondary" type="button" onClick={() => setIsEditCredentialsModalOpen(false)}>
+              Bekor qilish
+            </Button>
+            <Button variant="primary" type="submit">
+              O‘zgarishlarni saqlash
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Admin User Profile Modal */}
+      <UnifiedUserProfileModal
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+        currentUser={currentUser}
+        onLogout={() => {
+          setCurrentUser(null);
+          showToast('Tizimdan chiqildi');
+          setIsProfileModalOpen(false);
+          setIsLoginModalOpen(true);
+        }}
+        onLoginPrompt={() => {
+          setIsProfileModalOpen(false);
+          setIsLoginModalOpen(true);
+        }}
+        onUserUpdated={(updated) => {
+          setCurrentUser(updated);
+        }}
+      />
+
+      {/* Admin Login Modal */}
+      <UnifiedLoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
+        appTitle="YaqinTop Admin"
+        onLoginSuccess={(user) => {
+          setCurrentUser(user);
+          showToast(`Xush kelibsiz, ${user.fullName}!`);
+        }}
+      />
+
+      {/* Leaflet Interactive Location Picker Modal */}
+      <LocationPickerModal
+        isOpen={isLocationPickerOpen}
+        onClose={() => setIsLocationPickerOpen(false)}
+        initialLat={
+          locationPickerTarget === 'NEW_ORG'
+            ? parseFloat(newOrgForm.lat) || 41.311081
+            : parseFloat(editStoreForm?.lat || '41.311081') || 41.311081
+        }
+        initialLng={
+          locationPickerTarget === 'NEW_ORG'
+            ? parseFloat(newOrgForm.lng) || 69.240562
+            : parseFloat(editStoreForm?.lng || '69.240562') || 69.240562
+        }
+        title={
+          locationPickerTarget === 'NEW_ORG'
+            ? `${newOrgForm.name || 'Yangi tashkilot / filial'} lokatsiyasini kartada belgilash`
+            : `${editStoreForm?.name || 'Do‘kon'} lokatsiyasini kartada belgilash`
+        }
+        isDarkMode={isDarkMode}
+        onSelectLocation={handleLocationPicked}
+      />
     </div>
   );
 }
