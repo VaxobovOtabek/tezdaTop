@@ -15,7 +15,13 @@
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@yaqintop/contracts": ["../../packages/contracts/src/index.ts"],
+      "@yaqintop/ui": ["../../packages/ui/src/index.tsx"],
+      "@yaqintop/config": ["../../packages/config/src/index.ts"]
+    }
   },
   "include": ["src"]
 }
