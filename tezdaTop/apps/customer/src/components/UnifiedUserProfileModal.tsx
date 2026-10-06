@@ -102,9 +102,15 @@ export function UnifiedUserProfileModal({
     try {
       const res = await fetch('/api/v1/auth/request-credential-change', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': currentUser?.id || '',
+          'x-user-email': currentUser?.email || ''
+        },
         credentials: 'include',
         body: JSON.stringify({
+          userId: currentUser?.id,
+          userEmail: currentUser?.email,
           requestedEmail: reqEmail !== currentUser.email ? reqEmail : undefined,
           requestedPassword: reqPassword || undefined,
           requestedFullName: reqFullName !== currentUser.fullName ? reqFullName : undefined,
@@ -336,13 +342,13 @@ export function UnifiedUserProfileModal({
 
             <div>
               <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
-                Yangi Login (Email)
+                Yangi Login (Foydalanuvchi nomi, telefon yoki email)
               </label>
               <input
-                type="email"
+                type="text"
                 value={reqEmail}
                 onChange={(e) => setReqEmail(e.target.value)}
-                placeholder="yangi.email@yaqintop.uz"
+                placeholder="masalan: otabek2026 yoki +998901234567"
                 className="w-full h-10 px-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>

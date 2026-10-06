@@ -144,17 +144,34 @@ export function AdminApp() {
     'overview' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
   >('overview');
 
-  // Current User Session State
-  const [currentUser, setCurrentUser] = useState<any>({
-    id: 'cccc5555-5555-4ccc-cccc-555555555555',
-    fullName: 'Boshqaruvchi Admin',
-    email: 'admin@yaqintop.uz',
-    phone: '+998 90 555 66 77',
-    role: 'SUPERADMIN',
-    status: 'ACTIVE'
+  // Current User Session State (Loads from localStorage or null for guest)
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'ADMIN' || parsed.role === 'SUPERADMIN') {
+          return parsed;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
   });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return !(parsed.role === 'ADMIN' || parsed.role === 'SUPERADMIN');
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  });
 
   const [overviewStats, setOverviewStats] = useState({ pendingApps: 0, openReports: 0, overdueCorrections: 0 });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
@@ -815,6 +832,30 @@ export function AdminApp() {
         </div>
       )}
 
+      {/* Red Portal Guard Banner for Guests */}
+      {!currentUser && (
+        <div className="bg-red-600 text-white px-6 py-2.5 text-xs font-bold flex items-center justify-between shadow-md z-40 shrink-0">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 shrink-0 animate-bounce text-yellow-300" />
+            <span>⚠️ Siz mehmon (guest) holatidasiz. Ushbu Boshqaruv Admin paneliga kirish uchun Administrator hisobingiz bilan tizimga kiring.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
+              className="px-3 py-1 bg-white text-red-700 rounded-lg text-xs font-extrabold hover:bg-red-50 transition shadow"
+            >
+              Admin sifatida kirish
+            </button>
+            <a
+              href="http://localhost:3000"
+              className="px-3 py-1 bg-red-800 text-white rounded-lg text-xs font-bold hover:bg-red-900 transition"
+            >
+              Xaridor tizimiga o‘tish (3000) →
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="h-[72px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-6 flex items-center justify-between sticky top-0 z-30 transition-colors">
         <div className="flex items-center gap-3">
@@ -841,9 +882,11 @@ export function AdminApp() {
             {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
           </button>
 
-          <Tag variant="default" className="text-xs">
-            {currentUser?.role || 'SUPERADMIN'}
-          </Tag>
+          {currentUser && (
+            <Tag variant="default" className="text-xs">
+              {currentUser.role}
+            </Tag>
+          )}
           {currentUser ? (
             <div
               onClick={() => setIsProfileModalOpen(true)}
@@ -868,8 +911,38 @@ export function AdminApp() {
         </div>
       </header>
 
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main Layout or Locked Guard */}
+      {!currentUser ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[#F3F6F3] dark:bg-[#0E1713]">
+          <div className="max-w-md w-full bg-white dark:bg-[#14201A] p-8 rounded-3xl border border-red-200 dark:border-red-900/50 shadow-2xl flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center shadow-inner">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-extrabold text-[#172C28] dark:text-white">Admin Paneli Himoyalangan</h2>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] leading-relaxed">
+                Platforma boshqaruv ma’lumotlari, do‘konlar bazasi, API Explorer va foydalanuvchilar maxfiy hisoblanadi. Ma’lumotlarni ko‘rish uchun tizimga Administrator sifatida kiring.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5 w-full mt-3">
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="w-full py-3 bg-[#116B50] hover:bg-[#0d533e] text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Key className="w-4 h-4" />
+                <span>Admin sifatida kirish (Login)</span>
+              </button>
+              <a
+                href="http://localhost:3000"
+                className="w-full py-2.5 bg-gray-100 dark:bg-[#1E3328] hover:bg-gray-200 dark:hover:bg-[#253E32] text-[#172C28] dark:text-[#E8F2EC] font-semibold text-xs rounded-xl transition text-center"
+              >
+                Xaridor tizimiga o‘tish (Mehmon sifatida) →
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <aside className="w-64 bg-white dark:bg-[#14201A] border-r border-[#DCE5DF] dark:border-[#22332C] flex flex-col p-4 shrink-0 overflow-y-auto">
           <nav className="flex flex-col gap-1">
@@ -1750,9 +1823,12 @@ export function AdminApp() {
           )}
         </main>
       </div>
+      )}
 
-      {/* ADD ORGANIZATION & STORE MODAL */}
-      <Modal
+      {currentUser && (
+        <>
+          {/* ADD ORGANIZATION & STORE MODAL */}
+          <Modal
         isOpen={isAddOrgModalOpen}
         onClose={() => setIsAddOrgModalOpen(false)}
         title="Yangi tashkilot va kartaga do‘kon qo‘shish"
@@ -2459,13 +2535,13 @@ export function AdminApp() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login / Email *</label>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login / Foydalanuvchi nomi *</label>
               <input
                 type="text"
                 required
                 value={newUserForm.email}
                 onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                placeholder="sardor@yaqintop.uz"
+                placeholder="Masalan: sardor2026 yoki sardor"
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
@@ -2777,6 +2853,31 @@ export function AdminApp() {
         </form>
       </Modal>
 
+          {/* Leaflet Interactive Location Picker Modal */}
+          <LocationPickerModal
+            isOpen={isLocationPickerOpen}
+            onClose={() => setIsLocationPickerOpen(false)}
+            initialLat={
+              locationPickerTarget === 'NEW_ORG'
+                ? parseFloat(newOrgForm.lat) || 41.311081
+                : parseFloat(editStoreForm?.lat || '41.311081') || 41.311081
+            }
+            initialLng={
+              locationPickerTarget === 'NEW_ORG'
+                ? parseFloat(newOrgForm.lng) || 69.240562
+                : parseFloat(editStoreForm?.lng || '69.240562') || 69.240562
+            }
+            title={
+              locationPickerTarget === 'NEW_ORG'
+                ? `${newOrgForm.name || 'Yangi tashkilot / filial'} lokatsiyasini kartada belgilash`
+                : `${editStoreForm?.name || 'Do‘kon'} lokatsiyasini kartada belgilash`
+            }
+            isDarkMode={isDarkMode}
+            onSelectLocation={handleLocationPicked}
+          />
+        </>
+      )}
+
       {/* Admin User Profile Modal */}
       <UnifiedUserProfileModal
         isOpen={isProfileModalOpen}
@@ -2806,29 +2907,6 @@ export function AdminApp() {
           setCurrentUser(user);
           showToast(`Xush kelibsiz, ${user.fullName}!`);
         }}
-      />
-
-      {/* Leaflet Interactive Location Picker Modal */}
-      <LocationPickerModal
-        isOpen={isLocationPickerOpen}
-        onClose={() => setIsLocationPickerOpen(false)}
-        initialLat={
-          locationPickerTarget === 'NEW_ORG'
-            ? parseFloat(newOrgForm.lat) || 41.311081
-            : parseFloat(editStoreForm?.lat || '41.311081') || 41.311081
-        }
-        initialLng={
-          locationPickerTarget === 'NEW_ORG'
-            ? parseFloat(newOrgForm.lng) || 69.240562
-            : parseFloat(editStoreForm?.lng || '69.240562') || 69.240562
-        }
-        title={
-          locationPickerTarget === 'NEW_ORG'
-            ? `${newOrgForm.name || 'Yangi tashkilot / filial'} lokatsiyasini kartada belgilash`
-            : `${editStoreForm?.name || 'Do‘kon'} lokatsiyasini kartada belgilash`
-        }
-        isDarkMode={isDarkMode}
-        onSelectLocation={handleLocationPicked}
       />
     </div>
   );

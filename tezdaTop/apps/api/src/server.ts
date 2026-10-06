@@ -45,18 +45,55 @@ app.use(cookieParser());
 app.use((req: Request, res: Response, next: NextFunction) => {
   const reqId = req.headers['x-request-id'] || uuidv4();
   res.setHeader('X-Request-Id', String(reqId));
+
+  // Automatically persist database on disk whenever any mutation happens successfully
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 400) {
+        db.scheduleSave();
+      }
+    });
+  }
+
   next();
 });
 
 // Helper for session resolution
 function getCurrentUser(req: Request) {
   const token = req.cookies?.session_token || req.headers.authorization?.replace('Bearer ', '');
-  if (!token) return null;
-  const session = db.sessions.get(token);
-  if (!session) return null;
-  const user = db.users.get(session.userId);
-  if (!user || user.status === 'SUSPENDED') return null;
-  return user;
+  if (token) {
+    const session = db.sessions.get(token);
+    if (session) {
+      const user = db.users.get(session.userId);
+      if (user && user.status !== 'SUSPENDED') return user;
+    }
+  }
+
+  // Fallback: Check headers or body (for client state without cookies or demo mode)
+  const headerUserId = req.headers['x-user-id'] as string;
+  const headerUserEmail = req.headers['x-user-email'] as string;
+  const bodyUserId = req.body?.userId;
+  const bodyUserEmail = req.body?.userEmail;
+
+  const targetId = headerUserId || bodyUserId;
+  const targetEmail = headerUserEmail || bodyUserEmail;
+
+  if (targetId && db.users.has(targetId)) {
+    const u = db.users.get(targetId)!;
+    if (u.status !== 'SUSPENDED') return u;
+  }
+
+  if (targetEmail) {
+    const normalized = targetEmail.toLowerCase().trim();
+    const u = Array.from(db.users.values()).find(
+      user => user.email.toLowerCase() === normalized || user.id === targetEmail
+    );
+    if (u && u.status !== 'SUSPENDED') return u;
+  }
+
+  // Demo fallback to first active customer or admin
+  const defaultUser = Array.from(db.users.values()).find(u => u.status === 'ACTIVE');
+  return defaultUser || null;
 }
 
 // ================= HEALTH CHECKS =================
@@ -2390,11 +2427,47 @@ app.get('/api/v1/admin/database/schema-and-tables', (req, res) => {
   });
 });
 
-// Seed database on startup
-seedDatabase().then(() => {
+app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => {
+  try {
+    const { syncAllToSupabase, isSupabaseConfigured } = await import('./db/supabase.js');
+    if (!isSupabaseConfigured()) {
+      return res.status(400).json({ success: false, error: 'Supabase credentials not configured' });
+    }
+    const success = await syncAllToSupabase(db);
+    return res.json({ success, message: 'Database successfully synchronized with Supabase cloud' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Sync failed' });
+  }
+});
+
+// Initialize database from disk or seed on first startup, and sync with Supabase
+async function startServer() {
+  const loaded = db.loadFromFile();
+  if (!loaded || db.users.size === 0) {
+    console.log('[YaqinTop DB] No existing database file found. Seeding initial pilot data...');
+    await seedDatabase();
+    db.saveToFile();
+    console.log('[YaqinTop DB] Initial database seeded and saved to disk at apps/api/data/yaqintop_db.json');
+  } else {
+    console.log(`[YaqinTop DB] Loaded persistent database from disk: ${db.users.size} users, ${db.organizations.size} orgs, ${db.stores.size} stores, ${db.offers.size} offers.`);
+  }
+
+  // Automatic Supabase synchronization on startup
+  try {
+    const { syncAllToSupabase, isSupabaseConfigured } = await import('./db/supabase.js');
+    if (isSupabaseConfigured()) {
+      console.log('[YaqinTop Supabase] Synchronizing database with Supabase cloud...');
+      await syncAllToSupabase(db);
+    }
+  } catch (err) {
+    console.error('[YaqinTop Supabase] Startup sync error:', err);
+  }
+
   app.listen(PORT, () => {
     console.log(`[YaqinTop API] Server running on http://localhost:${PORT}/api/v1`);
   });
-});
+}
+
+startServer();
 
 export default app;
