@@ -20,7 +20,9 @@ import {
   X,
   XCircle,
   Moon,
-  Sun
+  Sun,
+  LogIn,
+  ChevronDown
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
@@ -29,6 +31,7 @@ import { StoreFullPageView } from './components/StoreFullPageView';
 import { UserPersonalHubView } from './components/UserPersonalHubView';
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
+import { UzbekistanRegionPickerModal } from './components/UzbekistanRegionPickerModal';
 
 export function CustomerApp() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -49,17 +52,47 @@ export function CustomerApp() {
     }
   }, [isDarkMode]);
 
-  // Current User Session State
-  const [currentUser, setCurrentUser] = useState<any>({
-    id: 'cccc1111-1111-4ccc-cccc-111111111111',
-    fullName: 'Otabek Xaridor',
-    email: 'customer@yaqintop.uz',
-    phone: '+998 90 111 22 33',
-    role: 'CUSTOMER',
-    status: 'ACTIVE'
+  // Current User Session State (Null by default for Guest)
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
   });
 
-  const [userLocation, setUserLocation] = useState({ lat: 41.311081, lng: 69.240562 });
+  const [authErrorBanner, setAuthErrorBanner] = useState<string | null>(null);
+
+  const requireAuth = (actionName = 'ushbu amalni bajarish', callback?: () => void): boolean => {
+    if (!currentUser) {
+      const msg = actionName.startsWith('⚠️') ? actionName : `⚠️ ${actionName} uchun iltimos, tizimga kiring!`;
+      setAuthErrorBanner(msg);
+      setIsLoginModalOpen(true);
+      return false;
+    }
+    if (callback) callback();
+    return true;
+  };
+
+  const [selectedLocationName, setSelectedLocationName] = useState<string>(() => {
+    try {
+      return localStorage.getItem('yaqintop_location_name') || 'Toshkent, Yunusobod';
+    } catch {
+      return 'Toshkent, Yunusobod';
+    }
+  });
+
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number }>(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_user_location');
+      return saved ? JSON.parse(saved) : { lat: 41.311081, lng: 69.240562 };
+    } catch {
+      return { lat: 41.311081, lng: 69.240562 };
+    }
+  });
+
+  const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [view, setView] = useState<'search' | 'detail' | 'route' | 'hub'>('search');
   const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history'>('favorites');
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
@@ -107,11 +140,31 @@ export function CustomerApp() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // Fetch all nearby stores when no query
-  const loadNearbyStores = async () => {
+  const handleSelectLocation = (loc: { lat: number; lng: number; name: string }) => {
+    setUserLocation({ lat: loc.lat, lng: loc.lng });
+    setSelectedLocationName(loc.name);
+    setSearchQuery('');
+    setResults([]);
+    setSelectedResult(null);
+    setNearbyStores([]);
+    setSelectedNearbyStore(null);
     try {
-      const uLat = userLocation?.lat ?? 41.311081;
-      const uLng = userLocation?.lng ?? 69.240562;
+      localStorage.setItem('yaqintop_user_location', JSON.stringify({ lat: loc.lat, lng: loc.lng }));
+      localStorage.setItem('yaqintop_location_name', loc.name);
+    } catch (e) {
+      console.error(e);
+    }
+    showToast(`Hudud o‘zgartirildi: ${loc.name}`);
+    if (view !== 'search') {
+      navigateTo('/');
+    }
+  };
+
+  // Fetch all nearby stores when no query
+  const loadNearbyStores = async (loc?: { lat: number; lng: number }) => {
+    try {
+      const uLat = loc?.lat ?? userLocation?.lat ?? 41.311081;
+      const uLng = loc?.lng ?? userLocation?.lng ?? 69.240562;
       const res = await fetch(`/api/v1/stores?lat=${uLat}&lng=${uLng}&radiusM=${radiusM}${openNow ? '&openNow=true' : ''}`);
       if (res.ok) {
         const data = await res.json();
@@ -126,8 +179,10 @@ export function CustomerApp() {
           return item;
         });
         setNearbyStores(items);
-        if (!selectedNearbyStore && items.length > 0) {
+        if (items.length > 0) {
           setSelectedNearbyStore(items[0]);
+        } else {
+          setSelectedNearbyStore(null);
         }
       }
     } catch (err) {
@@ -196,6 +251,17 @@ export function CustomerApp() {
       setRouteData(null);
     }
 
+    if (cleanPath === '/sevimlilar' || cleanPath === '/sharhlarim' || cleanPath === '/ariza' || cleanPath === '/murojaatlar' || cleanPath === '/tarix') {
+      if (!currentUser) {
+        setAuthErrorBanner('⚠️ Shaxsiy kabinet va ma‘lumotlarni ko‘rish uchun iltimos, tizimga kiring!');
+        setIsLoginModalOpen(true);
+        window.history.replaceState(null, '', '/');
+        setCurrentPath('/');
+        setView('search');
+        return;
+      }
+    }
+
     if (cleanPath === '/sevimlilar') {
       setView('hub');
       setHubSection('favorites');
@@ -261,7 +327,8 @@ export function CustomerApp() {
     if (!q) {
       setResults([]);
       setSelectedResult(null);
-      loadNearbyStores();
+      setNearbyStores([]);
+      setSelectedNearbyStore(null);
       return;
     }
 
@@ -312,7 +379,8 @@ export function CustomerApp() {
     } else {
       setResults([]);
       setSelectedResult(null);
-      loadNearbyStores();
+      setNearbyStores([]);
+      setSelectedNearbyStore(null);
     }
   }, [userLocation, radiusM, openNow, inStock, freshOnly, selectedSort, searchQuery]);
 
@@ -506,6 +574,7 @@ export function CustomerApp() {
 
   // Submit review
   const handleSubmitReview = async () => {
+    if (!requireAuth('Sharh va baho qoldirish')) return;
     if (!selectedResult && !selectedNearbyStore) return;
     const storeId = selectedResult?.store.id || selectedNearbyStore?.store.id;
     try {
@@ -531,6 +600,7 @@ export function CustomerApp() {
 
   // Submit report
   const handleSubmitReport = async () => {
+    if (!requireAuth('Xato haqida murojaat yuborish')) return;
     if (!selectedResult && !selectedNearbyStore) return;
     const storeId = selectedResult?.store.id || selectedNearbyStore?.store.id;
     try {
@@ -563,21 +633,58 @@ export function CustomerApp() {
         </div>
       )}
 
+      {/* Red Auth Guard Warning Banner for Guests */}
+      {authErrorBanner && (
+        <div className="bg-red-600 dark:bg-red-700 text-white px-4 py-2.5 text-xs font-bold flex items-center justify-between shadow-lg z-40 animate-in slide-in-from-top duration-200 shrink-0">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 animate-bounce text-yellow-300" />
+            <span>{authErrorBanner}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setAuthErrorBanner(null);
+                setIsLoginModalOpen(true);
+              }}
+              className="px-3 py-1 bg-white text-red-700 rounded-lg text-xs font-extrabold hover:bg-red-50 transition shadow"
+            >
+              Tizimga kirish
+            </button>
+            <button
+              onClick={() => setAuthErrorBanner(null)}
+              className="p-1 hover:bg-red-800 rounded transition"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Header */}
-      <header className="h-[68px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
-        <div className="flex items-center gap-3">
+      <header className="h-[58px] sm:h-[68px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-2.5 sm:px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
+        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
           <div
             onClick={() => navigateTo('/')}
-            className="flex items-center gap-2 cursor-pointer select-none"
+            className="flex items-center gap-1.5 cursor-pointer select-none shrink-0"
           >
-            <div className="w-8 h-9 bg-[#116B50] rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl-sm flex items-center justify-center text-white font-extrabold text-xl shadow-sm">
+            <div className="w-7 h-8 sm:w-8 sm:h-9 bg-[#116B50] rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl-sm flex items-center justify-center text-white font-extrabold text-base sm:text-xl shadow-sm">
               Y
             </div>
-            <span className="font-extrabold text-2xl tracking-tight text-[#172C28] dark:text-white">YaqinTop</span>
+            <span className="font-extrabold text-lg sm:text-2xl tracking-tight text-[#172C28] dark:text-white hidden min-[420px]:inline">
+              YaqinTop
+            </span>
           </div>
-          <span className="text-xs text-[#566A63] dark:text-[#8B9E95] hidden md:inline-block ml-2 border-l border-[#DCE5DF] dark:border-[#22332C] pl-3">
-            Toshkent · Pilot hudud
-          </span>
+
+          {/* Uzbekistan Region & District Selector Trigger */}
+          <button
+            onClick={() => setIsLocationModalOpen(true)}
+            className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 border border-[#DCE5DF] dark:border-[#263D33] text-[11px] sm:text-xs font-semibold text-[#116B50] dark:text-[#4ADE80] bg-[#F3F8F5] dark:bg-[#162720] hover:bg-[#E2EFE7] dark:hover:bg-[#1E362C] rounded-xl transition cursor-pointer group shadow-2xs max-w-[125px] min-[360px]:max-w-[145px] sm:max-w-[190px] shrink-1"
+            title="Hududni o‘zgartirish (O‘zbekiston viloyatlari va tumanlari)"
+          >
+            <MapPin className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0 group-hover:scale-110 transition-transform" />
+            <span className="truncate">{selectedLocationName}</span>
+            <ChevronDown className="w-3 h-3 text-[#566A63] dark:text-[#8B9E95] group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] shrink-0 transition-transform group-hover:translate-y-0.5" />
+          </button>
 
           {/* Desktop Navigation Links */}
           <nav className="hidden lg:flex items-center gap-1.5 ml-4">
@@ -643,40 +750,45 @@ export function CustomerApp() {
           </nav>
         </div>
 
-        <div className="flex items-center gap-2 md:gap-3">
+        <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-1.5">
           {/* Dark / Light Mode Toggle */}
           <button
             onClick={toggleDarkMode}
             title={isDarkMode ? "Yorug' tema" : "Qorong'i tema"}
-            className="w-9 h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center justify-center shadow-sm"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center justify-center shadow-2xs shrink-0"
           >
-            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
+            {isDarkMode ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#116B50]" />}
           </button>
 
-          {/* User Profile Button */}
+          {/* User Profile / Guest Button */}
           {currentUser ? (
             <button
               onClick={() => setIsProfileModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition text-xs font-bold shadow-sm"
+              className="flex items-center gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition text-xs font-bold shadow-2xs shrink-0"
             >
-              <div className="w-6 h-6 rounded-full bg-[#116B50] text-white text-[10px] font-bold flex items-center justify-center">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#116B50] text-white text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0">
                 {currentUser.fullName ? currentUser.fullName.slice(0, 2).toUpperCase() : 'US'}
               </div>
               <span className="hidden sm:inline">{currentUser.fullName.split(' ')[0]}</span>
             </button>
           ) : (
             <button
-              onClick={() => setIsLoginModalOpen(true)}
-              className="text-xs font-bold px-3.5 py-2 rounded-xl bg-[#116B50] text-white hover:bg-[#0B563F] transition shadow-sm"
+              onClick={() => {
+                setAuthErrorBanner(null);
+                setIsLoginModalOpen(true);
+              }}
+              className="flex items-center gap-1 sm:gap-1.5 text-xs font-bold px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
+              title="Tizimga kirish"
             >
-              Kirish
+              <LogIn className="w-3.5 h-3.5 shrink-0" />
+              <span>Kirish</span>
             </button>
           )}
         </div>
       </header>
 
       {/* Main Container */}
-      <main className="flex-1 flex flex-col md:flex-row relative overflow-hidden h-[calc(100vh-68px)]">
+      <main className="flex-1 flex flex-col md:flex-row relative overflow-hidden h-[calc(100vh-58px)] sm:h-[calc(100vh-68px)]">
         {view === 'hub' ? (
           <UserPersonalHubView
             activeSection={hubSection}
@@ -716,9 +828,11 @@ export function CustomerApp() {
             isDarkMode={isDarkMode}
             userLocation={userLocation}
             matchedOffer={selectedResult?.bestOffer?.id !== 'default' ? selectedResult?.bestOffer : null}
+            currentUser={currentUser}
+            onRequireAuth={(msg) => requireAuth(msg || 'Ushbu amalni bajarish')}
             onBack={() => navigateTo('/')}
             onGetRoute={(mode) => fetchRoute((selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail), mode)}
-            onReportError={() => setIsReportModalOpen(true)}
+            onReportError={() => requireAuth('Murojaat yuborish', () => setIsReportModalOpen(true))}
             onShowToast={showToast}
           />
         ) : (
@@ -842,117 +956,54 @@ export function CustomerApp() {
                 </button>
               </div>
 
-              {/* Mode 1: No search query -> Display Nearby Stores & Organizations */}
+              {/* Mode 1: No search query -> Initial Clean Search Prompt */}
               {!searchQuery.trim() ? (
-                <div className="flex flex-col gap-3 mt-1">
-                  <div className="flex items-center justify-between pb-1 border-b border-[#DCE5DF] dark:border-[#2A3F36]">
+                <div className="flex flex-col gap-4 mt-2">
+                  {/* Popular Quick Search Tags */}
+                  <div>
+                    <span className="text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] uppercase tracking-wider block mb-2">
+                      Tezkor qidiruv takliflari:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Snikers', 'Coca-cola', 'Non', 'Sut', 'Tuxum', 'Yog‘', 'Go‘sht', 'Shakar', 'Suv', 'Dori'].map((tag) => (
+                        <button
+                          key={tag}
+                          onClick={() => {
+                            setSearchQuery(tag);
+                            doSearch(tag);
+                          }}
+                          className="text-xs px-3 py-1.5 rounded-xl bg-[#F3F8F5] dark:bg-[#1A2E24] border border-[#DCE5DF] dark:border-[#273D32] text-[#116B50] dark:text-[#4ADE80] font-semibold hover:bg-[#E0EFE7] dark:hover:bg-[#234234] transition flex items-center gap-1.5 cursor-pointer shadow-2xs"
+                        >
+                          <Search className="w-3 h-3 opacity-70" />
+                          <span>{tag}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Clean Helper Card */}
+                  <div className="p-5 bg-[#F9FAF9] dark:bg-[#16241E] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36] text-center flex flex-col items-center gap-2.5">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200/60 dark:border-emerald-800/60 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                      <Search className="w-6 h-6" />
+                    </div>
                     <div>
-                      <h3 className="font-bold text-sm text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
-                        <span>🏢</span> Atrofdagi tashkilotlar ({nearbyStores.length} ta)
+                      <h3 className="font-bold text-sm text-[#172C28] dark:text-[#E8F2EC]">
+                        Qidiruvni boshlang
                       </h3>
-                      <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                        Tashkilotni tanlab, tovar va xizmatlarini ko‘ring
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed max-w-xs">
+                        Yuqoridagi maydonga kerakli tovar, mahsulot yoki do‘kon nomini yozing. Tanlangan hudud (<strong className="text-[#116B50] dark:text-[#4ADE80]">{selectedLocationName}</strong>) bo‘yicha eng yaqin do‘konlar va arzon narxlar ko‘rsatiladi.
                       </p>
                     </div>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => setIsLocationModalOpen(true)}
+                      className="mt-1 font-bold text-xs flex items-center gap-1.5 border-[#DCE5DF] dark:border-[#2A3F36]"
+                    >
+                      <MapPin className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                      <span>Hududni almashtirish</span>
+                    </Button>
                   </div>
-
-                  {/* Popular Tags */}
-                  <div className="flex flex-wrap gap-1.5 py-1">
-                    {['Snikers', 'Coca-cola', 'Non', 'Sut', 'Tuxum', 'Yog‘'].map((tag) => (
-                      <button
-                        key={tag}
-                        onClick={() => {
-                          setSearchQuery(tag);
-                          doSearch(tag);
-                        }}
-                        className="text-xs px-2.5 py-1 rounded-lg bg-[#F9FAF9] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#116B50] dark:text-[#4ADE80] font-medium hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition flex items-center gap-1"
-                      >
-                        <span>🔍</span> {tag}
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Nearby Stores Cards List */}
-                  {nearbyStores.length === 0 ? (
-                    <div className="p-6 text-center bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36]">
-                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">Ushbu radiusda ochiq do‘konlar topilmadi</p>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-3">
-                      {nearbyStores.map((item) => {
-                        const isSelected = selectedNearbyStore?.store.id === item.store.id;
-                        const storeIcon = (item.store.type as string) === 'WHOLESALE' ? '📦' : item.store.type === 'MIXED' ? '🏢' : '🏪';
-                        return (
-                          <article
-                            key={item.store.id}
-                            onClick={() => handleSelectNearbyStore(item)}
-                            className={`p-4 rounded-2xl border transition-all cursor-pointer ${
-                              isSelected
-                                ? 'border-2 border-[#116B50] dark:border-[#4ADE80] bg-[#F6FBF7] dark:bg-[#1B2F25] shadow-sm'
-                                : 'border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] hover:border-[#116B50]/40'
-                            }`}
-                          >
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="text-lg">{storeIcon}</span>
-                                  <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{item.store.name}</h3>
-                                </div>
-                                {item.organization && (
-                                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium">
-                                    {item.organization.legalName || item.organization.name}
-                                    {item.organization.inn && ` · STIR: ${item.organization.inn}`}
-                                  </div>
-                                )}
-                                <div className="flex items-center gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5">
-                                  <span className={item.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] font-semibold' : 'text-[#B42318] dark:text-[#F87171]'}>
-                                    {item.isOpenNow ? '● Ochiq (08:00–23:00)' : '○ Yopiq'}
-                                  </span>
-                                  <span>·</span>
-                                  <span>{item.distanceM} m</span>
-                                  <span>·</span>
-                                  <StarRating rating={item.store.rating} />
-                                </div>
-                              </div>
-                              {item.store.isVerified && (
-                                <Tag variant="default" className="text-[10px] shrink-0">
-                                  Tasdiqlangan
-                                </Tag>
-                              )}
-                            </div>
-
-                            <div className="mt-3 pt-2.5 border-t border-[#DCE5DF]/60 dark:border-[#2A3F36] flex items-center justify-between">
-                              <span className="text-xs font-semibold text-[#116B50] dark:text-[#4ADE80]">
-                                {item.offersCount ? `🛍️ ${item.offersCount} ta tovar va xizmat` : '🛍️ Tovar katalogi'}
-                              </span>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenNearbyDetail(item);
-                                  }}
-                                >
-                                  Tovar va xizmatlar →
-                                </Button>
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    fetchRoute(item.store, 'walking');
-                                  }}
-                                >
-                                  <Navigation className="w-3.5 h-3.5" />
-                                </Button>
-                              </div>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  )}
                 </div>
               ) : results.length === 0 ? (
                 <div className="p-8 text-center flex flex-col items-center justify-center gap-2 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36] mt-2">
@@ -1658,6 +1709,14 @@ export function CustomerApp() {
           </div>
         </div>
       </Modal>
+
+      {/* Uzbekistan Region & District Picker Modal */}
+      <UzbekistanRegionPickerModal
+        isOpen={isLocationModalOpen}
+        onClose={() => setIsLocationModalOpen(false)}
+        selectedLocation={userLocation}
+        onSelectLocation={handleSelectLocation}
+      />
     </div>
   );
 }

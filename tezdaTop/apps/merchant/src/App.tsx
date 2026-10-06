@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
+  Store,
   Package,
   Boxes,
   PlusCircle,
@@ -46,7 +47,9 @@ import {
   Info,
   CheckCircle,
   AlertCircle,
-  Eye
+  Eye,
+  Lock,
+  Key
 } from 'lucide-react';
 import { Button, Tag, Modal } from '@yaqintop/ui';
 import { StockDocument, Offer, MerchantSummary } from '@yaqintop/contracts';
@@ -279,15 +282,33 @@ export function MerchantApp() {
     { day: 'Yakshanba', open: '09:00', close: '22:00', isDayOff: false }
   ]);
 
-  // Current User Session State
-  const [currentUser, setCurrentUser] = useState<any>({
-    id: 'cccc2222-2222-4ccc-cccc-222222222222',
-    fullName: 'Oybek Tursunov',
-    email: 'owner@navbahor.uz',
-    phone: '+998 90 222 33 44',
-    role: 'OWNER',
-    organizationName: 'Navbahor Savdo MCHJ',
-    status: 'ACTIVE'
+  // Current User Session State (Loads from localStorage or null for guest)
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (['OWNER', 'MANAGER', 'OPERATOR', 'ADMIN', 'SUPERADMIN'].includes(parsed.role)) {
+          return parsed;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  });
+
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return !['OWNER', 'MANAGER', 'OPERATOR', 'ADMIN', 'SUPERADMIN'].includes(parsed.role);
+      }
+      return true;
+    } catch {
+      return true;
+    }
   });
 
   // Modals
@@ -302,7 +323,6 @@ export function MerchantApp() {
   const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
   const [isAddBranchModalOpen, setIsAddBranchModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   // Selected for edits
   const [selectedOfferToEdit, setSelectedOfferToEdit] = useState<Offer | null>(null);
@@ -1172,6 +1192,30 @@ export function MerchantApp() {
         </div>
       )}
 
+      {/* Red Portal Guard Banner for Guests */}
+      {!currentUser && (
+        <div className="bg-red-600 text-white px-6 py-2.5 text-xs font-bold flex items-center justify-between shadow-md z-40 shrink-0">
+          <div className="flex items-center gap-2">
+            <Store className="w-4 h-4 shrink-0 animate-bounce text-yellow-300" />
+            <span>⚠️ Siz mehmon (guest) holatidasiz. Do‘kon & Tashkilot boshqaruv kabinetiga kirish uchun hisobingiz bilan tizimga kiring.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
+              className="px-3 py-1 bg-white text-red-700 rounded-lg text-xs font-extrabold hover:bg-red-50 transition shadow"
+            >
+              Do‘kon kabinetiga kirish
+            </button>
+            <a
+              href="http://localhost:3000"
+              className="px-3 py-1 bg-red-800 text-white rounded-lg text-xs font-bold hover:bg-red-900 transition"
+            >
+              Xaridor tizimiga o‘tish (3000) →
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Top Header Bar */}
       <header className="h-[72px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-6 flex items-center justify-between sticky top-0 z-30 transition-colors">
         <div className="flex items-center gap-6">
@@ -1189,50 +1233,56 @@ export function MerchantApp() {
             </div>
           </div>
 
-          {/* Store & Branch Switchers */}
-          <div className="hidden md:flex items-center gap-2">
-            <button className="flex items-center gap-2 px-3 py-2 bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E8EDE8] dark:hover:bg-[#22362E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
-              <span>🏪 {orgInfo.name}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-[#566A63] dark:text-[#8B9E95]" />
-            </button>
-            <button className="flex items-center gap-2 px-3 py-2 bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E8EDE8] dark:hover:bg-[#22362E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
-              <span>📍 {branches[0]?.name || 'Asosiy filial'}</span>
-              <ChevronDown className="w-3.5 h-3.5 text-[#566A63] dark:text-[#8B9E95]" />
-            </button>
-          </div>
+          {/* Store & Branch Switchers (Only when authenticated) */}
+          {currentUser && (
+            <div className="hidden md:flex items-center gap-2">
+              <button className="flex items-center gap-2 px-3 py-2 bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E8EDE8] dark:hover:bg-[#22362E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
+                <span>🏪 {orgInfo.name}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-[#566A63] dark:text-[#8B9E95]" />
+              </button>
+              <button className="flex items-center gap-2 px-3 py-2 bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E8EDE8] dark:hover:bg-[#22362E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
+                <span>📍 {branches[0]?.name || 'Asosiy filial'}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-[#566A63] dark:text-[#8B9E95]" />
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Global Actions, Search & Profile */}
         <div className="flex items-center gap-3">
-          <div className="relative hidden lg:block w-72">
-            <Search className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tovar yoki shtrix-kod qidirish..."
-              className="w-full h-10 pl-9 pr-4 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC] placeholder-[#566A63]/70 dark:placeholder-[#8B9E95] focus:bg-white dark:focus:bg-[#14201A] focus:outline-none"
-            />
-          </div>
+          {currentUser && (
+            <>
+              <div className="relative hidden lg:block w-72">
+                <Search className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tovar yoki shtrix-kod qidirish..."
+                  className="w-full h-10 pl-9 pr-4 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC] placeholder-[#566A63]/70 dark:placeholder-[#8B9E95] focus:bg-white dark:focus:bg-[#14201A] focus:outline-none"
+                />
+              </div>
 
-          {/* Fast Quick Action Buttons */}
-          <button
-            onClick={() => setIsSaleModalOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-[#116B50] hover:bg-[#0E5842] text-white text-xs font-bold rounded-xl shadow-sm transition"
-            title="Yangi sotuv kiritish"
-          >
-            <ShoppingCart className="w-3.5 h-3.5" />
-            <span>+ Sotuv</span>
-          </button>
+              {/* Fast Quick Action Buttons */}
+              <button
+                onClick={() => setIsSaleModalOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-[#116B50] hover:bg-[#0E5842] text-white text-xs font-bold rounded-xl shadow-sm transition"
+                title="Yangi sotuv kiritish"
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>+ Sotuv</span>
+              </button>
 
-          <button
-            onClick={() => setIsReceiptModalOpen(true)}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-[#1A2822] hover:bg-[#F3F6F3] dark:hover:bg-[#22362E] text-[#116B50] dark:text-[#4ADE80] border border-[#DCE5DF] dark:border-[#2A3F36] text-xs font-bold rounded-xl transition shadow-sm"
-            title="Yangi kirim qilish"
-          >
-            <PlusCircle className="w-3.5 h-3.5" />
-            <span>+ Kirim</span>
-          </button>
+              <button
+                onClick={() => setIsReceiptModalOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-white dark:bg-[#1A2822] hover:bg-[#F3F6F3] dark:hover:bg-[#22362E] text-[#116B50] dark:text-[#4ADE80] border border-[#DCE5DF] dark:border-[#2A3F36] text-xs font-bold rounded-xl transition shadow-sm"
+                title="Yangi kirim qilish"
+              >
+                <PlusCircle className="w-3.5 h-3.5" />
+                <span>+ Kirim</span>
+              </button>
+            </>
+          )}
 
           {/* Theme Toggle */}
           <button
@@ -1243,16 +1293,18 @@ export function MerchantApp() {
             {theme === 'light' ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4 text-amber-400" />}
           </button>
 
-          {/* Notifications */}
-          <button
-            onClick={() => navigateTab('inbox')}
-            className="relative w-10 h-10 rounded-xl border border-[#DCE5DF] dark:border-[#2D453E] flex items-center justify-center text-[#172C28] dark:text-[#E1ECE7] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2E28]"
-          >
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#B42318] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-              3
-            </span>
-          </button>
+          {/* Notifications (Only when authenticated) */}
+          {currentUser && (
+            <button
+              onClick={() => navigateTab('inbox')}
+              className="relative w-10 h-10 rounded-xl border border-[#DCE5DF] dark:border-[#2D453E] flex items-center justify-center text-[#172C28] dark:text-[#E1ECE7] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2E28]"
+            >
+              <Bell className="w-4 h-4" />
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#B42318] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                3
+              </span>
+            </button>
+          )}
 
           {/* User Profile */}
           {currentUser ? (
@@ -1284,8 +1336,38 @@ export function MerchantApp() {
         </div>
       </header>
 
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main Layout or Locked Guard */}
+      {!currentUser ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[#F3F6F3] dark:bg-[#0E1713]">
+          <div className="max-w-md w-full bg-white dark:bg-[#14201A] p-8 rounded-3xl border border-red-200 dark:border-red-900/50 shadow-2xl flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center shadow-inner">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-extrabold text-[#172C28] dark:text-white">Do‘kon Kabineti Himoyalangan</h2>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] leading-relaxed">
+                Ushbu boshqaruv panelidagi tovar qoldiqlari, savdo tushumlari, kassa va mijozlar ma’lumotlari maxfiy hisoblanadi. Ma’lumotlarni ko‘rish uchun do‘kon hisobingiz bilan tizimga kiring.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5 w-full mt-3">
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="w-full py-3 bg-[#116B50] hover:bg-[#0d533e] text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Key className="w-4 h-4" />
+                <span>Do‘kon kabinetiga kirish (Login)</span>
+              </button>
+              <a
+                href="http://localhost:3000"
+                className="w-full py-2.5 bg-gray-100 dark:bg-[#1E3328] hover:bg-gray-200 dark:hover:bg-[#253E32] text-[#172C28] dark:text-[#E8F2EC] font-semibold text-xs rounded-xl transition text-center"
+              >
+                Xaridor tizimiga o‘tish (Mehmon sifatida) →
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
         <aside className="w-64 bg-white dark:bg-[#14201A] border-r border-[#DCE5DF] dark:border-[#22332C] flex flex-col p-4 shrink-0 overflow-y-auto transition-colors">
           <nav className="flex flex-col gap-1">
@@ -2536,9 +2618,9 @@ export function MerchantApp() {
                       />
                     </div>
                     <div>
-                      <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">Email</label>
+                      <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">Email / Aloqa</label>
                       <input
-                        type="email"
+                        type="text"
                         value={orgInfo.email}
                         onChange={(e) => setOrgInfo({ ...orgInfo, email: e.target.value })}
                         className="w-full p-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
@@ -2683,11 +2765,13 @@ export function MerchantApp() {
           )}
         </main>
       </div>
+      )}
 
       {/* ================= MODALS ================= */}
-
-      {/* 1. SALE MODAL (+ Sotuv) */}
-      <Modal
+      {currentUser && (
+        <>
+          {/* 1. SALE MODAL (+ Sotuv) */}
+          <Modal
         isOpen={isSaleModalOpen}
         onClose={() => setIsSaleModalOpen(false)}
         title="Yangi sotuv kiritish"
@@ -3646,6 +3730,8 @@ export function MerchantApp() {
           </Modal>
         );
       })()}
+      </>
+      )}
 
       {/* User Profile Modal */}
       <UnifiedUserProfileModal

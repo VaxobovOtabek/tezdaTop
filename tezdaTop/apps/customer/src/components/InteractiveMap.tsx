@@ -363,109 +363,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
         markersLayer.addLayer(marker);
       });
-    } else if (nearbyStores.length > 0) {
-      // Case 2: No product search active -> display all nearby stores
-      nearbyStores.forEach((item) => {
-        const latLng = getStoreLatLng(item?.store);
-        if (!latLng) return;
-
-        const isSelected = selectedNearbyStore?.store?.id === item.store?.id;
-        const bgStyle = isSelected
-          ? 'background: #116B50; color: #ffffff; border: 2px solid #ffffff; box-shadow: 0 10px 18px -2px rgba(17,107,80,0.5);'
-          : item.isOpenNow
-          ? isDarkMode
-            ? 'background: #16241E; color: #E8F2EC; border: 2px solid #22C55E; box-shadow: 0 4px 8px rgba(0,0,0,0.4);'
-            : 'background: #ffffff; color: #172C28; border: 2px solid #116B50; box-shadow: 0 4px 8px rgba(0,0,0,0.15);'
-          : isDarkMode
-          ? 'background: #1F2937; color: #9CA3AF; border: 2px solid #4B5563; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'
-          : 'background: #F3F4F6; color: #6B7280; border: 2px solid #9CA3AF; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
-
-        const arrowColor = isSelected
-          ? '#116B50'
-          : item.isOpenNow
-          ? (isDarkMode ? '#22C55E' : '#116B50')
-          : '#9CA3AF';
-
-        const storeIcon = (item.store?.type as string) === 'WHOLESALE' ? '📦' : item.store?.type === 'MIXED' ? '🏢' : '🏪';
-
-        const customIcon = L.divIcon({
-          className: 'custom-store-pin',
-          html: `
-            <div style="transform: translate(-50%, -50%); cursor: pointer; transition: transform 0.2s;">
-              <div style="${bgStyle} padding: 5px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; display: flex; align-items: center; gap: 5px; white-space: nowrap; max-width: 170px; overflow: hidden; text-overflow: ellipsis;">
-                <span>${storeIcon}</span>
-                <span style="overflow: hidden; text-overflow: ellipsis;">${item.store.name}</span>
-                <span style="font-size: 9px; color: ${item.isOpenNow ? '#10B981' : '#EF4444'};">●</span>
-              </div>
-              <div style="width: 7px; height: 7px; background: ${arrowColor}; transform: rotate(45deg); margin: -3.5px auto 0 auto;"></div>
-            </div>
-          `,
-          iconSize: [140, 36],
-          iconAnchor: [70, 32]
-        });
-
-        const marker = L.marker(latLng, {
-          icon: customIcon,
-          zIndexOffset: isSelected ? 500 : 100
-        });
-
-        const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
-        const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
-        const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
-        const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
-
-        const popupContent = `
-          <div style="min-width: 210px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
-            <div style="font-weight: 700; font-size: 14px; color: ${popupTitle}; margin-bottom: 2px;">
-              ${item.store.name}
-            </div>
-            <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 6px;">
-              ${item.store.address}
-            </div>
-            <div style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px; font-size: 11px;">
-              <div style="color: ${item.isOpenNow ? '#10B981' : '#EF4444'}; font-weight: 600;">
-                ${item.isOpenNow ? '● Hozir ochiq (08:00–23:00)' : '○ Hozir yopiq'}
-              </div>
-              <div style="color: ${popupMuted}; margin-top: 2px;">
-                ${item.offersCount ? `${item.offersCount} ta tovar va xizmat` : 'Katalog mavjud'} · ${item.distanceM} m
-              </div>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button id="btn-open-store-${item.store.id}" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; cursor: pointer;">
-                Tovar va xizmatlar 🛍️
-              </button>
-              <button id="btn-route-store-${item.store.id}" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer;">
-                Marshrut
-              </button>
-            </div>
-          </div>
-        `;
-
-        marker.bindPopup(popupContent, { offset: [0, -20] });
-        marker.on('click', () => {
-          if (onSelectNearbyStore) onSelectNearbyStore(item);
-        });
-        marker.on('popupopen', () => {
-          const detailBtn = document.getElementById(`btn-open-store-${item.store.id}`);
-          const routeBtn = document.getElementById(`btn-route-store-${item.store.id}`);
-          if (detailBtn) {
-            detailBtn.onclick = (e) => {
-              e.stopPropagation();
-              if (onOpenNearbyDetail) onOpenNearbyDetail(item);
-            };
-          }
-          if (routeBtn) {
-            routeBtn.onclick = (e) => {
-              e.stopPropagation();
-              onNavigate({ store: item.store, distanceM: item.distanceM });
-            };
-          }
-        });
-
-        markersLayer.addLayer(marker);
-      });
     }
-  }, [results, nearbyStores, selectedResult, selectedNearbyStore, view, isDarkMode, mapReady]);
+  }, [results, selectedResult, view, isDarkMode, mapReady]);
 
   // Center selected result or nearby store on change
   useEffect(() => {
@@ -645,30 +544,22 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       )}
 
-      {/* Floating Top Bar (Desktop only, when not in route mode) */}
+      {/* Floating Top Left Location Status (Desktop) */}
       {view !== 'route' && (
-        <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 hidden md:flex justify-between items-center pointer-events-none z-10">
+        <div className="absolute top-3 md:top-4 left-3 md:left-4 hidden md:flex items-center pointer-events-none z-10">
           <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] px-3.5 py-2 rounded-xl text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC] shadow-md pointer-events-auto flex items-center gap-2">
             <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
             <span>Siz turgan joy · Toshkent ({radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`})</span>
           </div>
-
-          <button
-            onClick={handleRecenter}
-            title="Mening joylashuvim"
-            className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-red-500 shadow-md pointer-events-auto hover:bg-[#FEE2E2] dark:hover:bg-[#2A1D1D] transition active:scale-95"
-          >
-            <Crosshair className="w-5 h-5" />
-          </button>
         </div>
       )}
 
-      {/* Floating Map Controls (Zoom, Recenter & Fit) */}
-      <div className="absolute right-3 md:right-4 bottom-44 md:bottom-28 flex flex-col gap-2 z-10">
+      {/* Floating Map Controls (Top Right: Recenter, Radius, Fit & Zoom) */}
+      <div className="absolute right-3 md:right-4 top-3 md:top-4 flex flex-col gap-2 z-20">
         <button
           onClick={handleRecenter}
           title="Mening joylashuvim (GPS)"
-          className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-red-500 shadow-md hover:bg-[#FEE2E2] dark:hover:bg-[#2A1D1D] transition active:scale-95 text-xs font-bold md:hidden"
+          className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-red-500 shadow-md hover:bg-[#FEE2E2] dark:hover:bg-[#2A1D1D] transition active:scale-95 text-xs font-bold"
         >
           <Crosshair className="w-4 h-4" />
         </button>
@@ -783,99 +674,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                           title="Marshrut"
                         >
                           <Navigation className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Bottom Information & Store Cards Carousel Bar (Nearby Stores Mode when no query) */}
-      {results.length === 0 && nearbyStores.length > 0 && view !== 'route' && (
-        <div className="absolute bottom-20 md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-10 pointer-events-none">
-          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] rounded-2xl p-3 shadow-xl pointer-events-auto flex flex-col gap-2 max-w-full">
-            {/* Top Info Strip */}
-            <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#DCE5DF]/60 dark:border-[#273B32]">
-              <span className="font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
-                <StoreIcon className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
-                Atrofdagi tashkilot va do‘konlar ({nearbyStores.length} ta)
-              </span>
-              <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] hidden md:inline-block">
-                Tashkilotni bosib tovar va xizmatlarini ko‘ring
-              </span>
-            </div>
-
-            {/* Horizontal Scrollable Nearby Stores */}
-            <div
-              ref={cardListRef}
-              className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin"
-            >
-              {nearbyStores.map((item) => {
-                const isSelected = selectedNearbyStore?.store.id === item.store.id;
-                const storeIcon = (item.store.type as string) === 'WHOLESALE' ? '📦' : item.store.type === 'MIXED' ? '🏢' : '🏪';
-
-                return (
-                  <div
-                    key={item.store.id}
-                    onClick={() => onSelectNearbyStore && onSelectNearbyStore(item)}
-                    className={`shrink-0 w-[240px] md:w-[270px] p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
-                      isSelected
-                        ? 'bg-[#F4FAF6] dark:bg-[#1B2F25] border-2 border-[#116B50] dark:border-[#4ADE80] shadow-sm'
-                        : 'bg-white dark:bg-[#16241E] border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50]/50 dark:hover:border-[#4ADE80]/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-1.5">
-                      <div className="truncate flex-1">
-                        <h4 className="font-bold text-xs text-[#172C28] dark:text-[#E8F2EC] truncate flex items-center gap-1">
-                          <span>{storeIcon}</span> {item.store.name}
-                        </h4>
-                        <p className="text-[10px] text-[#566A63] dark:text-[#8B9E95] truncate mt-0.5">
-                          {item.store.address}
-                        </p>
-                      </div>
-                      <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${
-                        item.isOpenNow
-                          ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
-                          : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'
-                      }`}>
-                        {item.isOpenNow ? 'Ochiq' : 'Yopiq'}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-[#DCE5DF]/50 dark:border-[#273B32] text-[11px]">
-                      <div className="flex items-center gap-1.5 text-[#566A63] dark:text-[#8B9E95] text-[10px]">
-                        <span>{item.distanceM} m</span>
-                        {item.offersCount !== undefined && (
-                          <>
-                            <span>·</span>
-                            <span>{item.offersCount} ta tovar</span>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (onOpenNearbyDetail) onOpenNearbyDetail(item);
-                          }}
-                          className="px-2 py-0.5 rounded bg-[#116B50] text-white text-[10px] font-semibold hover:bg-[#0d533e] transition"
-                        >
-                          Ko‘rish
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onNavigate({ store: item.store, distanceM: item.distanceM });
-                          }}
-                          className="p-1 rounded bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#d0e7dc] transition"
-                          title="Marshrut"
-                        >
-                          <Navigation className="w-3 h-3" />
                         </button>
                       </div>
                     </div>

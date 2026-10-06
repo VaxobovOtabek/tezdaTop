@@ -1,0 +1,1629 @@
+{
+  "organizations": [
+    [
+      "11111111-1111-4111-a111-111111111111",
+      {
+        "id": "11111111-1111-4111-a111-111111111111",
+        "name": "Navbahor Savdo MCHJ",
+        "inn": "308123456",
+        "region": "Toshkent shahri",
+        "city": "Yunusobod",
+        "district": "Navbahor MFY",
+        "type": "MIXED",
+        "status": "ACTIVE",
+        "createdAt": "2026-10-06T06:17:20.821Z"
+      }
+    ],
+    [
+      "fdef0c6d-f833-4196-9361-8d811b8f9a66",
+      {
+        "id": "fdef0c6d-f833-4196-9361-8d811b8f9a66",
+        "name": "Mahalla Savdo XK",
+        "inn": "307654321",
+        "region": "Toshkent shahri",
+        "city": "Mirobod",
+        "district": "Oqtepa MFY",
+        "type": "RETAIL",
+        "status": "ACTIVE",
+        "createdAt": "2026-10-06T06:17:20.832Z"
+      }
+    ],
+    [
+      "5f2f78bf-82f9-48b4-a3c7-ed15ce395bcb",
+      {
+        "id": "5f2f78bf-82f9-48b4-a3c7-ed15ce395bcb",
+        "name": "Baraka Minimarket XK",
+        "inn": "306987654",
+        "region": "Toshkent shahri",
+        "city": "Chilonzor",
+        "district": "Do‘stlik MFY",
+        "type": "RETAIL",
+        "status": "ACTIVE",
+        "createdAt": "2026-10-06T06:17:20.832Z"
+      }
+    ],
+    [
+      "debcd7a6-cb65-4c7a-89d8-61b64633836c",
+      {
+        "id": "debcd7a6-cb65-4c7a-89d8-61b64633836c",
+        "name": "Chorsu Ulgurji Baza MCHJ",
+        "inn": "305112233",
+        "region": "Toshkent shahri",
+        "city": "Shayxontohur",
+        "district": "Chorsu MFY",
+        "type": "WHOLESALE",
+        "status": "ACTIVE",
+        "createdAt": "2026-10-06T06:17:20.832Z"
+      }
+    ],
+    [
+      "14478b08-c7e2-449f-a04a-3362b7efb3a3",
+      {
+        "id": "14478b08-c7e2-449f-a04a-3362b7efb3a3",
+        "name": "To‘xtatilgan Savdo MCHJ",
+        "inn": "304998877",
+        "region": "Samarqand viloyati",
+        "city": "Samarqand shahri",
+        "district": "Guliston MFY",
+        "type": "RETAIL",
+        "status": "SUSPENDED",
+        "createdAt": "2026-10-06T06:17:20.832Z"
+      }
+    ]
+  ],
+  "memberships": [
+    [
+      "144ac653-b32a-4147-87a8-57eb58e52523",
+      {
+        "id": "27483241-d459-4791-9e45-7ee48a1f65e0",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "userId": "cccc2222-2222-4ccc-cccc-222222222222",
+        "role": "OWNER",
+        "status": "ACTIVE"
+      }
+    ],
+    [
+      "72ef69bc-a5e4-4234-b877-7a8bd73302c4",
+      {
+        "id": "6f4e6214-1dc0-4bc5-818c-5bdf892b732d",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "userId": "cccc3333-3333-4ccc-cccc-333333333333",
+        "role": "OPERATOR",
+        "status": "ACTIVE"
+      }
+    ]
+  ],
+  "users": [
+    [
+      "cccc1111-1111-4ccc-cccc-111111111111",
+      {
+        "id": "cccc1111-1111-4ccc-cccc-111111111111",
+        "email": "customer@yaqintop.uz",
+        "fullName": "Otabek Xaridor",
+        "phone": "+998901112233",
+        "role": "CUSTOMER",
+        "status": "ACTIVE",
+        "passwordHash": "DemoPass123!",
+        "createdAt": "2026-10-06T06:17:20.821Z",
+        "updatedAt": "2026-10-06T06:17:20.821Z"
+      }
+    ],
+    [
+      "cccc2222-2222-4ccc-cccc-222222222222",
+      {
+        "id": "cccc2222-2222-4ccc-cccc-222222222222",
+        "email": "owner@navbahor.uz",
+        "fullName": "Oybek Tursunov",
+        "phone": "+998902223344",
+        "role": "OWNER",
+        "status": "ACTIVE",
+        "passwordHash": "DemoPass123!",
+        "createdAt": "2026-10-06T06:17:20.821Z",
+        "updatedAt": "2026-10-06T06:17:20.821Z"
+      }
+    ],
+    [
+      "cccc3333-3333-4ccc-cccc-333333333333",
+      {
+        "id": "cccc3333-3333-4ccc-cccc-333333333333",
+        "email": "operator@navbahor.uz",
+        "fullName": "Sardor Qosim",
+        "phone": "+998903334455",
+        "role": "OPERATOR",
+        "status": "ACTIVE",
+        "passwordHash": "DemoPass123!",
+        "createdAt": "2026-10-06T06:17:20.821Z",
+        "updatedAt": "2026-10-06T06:17:20.821Z"
+      }
+    ],
+    [
+      "cccc4444-4444-4ccc-cccc-444444444444",
+      {
+        "id": "cccc4444-4444-4ccc-cccc-444444444444",
+        "email": "moderator@yaqintop.uz",
+        "fullName": "Nilufar Moderator",
+        "phone": "+998904445566",
+        "role": "MODERATOR",
+        "status": "ACTIVE",
+        "passwordHash": "DemoPass123!",
+        "createdAt": "2026-10-06T06:17:20.821Z",
+        "updatedAt": "2026-10-06T06:17:20.821Z"
+      }
+    ],
+    [
+      "cccc5555-5555-4ccc-cccc-555555555555",
+      {
+        "id": "cccc5555-5555-4ccc-cccc-555555555555",
+        "email": "admin@yaqintop.uz",
+        "fullName": "Boshqaruvchi Admin",
+        "phone": "+998905556677",
+        "role": "SUPERADMIN",
+        "status": "ACTIVE",
+        "passwordHash": "DemoPass123!",
+        "createdAt": "2026-10-06T06:17:20.821Z",
+        "updatedAt": "2026-10-06T06:17:20.821Z"
+      }
+    ],
+    [
+      "aba63b8b-1868-446e-a427-dd74fe57906e",
+      {
+        "id": "aba63b8b-1868-446e-a427-dd74fe57906e",
+        "email": "otaw",
+        "fullName": "otabek1",
+        "phone": "+998 97 905 30 31",
+        "role": "MODERATOR",
+        "status": "ACTIVE",
+        "verificationMethod": "TELEGRAM",
+        "isVerified": true,
+        "verificationCode": "191027",
+        "plainPassword": "2026",
+        "passwordHash": "2026",
+        "createdAt": "2026-10-06T07:05:39.053Z",
+        "updatedAt": "2026-10-06T07:05:39.053Z"
+      }
+    ]
+  ],
+  "sessions": [],
+  "stores": [
+    [
+      "22222222-2222-4222-a222-222222222222",
+      {
+        "id": "22222222-2222-4222-a222-222222222222",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "name": "Navbahor Market",
+        "inn": "308123456",
+        "region": "Toshkent shahri",
+        "city": "Yunusobod",
+        "district": "Navbahor MFY",
+        "address": "Namuna ko‘chasi, 12-uy, Yunusobod tumani",
+        "phone": "+998 71 200 11 22",
+        "location": {
+          "lat": 41.311081,
+          "lng": 69.240562
+        },
+        "entranceLocation": {
+          "lat": 41.31112,
+          "lng": 69.2406
+        },
+        "rating": 4.8,
+        "reviewCount": 36,
+        "isVerified": true,
+        "status": "ACTIVE",
+        "type": "MIXED",
+        "hours": [
+          {
+            "dayOfWeek": 0,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 1,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          }
+        ],
+        "createdAt": "2026-10-06T06:17:20.833Z",
+        "updatedAt": "2026-10-06T06:17:20.833Z"
+      }
+    ],
+    [
+      "33333333-3333-4333-a333-333333333333",
+      {
+        "id": "33333333-3333-4333-a333-333333333333",
+        "organizationId": "fdef0c6d-f833-4196-9361-8d811b8f9a66",
+        "name": "Mahalla Savdo",
+        "inn": "307654321",
+        "region": "Toshkent shahri",
+        "city": "Mirobod",
+        "district": "Oqtepa MFY",
+        "address": "Amir Temur shoh ko‘chasi, 45-uy",
+        "phone": "+998 71 200 33 44",
+        "location": {
+          "lat": 41.3135,
+          "lng": 69.2435
+        },
+        "entranceLocation": {
+          "lat": 41.31355,
+          "lng": 69.24352
+        },
+        "rating": 4.6,
+        "reviewCount": 19,
+        "isVerified": true,
+        "status": "ACTIVE",
+        "type": "RETAIL",
+        "hours": [
+          {
+            "dayOfWeek": 0,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 1,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          }
+        ],
+        "createdAt": "2026-10-06T06:17:20.833Z",
+        "updatedAt": "2026-10-06T06:17:20.833Z"
+      }
+    ],
+    [
+      "44444444-4444-4444-a444-444444444444",
+      {
+        "id": "44444444-4444-4444-a444-444444444444",
+        "organizationId": "5f2f78bf-82f9-48b4-a3c7-ed15ce395bcb",
+        "name": "Baraka Minimarket",
+        "inn": "306987654",
+        "region": "Toshkent shahri",
+        "city": "Chilonzor",
+        "district": "Do‘stlik MFY",
+        "address": "Mustaqillik shoh ko‘chasi, 8-uy",
+        "phone": "+998 71 200 55 66",
+        "location": {
+          "lat": 41.306,
+          "lng": 69.237
+        },
+        "rating": 4.5,
+        "reviewCount": 14,
+        "isVerified": false,
+        "status": "ACTIVE",
+        "type": "RETAIL",
+        "hours": [
+          {
+            "dayOfWeek": 0,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 1,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          }
+        ],
+        "createdAt": "2026-10-06T06:17:20.833Z",
+        "updatedAt": "2026-10-06T06:17:20.833Z"
+      }
+    ],
+    [
+      "55555555-5555-4555-a555-555555555555",
+      {
+        "id": "55555555-5555-4555-a555-555555555555",
+        "organizationId": "debcd7a6-cb65-4c7a-89d8-61b64633836c",
+        "name": "Chorsu Ulgurji Baza",
+        "inn": "305112233",
+        "region": "Toshkent shahri",
+        "city": "Shayxontohur",
+        "district": "Chorsu MFY",
+        "address": "Zarqaynar ko‘chasi, 100-baza",
+        "phone": "+998 71 200 77 88",
+        "location": {
+          "lat": 41.325,
+          "lng": 69.235
+        },
+        "rating": 4.9,
+        "reviewCount": 42,
+        "isVerified": true,
+        "status": "ACTIVE",
+        "type": "WHOLESALE",
+        "hours": [
+          {
+            "dayOfWeek": 0,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 1,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          }
+        ],
+        "createdAt": "2026-10-06T06:17:20.833Z",
+        "updatedAt": "2026-10-06T06:17:20.833Z"
+      }
+    ],
+    [
+      "88888888-8888-4888-a888-888888888888",
+      {
+        "id": "88888888-8888-4888-a888-888888888888",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "name": "Tungi Market 24/7",
+        "inn": "308123456",
+        "region": "Toshkent shahri",
+        "city": "Mirobod",
+        "district": "Bog‘iston MFY",
+        "address": "Shahrisabz ko‘chasi, 3-uy",
+        "phone": "+998 71 200 99 00",
+        "location": {
+          "lat": 41.309,
+          "lng": 69.241
+        },
+        "rating": 4.4,
+        "reviewCount": 8,
+        "isVerified": true,
+        "status": "ACTIVE",
+        "type": "RETAIL",
+        "hours": [
+          {
+            "dayOfWeek": 0,
+            "openTime": "22:00",
+            "closeTime": "02:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 1,
+            "openTime": "22:00",
+            "closeTime": "02:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "22:00",
+            "closeTime": "02:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "22:00",
+            "closeTime": "02:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "22:00",
+            "closeTime": "02:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "22:00",
+            "closeTime": "02:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "22:00",
+            "closeTime": "02:00",
+            "isClosed": false
+          }
+        ],
+        "createdAt": "2026-10-06T06:17:20.833Z",
+        "updatedAt": "2026-10-06T06:17:20.833Z"
+      }
+    ],
+    [
+      "66666666-6666-4666-a666-666666666666",
+      {
+        "id": "66666666-6666-4666-a666-666666666666",
+        "organizationId": "fdef0c6d-f833-4196-9361-8d811b8f9a66",
+        "name": "Yangi Savdo (Ariza)",
+        "inn": "307654321",
+        "region": "Toshkent shahri",
+        "city": "Yunusobod",
+        "district": "Mustaqillik MFY",
+        "address": "Namuna manzil, 8-uy",
+        "phone": "+998 90 999 88 77",
+        "location": {
+          "lat": 41.315,
+          "lng": 69.246
+        },
+        "rating": 0,
+        "reviewCount": 0,
+        "isVerified": false,
+        "status": "PENDING",
+        "type": "RETAIL",
+        "hours": [
+          {
+            "dayOfWeek": 0,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 1,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          }
+        ],
+        "createdAt": "2026-10-06T06:17:20.833Z",
+        "updatedAt": "2026-10-06T06:17:20.833Z"
+      }
+    ],
+    [
+      "77777777-7777-4777-a777-777777777777",
+      {
+        "id": "77777777-7777-4777-a777-777777777777",
+        "organizationId": "14478b08-c7e2-449f-a04a-3362b7efb3a3",
+        "name": "To‘xtatilgan Do‘kon",
+        "inn": "304998877",
+        "region": "Samarqand viloyati",
+        "city": "Samarqand shahri",
+        "district": "Guliston MFY",
+        "address": "Yopiq ko‘cha, 1-uy",
+        "phone": "+998 71 111 00 00",
+        "location": {
+          "lat": 41.3115,
+          "lng": 69.241
+        },
+        "rating": 3.2,
+        "reviewCount": 2,
+        "isVerified": false,
+        "status": "SUSPENDED",
+        "type": "RETAIL",
+        "hours": [
+          {
+            "dayOfWeek": 0,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 1,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "08:00",
+            "closeTime": "23:00",
+            "isClosed": false
+          }
+        ],
+        "createdAt": "2026-10-06T06:17:20.833Z",
+        "updatedAt": "2026-10-06T06:17:20.833Z"
+      }
+    ]
+  ],
+  "variants": [
+    [
+      "aaaa1111-1111-4aaa-aaaa-111111111111",
+      {
+        "id": "aaaa1111-1111-4aaa-aaaa-111111111111",
+        "productId": "a7e93b38-7ffe-44da-bb13-ff418e7d4635",
+        "title": "Snickers 50 g",
+        "brand": "Snickers",
+        "category": "Shokolad",
+        "packSize": "50 g",
+        "packUnit": "dona",
+        "barcode": "40111001",
+        "sku": "SNK-050",
+        "aliases": [
+          "snikers",
+          "snickers",
+          "сникерс",
+          "snikers 50g",
+          "shokolad bar"
+        ]
+      }
+    ],
+    [
+      "aaaa2222-2222-4aaa-aaaa-222222222222",
+      {
+        "id": "aaaa2222-2222-4aaa-aaaa-222222222222",
+        "productId": "9ea4d8d9-590e-41ac-a29a-80979c8a58fc",
+        "title": "Snickers 80 g Super",
+        "brand": "Snickers",
+        "category": "Shokolad",
+        "packSize": "80 g",
+        "packUnit": "dona",
+        "barcode": "40111002",
+        "sku": "SNK-080",
+        "aliases": [
+          "snikers super",
+          "snickers 80",
+          "сникерс супер",
+          "snikers 80g"
+        ]
+      }
+    ],
+    [
+      "aaaa3333-3333-4aaa-aaaa-333333333333",
+      {
+        "id": "aaaa3333-3333-4aaa-aaaa-333333333333",
+        "productId": "a84971e1-e755-472b-b812-b236232b2035",
+        "title": "Mars 50 g",
+        "brand": "Mars",
+        "category": "Shokolad",
+        "packSize": "50 g",
+        "packUnit": "dona",
+        "barcode": "40111003",
+        "sku": "MRS-050",
+        "aliases": [
+          "mars",
+          "марс",
+          "mars 50g"
+        ]
+      }
+    ],
+    [
+      "aaaa4444-4444-4aaa-aaaa-444444444444",
+      {
+        "id": "aaaa4444-4444-4aaa-aaaa-444444444444",
+        "productId": "793fcf6a-1363-42d9-b1bf-df2f4fe035dd",
+        "title": "Twix 50 g",
+        "brand": "Twix",
+        "category": "Shokolad",
+        "packSize": "50 g",
+        "packUnit": "dona",
+        "barcode": "40111004",
+        "sku": "TWX-050",
+        "aliases": [
+          "twix",
+          "tviks",
+          "твикс",
+          "twix 50g"
+        ]
+      }
+    ],
+    [
+      "aaaa5555-5555-4aaa-aaaa-555555555555",
+      {
+        "id": "aaaa5555-5555-4aaa-aaaa-555555555555",
+        "productId": "caa4c468-8a9d-41d2-a0f1-f0818b962216",
+        "title": "Bounty 57 g",
+        "brand": "Bounty",
+        "category": "Shokolad",
+        "packSize": "57 g",
+        "packUnit": "dona",
+        "barcode": "40111005",
+        "sku": "BNT-057",
+        "aliases": [
+          "bounty",
+          "baunti",
+          "баунти",
+          "kokos shokolad"
+        ]
+      }
+    ],
+    [
+      "aaaa6666-6666-4aaa-aaaa-666666666666",
+      {
+        "id": "aaaa6666-6666-4aaa-aaaa-666666666666",
+        "productId": "5736921b-f970-483a-8909-3c1ac3a7375a",
+        "title": "Coca-Cola 1.5 l",
+        "brand": "Coca-Cola",
+        "category": "Ichimliklar",
+        "packSize": "1.5 l",
+        "packUnit": "dona",
+        "barcode": "54490001",
+        "sku": "COLA-150",
+        "aliases": [
+          "cola",
+          "kola",
+          "coca cola",
+          "кока кола"
+        ]
+      }
+    ],
+    [
+      "aaaa7777-7777-4aaa-aaaa-777777777777",
+      {
+        "id": "aaaa7777-7777-4aaa-aaaa-777777777777",
+        "productId": "273e8dab-383d-4e00-9b19-4018fbe932e5",
+        "title": "Nesquik 200 g (quti)",
+        "brand": "Nestle",
+        "category": "Shokolad",
+        "packSize": "200 g",
+        "packUnit": "quti",
+        "barcode": "7613035",
+        "sku": "NSQ-200",
+        "aliases": [
+          "nesquik",
+          "neskvik",
+          "kakao",
+          "несквик"
+        ]
+      }
+    ]
+  ],
+  "offers": [
+    [
+      "c8c087f8-6ce1-413f-a2f3-5c4823ef1d8b",
+      {
+        "id": "c8c087f8-6ce1-413f-a2f3-5c4823ef1d8b",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "variantId": "aaaa1111-1111-4aaa-aaaa-111111111111",
+        "variant": {
+          "id": "aaaa1111-1111-4aaa-aaaa-111111111111",
+          "productId": "a7e93b38-7ffe-44da-bb13-ff418e7d4635",
+          "title": "Snickers 50 g",
+          "brand": "Snickers",
+          "category": "Shokolad",
+          "packSize": "50 g",
+          "packUnit": "dona",
+          "barcode": "40111001",
+          "sku": "SNK-050",
+          "aliases": [
+            "snikers",
+            "snickers",
+            "сникерс",
+            "snikers 50g",
+            "shokolad bar"
+          ]
+        },
+        "price": "8000.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 24,
+        "stockVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "ACTIVE",
+        "wholesaleTiers": [
+          {
+            "minQuantity": 1,
+            "unitPrice": "8000.00"
+          },
+          {
+            "minQuantity": 12,
+            "unitPrice": "7400.00"
+          },
+          {
+            "minQuantity": 48,
+            "unitPrice": "7000.00"
+          }
+        ],
+        "version": 1
+      }
+    ],
+    [
+      "f13f30f7-2aa3-4b94-90c6-32528265ce48",
+      {
+        "id": "f13f30f7-2aa3-4b94-90c6-32528265ce48",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "variantId": "aaaa2222-2222-4aaa-aaaa-222222222222",
+        "variant": {
+          "id": "aaaa2222-2222-4aaa-aaaa-222222222222",
+          "productId": "9ea4d8d9-590e-41ac-a29a-80979c8a58fc",
+          "title": "Snickers 80 g Super",
+          "brand": "Snickers",
+          "category": "Shokolad",
+          "packSize": "80 g",
+          "packUnit": "dona",
+          "barcode": "40111002",
+          "sku": "SNK-080",
+          "aliases": [
+            "snikers super",
+            "snickers 80",
+            "сникерс супер",
+            "snikers 80g"
+          ]
+        },
+        "price": "12000.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 6,
+        "stockVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "ACTIVE",
+        "wholesaleTiers": [],
+        "version": 1
+      }
+    ],
+    [
+      "3eaaa8e2-4880-4ca3-9c31-99f460b7ab64",
+      {
+        "id": "3eaaa8e2-4880-4ca3-9c31-99f460b7ab64",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "variantId": "aaaa3333-3333-4aaa-aaaa-333333333333",
+        "variant": {
+          "id": "aaaa3333-3333-4aaa-aaaa-333333333333",
+          "productId": "a84971e1-e755-472b-b812-b236232b2035",
+          "title": "Mars 50 g",
+          "brand": "Mars",
+          "category": "Shokolad",
+          "packSize": "50 g",
+          "packUnit": "dona",
+          "barcode": "40111003",
+          "sku": "MRS-050",
+          "aliases": [
+            "mars",
+            "марс",
+            "mars 50g"
+          ]
+        },
+        "price": "7500.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 18,
+        "stockVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "ACTIVE",
+        "wholesaleTiers": [],
+        "version": 1
+      }
+    ],
+    [
+      "0d269f1e-926f-4e6e-9fbd-cf65ec30644f",
+      {
+        "id": "0d269f1e-926f-4e6e-9fbd-cf65ec30644f",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "variantId": "aaaa4444-4444-4aaa-aaaa-444444444444",
+        "variant": {
+          "id": "aaaa4444-4444-4aaa-aaaa-444444444444",
+          "productId": "793fcf6a-1363-42d9-b1bf-df2f4fe035dd",
+          "title": "Twix 50 g",
+          "brand": "Twix",
+          "category": "Shokolad",
+          "packSize": "50 g",
+          "packUnit": "dona",
+          "barcode": "40111004",
+          "sku": "TWX-050",
+          "aliases": [
+            "twix",
+            "tviks",
+            "твикс",
+            "twix 50g"
+          ]
+        },
+        "price": "8000.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 0,
+        "stockVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "OUT_OF_STOCK",
+        "wholesaleTiers": [],
+        "version": 1
+      }
+    ],
+    [
+      "64c723a9-9dff-465c-95c7-a83164ecca67",
+      {
+        "id": "64c723a9-9dff-465c-95c7-a83164ecca67",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "variantId": "aaaa5555-5555-4aaa-aaaa-555555555555",
+        "variant": {
+          "id": "aaaa5555-5555-4aaa-aaaa-555555555555",
+          "productId": "caa4c468-8a9d-41d2-a0f1-f0818b962216",
+          "title": "Bounty 57 g",
+          "brand": "Bounty",
+          "category": "Shokolad",
+          "packSize": "57 g",
+          "packUnit": "dona",
+          "barcode": "40111005",
+          "sku": "BNT-057",
+          "aliases": [
+            "bounty",
+            "baunti",
+            "баунти",
+            "kokos shokolad"
+          ]
+        },
+        "price": "8000.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 12,
+        "stockVerifiedAt": "2026-10-04T06:17:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "STALE",
+        "status": "ACTIVE",
+        "wholesaleTiers": [],
+        "version": 1
+      }
+    ],
+    [
+      "c51c7775-2e4e-4e6f-888b-d46f256c87b6",
+      {
+        "id": "c51c7775-2e4e-4e6f-888b-d46f256c87b6",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "variantId": "aaaa6666-6666-4aaa-aaaa-666666666666",
+        "variant": {
+          "id": "aaaa6666-6666-4aaa-aaaa-666666666666",
+          "productId": "5736921b-f970-483a-8909-3c1ac3a7375a",
+          "title": "Coca-Cola 1.5 l",
+          "brand": "Coca-Cola",
+          "category": "Ichimliklar",
+          "packSize": "1.5 l",
+          "packUnit": "dona",
+          "barcode": "54490001",
+          "sku": "COLA-150",
+          "aliases": [
+            "cola",
+            "kola",
+            "coca cola",
+            "кока кола"
+          ]
+        },
+        "price": "16000.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 29,
+        "stockVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "ACTIVE",
+        "wholesaleTiers": [],
+        "version": 2
+      }
+    ],
+    [
+      "9ae13af6-0179-4969-a96e-1f5c5c6b0337",
+      {
+        "id": "9ae13af6-0179-4969-a96e-1f5c5c6b0337",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "variantId": "aaaa7777-7777-4aaa-aaaa-777777777777",
+        "variant": {
+          "id": "aaaa7777-7777-4aaa-aaaa-777777777777",
+          "productId": "273e8dab-383d-4e00-9b19-4018fbe932e5",
+          "title": "Nesquik 200 g (quti)",
+          "brand": "Nestle",
+          "category": "Shokolad",
+          "packSize": "200 g",
+          "packUnit": "quti",
+          "barcode": "7613035",
+          "sku": "NSQ-200",
+          "aliases": [
+            "nesquik",
+            "neskvik",
+            "kakao",
+            "несквик"
+          ]
+        },
+        "price": "12000.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 20,
+        "stockVerifiedAt": "2026-10-06T06:17:20.858Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "ACTIVE",
+        "wholesaleTiers": [],
+        "version": 2
+      }
+    ],
+    [
+      "c73a9f0e-06bc-4b59-9570-ca31a8d5b1fb",
+      {
+        "id": "c73a9f0e-06bc-4b59-9570-ca31a8d5b1fb",
+        "storeId": "33333333-3333-4333-a333-333333333333",
+        "variantId": "aaaa1111-1111-4aaa-aaaa-111111111111",
+        "variant": {
+          "id": "aaaa1111-1111-4aaa-aaaa-111111111111",
+          "productId": "a7e93b38-7ffe-44da-bb13-ff418e7d4635",
+          "title": "Snickers 50 g",
+          "brand": "Snickers",
+          "category": "Shokolad",
+          "packSize": "50 g",
+          "packUnit": "dona",
+          "barcode": "40111001",
+          "sku": "SNK-050",
+          "aliases": [
+            "snikers",
+            "snickers",
+            "сникерс",
+            "snikers 50g",
+            "shokolad bar"
+          ]
+        },
+        "price": "7500.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 8,
+        "stockVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "ACTIVE",
+        "wholesaleTiers": [],
+        "version": 1
+      }
+    ],
+    [
+      "67de41fa-3b8e-4179-aec7-ed285adb22f8",
+      {
+        "id": "67de41fa-3b8e-4179-aec7-ed285adb22f8",
+        "storeId": "33333333-3333-4333-a333-333333333333",
+        "variantId": "aaaa3333-3333-4aaa-aaaa-333333333333",
+        "variant": {
+          "id": "aaaa3333-3333-4aaa-aaaa-333333333333",
+          "productId": "a84971e1-e755-472b-b812-b236232b2035",
+          "title": "Mars 50 g",
+          "brand": "Mars",
+          "category": "Shokolad",
+          "packSize": "50 g",
+          "packUnit": "dona",
+          "barcode": "40111003",
+          "sku": "MRS-050",
+          "aliases": [
+            "mars",
+            "марс",
+            "mars 50g"
+          ]
+        },
+        "price": "7200.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 14,
+        "stockVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "ACTIVE",
+        "wholesaleTiers": [],
+        "version": 1
+      }
+    ],
+    [
+      "816c61d7-8124-4b6f-b6ef-02ad0f5b1f96",
+      {
+        "id": "816c61d7-8124-4b6f-b6ef-02ad0f5b1f96",
+        "storeId": "44444444-4444-4444-a444-444444444444",
+        "variantId": "aaaa1111-1111-4aaa-aaaa-111111111111",
+        "variant": {
+          "id": "aaaa1111-1111-4aaa-aaaa-111111111111",
+          "productId": "a7e93b38-7ffe-44da-bb13-ff418e7d4635",
+          "title": "Snickers 50 g",
+          "brand": "Snickers",
+          "category": "Shokolad",
+          "packSize": "50 g",
+          "packUnit": "dona",
+          "barcode": "40111001",
+          "sku": "SNK-050",
+          "aliases": [
+            "snikers",
+            "snickers",
+            "сникерс",
+            "snikers 50g",
+            "shokolad bar"
+          ]
+        },
+        "price": "8500.00",
+        "minOrderQuantity": 1,
+        "stockOnHand": 12,
+        "stockVerifiedAt": "2026-10-02T06:17:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "VERY_STALE",
+        "status": "ACTIVE",
+        "wholesaleTiers": [],
+        "version": 1
+      }
+    ],
+    [
+      "825f8556-61bb-4768-b692-694a16318918",
+      {
+        "id": "825f8556-61bb-4768-b692-694a16318918",
+        "storeId": "55555555-5555-4555-a555-555555555555",
+        "variantId": "aaaa1111-1111-4aaa-aaaa-111111111111",
+        "variant": {
+          "id": "aaaa1111-1111-4aaa-aaaa-111111111111",
+          "productId": "a7e93b38-7ffe-44da-bb13-ff418e7d4635",
+          "title": "Snickers 50 g",
+          "brand": "Snickers",
+          "category": "Shokolad",
+          "packSize": "50 g",
+          "packUnit": "dona",
+          "barcode": "40111001",
+          "sku": "SNK-050",
+          "aliases": [
+            "snikers",
+            "snickers",
+            "сникерс",
+            "snikers 50g",
+            "shokolad bar"
+          ]
+        },
+        "price": "7000.00",
+        "minOrderQuantity": 12,
+        "stockOnHand": 500,
+        "stockVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "priceUpdatedAt": "2026-10-06T06:07:20.833Z",
+        "freshness": "NEW",
+        "status": "ACTIVE",
+        "wholesaleTiers": [
+          {
+            "minQuantity": 12,
+            "unitPrice": "7000.00"
+          },
+          {
+            "minQuantity": 48,
+            "unitPrice": "6700.00"
+          },
+          {
+            "minQuantity": 120,
+            "unitPrice": "6500.00"
+          }
+        ],
+        "version": 1
+      }
+    ]
+  ],
+  "balances": [
+    [
+      "c8c087f8-6ce1-413f-a2f3-5c4823ef1d8b",
+      {
+        "offerId": "c8c087f8-6ce1-413f-a2f3-5c4823ef1d8b",
+        "onHand": "24",
+        "averageUnitCost": "6000",
+        "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "f13f30f7-2aa3-4b94-90c6-32528265ce48",
+      {
+        "offerId": "f13f30f7-2aa3-4b94-90c6-32528265ce48",
+        "onHand": "6",
+        "averageUnitCost": "9000",
+        "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "3eaaa8e2-4880-4ca3-9c31-99f460b7ab64",
+      {
+        "offerId": "3eaaa8e2-4880-4ca3-9c31-99f460b7ab64",
+        "onHand": "18",
+        "averageUnitCost": "5625",
+        "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "0d269f1e-926f-4e6e-9fbd-cf65ec30644f",
+      {
+        "offerId": "0d269f1e-926f-4e6e-9fbd-cf65ec30644f",
+        "onHand": "0",
+        "averageUnitCost": "6000",
+        "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "64c723a9-9dff-465c-95c7-a83164ecca67",
+      {
+        "offerId": "64c723a9-9dff-465c-95c7-a83164ecca67",
+        "onHand": "12",
+        "averageUnitCost": "6000",
+        "lastVerifiedAt": "2026-10-04T06:17:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "c51c7775-2e4e-4e6f-888b-d46f256c87b6",
+      {
+        "offerId": "c51c7775-2e4e-4e6f-888b-d46f256c87b6",
+        "onHand": "29",
+        "averageUnitCost": "12000",
+        "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 2
+      }
+    ],
+    [
+      "9ae13af6-0179-4969-a96e-1f5c5c6b0337",
+      {
+        "offerId": "9ae13af6-0179-4969-a96e-1f5c5c6b0337",
+        "onHand": "20",
+        "averageUnitCost": "10500",
+        "lastVerifiedAt": "2026-10-06T06:17:20.853Z",
+        "version": 2
+      }
+    ],
+    [
+      "c73a9f0e-06bc-4b59-9570-ca31a8d5b1fb",
+      {
+        "offerId": "c73a9f0e-06bc-4b59-9570-ca31a8d5b1fb",
+        "onHand": "8",
+        "averageUnitCost": "5625",
+        "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "67de41fa-3b8e-4179-aec7-ed285adb22f8",
+      {
+        "offerId": "67de41fa-3b8e-4179-aec7-ed285adb22f8",
+        "onHand": "14",
+        "averageUnitCost": "5400",
+        "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "816c61d7-8124-4b6f-b6ef-02ad0f5b1f96",
+      {
+        "offerId": "816c61d7-8124-4b6f-b6ef-02ad0f5b1f96",
+        "onHand": "12",
+        "averageUnitCost": "6375",
+        "lastVerifiedAt": "2026-10-02T06:17:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "825f8556-61bb-4768-b692-694a16318918",
+      {
+        "offerId": "825f8556-61bb-4768-b692-694a16318918",
+        "onHand": "500",
+        "averageUnitCost": "5250",
+        "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 1
+      }
+    ]
+  ],
+  "stockDocuments": [
+    [
+      "2b7c4cb7-8e88-4943-ac82-a03d21edd2a9",
+      {
+        "id": "2b7c4cb7-8e88-4943-ac82-a03d21edd2a9",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "docType": "RECEIPT",
+        "status": "POSTED",
+        "documentNumber": "KRM-001",
+        "date": "2026-10-06T06:17:20.844Z",
+        "supplierOrCustomer": "Mars / Wrigley Distribyutsiya",
+        "paymentMethod": "CARD",
+        "totalAmount": "120000.00",
+        "lines": [
+          {
+            "id": "60eb9b14-9601-4daa-8ebc-bfadcc3b1211",
+            "variantId": "aaaa7777-7777-4aaa-aaaa-777777777777",
+            "variantTitle": "Nesquik 200 g (quti)",
+            "quantity": "10.000",
+            "unitPriceOrCost": "12000.00",
+            "subtotal": "120000.00",
+            "isRestockable": true
+          }
+        ],
+        "notes": "Haftalik tovar kirimi",
+        "createdAt": "2026-10-06T06:17:20.844Z",
+        "postedAt": "2026-10-06T06:17:20.858Z"
+      }
+    ],
+    [
+      "3c05b9ab-7c78-4095-ad17-7dc5ef00aba7",
+      {
+        "id": "3c05b9ab-7c78-4095-ad17-7dc5ef00aba7",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "docType": "SALE",
+        "status": "POSTED",
+        "documentNumber": "STV-001",
+        "date": "2026-10-06T06:17:20.860Z",
+        "supplierOrCustomer": "Chakana mijoz",
+        "paymentMethod": "CASH",
+        "totalAmount": "16000.00",
+        "lines": [
+          {
+            "id": "f69c263a-2da9-4b0d-8f27-dc00b27c99d1",
+            "variantId": "aaaa6666-6666-4aaa-aaaa-666666666666",
+            "variantTitle": "Coca-Cola 1.5 l",
+            "quantity": "1.000",
+            "unitPriceOrCost": "16000.00",
+            "subtotal": "16000.00",
+            "isRestockable": true
+          }
+        ],
+        "notes": "Kassa sotuvi",
+        "createdAt": "2026-10-06T06:17:20.860Z",
+        "postedAt": "2026-10-06T06:17:20.865Z"
+      }
+    ]
+  ],
+  "saleSnapshots": [
+    [
+      "f69c263a-2da9-4b0d-8f27-dc00b27c99d1",
+      {
+        "saleLineId": "f69c263a-2da9-4b0d-8f27-dc00b27c99d1",
+        "variantId": "aaaa6666-6666-4aaa-aaaa-666666666666",
+        "quantity": "1",
+        "unitPrice": "16000",
+        "unitCostSnapshot": "12000",
+        "returnedQuantity": "0"
+      }
+    ]
+  ],
+  "expenses": [
+    [
+      "fcf55e23-9d88-40c0-94b8-b1bc04926c44",
+      {
+        "id": "1c10a13f-ecb3-460a-8b90-d7e66a010613",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "category": "IJARA",
+        "amount": "60000",
+        "date": "2026-10-06",
+        "description": "Filial kunlik hisoblangan ijara xarajati",
+        "createdAt": "2026-10-06T06:17:20.866Z"
+      }
+    ]
+  ],
+  "reviews": [
+    [
+      "bc818a05-1201-41c2-8c98-5767bcfbe8ea",
+      {
+        "id": "e335a9b9-0f22-4a3d-aab3-8cdd7ceb8263",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "userId": "cccc1111-1111-4ccc-cccc-111111111111",
+        "userName": "Otabek Xaridor",
+        "rating": 5,
+        "comment": "Do‘konda barcha shirinliklar bor ekan, narxlari ham qulay va toza joy.",
+        "status": "PUBLISHED",
+        "merchantReply": "Tashrifingiz uchun rahmat! Har doim xizmatingizdamiz.",
+        "merchantRepliedAt": "2026-10-06T06:17:20.867Z",
+        "createdAt": "2026-10-06T06:17:20.867Z",
+        "updatedAt": "2026-10-06T06:17:20.867Z"
+      }
+    ]
+  ],
+  "reports": [
+    [
+      "e3d6463a-720d-4ce6-8145-15e70aa48b6e",
+      {
+        "id": "e3d6463a-720d-4ce6-8145-15e70aa48b6e",
+        "reporterUserId": "cccc1111-1111-4ccc-cccc-111111111111",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "reason": "WRONG_PRICE",
+        "details": "Ilovada 8 000 so‘m, kassada esa 9 000 so‘m deyishdi.",
+        "status": "OPEN",
+        "createdAt": "2026-10-06T06:17:20.867Z"
+      }
+    ],
+    [
+      "8fd17777-9fab-4229-a5bf-b60e172802a2",
+      {
+        "id": "8fd17777-9fab-4229-a5bf-b60e172802a2",
+        "reporterUserId": "cccc1111-1111-4ccc-cccc-111111111111",
+        "storeId": "44444444-4444-4444-a444-444444444444",
+        "reason": "UNAVAILABLE_PRODUCT",
+        "details": "Coca-Cola 1.5l tugagan deb aytishdi, lekin dasturda bor deb ko‘rsatilgan.",
+        "status": "OPEN",
+        "createdAt": "2026-10-06T06:17:20.867Z"
+      }
+    ],
+    [
+      "49c9cb90-1c91-4364-8b2a-f63f6d7e4149",
+      {
+        "id": "49c9cb90-1c91-4364-8b2a-f63f6d7e4149",
+        "reporterUserId": "cccc1111-1111-4ccc-cccc-111111111111",
+        "storeId": "44444444-4444-4444-a444-444444444444",
+        "reason": "WRONG_LOCATION",
+        "details": "Do‘kon kirish eshigi boshqa ko‘chada joylashgan.",
+        "status": "OPEN",
+        "createdAt": "2026-10-06T06:17:20.867Z"
+      }
+    ]
+  ],
+  "corrections": [
+    [
+      "df0a7da5-1d15-46c8-9072-82f62464880c",
+      {
+        "id": "df0a7da5-1d15-46c8-9072-82f62464880c",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "reportId": "e3d6463a-720d-4ce6-8145-15e70aa48b6e",
+        "affectedFields": [
+          "price",
+          "stockOnHand"
+        ],
+        "message": "Snickers 50 g narxini tekshirib, amaldagi narxni kiriting va javob yuboring.",
+        "deadline": "2026-10-05",
+        "status": "OPEN",
+        "createdAt": "2026-10-06T06:17:20.867Z",
+        "updatedAt": "2026-10-06T06:17:20.867Z"
+      }
+    ]
+  ],
+  "credentialRequests": [
+    [
+      "1a83b6d8-f50c-4c4e-a3b8-d9a342896142",
+      {
+        "id": "1a83b6d8-f50c-4c4e-a3b8-d9a342896142",
+        "userId": "cccc3333-3333-4ccc-cccc-333333333333",
+        "userName": "Sardor Qosim",
+        "userEmail": "operator@navbahor.uz",
+        "userPhone": "+998903334455",
+        "userRole": "OPERATOR",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "organizationName": "Navbahor Savdo MCHJ",
+        "requestedEmail": "sardor.operator@navbahor.uz",
+        "requestedPassword": "NewOperatorPass2026!",
+        "requestedPhone": "+998903334455",
+        "reason": "Rasmiy korporativ elektron pochtaga o‘tkazish",
+        "status": "PENDING",
+        "createdAt": "2026-10-06T03:17:20.867Z"
+      }
+    ]
+  ],
+  "inquiries": [
+    [
+      "d20b9aed-2bb6-48a3-adf8-574aedbe630d",
+      {
+        "id": "d20b9aed-2bb6-48a3-adf8-574aedbe630d",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "storeName": "Navbahor Market",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "organizationName": "Navbahor Savdo MCHJ",
+        "subject": "Do‘kon ish vaqtlari va kirish joyi fotosuratlari talabi",
+        "message": "Hurmatli do‘kon egasi! Mijozlar qulayligi uchun yangi kirish eshigi fotosuratlarini yuklashingiz va yakshanba kungi ish tartibingizni tasdiqlashingizni so‘raymiz.",
+        "priority": "HIGH",
+        "status": "PENDING_MERCHANT_REPLY",
+        "createdAt": "2026-10-05T06:17:20.867Z",
+        "updatedAt": "2026-10-05T06:17:20.867Z"
+      }
+    ],
+    [
+      "aa22bf85-6277-46e9-901a-868c6e00c572",
+      {
+        "id": "aa22bf85-6277-46e9-901a-868c6e00c572",
+        "storeId": "22222222-2222-4222-a222-222222222222",
+        "storeName": "Navbahor Market",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "organizationName": "Navbahor Savdo MCHJ",
+        "subject": "Kassada to‘lov tizimlari (HUMO/Uzcard) integratsiyasi",
+        "message": "Assalomu alaykum. Do‘koningizda barcha turdagi plastik kartalar qabul qilinishini tekshirish yuzasidan so‘rov.",
+        "priority": "NORMAL",
+        "status": "MERCHANT_SUBMITTED",
+        "merchantReply": "Barcha terminallarimiz va QR-to‘lov tizimlarimiz to‘liq ishlamoqda. Har qanday karta orqali qabul qilinadi.",
+        "merchantRepliedAt": "2026-10-06T04:17:20.867Z",
+        "createdAt": "2026-10-04T06:17:20.867Z",
+        "updatedAt": "2026-10-06T04:17:20.867Z"
+      }
+    ]
+  ],
+  "notifications": [
+    [
+      "4c394527-8528-490a-8c36-c21c9f9b1325",
+      {
+        "id": "4c394527-8528-490a-8c36-c21c9f9b1325",
+        "userId": "cccc2222-2222-4ccc-cccc-222222222222",
+        "title": "Administrator xabari",
+        "message": "Do‘koningizga administrator tomonidan yangi rasmiy so‘rov yuborildi. Iltimos, xabarlar bo‘limida ko‘rib chiqing.",
+        "type": "INFO",
+        "isRead": false,
+        "createdAt": "2026-10-06T06:17:20.867Z"
+      }
+    ],
+    [
+      "2036fe93-f02e-4395-8371-dea4e037ad4a",
+      {
+        "id": "2036fe93-f02e-4395-8371-dea4e037ad4a",
+        "userId": "cccc1111-1111-4ccc-cccc-111111111111",
+        "title": "Xush kelibsiz!",
+        "message": "YaqinTop tizimiga muvaffaqiyatli ulandingiz. Yaqin atrofdagi tovarlarni izlashingiz mumkin.",
+        "type": "SUCCESS",
+        "isRead": false,
+        "createdAt": "2026-10-06T06:17:20.867Z"
+      }
+    ]
+  ],
+  "bookmarks": [],
+  "auditLogs": [
+    {
+      "id": "1e586834-9531-4b80-8de1-a3415b404432",
+      "actorId": "cccc2222-2222-4ccc-cccc-222222222222",
+      "actorEmail": "owner@navbahor.uz",
+      "action": "POST_RECEIPT",
+      "entityType": "STOCK_DOCUMENT",
+      "entityId": "2b7c4cb7-8e88-4943-ac82-a03d21edd2a9",
+      "diff": {
+        "docNumber": "KRM-001",
+        "totalAmount": "120000.00"
+      },
+      "timestamp": "2026-10-06T06:17:20.859Z"
+    },
+    {
+      "id": "caf2bde0-0245-49e2-882c-98a04879e85d",
+      "actorId": "cccc3333-3333-4ccc-cccc-333333333333",
+      "actorEmail": "operator@navbahor.uz",
+      "action": "POST_SALE",
+      "entityType": "STOCK_DOCUMENT",
+      "entityId": "3c05b9ab-7c78-4095-ad17-7dc5ef00aba7",
+      "diff": {
+        "docNumber": "STV-001",
+        "totalAmount": "16000.00"
+      },
+      "timestamp": "2026-10-06T06:17:20.865Z"
+    },
+    {
+      "id": "ffaa6990-6ccb-4d5d-bac2-1b07b3f91b1c",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "CREATE_SYSTEM_USER",
+      "entityType": "USER",
+      "entityId": "aba63b8b-1868-446e-a427-dd74fe57906e",
+      "diff": {
+        "email": "otaw",
+        "role": "MODERATOR",
+        "organizationId": null,
+        "isVerified": true
+      },
+      "timestamp": "2026-10-06T07:05:39.053Z"
+    }
+  ],
+  "idempotencyRecords": []
+}

@@ -40,11 +40,12 @@ export const LoginRequestSchema = z.object({
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
 export const RegisterRequestSchema = z.object({
-  email: z.string().email(),
+  email: z.string().min(1),
+  login: z.string().min(1).optional(),
   fullName: z.string().min(2),
-  password: z.string().min(6),
+  password: z.string().min(4),
   phone: z.string().optional()
-});
+}).passthrough();
 export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 
 // ================= STORES & ORGANIZATIONS =================

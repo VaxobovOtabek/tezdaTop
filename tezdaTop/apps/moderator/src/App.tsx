@@ -36,6 +36,7 @@ import {
   Eye,
   EyeOff,
   Shield,
+  ShieldAlert,
   Activity
 } from 'lucide-react';
 import { Button, Tag, Modal } from '@yaqintop/ui';
@@ -126,17 +127,34 @@ export function ModeratorApp() {
     'overview' | 'map-hub' | 'analytics' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
   >('overview');
 
-  // Current User Session State (Default Moderator)
-  const [currentUser, setCurrentUser] = useState<any>({
-    id: 'cccc4444-4444-4ccc-cccc-444444444444',
-    fullName: 'Nilufar Moderator',
-    email: 'moderator@yaqintop.uz',
-    phone: '+998 90 444 55 66',
-    role: 'MODERATOR',
-    status: 'ACTIVE'
+  // Current User Session State (Loads from localStorage or null for guest)
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.role === 'MODERATOR' || parsed.role === 'ADMIN' || parsed.role === 'SUPERADMIN') {
+          return parsed;
+        }
+      }
+      return null;
+    } catch {
+      return null;
+    }
   });
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(() => {
+    try {
+      const saved = localStorage.getItem('yaqintop_user');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return !(parsed.role === 'MODERATOR' || parsed.role === 'ADMIN' || parsed.role === 'SUPERADMIN');
+      }
+      return true;
+    } catch {
+      return true;
+    }
+  });
 
   const [overviewStats, setOverviewStats] = useState({ pendingApps: 0, openReports: 0, overdueCorrections: 0 });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
@@ -609,6 +627,30 @@ export function ModeratorApp() {
         </div>
       )}
 
+      {/* Red Portal Guard Banner for Guests */}
+      {!currentUser && (
+        <div className="bg-red-600 text-white px-6 py-2.5 text-xs font-bold flex items-center justify-between shadow-md z-30 shrink-0">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 shrink-0 animate-bounce" />
+            <span>⚠️ Siz mehmon (guest) holatidasiz. Ushbu portalga kirish uchun Moderator hisobingiz bilan tizimga kiring.</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsLoginModalOpen(true)}
+              className="px-3 py-1 bg-white text-red-700 rounded-lg text-xs font-extrabold hover:bg-red-50 transition shadow"
+            >
+              Moderator sifatida kirish
+            </button>
+            <a
+              href="http://localhost:3000"
+              className="px-3 py-1 bg-red-800 text-white rounded-lg text-xs font-bold hover:bg-red-900 transition"
+            >
+              Xaridor tizimiga o‘tish (3000) →
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="h-16 bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-6 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
@@ -656,8 +698,38 @@ export function ModeratorApp() {
         </div>
       </header>
 
-      {/* Main Layout */}
-      <div className="flex-1 flex overflow-hidden">
+      {/* Main Layout or Locked Guard */}
+      {!currentUser ? (
+        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[#F3F6F3] dark:bg-[#0E1713]">
+          <div className="max-w-md w-full bg-white dark:bg-[#14201A] p-8 rounded-3xl border border-red-200 dark:border-red-900/50 shadow-2xl flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center shadow-inner">
+              <Lock className="w-8 h-8" />
+            </div>
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-extrabold text-[#172C28] dark:text-white">Moderator Portali Himoyalangan</h2>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] leading-relaxed">
+                Ushbu sahifadagi barcha moderatsiya ma’lumotlari, do‘kon arizalari, murojaatlar va hisobotlar maxfiy hisoblanadi. Ma’lumotlarni ko‘rish uchun tizimga kiring.
+              </p>
+            </div>
+            <div className="flex flex-col gap-2.5 w-full mt-3">
+              <button
+                onClick={() => setIsLoginModalOpen(true)}
+                className="w-full py-3 bg-[#116B50] hover:bg-[#0d533e] text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Key className="w-4 h-4" />
+                <span>Tizimga kirish (Login)</span>
+              </button>
+              <a
+                href="http://localhost:3000"
+                className="w-full py-2.5 bg-gray-100 dark:bg-[#1E3328] hover:bg-gray-200 dark:hover:bg-[#253E32] text-[#172C28] dark:text-[#E8F2EC] font-semibold text-xs rounded-xl transition text-center"
+              >
+                Xaridor tizimiga o‘tish (Mehmon sifatida) →
+              </a>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="flex-1 flex overflow-hidden">
         {/* Sidebar */}
         <aside className="w-64 bg-white dark:bg-[#14201A] border-r border-[#DCE5DF] dark:border-[#22332C] flex flex-col p-4 shrink-0 overflow-y-auto">
           <nav className="flex flex-col gap-1">
@@ -1232,10 +1304,12 @@ export function ModeratorApp() {
           )}
         </main>
       </div>
+      )}
 
-      {/* MODALS */}
-      {/* 1. Add User Modal */}
-      <Modal
+      {currentUser && (
+        <>
+          {/* 1. Add User Modal */}
+          <Modal
         isOpen={isAddUserModalOpen}
         onClose={() => setIsAddUserModalOpen(false)}
         title="Yangi foydalanuvchi qo‘shish (Moderator)"
@@ -1293,13 +1367,13 @@ export function ModeratorApp() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login / Email *</label>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login / Foydalanuvchi nomi *</label>
               <input
                 type="text"
                 required
                 value={newUserForm.email}
                 onChange={(e) => setNewUserForm({ ...newUserForm, email: e.target.value })}
-                placeholder="sardor@yaqintop.uz"
+                placeholder="Masalan: sardor2026 yoki sardor"
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
@@ -1576,6 +1650,8 @@ export function ModeratorApp() {
             </div>
           </form>
         </Modal>
+      )}
+      </>
       )}
 
       {/* 5. User Profile Modal */}

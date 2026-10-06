@@ -40,6 +40,8 @@ interface StoreFullPageViewProps {
   isDarkMode: boolean;
   userLocation: { lat: number; lng: number };
   matchedOffer?: Offer | null;
+  currentUser?: any;
+  onRequireAuth?: (msg?: string) => void;
   onBack: () => void;
   onGetRoute: (mode: 'walking' | 'driving') => void;
   onReportError: () => void;
@@ -71,6 +73,8 @@ export function StoreFullPageView({
   isDarkMode,
   userLocation,
   matchedOffer,
+  currentUser,
+  onRequireAuth,
   onBack,
   onGetRoute,
   onReportError,
@@ -103,6 +107,10 @@ export function StoreFullPageView({
   }, [store?.id]);
 
   const toggleFavorite = () => {
+    if (!currentUser) {
+      onRequireAuth?.('Do‘konni sevimlilarga saqlash uchun iltimos, tizimga kiring!');
+      return;
+    }
     if (!store?.id) return;
     try {
       const favs: any[] = JSON.parse(localStorage.getItem('yaqintop_favorites') || '[]');
@@ -137,16 +145,36 @@ export function StoreFullPageView({
   const [isWriteReviewOpen, setIsWriteReviewOpen] = useState(false);
   const [reviewForm, setReviewForm] = useState({
     rating: 5,
-    userName: 'Otabek Xaridor',
+    userName: currentUser?.name || currentUser?.phone || 'Xaridor',
     comment: ''
   });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  const handleOpenWriteReview = () => {
+    if (!currentUser) {
+      onRequireAuth?.('Sharh va baho qoldirish uchun iltimos, tizimga kiring!');
+      return;
+    }
+    setReviewForm((prev) => ({
+      ...prev,
+      userName: currentUser?.name || currentUser?.phone || 'Xaridor'
+    }));
+    setIsWriteReviewOpen(true);
+  };
 
   // Report / Inquiry State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportReason, setReportReason] = useState('WRONG_PRICE');
   const [reportDetails, setReportDetails] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+
+  const handleOpenReportModal = () => {
+    if (!currentUser) {
+      onRequireAuth?.('Murojaat yoki ariza yuborish uchun iltimos, tizimga kiring!');
+      return;
+    }
+    setIsReportModalOpen(true);
+  };
 
   // Fetch reviews for this store
   const loadReviews = async () => {
@@ -171,6 +199,11 @@ export function StoreFullPageView({
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      onRequireAuth?.('Sharh va baho qoldirish uchun iltimos, tizimga kiring!');
+      setIsWriteReviewOpen(false);
+      return;
+    }
     if (!reviewForm.comment.trim()) {
       onShowToast('Iltimos, sharh matnini yozing');
       return;
@@ -184,12 +217,12 @@ export function StoreFullPageView({
         body: JSON.stringify({
           rating: reviewForm.rating,
           comment: reviewForm.comment.trim(),
-          userName: reviewForm.userName || 'Xaridor'
+          userName: reviewForm.userName || currentUser?.name || currentUser?.phone || 'Xaridor'
         })
       });
       if (res.ok) {
         onShowToast('Sharhingiz qabul qilindi va e’lon qilindi! Rahmat!');
-        setReviewForm({ rating: 5, userName: 'Otabek Xaridor', comment: '' });
+        setReviewForm({ rating: 5, userName: currentUser?.name || currentUser?.phone || 'Xaridor', comment: '' });
         setIsWriteReviewOpen(false);
         loadReviews();
       } else {
@@ -204,6 +237,11 @@ export function StoreFullPageView({
 
   const handleSubmitReport = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      onRequireAuth?.('Murojaat yuborish uchun iltimos, tizimga kiring!');
+      setIsReportModalOpen(false);
+      return;
+    }
     if (!store?.id) return;
     if (!reportDetails.trim()) {
       onShowToast('Iltimos, xatolik yoki murojaat tafsilotlarini yozing');
@@ -287,7 +325,7 @@ export function StoreFullPageView({
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setIsWriteReviewOpen(true)}
+            onClick={handleOpenWriteReview}
             className="border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100 font-bold hidden sm:flex items-center"
           >
             <Star className="w-3.5 h-3.5 mr-1 fill-amber-400 text-amber-400" />
@@ -297,7 +335,7 @@ export function StoreFullPageView({
           <Button
             variant="secondary"
             size="sm"
-            onClick={() => setIsReportModalOpen(true)}
+            onClick={handleOpenReportModal}
             className="border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-100 font-bold hidden md:flex items-center"
           >
             <AlertTriangle className="w-3.5 h-3.5 mr-1" />
@@ -521,7 +559,7 @@ export function StoreFullPageView({
               <div className="grid grid-cols-2 gap-2.5">
                 <button
                   type="button"
-                  onClick={() => setIsWriteReviewOpen(true)}
+                  onClick={handleOpenWriteReview}
                   className="py-2.5 px-3 rounded-xl border border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-2xs cursor-pointer"
                 >
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400 shrink-0" />
@@ -529,7 +567,7 @@ export function StoreFullPageView({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsReportModalOpen(true)}
+                  onClick={handleOpenReportModal}
                   className="py-2.5 px-3 rounded-xl border border-rose-200 dark:border-rose-900/50 bg-rose-50 dark:bg-rose-950/30 text-rose-700 dark:text-rose-400 hover:bg-rose-100 font-bold text-xs flex items-center justify-center gap-1.5 transition active:scale-95 shadow-2xs cursor-pointer"
                 >
                   <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
@@ -765,13 +803,29 @@ export function StoreFullPageView({
 
               <Button
                 variant="primary"
-                onClick={() => setIsWriteReviewOpen(true)}
+                onClick={handleOpenWriteReview}
                 className="font-bold flex items-center gap-1.5"
               >
                 <MessageSquare className="w-4 h-4" />
                 <span>Sharh qoldirish</span>
               </Button>
             </div>
+
+            {/* Guest notice banner in reviews */}
+            {!currentUser && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 rounded-2xl flex items-center justify-between text-xs text-amber-800 dark:text-amber-300">
+                <div className="flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                  <span>Siz mehmon holatidasiz. Sharh yoki baho qoldirish uchun hisobingiz bilan tizimga kiring.</span>
+                </div>
+                <button
+                  onClick={handleOpenWriteReview}
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shrink-0 transition"
+                >
+                  Tizimga kirish
+                </button>
+              </div>
+            )}
 
             {/* Rating Overview Box */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-[#DCE5DF] dark:border-[#2A3F36]">
@@ -831,7 +885,7 @@ export function StoreFullPageView({
                 <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
                   Hozircha sharhlar mavjud emas. Birinchi bo‘lib sharh qoldiring!
                 </p>
-                <Button variant="secondary" size="sm" onClick={() => setIsWriteReviewOpen(true)}>
+                <Button variant="secondary" size="sm" onClick={handleOpenWriteReview}>
                   Sharh yozish
                 </Button>
               </div>

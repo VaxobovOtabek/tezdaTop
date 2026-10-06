@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import Decimal from 'decimal.js';
 import {
@@ -115,6 +117,137 @@ export class InMemoryDatabase {
   public bookmarks: Map<string, DBBookmark> = new Map();
   public auditLogs: DBAuditLog[] = [];
   public idempotencyRecords: Map<string, DBIdempotencyRecord> = new Map();
+
+  // Persistent file storage configuration
+  private dataDir = path.resolve(process.cwd(), 'data');
+  private dataFilePath = path.resolve(process.cwd(), 'data', 'yaqintop_db.json');
+  private saveTimeout: NodeJS.Timeout | null = null;
+
+  public scheduleSave() {
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(async () => {
+      this.saveToFile();
+      try {
+        const { syncAllToSupabase } = await import('./supabase.js');
+        syncAllToSupabase(this).catch(e => console.error('[Supabase Sync Error]', e));
+      } catch (e) {
+        // ignore if not configured
+      }
+    }, 150);
+  }
+
+  public saveToFile(): boolean {
+    try {
+      if (!fs.existsSync(this.dataDir)) {
+        fs.mkdirSync(this.dataDir, { recursive: true });
+      }
+
+      const serialized = {
+        organizations: Array.from(this.organizations.entries()),
+        memberships: Array.from(this.memberships.entries()),
+        users: Array.from(this.users.entries()),
+        sessions: Array.from(this.sessions.entries()).map(([k, v]) => [k, { userId: v.userId, createdAt: v.createdAt ? new Date(v.createdAt).toISOString() : new Date().toISOString() }]),
+        stores: Array.from(this.stores.entries()),
+        variants: Array.from(this.variants.entries()),
+        offers: Array.from(this.offers.entries()),
+        balances: Array.from(this.balances.entries()).map(([k, v]) => [k, {
+          ...v,
+          onHand: v.onHand ? v.onHand.toString() : '0',
+          averageUnitCost: v.averageUnitCost ? v.averageUnitCost.toString() : '0',
+          lastVerifiedAt: v.lastVerifiedAt ? new Date(v.lastVerifiedAt).toISOString() : null
+        }]),
+        stockDocuments: Array.from(this.stockDocuments.entries()),
+        saleSnapshots: Array.from(this.saleSnapshots.entries()).map(([k, v]) => [k, {
+          ...v,
+          quantity: v.quantity ? v.quantity.toString() : '0',
+          unitPrice: v.unitPrice ? v.unitPrice.toString() : '0',
+          unitCostSnapshot: v.unitCostSnapshot ? v.unitCostSnapshot.toString() : '0',
+          returnedQuantity: v.returnedQuantity ? v.returnedQuantity.toString() : '0'
+        }]),
+        expenses: Array.from(this.expenses.entries()).map(([k, v]) => [k, {
+          ...v,
+          amount: v.amount ? v.amount.toString() : '0'
+        }]),
+        reviews: Array.from(this.reviews.entries()),
+        reports: Array.from(this.reports.entries()),
+        corrections: Array.from(this.corrections.entries()),
+        credentialRequests: Array.from(this.credentialRequests.entries()),
+        inquiries: Array.from(this.inquiries.entries()),
+        notifications: Array.from(this.notifications.entries()),
+        bookmarks: Array.from(this.bookmarks.entries()),
+        auditLogs: this.auditLogs,
+        idempotencyRecords: Array.from(this.idempotencyRecords.entries())
+      };
+
+      fs.writeFileSync(this.dataFilePath, JSON.stringify(serialized, null, 2), 'utf-8');
+      return true;
+    } catch (err) {
+      console.error('[YaqinTop DB] Failed to save database to disk:', err);
+      return false;
+    }
+  }
+
+  public loadFromFile(): boolean {
+    try {
+      if (!fs.existsSync(this.dataFilePath)) {
+        return false;
+      }
+
+      const content = fs.readFileSync(this.dataFilePath, 'utf-8');
+      if (!content || !content.trim()) return false;
+
+      const data = JSON.parse(content);
+      if (!data || typeof data !== 'object') return false;
+
+      if (Array.isArray(data.organizations)) this.organizations = new Map(data.organizations);
+      if (Array.isArray(data.memberships)) this.memberships = new Map(data.memberships);
+      if (Array.isArray(data.users)) this.users = new Map(data.users);
+      if (Array.isArray(data.sessions)) {
+        this.sessions = new Map(data.sessions.map(([k, v]: [string, any]) => [k, { userId: v.userId, createdAt: new Date(v.createdAt) }]));
+      }
+      if (Array.isArray(data.stores)) this.stores = new Map(data.stores);
+      if (Array.isArray(data.variants)) this.variants = new Map(data.variants);
+      if (Array.isArray(data.offers)) this.offers = new Map(data.offers);
+      if (Array.isArray(data.balances)) {
+        this.balances = new Map(data.balances.map(([k, v]: [string, any]) => [k, {
+          ...v,
+          onHand: new Decimal(v.onHand || 0),
+          averageUnitCost: new Decimal(v.averageUnitCost || 0),
+          lastVerifiedAt: v.lastVerifiedAt ? new Date(v.lastVerifiedAt) : null
+        }]));
+      }
+      if (Array.isArray(data.stockDocuments)) this.stockDocuments = new Map(data.stockDocuments);
+      if (Array.isArray(data.saleSnapshots)) {
+        this.saleSnapshots = new Map(data.saleSnapshots.map(([k, v]: [string, any]) => [k, {
+          ...v,
+          quantity: new Decimal(v.quantity || 0),
+          unitPrice: new Decimal(v.unitPrice || 0),
+          unitCostSnapshot: new Decimal(v.unitCostSnapshot || 0),
+          returnedQuantity: new Decimal(v.returnedQuantity || 0)
+        }]));
+      }
+      if (Array.isArray(data.expenses)) {
+        this.expenses = new Map(data.expenses.map(([k, v]: [string, any]) => [k, {
+          ...v,
+          amount: new Decimal(v.amount || 0)
+        }]));
+      }
+      if (Array.isArray(data.reviews)) this.reviews = new Map(data.reviews);
+      if (Array.isArray(data.reports)) this.reports = new Map(data.reports);
+      if (Array.isArray(data.corrections)) this.corrections = new Map(data.corrections);
+      if (Array.isArray(data.credentialRequests)) this.credentialRequests = new Map(data.credentialRequests);
+      if (Array.isArray(data.inquiries)) this.inquiries = new Map(data.inquiries);
+      if (Array.isArray(data.notifications)) this.notifications = new Map(data.notifications);
+      if (Array.isArray(data.bookmarks)) this.bookmarks = new Map(data.bookmarks);
+      if (Array.isArray(data.auditLogs)) this.auditLogs = data.auditLogs;
+      if (Array.isArray(data.idempotencyRecords)) this.idempotencyRecords = new Map(data.idempotencyRecords);
+
+      return true;
+    } catch (err) {
+      console.error('[YaqinTop DB] Failed to load database from disk:', err);
+      return false;
+    }
+  }
 
   // Mutex locks for atomic operations
   private offerLocks: Map<string, Promise<void>> = new Map();
