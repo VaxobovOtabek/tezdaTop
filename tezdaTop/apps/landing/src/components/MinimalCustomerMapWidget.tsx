@@ -306,18 +306,18 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
   return (
     <div className="w-full flex flex-col gap-4">
       {/* Top Controls Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-white/10 rounded-2xl shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-white/10 rounded-2xl shadow-sm">
         {/* Radius Selector */}
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95] mr-1 flex items-center gap-1.5">
-            <Compass className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
-            <span>Qidiruv radiusi:</span>
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95] mr-1 flex items-center gap-1">
+            <Compass className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+            <span>Radius:</span>
           </span>
           {[500, 1000, 2000].map((r) => (
             <button
               key={r}
               onClick={() => setSelectedRadius(r)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-bold transition ${
                 selectedRadius === r
                   ? 'bg-[#116B50] dark:bg-[#4ADE80] text-white dark:text-[#0E1713] shadow-sm'
                   : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
@@ -329,7 +329,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         </div>
 
         {/* Demo Search Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
           <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold mr-1 shrink-0">
             Qidiruv:
           </span>
@@ -352,38 +352,38 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
       {/* Main Interactive Map Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         {/* Real Leaflet Map Viewport (Left 8 cols) */}
-        <div className="lg:col-span-8 h-[380px] sm:h-[430px] rounded-3xl relative overflow-hidden border border-[#DCE5DF] dark:border-white/10 shadow-inner flex flex-col justify-between">
+        <div className="lg:col-span-8 h-[320px] sm:h-[430px] rounded-3xl relative overflow-hidden border border-[#DCE5DF] dark:border-white/10 shadow-inner flex flex-col justify-between">
           <div ref={mapContainerRef} className="w-full h-full z-0" />
 
           {/* Floating Zoom & Center Map Controls */}
-          <div className="absolute right-3.5 bottom-3.5 z-20 flex flex-col gap-1.5 bg-white/90 dark:bg-[#14201A]/90 backdrop-blur-md p-1 rounded-xl border border-[#DCE5DF] dark:border-white/10 shadow-lg">
+          <div className="absolute right-3 bottom-3 z-20 flex flex-col gap-1.5 bg-white/90 dark:bg-[#14201A]/90 backdrop-blur-md p-1 rounded-xl border border-[#DCE5DF] dark:border-white/10 shadow-lg">
             <button
               onClick={handleZoomIn}
               title="Yaqinlashtirish"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[#172C28] dark:text-white hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#172C28] dark:text-white hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={handleZoomOut}
               title="Uzoqlashtirish"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[#172C28] dark:text-white hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#172C28] dark:text-white hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
             >
-              <Minus className="w-4 h-4" />
+              <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={handleCenter}
               title="Markazga qaytish"
-              className="w-8 h-8 rounded-lg flex items-center justify-center text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
             >
-              <Crosshair className="w-4 h-4" />
+              <Crosshair className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
           </div>
 
           {/* Leaflet Status Badge Overlay */}
-          <div className="absolute top-3.5 left-3.5 z-20 bg-white/90 dark:bg-[#14201A]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#DCE5DF] dark:border-white/10 text-[11px] font-bold text-[#172C28] dark:text-white shadow-md flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-ping" />
-            <span>Leaflet Real-Vaqt Xaritasi ({selectedRadius} m radius)</span>
+          <div className="absolute top-3 left-3 z-20 bg-white/90 dark:bg-[#14201A]/90 backdrop-blur-md px-2.5 py-1 rounded-xl border border-[#DCE5DF] dark:border-white/10 text-[10px] sm:text-[11px] font-bold text-[#172C28] dark:text-white shadow-md flex items-center gap-1.5 max-w-[calc(100%-80px)] truncate">
+            <span className="w-2 h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-ping shrink-0" />
+            <span className="truncate">Leaflet Xaritasi ({selectedRadius} m radius)</span>
           </div>
         </div>
 
