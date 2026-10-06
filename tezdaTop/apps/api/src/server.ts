@@ -20,21 +20,28 @@ import {
   Variant
 } from '@yaqintop/contracts';
 
-const app: express.Express = express();
-const PORT = process.env.PORT || 4000;
+const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 
 app.use(
   cors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'http://localhost:3002',
-      'http://localhost:3003',
-      process.env.CUSTOMER_APP_URL || '',
-      process.env.MERCHANT_APP_URL || '',
-      process.env.ADMIN_APP_URL || ''
-    ].filter(Boolean),
-    credentials: true
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      // Allow any vercel domain, localhost, or custom domain
+      if (
+        origin.includes('localhost') ||
+        origin.includes('127.0.0.1') ||
+        origin.endsWith('.vercel.app') ||
+        origin.includes('tezdatop.uz') ||
+        origin.includes('vercel.app')
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-user-id', 'x-user-email', 'x-user-role', 'x-idempotency-key']
   })
 );
 app.use(express.json({ limit: '10mb' }));
@@ -164,8 +171,8 @@ app.post('/api/v1/auth/login', (req, res) => {
 
   res.cookie('session_token', token, {
     httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true',
-    sameSite: 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
@@ -209,8 +216,8 @@ app.post('/api/v1/auth/register', (req, res) => {
 
   res.cookie('session_token', token, {
     httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true',
-    sameSite: 'lax',
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
     maxAge: 7 * 24 * 60 * 60 * 1000
   });
 
