@@ -17,7 +17,7 @@ export function checkStoreIsOpenNow(store: Store): boolean {
   const dayOfWeek = now.getDay();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  const todayHours = store.hours.find((h) => h.dayOfWeek === dayOfWeek);
+  const todayHours = store.hours.find((h: any) => h.dayOfWeek === dayOfWeek);
   if (!todayHours || todayHours.isClosed) return false;
 
   const [openH, openM] = todayHours.openTime.split(':').map(Number);
@@ -214,7 +214,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
 
 export function getMarkers(query: SearchQuery): MarkerItem[] {
   const result = searchProducts({ ...query, limit: 50 });
-  return result.items.map((it) => ({
+  return result.items.map((it: any) => ({
     storeId: it.store.id,
     name: it.store.name,
     location: it.store.location,

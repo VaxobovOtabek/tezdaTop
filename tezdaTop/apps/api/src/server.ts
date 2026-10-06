@@ -1123,7 +1123,7 @@ app.get('/api/v1/merchant/reports/export', (req, res) => {
     sanitizeCsvField(d.documentNumber),
     sanitizeCsvField(d.date),
     sanitizeCsvField(d.docType),
-    sanitizeCsvField(d.lines.map((l) => `${l.variantTitle || ''} (${l.quantity} dona)`).join('; ')),
+    sanitizeCsvField(d.lines.map((l: any) => `${l.variantTitle || ''} (${l.quantity} dona)`).join('; ')),
     sanitizeCsvField(d.totalAmount),
     sanitizeCsvField(d.supplierOrCustomer || '')
   ]);
