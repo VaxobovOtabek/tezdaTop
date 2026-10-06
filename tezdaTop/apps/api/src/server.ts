@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express';
+import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
@@ -21,6 +21,41 @@ import {
 } from '@yaqintop/contracts';
 
 const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+const PORT = process.env.PORT || 4000;
+
+export const app: Express = express();
+
+let isDbReady = false;
+let initPromise: Promise<void> | null = null;
+
+export async function ensureDbInitialized() {
+  if (isDbReady) return;
+  if (!initPromise) {
+    initPromise = (async () => {
+      const loaded = db.loadFromFile();
+      const { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured } = await import('./db/supabase.js');
+
+      if (isSupabaseConfigured()) {
+        console.log('[YaqinTop Supabase] Connecting to Supabase Cloud...');
+        const pulled = await syncAllFromSupabase(db);
+        if (!pulled || db.users.size === 0) {
+          if (!loaded || db.users.size === 0) {
+            console.log('[YaqinTop DB] Seeding initial data...');
+            await seedDatabase();
+          }
+          await syncAllToSupabase(db);
+        }
+      } else if (!loaded || db.users.size === 0) {
+        await seedDatabase();
+        db.saveToFile();
+      }
+
+      isDbReady = true;
+      console.log(`[YaqinTop DB] Ready with ${db.users.size} users, ${db.stores.size} stores, ${db.offers.size} offers.`);
+    })();
+  }
+  await initPromise;
+}
 
 app.use(
   cors({
@@ -47,6 +82,17 @@ app.use(
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Ensure DB is initialized before handling requests (for Serverless / Vercel support)
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await ensureDbInitialized();
+    next();
+  } catch (err) {
+    console.error('[YaqinTop DB Init Error]', err);
+    next();
+  }
+});
 
 // Request tracking & audit middleware
 app.use((req: Request, res: Response, next: NextFunction) => {
@@ -2444,49 +2490,6 @@ app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => 
     return res.json({ success, message: 'Database successfully synchronized with Supabase cloud' });
   } catch (err: any) {
     return res.status(500).json({ success: false, error: err?.message || 'Sync failed' });
-  }
-});
-
-let isDbReady = false;
-let initPromise: Promise<void> | null = null;
-
-export async function ensureDbInitialized() {
-  if (isDbReady) return;
-  if (!initPromise) {
-    initPromise = (async () => {
-      const loaded = db.loadFromFile();
-      const { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured } = await import('./db/supabase.js');
-
-      if (isSupabaseConfigured()) {
-        console.log('[YaqinTop Supabase] Connecting to Supabase Cloud...');
-        const pulled = await syncAllFromSupabase(db);
-        if (!pulled || db.users.size === 0) {
-          if (!loaded || db.users.size === 0) {
-            console.log('[YaqinTop DB] Seeding initial data...');
-            await seedDatabase();
-          }
-          await syncAllToSupabase(db);
-        }
-      } else if (!loaded || db.users.size === 0) {
-        await seedDatabase();
-        db.saveToFile();
-      }
-
-      isDbReady = true;
-      console.log(`[YaqinTop DB] Ready with ${db.users.size} users, ${db.stores.size} stores, ${db.offers.size} offers.`);
-    })();
-  }
-  await initPromise;
-}
-
-// Ensure DB is initialized before handling requests (for Serverless / Vercel support)
-app.use(async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    await ensureDbInitialized();
-    next();
-  } catch (err) {
-    console.error('[YaqinTop DB Init Error]', err);
-    next();
   }
 });
 
