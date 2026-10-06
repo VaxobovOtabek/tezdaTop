@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Button, Tag, StarRating, Modal, Input } from '@yaqintop/ui';
 import { Offer, Store } from '@yaqintop/contracts';
+import { apiUrl } from '../config/api.js';
 
 interface StoreFullPageViewProps {
   store: any;
@@ -181,7 +182,7 @@ export function StoreFullPageView({
     if (!store?.id) return;
     setLoadingReviews(true);
     try {
-      const res = await fetch(`/api/v1/stores/${store.id}/reviews`);
+      const res = await fetch(apiUrl(`/api/v1/stores/${store.id}/reviews`));
       if (res.ok) {
         const data = await res.json();
         setReviews(data.items || []);
@@ -211,7 +212,7 @@ export function StoreFullPageView({
 
     setIsSubmittingReview(true);
     try {
-      const res = await fetch(`/api/v1/stores/${store.id}/reviews`, {
+      const res = await fetch(apiUrl(`/api/v1/stores/${store.id}/reviews`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -250,7 +251,7 @@ export function StoreFullPageView({
 
     setIsSubmittingReport(true);
     try {
-      const res = await fetch('/api/v1/reports', {
+      const res = await fetch(apiUrl('/api/v1/reports'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

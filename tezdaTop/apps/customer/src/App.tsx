@@ -32,6 +32,7 @@ import { UserPersonalHubView } from './components/UserPersonalHubView';
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
 import { UzbekistanRegionPickerModal } from './components/UzbekistanRegionPickerModal';
+import { apiUrl } from './config/api.js';
 
 export function CustomerApp() {
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -165,7 +166,7 @@ export function CustomerApp() {
     try {
       const uLat = loc?.lat ?? userLocation?.lat ?? 41.311081;
       const uLng = loc?.lng ?? userLocation?.lng ?? 69.240562;
-      const res = await fetch(`/api/v1/stores?lat=${uLat}&lng=${uLng}&radiusM=${radiusM}${openNow ? '&openNow=true' : ''}`);
+      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}&radiusM=${radiusM}${openNow ? '&openNow=true' : ''}`));
       if (res.ok) {
         const data = await res.json();
         const items = (data.items || []).map((item: any) => {
@@ -195,8 +196,8 @@ export function CustomerApp() {
     setStoreOffersLoading(true);
     try {
       const [detailRes, offersRes] = await Promise.all([
-        fetch(`/api/v1/stores/${storeId}`),
-        fetch(`/api/v1/stores/${storeId}/offers`)
+        fetch(apiUrl(`/api/v1/stores/${storeId}`)),
+        fetch(apiUrl(`/api/v1/stores/${storeId}/offers`))
       ]);
       if (detailRes.ok) {
         const detailData = await detailRes.json();
@@ -344,7 +345,7 @@ export function CustomerApp() {
 
     const targetLoc = loc || userLocation;
     try {
-      const res = await fetch('/api/v1/search/products', {
+      const res = await fetch(apiUrl('/api/v1/search/products'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -432,7 +433,7 @@ export function CustomerApp() {
     };
 
     try {
-      const res = await fetch('/api/v1/routes', {
+      const res = await fetch(apiUrl('/api/v1/routes'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -578,7 +579,7 @@ export function CustomerApp() {
     if (!selectedResult && !selectedNearbyStore) return;
     const storeId = selectedResult?.store.id || selectedNearbyStore?.store.id;
     try {
-      const res = await fetch(`/api/v1/stores/${storeId}/reviews`, {
+      const res = await fetch(apiUrl(`/api/v1/stores/${storeId}/reviews`), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rating: reviewRating, comment: reviewComment })
@@ -604,7 +605,7 @@ export function CustomerApp() {
     if (!selectedResult && !selectedNearbyStore) return;
     const storeId = selectedResult?.store.id || selectedNearbyStore?.store.id;
     try {
-      const res = await fetch('/api/v1/reports', {
+      const res = await fetch(apiUrl('/api/v1/reports'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

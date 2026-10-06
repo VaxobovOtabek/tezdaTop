@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, Lock, Eye, EyeOff, LogIn, Sparkles, AlertTriangle, ShieldCheck, Store, Shield } from 'lucide-react';
 import { Button, Modal } from '@yaqintop/ui';
+import { apiUrl } from '../config/api.js';
 
 export interface UnifiedLoginModalProps {
   isOpen: boolean;
@@ -36,7 +37,7 @@ export function UnifiedLoginModal({
     setErrorMsg(null);
 
     try {
-      const res = await fetch('/api/v1/auth/login', {
+      const res = await fetch(apiUrl('/api/v1/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

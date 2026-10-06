@@ -21,6 +21,7 @@ import {
   FileText
 } from 'lucide-react';
 import { Button, Tag, Modal, Input } from '@yaqintop/ui';
+import { apiUrl } from '../config/api.js';
 
 interface UserPersonalHubProps {
   activeSection: 'reviews' | 'inquiries' | 'history' | 'favorites';
@@ -74,7 +75,7 @@ export function UserPersonalHubView({
   const loadUserReviews = async () => {
     setLoadingReviews(true);
     try {
-      const res = await fetch(`/api/v1/user/reviews?userId=${currentUser?.id || ''}`);
+      const res = await fetch(apiUrl(`/api/v1/user/reviews?userId=${currentUser?.id || ''}`));
       if (res.ok) {
         const data = await res.json();
         setReviews(data.items || []);
@@ -91,9 +92,9 @@ export function UserPersonalHubView({
     setLoadingInquiries(true);
     try {
       const [repRes, inqRes, storesRes] = await Promise.all([
-        fetch(`/api/v1/user/reports?userId=${currentUser?.id || ''}`),
-        fetch(`/api/v1/user/inquiries?userId=${currentUser?.id || ''}`),
-        fetch('/api/v1/search?query=')
+        fetch(apiUrl(`/api/v1/user/reports?userId=${currentUser?.id || ''}`)),
+        fetch(apiUrl(`/api/v1/user/inquiries?userId=${currentUser?.id || ''}`)),
+        fetch(apiUrl('/api/v1/search?query='))
       ]);
       if (repRes.ok) {
         const repData = await repRes.json();
@@ -154,7 +155,7 @@ export function UserPersonalHubView({
   const handleDeleteReview = async (reviewId: string) => {
     if (!window.confirm('Haqiqatan ham ushbu sharhni o‘chirmoqchimisiz?')) return;
     try {
-      const res = await fetch(`/api/v1/user/reviews/${reviewId}`, { method: 'DELETE' });
+      const res = await fetch(apiUrl(`/api/v1/user/reviews/${reviewId}`), { method: 'DELETE' });
       if (res.ok) {
         onShowToast('Sharh o‘chirildi');
         loadUserReviews();
@@ -174,7 +175,7 @@ export function UserPersonalHubView({
 
     setIsSubmittingInquiry(true);
     try {
-      const res = await fetch('/api/v1/user/inquiries', {
+      const res = await fetch(apiUrl('/api/v1/user/inquiries'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
