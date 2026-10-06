@@ -306,3 +306,135 @@ export async function syncAllToSupabase(db: InMemoryDatabase): Promise<boolean> 
     return false;
   }
 }
+
+/**
+ * Pull all data from Supabase Cloud and hydrate in-memory DB
+ */
+export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean> {
+  if (!supabase) return false;
+
+  try {
+    console.log('[Supabase Sync] Pulling tables from Supabase Cloud...');
+
+    // 1. Organizations
+    const { data: orgs, error: orgErr } = await supabase.from('organizations').select('*');
+    if (!orgErr && orgs && orgs.length > 0) {
+      for (const o of orgs) {
+        db.organizations.set(o.id, {
+          id: o.id,
+          name: o.name,
+          inn: o.inn || o.tin || undefined,
+          type: o.type || 'RETAIL',
+          status: o.status || 'ACTIVE',
+          region: o.region || undefined,
+          city: o.city || undefined,
+          district: o.district || undefined,
+          createdAt: o.created_at
+        });
+      }
+    }
+
+    // 2. Users
+    const { data: users, error: userErr } = await supabase.from('users').select('*');
+    if (!userErr && users && users.length > 0) {
+      for (const u of users) {
+        db.users.set(u.id, {
+          id: u.id,
+          phone: u.phone,
+          email: u.email || `${u.phone.replace(/[^0-9]/g, '')}@yaqintop.uz`,
+          fullName: u.full_name,
+          role: u.role as any,
+          status: u.status || 'ACTIVE',
+          passwordHash: u.password_hash || 'DemoPass123!',
+          createdAt: u.created_at,
+          updatedAt: u.updated_at
+        });
+      }
+    }
+
+    // 3. Stores
+    const { data: stores, error: storeErr } = await supabase.from('stores').select('*');
+    if (!storeErr && stores && stores.length > 0) {
+      for (const s of stores) {
+        db.stores.set(s.id, {
+          id: s.id,
+          organizationId: s.organization_id,
+          name: s.name,
+          address: s.address,
+          location: {
+            lat: s.latitude,
+            lng: s.longitude
+          },
+          phone: s.phone || undefined,
+          telegram: s.telegram || undefined,
+          hours: s.working_hours || {
+            open: '08:00',
+            close: '22:00',
+            is24Hours: false,
+            days: [1, 2, 3, 4, 5, 6, 7]
+          },
+          photos: s.photos || [],
+          status: s.status || (s.is_active ? 'ACTIVE' : 'SUSPENDED'),
+          rating: s.rating || 5.0,
+          reviewCount: s.review_count || 0,
+          createdAt: s.created_at,
+          updatedAt: s.updated_at
+        } as any);
+      }
+    }
+
+    // 4. Variants
+    const { data: variants, error: varErr } = await supabase.from('variants').select('*');
+    if (!varErr && variants && variants.length > 0) {
+      for (const v of variants) {
+        db.variants.set(v.id, {
+          id: v.id,
+          organizationId: v.organization_id,
+          title: v.name,
+          name: v.name,
+          barcode: v.barcode || undefined,
+          sku: v.sku || undefined,
+          category: v.category || 'Boshqa',
+          packUnit: v.unit || 'dona',
+          unit: v.unit || 'dona',
+          imageUrl: v.image_url || undefined,
+          description: v.description || undefined,
+          brand: (v.attributes as any)?.brand || '',
+          packSize: (v.attributes as any)?.packSize || '1 dona',
+          aliases: (v.attributes as any)?.aliases || [],
+          createdAt: v.created_at,
+          updatedAt: v.updated_at
+        } as any);
+      }
+    }
+
+    // 5. Offers
+    const { data: offers, error: offErr } = await supabase.from('offers').select('*');
+    if (!offErr && offers && offers.length > 0) {
+      for (const o of offers) {
+        const stockOnHand = o.stock_on_hand ?? o.stock_count ?? (o.in_stock ? 10 : 0);
+        const variant = db.variants.get(o.variant_id);
+        db.offers.set(o.id, {
+          id: o.id,
+          storeId: o.store_id,
+          variantId: o.variant_id,
+          variant: variant as any,
+          price: String(o.price),
+          originalPrice: o.original_price ? String(o.original_price) : undefined,
+          currency: o.currency || 'UZS',
+          stockOnHand: Number(stockOnHand),
+          stockVerifiedAt: o.stock_verified_at || o.updated_at || new Date().toISOString(),
+          freshness: db.computeFreshness(o.stock_verified_at || o.updated_at),
+          status: o.is_available ? 'ACTIVE' : 'INACTIVE',
+          version: 1
+        } as any);
+      }
+    }
+
+    console.log(`[Supabase Sync] Successfully loaded: ${db.organizations.size} orgs, ${db.users.size} users, ${db.stores.size} stores, ${db.variants.size} variants, ${db.offers.size} offers.`);
+    return true;
+  } catch (err) {
+    console.error('[Supabase Sync] Failed to pull data from Supabase Cloud:', err);
+    return false;
+  }
+}

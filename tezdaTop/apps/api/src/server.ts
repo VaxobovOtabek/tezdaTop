@@ -2440,34 +2440,56 @@ app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => 
   }
 });
 
-// Initialize database from disk or seed on first startup, and sync with Supabase
-async function startServer() {
-  const loaded = db.loadFromFile();
-  if (!loaded || db.users.size === 0) {
-    console.log('[YaqinTop DB] No existing database file found. Seeding initial pilot data...');
-    await seedDatabase();
-    db.saveToFile();
-    console.log('[YaqinTop DB] Initial database seeded and saved to disk at apps/api/data/yaqintop_db.json');
-  } else {
-    console.log(`[YaqinTop DB] Loaded persistent database from disk: ${db.users.size} users, ${db.organizations.size} orgs, ${db.stores.size} stores, ${db.offers.size} offers.`);
-  }
+let isDbReady = false;
+let initPromise: Promise<void> | null = null;
 
-  // Automatic Supabase synchronization on startup
-  try {
-    const { syncAllToSupabase, isSupabaseConfigured } = await import('./db/supabase.js');
-    if (isSupabaseConfigured()) {
-      console.log('[YaqinTop Supabase] Synchronizing database with Supabase cloud...');
-      await syncAllToSupabase(db);
-    }
-  } catch (err) {
-    console.error('[YaqinTop Supabase] Startup sync error:', err);
-  }
+export async function ensureDbInitialized() {
+  if (isDbReady) return;
+  if (!initPromise) {
+    initPromise = (async () => {
+      const loaded = db.loadFromFile();
+      const { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured } = await import('./db/supabase.js');
 
-  app.listen(PORT, () => {
-    console.log(`[YaqinTop API] Server running on http://localhost:${PORT}/api/v1`);
-  });
+      if (isSupabaseConfigured()) {
+        console.log('[YaqinTop Supabase] Connecting to Supabase Cloud...');
+        const pulled = await syncAllFromSupabase(db);
+        if (!pulled || db.users.size === 0) {
+          if (!loaded || db.users.size === 0) {
+            console.log('[YaqinTop DB] Seeding initial data...');
+            await seedDatabase();
+          }
+          await syncAllToSupabase(db);
+        }
+      } else if (!loaded || db.users.size === 0) {
+        await seedDatabase();
+        db.saveToFile();
+      }
+
+      isDbReady = true;
+      console.log(`[YaqinTop DB] Ready with ${db.users.size} users, ${db.stores.size} stores, ${db.offers.size} offers.`);
+    })();
+  }
+  await initPromise;
 }
 
-startServer();
+// Ensure DB is initialized before handling requests (for Serverless / Vercel support)
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await ensureDbInitialized();
+    next();
+  } catch (err) {
+    console.error('[YaqinTop DB Init Error]', err);
+    next();
+  }
+});
+
+// Start persistent server if not running in Serverless / Vercel environment
+if (!process.env.VERCEL) {
+  ensureDbInitialized().then(() => {
+    app.listen(PORT, () => {
+      console.log(`[YaqinTop API] Server running on http://localhost:${PORT}/api/v1`);
+    });
+  });
+}
 
 export default app;
