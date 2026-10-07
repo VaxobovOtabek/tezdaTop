@@ -80,7 +80,7 @@ export function LandingApp() {
   const apps = [
     {
       id: 'customer',
-      url: 'http://localhost:3000',
+      url: '/customer',
       title: 'Xaridor Ilovasi',
       roleTitle: 'Aholi va Xaridorlar uchun',
       badge: 'Xaridor Portali',
@@ -100,7 +100,7 @@ export function LandingApp() {
     },
     {
       id: 'merchant',
-      url: 'http://localhost:3001',
+      url: '/owner',
       title: 'Do‘kon & Tashkilot Kabineti',
       roleTitle: 'Tadbirkor va Savdo Nuqtalari uchun',
       badge: 'Biznes Portali',
@@ -120,7 +120,7 @@ export function LandingApp() {
     },
     {
       id: 'moderator',
-      url: 'http://localhost:3004',
+      url: '/moderator',
       title: 'Moderator Portali',
       roleTitle: 'Moderatorlar va Kontent Nazoratchilari uchun',
       badge: 'Moderatsiya Markazi',
@@ -140,7 +140,7 @@ export function LandingApp() {
     },
     {
       id: 'admin',
-      url: 'http://localhost:3002',
+      url: '/admin',
       title: 'Boshqaruv Admin Paneli',
       roleTitle: 'Tizim Administratorlari uchun',
       badge: 'Boshqaruv Markazi',
@@ -236,7 +236,7 @@ export function LandingApp() {
             {/* Desktop Direct Portal Links (lg and above) */}
             <div className="hidden lg:flex items-center gap-2">
               <a
-                href="http://localhost:3000"
+                href="/customer"
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
@@ -245,7 +245,7 @@ export function LandingApp() {
                 <span>Xaridor</span>
               </a>
               <a
-                href="http://localhost:3001"
+                href="/owner"
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 rounded-xl bg-[#155E46] hover:bg-[#116B50] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
@@ -254,7 +254,7 @@ export function LandingApp() {
                 <span>Do‘kon</span>
               </a>
               <a
-                href="http://localhost:3004"
+                href="/moderator"
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
@@ -263,7 +263,7 @@ export function LandingApp() {
                 <span>Moderator</span>
               </a>
               <a
-                href="http://localhost:3002"
+                href="/admin"
                 target="_blank"
                 rel="noreferrer"
                 className="px-3 py-1.5 rounded-xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-xs font-bold transition flex items-center gap-1.5 shadow-sm"
@@ -275,7 +275,7 @@ export function LandingApp() {
 
             {/* Mobile / Tablet Primary Xaridor CTA */}
             <a
-              href="http://localhost:3000"
+              href="/customer"
               target="_blank"
               rel="noreferrer"
               className="lg:hidden px-3 py-1.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center gap-1 shadow-sm shrink-0"
@@ -304,7 +304,7 @@ export function LandingApp() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <a
-                  href="http://localhost:3000"
+                  href="/customer"
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -314,7 +314,7 @@ export function LandingApp() {
                   <span className="truncate">Xaridor</span>
                 </a>
                 <a
-                  href="http://localhost:3001"
+                  href="/owner"
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -324,7 +324,7 @@ export function LandingApp() {
                   <span className="truncate">Do‘kon</span>
                 </a>
                 <a
-                  href="http://localhost:3004"
+                  href="/moderator"
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -334,7 +334,7 @@ export function LandingApp() {
                   <span className="truncate">Moderator</span>
                 </a>
                 <a
-                  href="http://localhost:3002"
+                  href="/admin"
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => setIsMobileMenuOpen(false)}
@@ -681,7 +681,7 @@ export function LandingApp() {
                       {item.isOpenNow ? '● Ochiq' : '○ Yopiq'}
                     </span>
                     <a
-                      href="http://localhost:3000"
+                      href="/customer"
                       target="_blank"
                       rel="noreferrer"
                       className="text-[#116B50] dark:text-[#4ADE80] hover:underline font-bold"
@@ -786,7 +786,7 @@ export function LandingApp() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:flex lg:flex-wrap justify-center gap-2.5 sm:gap-3 mt-6 sm:mt-8 w-full sm:w-auto">
             <a
-              href="http://localhost:3000"
+              href="/customer"
               target="_blank"
               rel="noreferrer"
               className="w-full sm:w-auto px-5 sm:px-6 py-3 rounded-2xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#116B50]/30"
@@ -795,7 +795,7 @@ export function LandingApp() {
               <span>Xaridor Ilovasi</span>
             </a>
             <a
-              href="http://localhost:3001"
+              href="/owner"
               target="_blank"
               rel="noreferrer"
               className="w-full sm:w-auto px-5 sm:px-6 py-3 rounded-2xl bg-[#155E46] hover:bg-[#116B50] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#155E46]/30"
@@ -804,7 +804,7 @@ export function LandingApp() {
               <span>Do‘kon Kabineti</span>
             </a>
             <a
-              href="http://localhost:3004"
+              href="/moderator"
               target="_blank"
               rel="noreferrer"
               className="w-full sm:w-auto px-5 sm:px-6 py-3 rounded-2xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#116B50]/30"
@@ -813,7 +813,7 @@ export function LandingApp() {
               <span>Moderator Portali</span>
             </a>
             <a
-              href="http://localhost:3002"
+              href="/admin"
               target="_blank"
               rel="noreferrer"
               className="w-full sm:w-auto px-5 sm:px-6 py-3 rounded-2xl bg-[#2D6A4F] hover:bg-[#1B4332] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-[#2D6A4F]/30"
@@ -836,11 +836,11 @@ export function LandingApp() {
         </div>
 
         <div className="flex items-center justify-center md:justify-end gap-3 sm:gap-4 font-semibold text-[11px] flex-wrap">
-          <a href="http://localhost:3000" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Xaridor Ilovasi</a>
-          <a href="http://localhost:3001" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Do‘kon Kabineti</a>
-          <a href="http://localhost:3004" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Moderator Portali</a>
-          <a href="http://localhost:3002" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Admin Paneli</a>
-          <a href="http://localhost:4000/api/v1/health" target="_blank" rel="noreferrer" className="text-[#116B50] dark:text-[#4ADE80] hover:underline">API Holati</a>
+          <a href="/customer" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Xaridor Ilovasi</a>
+          <a href="/owner" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Do‘kon Kabineti</a>
+          <a href="/moderator" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Moderator Portali</a>
+          <a href="/admin" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Admin Paneli</a>
+          <a href="/api/v1/health" target="_blank" rel="noreferrer" className="text-[#116B50] dark:text-[#4ADE80] hover:underline">API Holati</a>
         </div>
       </footer>
     </div>

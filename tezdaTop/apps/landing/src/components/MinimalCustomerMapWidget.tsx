@@ -459,7 +459,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
           {/* Action Link */}
           <div className="mt-4 pt-3 border-t border-[#DCE5DF] dark:border-white/10">
             <a
-              href="http://localhost:3000"
+              href="/customer"
               target="_blank"
               rel="noreferrer"
               className="w-full py-2.5 px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md"

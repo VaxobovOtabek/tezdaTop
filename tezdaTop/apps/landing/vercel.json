@@ -1,6 +1,26 @@
 {
   "rewrites": [
     {
+      "source": "/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/customer/:path*",
+      "destination": "https://tezda-customer.vercel.app/:path*"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "https://tezda-admin.vercel.app/:path*"
+    },
+    {
+      "source": "/moderator/:path*",
+      "destination": "https://tezda-moderator.vercel.app/:path*"
+    },
+    {
+      "source": "/owner/:path*",
+      "destination": "https://tezda-merchant.vercel.app/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
