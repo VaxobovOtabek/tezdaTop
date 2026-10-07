@@ -283,33 +283,9 @@ export function MerchantApp() {
   ]);
 
   // Current User Session State (Loads from localStorage or null for guest)
-  const [currentUser, setCurrentUser] = useState<any>(() => {
-    try {
-      const saved = localStorage.getItem('yaqintop_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (['OWNER', 'MANAGER', 'OPERATOR', 'ADMIN', 'SUPERADMIN'].includes(parsed.role)) {
-          return parsed;
-        }
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(() => {
-    try {
-      const saved = localStorage.getItem('yaqintop_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return !['OWNER', 'MANAGER', 'OPERATOR', 'ADMIN', 'SUPERADMIN'].includes(parsed.role);
-      }
-      return true;
-    } catch {
-      return true;
-    }
-  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
 
   // Modals
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);

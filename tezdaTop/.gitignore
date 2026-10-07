@@ -6,3 +6,4 @@ dist
 .env
 coverage
 pnpm-debug.log*
+.local/

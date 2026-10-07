@@ -48,6 +48,7 @@ import {
 import { Button, Tag, Modal, Input } from '@yaqintop/ui';
 import { Report, Store as StoreType, User } from '@yaqintop/contracts';
 import { ApiExplorer } from './components/ApiExplorer';
+import { SupabaseUsagePanel } from './components/SupabaseUsagePanel';
 import { AdminMapHub, EnrichedStore } from './components/AdminMapHub';
 import { RolesGuideMatrix } from './components/RolesGuideMatrix';
 import { RequestsInquiriesHub } from './components/RequestsInquiriesHub';
@@ -141,37 +142,13 @@ export function AdminApp() {
   }, [isDarkMode]);
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
+    'overview' | 'supabase-usage' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
   >('overview');
 
   // Current User Session State (Loads from localStorage or null for guest)
-  const [currentUser, setCurrentUser] = useState<any>(() => {
-    try {
-      const saved = localStorage.getItem('yaqintop_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.role === 'ADMIN' || parsed.role === 'SUPERADMIN') {
-          return parsed;
-        }
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(() => {
-    try {
-      const saved = localStorage.getItem('yaqintop_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return !(parsed.role === 'ADMIN' || parsed.role === 'SUPERADMIN');
-      }
-      return true;
-    } catch {
-      return true;
-    }
-  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
 
   const [overviewStats, setOverviewStats] = useState({ pendingApps: 0, openReports: 0, overdueCorrections: 0 });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
@@ -948,6 +925,7 @@ export function AdminApp() {
           <nav className="flex flex-col gap-1">
             {[
               { id: 'overview', label: 'Umumiy holat', icon: LayoutDashboard },
+              { id: 'supabase-usage', label: 'Supabase limitlari', icon: Database, adminOnly: true },
               {
                 id: 'map-hub',
                 label: 'Xarita & Moderatsiya markazi',
@@ -1025,6 +1003,7 @@ export function AdminApp() {
         {/* Content Area */}
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
           {/* MAP HUB TAB */}
+          {activeTab === 'supabase-usage' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && <SupabaseUsagePanel />}
           {activeTab === 'map-hub' && (
             <AdminMapHub
               stores={stores}

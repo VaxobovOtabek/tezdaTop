@@ -54,14 +54,7 @@ export function CustomerApp() {
   }, [isDarkMode]);
 
   // Current User Session State (Null by default for Guest)
-  const [currentUser, setCurrentUser] = useState<any>(() => {
-    try {
-      const saved = localStorage.getItem('yaqintop_user');
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<any>(null);
 
   const [authErrorBanner, setAuthErrorBanner] = useState<string | null>(null);
 

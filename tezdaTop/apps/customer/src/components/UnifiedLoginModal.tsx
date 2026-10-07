@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, LogIn, Sparkles, AlertTriangle, ShieldCheck, Store, Shield } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, LogIn, AlertTriangle } from 'lucide-react';
 import { Button, Modal } from '@yaqintop/ui';
 import { apiUrl } from '../config/api.js';
 
@@ -18,15 +18,15 @@ export function UnifiedLoginModal({
   appTitle = 'YaqinTop',
   initialError = null
 }: UnifiedLoginModalProps) {
-  const [login, setLogin] = useState('customer');
-  const [password, setPassword] = useState('DemoPass123!');
-  const [showPassword, setShowPassword] = useState(true);
+  const [login, setLogin] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(initialError);
 
-  const handleLogin = async (loginUser?: string, loginPassword?: string) => {
-    const targetLogin = (loginUser || login).trim();
-    const targetPass = (loginPassword || password).trim();
+  const handleLogin = async () => {
+    const targetLogin = login.trim();
+    const targetPass = password;
 
     if (!targetLogin || !targetPass) {
       setErrorMsg('Login (telefon raqam yoki foydalanuvchi nomi) va parolni kiriting');
@@ -78,11 +78,6 @@ export function UnifiedLoginModal({
     }
   };
 
-  const handleQuickLogin = (demoLogin: string, demoPass: string) => {
-    setLogin(demoLogin);
-    setPassword(demoPass);
-    handleLogin(demoLogin, demoPass);
-  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - Tizimga Kirish`}>
@@ -160,71 +155,6 @@ export function UnifiedLoginModal({
           </Button>
         </form>
 
-        {/* Quick Demo Logins Section */}
-        <div className="pt-3 border-t border-[#DCE5DF] dark:border-[#22332C]">
-          <div className="flex items-center gap-1 text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] uppercase tracking-wider mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            <span>Tezkor Demo Profil Tanlash (Middleware Yo‘naltiruvchi)</span>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('customer', 'DemoPass123!')}
-              className="p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1C362A] text-left transition flex items-center justify-between"
-            >
-              <div>
-                <strong className="block text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1">
-                  <User className="w-3.5 h-3.5 text-[#116B50]" /> Otabek (Xaridor)
-                </strong>
-                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">localhost:3000</span>
-              </div>
-              <span className="text-[10px] font-bold text-[#116B50] dark:text-[#4ADE80]">Kirish →</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('owner', 'DemoPass123!')}
-              className="p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1C362A] text-left transition flex items-center justify-between"
-            >
-              <div>
-                <strong className="block text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1">
-                  <Store className="w-3.5 h-3.5 text-[#155E46]" /> Oybek (Do‘kon Egasi)
-                </strong>
-                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">localhost:3001</span>
-              </div>
-              <span className="text-[10px] font-bold text-[#155E46] dark:text-[#52B788]">Kirish →</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('moderator', 'DemoPass123!')}
-              className="p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1C362A] text-left transition flex items-center justify-between"
-            >
-              <div>
-                <strong className="block text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5 text-[#116B50]" /> Nilufar (Moderator)
-                </strong>
-                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">localhost:3004</span>
-              </div>
-              <span className="text-[10px] font-bold text-[#116B50] dark:text-[#4ADE80]">Kirish →</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => handleQuickLogin('admin', 'DemoPass123!')}
-              className="p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1C362A] text-left transition flex items-center justify-between"
-            >
-              <div>
-                <strong className="block text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5 text-[#2D6A4F]" /> Administrator
-                </strong>
-                <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">localhost:3002</span>
-              </div>
-              <span className="text-[10px] font-bold text-[#2D6A4F] dark:text-[#74C69D]">Kirish →</span>
-            </button>
-          </div>
-        </div>
       </div>
     </Modal>
   );

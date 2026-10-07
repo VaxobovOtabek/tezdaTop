@@ -128,33 +128,9 @@ export function ModeratorApp() {
   >('overview');
 
   // Current User Session State (Loads from localStorage or null for guest)
-  const [currentUser, setCurrentUser] = useState<any>(() => {
-    try {
-      const saved = localStorage.getItem('yaqintop_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.role === 'MODERATOR' || parsed.role === 'ADMIN' || parsed.role === 'SUPERADMIN') {
-          return parsed;
-        }
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  });
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(() => {
-    try {
-      const saved = localStorage.getItem('yaqintop_user');
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return !(parsed.role === 'MODERATOR' || parsed.role === 'ADMIN' || parsed.role === 'SUPERADMIN');
-      }
-      return true;
-    } catch {
-      return true;
-    }
-  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
 
   const [overviewStats, setOverviewStats] = useState({ pendingApps: 0, openReports: 0, overdueCorrections: 0 });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);

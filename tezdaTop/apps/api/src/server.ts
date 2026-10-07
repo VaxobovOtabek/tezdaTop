@@ -9,6 +9,7 @@ import { calculateDistanceMetres } from './db/spatial.js';
 import { searchProducts, getMarkers, checkStoreIsOpenNow } from './services/search.service.js';
 import { routingService } from './services/routing.service.js';
 import { sanitizeCsvField } from './services/ledger.service.js';
+import { getSupabaseUsage } from './services/supabase-usage.service.js';
 import {
   SearchQuerySchema,
   RouteRequestSchema,
@@ -130,34 +131,24 @@ function getCurrentUser(req: Request) {
     }
   }
 
-  // Fallback: Check headers or body (for client state without cookies or demo mode)
-  const headerUserId = req.headers['x-user-id'] as string;
-  const headerUserEmail = req.headers['x-user-email'] as string;
-  const bodyUserId = req.body?.userId;
-  const bodyUserEmail = req.body?.userEmail;
-
-  const targetId = headerUserId || bodyUserId;
-  const targetEmail = headerUserEmail || bodyUserEmail;
-
-  if (targetId && db.users.has(targetId)) {
-    const u = db.users.get(targetId)!;
-    if (u.status !== 'SUSPENDED') return u;
-  }
-
-  if (targetEmail) {
-    const normalized = targetEmail.toLowerCase().trim();
-    const u = Array.from(db.users.values()).find(
-      user => user.email.toLowerCase() === normalized || user.id === targetEmail
-    );
-    if (u && u.status !== 'SUSPENDED') return u;
-  }
-
-  // Demo fallback to first active customer or admin
-  const defaultUser = Array.from(db.users.values()).find(u => u.status === 'ACTIVE');
-  return defaultUser || null;
+  return null;
 }
 
 // ================= HEALTH CHECKS =================
+app.get('/api/v1/admin/supabase-usage', async (req: Request, res: Response) => {
+  // Monitoring requires a real session, never the existing demo/header fallback.
+  const token = req.cookies?.session_token || req.headers.authorization?.replace('Bearer ', '');
+  const session = token ? db.sessions.get(token) : undefined;
+  const user = session ? db.users.get(session.userId) : undefined;
+  if (!user || user.status === 'SUSPENDED') return res.status(401).json({ message: 'Tizimga kiring.' });
+  if (!['ADMIN', 'SUPERADMIN'].includes(user.role)) return res.status(403).json({ message: 'Faqat administrator uchun.' });
+  const period = req.query.period || 'day';
+  if (period !== 'day' && period !== 'week' && period !== 'month') return res.status(400).json({ message: 'Davr noto‘g‘ri.' });
+  res.setHeader('Cache-Control', 'no-store');
+  try { return res.json(await getSupabaseUsage(period)); }
+  catch { return res.status(503).json({ message: 'Supabase monitoringi vaqtincha mavjud emas. Lokal sozlamalarni tekshiring.' }); }
+});
+
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
@@ -243,7 +234,7 @@ app.post('/api/v1/auth/login', (req, res) => {
     }
   }
 
-  if (!matchedUser || (matchedUser.passwordHash !== password && password !== 'DemoPass123!')) {
+  if (!matchedUser || matchedUser.passwordHash !== password) {
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Login yoki parol noto‘g‘ri' });
     return;
   }
