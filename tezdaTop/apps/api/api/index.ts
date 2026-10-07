@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
+import type { Request, Response } from 'express';
 import app, { ensureDbInitialized } from '../src/server.js';
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   try {
     if (ensureDbInitialized) {
       await ensureDbInitialized();
