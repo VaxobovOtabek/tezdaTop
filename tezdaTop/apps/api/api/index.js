@@ -1,15 +1,14 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const server = require('../dist/server.js');
 const app = server.default || server.app || server;
 const ensureDbInitialized = server.ensureDbInitialized;
 
-export default async function handler(req: any, res: any) {
+module.exports = async (req, res) => {
   try {
     if (ensureDbInitialized) {
       await ensureDbInitialized();
     }
     return app(req, res);
-  } catch (err: any) {
+  } catch (err) {
     console.error('[YaqinTop Lambda Error]', err);
     return res.status(500).json({
       code: 'SERVER_ERROR',
@@ -17,4 +16,4 @@ export default async function handler(req: any, res: any) {
       error: err?.message || String(err)
     });
   }
-}
+};
