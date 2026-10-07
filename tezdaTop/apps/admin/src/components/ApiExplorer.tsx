@@ -462,7 +462,7 @@ export function ApiExplorer() {
       setDurationMs(Math.round(endTime - startTime));
       setStatusCode(0);
       setStatusText('Network Error');
-      setErrorDetails(`So‘rov yuborishda xatolik yuz berdi: ${err.message}. Server (localhost:4000) faol ekanligini tekshiring.`);
+      setErrorDetails(`So‘rov yuborishda xatolik yuz berdi: ${err.message}. Backend bilan ulanishni tekshiring.`);
       setResponseData(null);
     } finally {
       setIsLoading(false);
@@ -564,7 +564,7 @@ export function ApiExplorer() {
             </span>
           </div>
           <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
-            <strong className="text-[#116B50] dark:text-[#4ADE80]">localhost:4000/api/v1</strong> backend ma’lumotlarini real vaqt rejimida visual ko‘rish, sinash va monitoring qilish
+            <strong className="text-[#116B50] dark:text-[#4ADE80]">yaqintop.uz/api/v1</strong> backend ma’lumotlarini real vaqt rejimida visual ko‘rish, sinash va monitoring qilish
           </p>
         </div>
 

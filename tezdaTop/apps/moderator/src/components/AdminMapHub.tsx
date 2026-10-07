@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
+import { matchesRegion, normalizeArea, mapViewport } from './map-geography';
 import 'leaflet/dist/leaflet.css';
 import {
   MapPin,
@@ -46,6 +47,7 @@ interface AdminMapHubProps {
 const REGION_OPTIONS = [
   'Barcha viloyatlar',
   'Toshkent shahri',
+  'Toshkent viloyati',
   'Samarqand viloyati',
   'Farg‘ona viloyati',
   'Andijon viloyati',
@@ -60,21 +62,10 @@ const REGION_OPTIONS = [
   'Qoraqalpog‘iston Respublikasi'
 ];
 
-const DISTRICT_OPTIONS = [
-  'Barcha tumanlar',
-  'Yunusobod',
-  'Mirobod',
-  'Chilonzor',
-  'Shayxontohur',
-  'Yakkasaroy',
-  'Mirzo Ulug‘bek',
-  'Olmazor',
-  'Uchtepa',
-  'Yashnobod',
-  'Sergeli',
-  'Bektemir',
-  'Samarqand shahri'
-];
+const validLocation = (store: EnrichedStore) => !!store.location &&
+  Number.isFinite(store.location.lat) && Number.isFinite(store.location.lng) &&
+  Math.abs(store.location.lat) <= 90 && Math.abs(store.location.lng) <= 180;
+
 
 export function AdminMapHub({
   stores,
@@ -95,7 +86,14 @@ export function AdminMapHub({
   const [filterMode, setFilterMode] = useState<'ALL' | 'WITH_ISSUES' | 'ACTIVE' | 'PENDING'>('ALL');
 
   // Filter stores
-  const filteredStores = stores.filter((st) => {
+  const districtOptions = useMemo(() => [
+    'Barcha tumanlar',
+    ...Array.from(new Set(stores.filter(st => matchesRegion(st, selectedRegion))
+      .flatMap(st => [st.district, st.city]).filter((name): name is string => !!name?.trim())))
+      .sort((a, b) => a.localeCompare(b, 'uz'))
+  ], [stores, selectedRegion]);
+
+  const filteredStores = useMemo(() => stores.filter((st) => {
     const query = searchQuery.toLowerCase().trim();
     const matchSearch =
       !query ||
@@ -105,15 +103,12 @@ export function AdminMapHub({
       (st.organizationName && st.organizationName.toLowerCase().includes(query)) ||
       st.phone.includes(query);
 
-    const matchRegion =
-      selectedRegion === 'Barcha viloyatlar' ||
-      st.region === selectedRegion ||
-      (selectedRegion === 'Toshkent shahri' && (!st.region || st.region.includes('Toshkent')));
+    const matchRegion = matchesRegion(st, selectedRegion);
 
     const matchDistrict =
       selectedDistrict === 'Barcha tumanlar' ||
-      st.city === selectedDistrict ||
-      st.district === selectedDistrict ||
+      normalizeArea(st.city) === normalizeArea(selectedDistrict) ||
+      normalizeArea(st.district) === normalizeArea(selectedDistrict) ||
       st.address.toLowerCase().includes(selectedDistrict.toLowerCase());
 
     const matchMode =
@@ -126,7 +121,11 @@ export function AdminMapHub({
         : st.status === 'PENDING' || st.status === 'NEEDS_CHANGES';
 
     return matchSearch && matchRegion && matchDistrict && matchMode;
-  });
+  }), [stores, searchQuery, selectedRegion, selectedDistrict, filterMode]);
+
+  useEffect(() => {
+    setSelectedStore(current => current && filteredStores.some(store => store.id === current.id) ? current : null);
+  }, [filteredStores]);
 
   const storesWithIssuesCount = stores.filter(
     (s) => (s.openReportsCount || 0) > 0 || s.hasPendingModeration || s.status === 'PENDING'
@@ -178,9 +177,9 @@ export function AdminMapHub({
 
     markersLayerRef.current.clearLayers();
 
-    filteredStores.forEach((store) => {
-      const lat = store.location?.lat || 41.311081;
-      const lng = store.location?.lng || 69.240562;
+    filteredStores.filter(validLocation).forEach((store) => {
+      const lat = store.location.lat;
+      const lng = store.location.lng;
       const hasIssues = (store.openReportsCount || 0) > 0 || store.status === 'PENDING' || store.status === 'NEEDS_CHANGES';
       const issueCount = store.openReportsCount || (store.status === 'PENDING' ? 1 : 0);
 
@@ -234,14 +233,19 @@ export function AdminMapHub({
       markersLayerRef.current?.addLayer(marker);
     });
 
-    // Auto-fit bounds if we have stores
-    if (filteredStores.length > 0) {
-      const bounds = L.latLngBounds(
-        filteredStores.map((s) => [s.location?.lat || 41.311081, s.location?.lng || 69.240562])
-      );
-      mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
-    }
   }, [filteredStores]);
+
+  // A geographic filter must move the map even when other filters return no stores.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    const locations = filteredStores.filter(validLocation).map(store =>
+      [store.location.lat, store.location.lng] as [number, number]);
+    const viewport = mapViewport(selectedRegion, selectedDistrict, locations);
+    if (viewport.locations) map.fitBounds(L.latLngBounds(viewport.locations), { padding: [50, 50], maxZoom: 15 });
+    else if (viewport.center) map.setView([viewport.center[0], viewport.center[1]], viewport.center[2], { animate: true });
+
+  }, [filteredStores, selectedRegion, selectedDistrict]);
 
   const handleFocusStore = (store: EnrichedStore) => {
     setSelectedStore(store);
@@ -299,7 +303,8 @@ export function AdminMapHub({
         <div>
           <select
             value={selectedRegion}
-            onChange={(e) => setSelectedRegion(e.target.value)}
+            aria-label="Viloyat"
+            onChange={(e) => { setSelectedRegion(e.target.value); setSelectedDistrict('Barcha tumanlar'); }}
             className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
           >
             {REGION_OPTIONS.map((reg) => (
@@ -313,11 +318,12 @@ export function AdminMapHub({
         {/* District */}
         <div>
           <select
+            aria-label="Tuman yoki shahar"
             value={selectedDistrict}
             onChange={(e) => setSelectedDistrict(e.target.value)}
             className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
           >
-            {DISTRICT_OPTIONS.map((dist) => (
+            {districtOptions.map((dist) => (
               <option key={dist} value={dist}>
                 {dist}
               </option>
@@ -439,7 +445,7 @@ export function AdminMapHub({
                 <div className="flex items-center gap-2">
                   <Building2 className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
                   <span>
-                    {selectedStore.region || 'Toshkent shahri'}, {selectedStore.city || 'Yunusobod'}
+                    {selectedStore.region || 'Viloyat ko‘rsatilmagan'}, {selectedStore.district || selectedStore.city || 'Tuman ko‘rsatilmagan'}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -480,7 +486,7 @@ export function AdminMapHub({
               </div>
 
               <a
-                href={`${import.meta.env.DEV ? 'http://localhost:3000/' : 'https://yaqintop.uz/customer/'}?lat=${selectedStore.location?.lat}&lng=${selectedStore.location?.lng}`}
+                href={`${'https://yaqintop.uz/customer/'}?lat=${selectedStore.location?.lat}&lng=${selectedStore.location?.lng}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full py-1.5 px-3 rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-center text-xs font-bold transition flex items-center justify-center gap-1.5"
@@ -506,6 +512,7 @@ export function AdminMapHub({
               </span>
             </div>
 
+            {filteredStores.length === 0 && <p role="status" className="p-3 text-xs text-[#566A63] dark:text-[#8B9E95]">Tanlangan filtrlar bo‘yicha do‘kon topilmadi.</p>}
             {filteredStores.map((st) => {
               const hasIssues = (st.openReportsCount || 0) > 0 || st.status === 'PENDING';
               const isSelected = selectedStore?.id === st.id;
@@ -532,7 +539,7 @@ export function AdminMapHub({
                       )}
                     </div>
                     <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] truncate mt-0.5">
-                      {st.organizationName} · {st.city || st.region || 'Toshkent'}
+                      {st.organizationName} · {st.city || st.region || 'Hudud ko‘rsatilmagan'}
                     </div>
                   </div>
 

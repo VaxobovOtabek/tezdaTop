@@ -1926,9 +1926,9 @@ app.get('/api/v1/admin/stores', (req, res) => {
     return {
       ...s,
       inn: (s as any).inn || (org as any)?.inn || '300000000',
-      region: (s as any).region || (org as any)?.region || 'Toshkent shahri',
-      city: (s as any).city || (org as any)?.city || 'Yunusobod',
-      district: (s as any).district || (org as any)?.district || 'Navbahor MFY',
+      region: (s as any).region || (org as any)?.region || '',
+      city: (s as any).city || (org as any)?.city || '',
+      district: (s as any).district || (org as any)?.district || '',
       organizationName: org?.name || 'Noma‘lum tashkilot',
       openReportsCount,
       openCorrectionsCount,

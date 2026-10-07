@@ -51,22 +51,16 @@ export function UnifiedLoginModal({
         onLoginSuccess(data.user, data.token);
         onClose();
 
-        // Middleware Role-based Port Redirection (only in local dev)
-        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-        if (isLocalhost) {
-          const role = data.user.role;
-          const currentPort = window.location.port;
-
-          if (role === 'MODERATOR' && currentPort !== '3004') {
-            window.location.href = 'http://localhost:3004';
-          } else if ((role === 'SUPERADMIN' || role === 'ADMIN') && currentPort !== '3002') {
-            window.location.href = 'http://localhost:3002';
-          } else if ((role === 'OWNER' || role === 'MANAGER' || role === 'OPERATOR') && currentPort !== '3001') {
-            window.location.href = 'http://localhost:3001';
-          } else if (role === 'CUSTOMER' && currentPort !== '3000') {
-            window.location.href = 'http://localhost:3000';
-          }
+        // Keep authenticated users in the portal for their role on the public domain.
+        const role = data.user.role;
+        const portal = role === 'MODERATOR' ? '/moderator'
+          : ['ADMIN', 'SUPERADMIN'].includes(role) ? '/admin'
+          : ['OWNER', 'MANAGER', 'OPERATOR'].includes(role) ? '/owner' : '/customer';
+        if (!import.meta.env.DEV && (window.location.hostname !== 'yaqintop.uz' ||
+          !(window.location.pathname === portal || window.location.pathname.startsWith(`${portal}/`)))) {
+          window.location.href = `https://yaqintop.uz${portal}`;
         }
+
       } else {
         setErrorMsg(data.message || 'Login yoki parol noto‘g‘ri');
       }
