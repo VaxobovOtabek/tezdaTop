@@ -480,7 +480,7 @@ export function AdminMapHub({
               </div>
 
               <a
-                href={`http://localhost:3000/?lat=${selectedStore.location?.lat}&lng=${selectedStore.location?.lng}`}
+                href={`${import.meta.env.DEV ? 'http://localhost:3000/' : 'https://yaqintop.uz/customer/'}?lat=${selectedStore.location?.lat}&lng=${selectedStore.location?.lng}`}
                 target="_blank"
                 rel="noreferrer"
                 className="w-full py-1.5 px-3 rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-center text-xs font-bold transition flex items-center justify-center gap-1.5"

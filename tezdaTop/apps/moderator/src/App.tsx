@@ -618,7 +618,7 @@ export function ModeratorApp() {
               Moderator sifatida kirish
             </button>
             <a
-              href="http://localhost:3000"
+              href={import.meta.env.DEV ? "http://localhost:3000" : "https://yaqintop.uz/customer"}
               className="px-3 py-1 bg-red-800 text-white rounded-lg text-xs font-bold hover:bg-red-900 transition"
             >
               Xaridor tizimiga o‘tish (3000) →
@@ -696,7 +696,7 @@ export function ModeratorApp() {
                 <span>Tizimga kirish (Login)</span>
               </button>
               <a
-                href="http://localhost:3000"
+                href={import.meta.env.DEV ? "http://localhost:3000" : "https://yaqintop.uz/customer"}
                 className="w-full py-2.5 bg-gray-100 dark:bg-[#1E3328] hover:bg-gray-200 dark:hover:bg-[#253E32] text-[#172C28] dark:text-[#E8F2EC] font-semibold text-xs rounded-xl transition text-center"
               >
                 Xaridor tizimiga o‘tish (Mehmon sifatida) →
