@@ -2533,6 +2533,16 @@ app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => 
   }
 });
 
+// 404 Fallback handler to prevent serverless function hangs
+app.use((req: Request, res: Response) => {
+  if (!res.headersSent) {
+    res.status(404).json({
+      code: 'NOT_FOUND',
+      message: `Marshrut topilmadi: ${req.method} ${req.url}`
+    });
+  }
+});
+
 // Start persistent server if not running in Serverless / Vercel environment
 if (!process.env.VERCEL) {
   ensureDbInitialized().then(() => {
