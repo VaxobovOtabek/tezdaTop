@@ -19,6 +19,7 @@ import {
   UserNotification
 } from '@yaqintop/contracts';
 import { calculateWeightedAverageCost, sanitizeCsvField, calculateFinancialSummary } from '../services/ledger.service.js';
+import { syncAllToSupabase } from './supabase.js';
 
 export interface DBOrganization {
   id: string;
@@ -118,9 +119,9 @@ export class InMemoryDatabase {
   public auditLogs: DBAuditLog[] = [];
   public idempotencyRecords: Map<string, DBIdempotencyRecord> = new Map();
 
-  // Persistent file storage configuration
-  private dataDir = path.resolve(process.cwd(), 'data');
-  private dataFilePath = path.resolve(process.cwd(), 'data', 'yaqintop_db.json');
+  // Persistent file storage configuration (use /tmp on Serverless / Vercel)
+  private dataDir = process.env.VERCEL ? path.resolve('/tmp', 'data') : path.resolve(process.cwd(), 'data');
+  private dataFilePath = process.env.VERCEL ? path.resolve('/tmp', 'data', 'yaqintop_db.json') : path.resolve(process.cwd(), 'data', 'yaqintop_db.json');
   private saveTimeout: NodeJS.Timeout | null = null;
 
   public scheduleSave() {
@@ -128,7 +129,6 @@ export class InMemoryDatabase {
     this.saveTimeout = setTimeout(async () => {
       this.saveToFile();
       try {
-        const { syncAllToSupabase } = await import('./supabase.js');
         syncAllToSupabase(this).catch(e => console.error('[Supabase Sync Error]', e));
       } catch (e) {
         // ignore if not configured

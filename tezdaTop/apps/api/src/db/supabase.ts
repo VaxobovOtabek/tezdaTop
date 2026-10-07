@@ -3,8 +3,8 @@ import Decimal from 'decimal.js';
 import type { InMemoryDatabase } from './in-memory-db.js';
 import { SEED_IDS } from './seed.js';
 
-const supabaseUrl = process.env.SUPABASE_URL
-const supabaseKey = process.env.SUPABASE_ANON_KEY
+const supabaseUrl = process.env.SUPABASE_URL || 'https://yvxjqimfxlfifhomduox.supabase.co';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2eGpxaW1meGxmaWZob21kdW94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyNjQyOTAsImV4cCI6MjEwNjg0MDI5MH0.5IwdUmzpuvXvIuX6kENo4oNBWeMhrsAa5NNUIAzKRk4';
 
 export let supabase: SupabaseClient | null = null;
 

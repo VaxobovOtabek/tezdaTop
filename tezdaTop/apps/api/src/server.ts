@@ -19,6 +19,7 @@ import {
   Offer,
   Variant
 } from '@yaqintop/contracts';
+import { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured } from './db/supabase.js';
 
 const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 const PORT = process.env.PORT || 4000;
@@ -32,26 +33,33 @@ export async function ensureDbInitialized() {
   if (isDbReady) return;
   if (!initPromise) {
     initPromise = (async () => {
-      const loaded = db.loadFromFile();
-      const { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured } = await import('./db/supabase.js');
+      try {
+        const loaded = db.loadFromFile();
 
-      if (isSupabaseConfigured()) {
-        console.log('[YaqinTop Supabase] Connecting to Supabase Cloud...');
-        const pulled = await syncAllFromSupabase(db);
-        if (!pulled || db.users.size === 0) {
-          if (!loaded || db.users.size === 0) {
-            console.log('[YaqinTop DB] Seeding initial data...');
-            await seedDatabase();
+        if (isSupabaseConfigured()) {
+          console.log('[YaqinTop Supabase] Connecting to Supabase Cloud...');
+          const pulled = await syncAllFromSupabase(db);
+          if (!pulled || db.users.size === 0) {
+            if (!loaded || db.users.size === 0) {
+              console.log('[YaqinTop DB] Seeding initial data...');
+              await seedDatabase();
+            }
+            await syncAllToSupabase(db);
           }
-          await syncAllToSupabase(db);
+        } else if (!loaded || db.users.size === 0) {
+          await seedDatabase();
+          db.saveToFile();
         }
-      } else if (!loaded || db.users.size === 0) {
-        await seedDatabase();
-        db.saveToFile();
-      }
 
-      isDbReady = true;
-      console.log(`[YaqinTop DB] Ready with ${db.users.size} users, ${db.stores.size} stores, ${db.offers.size} offers.`);
+        isDbReady = true;
+        console.log(`[YaqinTop DB] Ready with ${db.users.size} users, ${db.stores.size} stores, ${db.offers.size} offers.`);
+      } catch (err) {
+        console.error('[YaqinTop DB Init Error]', err);
+        if (db.users.size === 0) {
+          await seedDatabase();
+        }
+        isDbReady = true;
+      }
     })();
   }
   await initPromise;
@@ -150,6 +158,39 @@ function getCurrentUser(req: Request) {
 }
 
 // ================= HEALTH CHECKS =================
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'YaqinTop API',
+    storesCount: db.stores.size,
+    offersCount: db.offers.size,
+    usersCount: db.users.size,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'YaqinTop API',
+    storesCount: db.stores.size,
+    offersCount: db.offers.size,
+    usersCount: db.users.size,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/v1', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'YaqinTop API v1',
+    storesCount: db.stores.size,
+    offersCount: db.offers.size,
+    usersCount: db.users.size,
+    timestamp: new Date().toISOString()
+  });
+});
+
 app.get('/api/v1/health/live', (req, res) => {
   res.json({ status: 'live', timestamp: new Date().toISOString() });
 });
@@ -2482,7 +2523,6 @@ app.get('/api/v1/admin/database/schema-and-tables', (req, res) => {
 
 app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => {
   try {
-    const { syncAllToSupabase, isSupabaseConfigured } = await import('./db/supabase.js');
     if (!isSupabaseConfigured()) {
       return res.status(400).json({ success: false, error: 'Supabase credentials not configured' });
     }

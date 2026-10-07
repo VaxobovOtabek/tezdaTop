@@ -52,24 +52,27 @@ export function UnifiedLoginModal({
         onLoginSuccess(data.user, data.token);
         onClose();
 
-        // Middleware Role-based Port Redirection
-        const role = data.user.role;
-        const currentPort = window.location.port;
+        // Middleware Role-based Port Redirection (only in local dev)
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        if (isLocalhost) {
+          const role = data.user.role;
+          const currentPort = window.location.port;
 
-        if (role === 'MODERATOR' && currentPort !== '3004') {
-          window.location.href = 'http://localhost:3004';
-        } else if ((role === 'SUPERADMIN' || role === 'ADMIN') && currentPort !== '3002') {
-          window.location.href = 'http://localhost:3002';
-        } else if ((role === 'OWNER' || role === 'MANAGER' || role === 'OPERATOR') && currentPort !== '3001') {
-          window.location.href = 'http://localhost:3001';
-        } else if (role === 'CUSTOMER' && currentPort !== '3000') {
-          window.location.href = 'http://localhost:3000';
+          if (role === 'MODERATOR' && currentPort !== '3004') {
+            window.location.href = 'http://localhost:3004';
+          } else if ((role === 'SUPERADMIN' || role === 'ADMIN') && currentPort !== '3002') {
+            window.location.href = 'http://localhost:3002';
+          } else if ((role === 'OWNER' || role === 'MANAGER' || role === 'OPERATOR') && currentPort !== '3001') {
+            window.location.href = 'http://localhost:3001';
+          } else if (role === 'CUSTOMER' && currentPort !== '3000') {
+            window.location.href = 'http://localhost:3000';
+          }
         }
       } else {
         setErrorMsg(data.message || 'Login yoki parol noto‘g‘ri');
       }
-    } catch {
-      setErrorMsg('Server bilan ulanishda xatolik');
+    } catch (err: any) {
+      setErrorMsg(err?.message ? `Server bilan ulanishda xatolik: ${err.message}` : 'Server bilan ulanishda xatolik');
     } finally {
       setIsLoading(false);
     }
