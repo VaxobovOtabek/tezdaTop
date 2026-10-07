@@ -1,16 +1,14 @@
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const server = require('../dist/server.js');
-const app = server.default || server.app || server;
-const ensureDbInitialized = server.ensureDbInitialized;
+import type { VercelRequest, VercelResponse } from '@vercel/node';
+import app, { ensureDbInitialized } from '../src/server.js';
 
-export default async function handler(req: any, res: any) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     if (ensureDbInitialized) {
       await ensureDbInitialized();
     }
-    return app(req, res);
+    return (app as any)(req, res);
   } catch (err: any) {
-    console.error('[YaqinTop Lambda Error]', err);
+    console.error('[YaqinTop Lambda Fatal]', err);
     return res.status(500).json({
       code: 'SERVER_ERROR',
       message: 'Serverda xatolik yuz berdi',
