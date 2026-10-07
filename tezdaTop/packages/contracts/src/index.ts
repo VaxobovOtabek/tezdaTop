@@ -40,17 +40,21 @@ export const LoginRequestSchema = z.object({
 export type LoginRequest = z.infer<typeof LoginRequestSchema>;
 
 export const RegisterRequestSchema = z.object({
-  email: z.string().min(1),
-  login: z.string().min(1).optional(),
-  fullName: z.string().min(2),
-  password: z.string().min(4),
-  phone: z.string().optional()
-}).passthrough();
+  login: z.string().trim().min(1).max(8).regex(/^[^\s@]+$/),
+  fullName: z.string().trim().min(2).max(160),
+  password: z.string().min(8).max(128),
+  phone: z.string().trim().regex(/^\+998\d{9}$/)
+});
 export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 
 // ================= STORES & ORGANIZATIONS =================
-export const OrganizationTypeSchema = z.enum(['RETAIL', 'WHOLESALE', 'MIXED']);
+export const OrganizationTypeSchema = z.string().trim().min(1).max(80);
 export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
+
+export function isTradeOrganization(type: string | undefined): boolean {
+  const normalized = (type || 'RETAIL').toUpperCase().replace(/[‘’ʻʼ`]/g, "'");
+  return /\b(RETAIL|WHOLESALE|MIXED|MAGAZIN|SAVDO|MARKET|SHOP|STORE|SUPERMARKET|CHAKANA|ULGURJI|ARALASH)\b/.test(normalized) || normalized.includes("DO'KON");
+}
 
 export const StoreStatusSchema = z.enum([
   'DRAFT',
@@ -133,7 +137,10 @@ export const VariantSchema = z.object({
   packUnit: z.string().default('dona'), // "dona", "kg", "litr", "quti"
   barcode: z.string().optional(),
   sku: z.string().optional(),
-  photoUrl: z.string().optional()
+  photoUrl: z.string().optional(),
+  kind: z.enum(['PRODUCT', 'SERVICE']).optional(),
+  durationMinutes: z.number().int().positive().optional(),
+  description: z.string().optional()
 });
 export type Variant = z.infer<typeof VariantSchema>;
 

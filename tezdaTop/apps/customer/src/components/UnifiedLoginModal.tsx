@@ -1,5 +1,6 @@
+import { saveCachedSession } from '@yaqintop/ui';
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, LogIn, AlertTriangle } from 'lucide-react';
+import { User, Lock, LogIn, AlertTriangle } from 'lucide-react';
 import { Button, Modal } from '@yaqintop/ui';
 import { apiUrl } from '../config/api.js';
 
@@ -19,14 +20,21 @@ export function UnifiedLoginModal({
   initialError = null
 }: UnifiedLoginModalProps) {
   const [login, setLogin] = useState('');
+  const [register, setRegister] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [confirmation, setConfirmation] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(initialError);
 
   const handleLogin = async () => {
     const targetLogin = login.trim();
     const targetPass = password;
+    if (register && password !== confirmation) {
+      setErrorMsg('Parollar bir xil bo‘lishi kerak');
+      return;
+    }
 
     if (!targetLogin || !targetPass) {
       setErrorMsg('Login (telefon raqam yoki foydalanuvchi nomi) va parolni kiriting');
@@ -37,17 +45,18 @@ export function UnifiedLoginModal({
     setErrorMsg(null);
 
     try {
-      const res = await fetch(apiUrl('/api/v1/auth/login'), {
+      const res = await fetch(apiUrl(register ? '/api/v1/auth/register' : '/api/v1/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: targetLogin, login: targetLogin, password: targetPass })
+        body: JSON.stringify(register
+          ? { login: targetLogin, fullName, phone, password: targetPass }
+          : { email: targetLogin, login: targetLogin, password: targetPass })
       });
 
       const data = await res.json();
       if (res.ok && data.user) {
-        localStorage.setItem('yaqintop_user', JSON.stringify(data.user));
-        if (data.token) localStorage.setItem('yaqintop_token', data.token);
+        saveCachedSession(data.user, data.token, data.expiresAt);
 
         onLoginSuccess(data.user, data.token);
         onClose();
@@ -74,10 +83,10 @@ export function UnifiedLoginModal({
 
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - Tizimga Kirish`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - ${register ? 'Ro‘yxatdan o‘tish' : 'Tizimga kirish'}`}>
       <div className="flex flex-col gap-4 py-1">
         <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
-          Profilingizga kirish va barcha imkoniyatlardan foydalanish uchun login va parolingizni kiriting.
+          {register ? 'Ma’lumotlaringizni kiriting va yangi xaridor hisobini yarating.' : 'Profilingizga kirish uchun login va parolingizni kiriting.'}
         </p>
 
         {errorMsg && (
@@ -94,18 +103,28 @@ export function UnifiedLoginModal({
           }}
           className="flex flex-col gap-3"
         >
+          {register && <>
+            <label className="text-xs font-semibold">Ism va familiya
+              <input required minLength={2} maxLength={160} autoComplete="name" value={fullName} onChange={e => setFullName(e.target.value)} className="w-full h-10 px-3 mt-1 rounded-xl border bg-white dark:bg-[#16241E]" />
+            </label>
+            <label className="text-xs font-semibold">Telefon raqami
+              <input required type="tel" maxLength={13} inputMode="tel" autoComplete="tel" placeholder="+998901112233" pattern="\+998[0-9]{9}" value={phone} onChange={e => setPhone(e.target.value.replace(/[^0-9+]/g, '').replace(/(?!^)\+/g, '').slice(0, 13))} className="w-full h-10 px-3 mt-1 rounded-xl border bg-white dark:bg-[#16241E]" />
+            </label>
+          </>}
           <div>
             <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
-              Login / Foydalanuvchi nomi yoki Telefon
+              {register ? 'Login (ko‘pi bilan 8 belgi)' : 'Login / Foydalanuvchi nomi yoki Telefon'}
             </label>
             <div className="relative">
               <User className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
               <input
                 type="text"
+                maxLength={register ? 8 : undefined}
+                autoComplete="username"
                 required
                 value={login}
-                onChange={(e) => setLogin(e.target.value)}
-                placeholder="masalan: otabek yoki +998901112233"
+                onChange={(e) => setLogin(register ? e.target.value.slice(0, 8) : e.target.value)}
+                placeholder={register ? "masalan: otabek" : "masalan: otabek yoki +998901112233"}
                 className="w-full h-10 pl-9 pr-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
@@ -116,19 +135,15 @@ export function UnifiedLoginModal({
               <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
                 Parol
               </label>
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold flex items-center gap-1"
-              >
-                {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                <span>{showPassword ? 'Yashirish' : 'Ko‘rsatish'}</span>
-              </button>
+
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
               <input
-                type={showPassword ? 'text' : 'password'}
+                type="text"
+                minLength={register ? 8 : undefined}
+                maxLength={128}
+                autoComplete={register ? 'new-password' : 'current-password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -138,6 +153,9 @@ export function UnifiedLoginModal({
             </div>
           </div>
 
+          {register && <label className="text-xs font-semibold">Parolni takrorlang (kamida 8 belgi)
+            <input required type="text" autoComplete="new-password" minLength={8} maxLength={128} value={confirmation} onChange={e => setConfirmation(e.target.value)} className="w-full h-10 px-3 mt-1 rounded-xl border bg-white dark:bg-[#16241E]" />
+          </label>}
           <Button
             type="submit"
             variant="primary"
@@ -145,9 +163,12 @@ export function UnifiedLoginModal({
             className="w-full font-bold flex items-center justify-center gap-2 mt-2"
           >
             <LogIn className="w-4 h-4" />
-            <span>{isLoading ? 'Kirilmoqda...' : 'Tizimga kirish'}</span>
+            <span>{isLoading ? 'Kutilmoqda...' : register ? 'Ro‘yxatdan o‘tish' : 'Tizimga kirish'}</span>
           </Button>
         </form>
+        <button type="button" disabled={isLoading} onClick={() => { setRegister(!register); setErrorMsg(null); setPassword(''); setConfirmation(''); }} className="text-sm font-semibold text-[#116B50] dark:text-[#4ADE80]">
+          {register ? 'Hisobingiz bormi? Tizimga kirish' : 'Hisobingiz yo‘qmi? Ro‘yxatdan o‘tish'}
+        </button>
 
       </div>
     </Modal>

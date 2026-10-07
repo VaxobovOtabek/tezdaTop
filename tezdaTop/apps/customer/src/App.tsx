@@ -1,3 +1,4 @@
+import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   Search,
@@ -54,7 +55,7 @@ export function CustomerApp() {
   }, [isDarkMode]);
 
   // Current User Session State (Null by default for Guest)
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useCachedSession();
 
   const [authErrorBanner, setAuthErrorBanner] = useState<string | null>(null);
 
@@ -100,11 +101,11 @@ export function CustomerApp() {
 
   const [results, setResults] = useState<StoreSearchResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<StoreSearchResult | null>(null);
-  
+
   // Nearby Stores State (When search query is empty)
   const [nearbyStores, setNearbyStores] = useState<any[]>([]);
   const [selectedNearbyStore, setSelectedNearbyStore] = useState<any | null>(null);
-  
+
   // Active Store Catalog in Detail View
   const [activeStoreDetail, setActiveStoreDetail] = useState<any | null>(null);
   const [activeStoreOffers, setActiveStoreOffers] = useState<Offer[]>([]);
@@ -159,7 +160,7 @@ export function CustomerApp() {
     try {
       const uLat = loc?.lat ?? userLocation?.lat ?? 41.311081;
       const uLng = loc?.lng ?? userLocation?.lng ?? 69.240562;
-      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}&radiusM=${radiusM}${openNow ? '&openNow=true' : ''}`));
+      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}&radiusM=0${openNow ? '&openNow=true' : ''}`));
       if (res.ok) {
         const data = await res.json();
         const items = (data.items || []).map((item: any) => {
@@ -173,11 +174,7 @@ export function CustomerApp() {
           return item;
         });
         setNearbyStores(items);
-        if (items.length > 0) {
-          setSelectedNearbyStore(items[0]);
-        } else {
-          setSelectedNearbyStore(null);
-        }
+        setSelectedNearbyStore(null);
       }
     } catch (err) {
       console.error('Error fetching nearby stores:', err);
@@ -187,13 +184,15 @@ export function CustomerApp() {
   // Fetch full store details and all products/services
   const loadStoreCatalog = async (storeId: string) => {
     setStoreOffersLoading(true);
+    setActiveStoreOffers([]);
     try {
       const [detailRes, offersRes] = await Promise.all([
         fetch(apiUrl(`/api/v1/stores/${storeId}`)),
         fetch(apiUrl(`/api/v1/stores/${storeId}/offers`))
       ]);
       if (detailRes.ok) {
-        const detailData = await detailRes.json();
+        const detailPayload = await detailRes.json();
+        const detailData = { ...(detailPayload.store || detailPayload), organization: detailPayload.organization };
         if (!detailData.location && (detailData.latitude !== undefined || detailData.lat !== undefined)) {
           detailData.location = {
             lat: Number(detailData.latitude ?? detailData.lat),
@@ -321,8 +320,7 @@ export function CustomerApp() {
     if (!q) {
       setResults([]);
       setSelectedResult(null);
-      setNearbyStores([]);
-      setSelectedNearbyStore(null);
+      loadNearbyStores(loc);
       return;
     }
 
@@ -373,8 +371,7 @@ export function CustomerApp() {
     } else {
       setResults([]);
       setSelectedResult(null);
-      setNearbyStores([]);
-      setSelectedNearbyStore(null);
+      loadNearbyStores();
     }
   }, [userLocation, radiusM, openNow, inStock, freshOnly, selectedSort, searchQuery]);
 
@@ -523,7 +520,6 @@ export function CustomerApp() {
   const handleOpenDetail = (item: StoreSearchResult) => {
     setSelectedResult(item);
     recordStoreView(item.store);
-    loadStoreCatalog(item.store.id);
     navigateTo(`/dokon/${item.store.id}`);
   };
 
@@ -551,13 +547,12 @@ export function CustomerApp() {
       otherMatchingOfferCount: 0,
       similarProducts: []
     } as any);
-    loadStoreCatalog(item.store.id);
     navigateTo(`/dokon/${item.store.id}`);
   };
 
   // Filtered store catalog products
   const filteredOffers = activeStoreOffers.filter((off) => {
-    const matchesSearch = !storeProductSearch.trim() || 
+    const matchesSearch = !storeProductSearch.trim() ||
       off.variant.title.toLowerCase().includes(storeProductSearch.toLowerCase().trim()) ||
       (off.variant.barcode && off.variant.barcode.includes(storeProductSearch.trim()));
     const matchesCategory = storeSelectedCategory === 'ALL' || off.variant.category === storeSelectedCategory;
@@ -1559,6 +1554,7 @@ export function CustomerApp() {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         onLogout={() => {
+          void clearSessionCache();
           setCurrentUser(null);
           showToast('Tizimdan muvaffaqiyatli chiqildi');
           setIsProfileModalOpen(false);

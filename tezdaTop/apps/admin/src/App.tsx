@@ -1,3 +1,5 @@
+import { MaskedUserPassword } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
@@ -66,7 +68,7 @@ export const formatUzPhone = (value: string): string => {
   }
   digits = digits.slice(0, 9);
   if (!digits) return '+998 ';
-  
+
   let formatted = '+998 ';
   if (digits.length > 0) {
     formatted += digits.substring(0, 2);
@@ -90,7 +92,7 @@ interface OrganizationItem {
   region?: string;
   city?: string;
   district?: string;
-  type: 'RETAIL' | 'WHOLESALE' | 'MIXED';
+  type: string;
   status: 'ACTIVE' | 'SUSPENDED';
   createdAt: string;
   stores?: StoreType[];
@@ -147,9 +149,9 @@ export function AdminApp() {
   >('overview');
 
   // Current User Session State (Loads from localStorage or null for guest)
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useCachedSession();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const [overviewStats, setOverviewStats] = useState({ pendingApps: 0, openReports: 0, overdueCorrections: 0 });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
@@ -221,17 +223,37 @@ export function AdminApp() {
     role: 'OPERATOR' as any,
     status: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'PENDING'
   });
-  const [showPassword, setShowPassword] = useState(false);
 
   // Add Organization / Store Modal
   const [isAddOrgModalOpen, setIsAddOrgModalOpen] = useState(false);
+  const [customOrganizationTypes, setCustomOrganizationTypes] = useState<string[]>([]);
+  const [isAddingOrganizationType, setIsAddingOrganizationType] = useState(false);
+  const [organizationTypeName, setOrganizationTypeName] = useState('');
+  const organizationTypeOptions = Array.from(new Set([
+    'RETAIL', 'WHOLESALE', 'MIXED',
+    ...organizations.map(org => org.type),
+    ...customOrganizationTypes
+  ])).filter(Boolean);
+  const addOrganizationType = () => {
+    const name = organizationTypeName.trim().replace(/\s+/g, ' ');
+    if (!name) {
+      showToast('Yangi tashkilot turi nomini kiriting');
+      return;
+    }
+    const existing = organizationTypeOptions.find(type => type.toLocaleLowerCase() === name.toLocaleLowerCase());
+    const type = existing || name;
+    if (!existing) setCustomOrganizationTypes(types => [...types, type]);
+    setNewOrgForm(form => ({ ...form, type }));
+    setOrganizationTypeName('');
+    setIsAddingOrganizationType(false);
+  };
   const [newOrgForm, setNewOrgForm] = useState({
     name: '',
     inn: '308' + Math.floor(100000 + Math.random() * 900000),
     region: 'Toshkent shahri',
     city: 'Yunusobod',
     district: 'Navbahor MFY',
-    type: 'RETAIL' as 'RETAIL' | 'WHOLESALE' | 'MIXED',
+    type: 'RETAIL',
     storeName: '',
     address: '',
     phone: '+998 90 ',
@@ -616,6 +638,10 @@ export function AdminApp() {
   // Create Organization & Store
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isAddingOrganizationType) {
+      showToast('Yangi turni avval Qo‘shish tugmasi bilan tasdiqlang yoki bekor qiling');
+      return;
+    }
     if (!newOrgForm.name.trim()) {
       showToast('Tashkilot nomini kiriting');
       return;
@@ -1658,22 +1684,7 @@ export function AdminApp() {
                                 {u.email}
                               </td>
                               <td className="py-3.5 px-4">
-                                <div className="flex items-center gap-1.5">
-                                  <span className="font-mono text-xs bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] px-2 py-0.5 rounded font-bold border border-[#116B50]/20">
-                                    {(u as any).plainPassword || (u as any).passwordHash || 'DemoPass123!'}
-                                  </span>
-                                  <button
-                                    onClick={() => {
-                                      const p = (u as any).plainPassword || (u as any).passwordHash || 'DemoPass123!';
-                                      navigator.clipboard.writeText(p);
-                                      showToast(`Parol nusxalandi: ${p}`);
-                                    }}
-                                    title="Paroldan nusxa olish"
-                                    className="text-[#566A63] hover:text-[#116B50] p-1"
-                                  >
-                                    <Copy className="w-3.5 h-3.5" />
-                                  </button>
-                                </div>
+                                <MaskedUserPassword value={(u as any).plainPassword} />
                               </td>
                               <td className="py-3.5 px-4">
                                 <Tag
@@ -1883,13 +1894,36 @@ export function AdminApp() {
               <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tashkilot turi</label>
               <select
                 value={newOrgForm.type}
-                onChange={(e) => setNewOrgForm({ ...newOrgForm, type: e.target.value as any })}
+                onChange={(e) => setNewOrgForm({ ...newOrgForm, type: e.target.value })}
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
               >
-                <option value="RETAIL">Chakana (Retail)</option>
-                <option value="WHOLESALE">Ulgurji (Wholesale)</option>
-                <option value="MIXED">Aralash (Mixed)</option>
+                {organizationTypeOptions.map(type => (
+                  <option key={type} value={type}>
+                    {type === 'RETAIL' ? 'Chakana (Retail)' : type === 'WHOLESALE' ? 'Ulgurji (Wholesale)' : type === 'MIXED' ? 'Aralash (Mixed)' : type}
+                  </option>
+                ))}
               </select>
+              <button type="button" className="mt-2 font-semibold text-[#116B50] dark:text-[#4ADE80]" onClick={() => setIsAddingOrganizationType(true)}>
+                + Yangi tur
+              </button>
+              {isAddingOrganizationType && (
+                <div className="mt-2 flex flex-col gap-2">
+                  <input
+                    aria-label="Yangi tashkilot turi nomi"
+                    autoFocus
+                    maxLength={80}
+                    value={organizationTypeName}
+                    onChange={e => setOrganizationTypeName(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addOrganizationType(); } }}
+                    placeholder="Masalan: Dorixona"
+                    className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                  />
+                  <div className="flex gap-3">
+                    <button type="button" onClick={addOrganizationType} className="font-semibold text-[#116B50] dark:text-[#4ADE80]">Qo‘shish</button>
+                    <button type="button" onClick={() => { setIsAddingOrganizationType(false); setOrganizationTypeName(''); }}>Bekor qilish</button>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Do‘kon / Filial nomi</label>
@@ -2359,22 +2393,7 @@ export function AdminApp() {
                         </td>
                         <td className="py-2.5 px-3 font-mono text-[11px]">{u.email}</td>
                         <td className="py-2.5 px-3">
-                          <div className="flex items-center gap-1">
-                            <span className="font-mono text-xs bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] px-1.5 py-0.5 rounded font-bold">
-                              {(u as any).plainPassword || (u as any).passwordHash || 'DemoPass123!'}
-                            </span>
-                            <button
-                              onClick={() => {
-                                const p = (u as any).plainPassword || (u as any).passwordHash || 'DemoPass123!';
-                                navigator.clipboard.writeText(p);
-                                showToast(`Parol nusxalandi: ${p}`);
-                              }}
-                              title="Nusxa olish"
-                              className="text-[#566A63] hover:text-[#116B50] p-0.5"
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                          </div>
+                          <MaskedUserPassword value={(u as any).plainPassword} />
                         </td>
                         <td className="py-2.5 px-3">
                           <Tag variant="default">{u.role}</Tag>
@@ -2564,20 +2583,14 @@ export function AdminApp() {
             </div>
             <div className="relative">
               <input
-                type={showPassword ? 'text' : 'password'}
+                type="text"
                 required
                 value={newUserForm.password}
                 onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
                 placeholder="Parol kiriting..."
                 className="w-full p-2.5 pr-10 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#172C28] dark:text-[#E8F2EC] font-mono"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#566A63] hover:text-[#172C28] dark:hover:text-white"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+
             </div>
             <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">
               Ushbu parol bilan foydalanuvchi tizimga kira oladi.
@@ -2864,6 +2877,7 @@ export function AdminApp() {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         onLogout={() => {
+          void clearSessionCache();
           setCurrentUser(null);
           showToast('Tizimdan chiqildi');
           setIsProfileModalOpen(false);

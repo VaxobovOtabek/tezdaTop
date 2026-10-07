@@ -10,6 +10,9 @@ import { searchProducts, getMarkers, checkStoreIsOpenNow } from './services/sear
 import { routingService } from './services/routing.service.js';
 import { sanitizeCsvField } from './services/ledger.service.js';
 import { getSupabaseUsage } from './services/supabase-usage.service.js';
+import { createOwnerOrganization, OwnerOnboardingSchema, verifyOwnerPassword } from './services/owner-onboarding.service.js';
+import { SESSION_TTL_MS, isSessionExpired, sessionExpiresAt } from './services/session.service.js';
+import { createService, completeService, serviceCompletionFromDocument } from './services/service-business.service.js';
 import {
   SearchQuerySchema,
   RouteRequestSchema,
@@ -18,9 +21,11 @@ import {
   StockDocumentSchema,
   Store,
   Offer,
-  Variant
+  Variant,
+  isTradeOrganization
 } from '@yaqintop/contracts';
-import { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured } from './db/supabase.js';
+import { registerCustomer } from './services/customer-registration.service.js';
+import { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured, insertRegisteredCustomer } from './db/supabase.js';
 
 const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 const PORT = process.env.PORT || 4000;
@@ -126,6 +131,11 @@ function getCurrentUser(req: Request) {
   if (token) {
     const session = db.sessions.get(token);
     if (session) {
+      if (isSessionExpired(session)) {
+        db.sessions.delete(token);
+        db.scheduleSave();
+        return null;
+      }
       const user = db.users.get(session.userId);
       if (user && user.status !== 'SUSPENDED') return user;
     }
@@ -138,8 +148,7 @@ function getCurrentUser(req: Request) {
 app.get('/api/v1/admin/supabase-usage', async (req: Request, res: Response) => {
   // Monitoring requires a real session, never the existing demo/header fallback.
   const token = req.cookies?.session_token || req.headers.authorization?.replace('Bearer ', '');
-  const session = token ? db.sessions.get(token) : undefined;
-  const user = session ? db.users.get(session.userId) : undefined;
+  const user = getCurrentUser(req);
   if (!user || user.status === 'SUSPENDED') return res.status(401).json({ message: 'Tizimga kiring.' });
   if (!['ADMIN', 'SUPERADMIN'].includes(user.role)) return res.status(403).json({ message: 'Faqat administrator uchun.' });
   const period = req.query.period || 'day';
@@ -214,8 +223,9 @@ app.post('/api/v1/auth/login', (req, res) => {
   const normalizedInput = rawIdentifier.toLowerCase();
   const digitsOnlyInput = rawIdentifier.replace(/\D/g, '');
 
-  let matchedUser = null;
+  let matchedUser = Array.from(db.users.values()).find(u => u.email.toLowerCase() === normalizedInput || u.email.toLowerCase().split('@')[0] === normalizedInput) || null;
   for (const u of db.users.values()) {
+    if (matchedUser) break;
     const userEmail = u.email.toLowerCase();
     const userEmailPrefix = userEmail.split('@')[0];
     const userPhoneDigits = (u.phone || '').replace(/\D/g, '');
@@ -234,7 +244,7 @@ app.post('/api/v1/auth/login', (req, res) => {
     }
   }
 
-  if (!matchedUser || matchedUser.passwordHash !== password) {
+  if (!matchedUser || !verifyOwnerPassword(password, matchedUser.passwordHash)) {
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Login yoki parol noto‘g‘ri' });
     return;
   }
@@ -251,43 +261,30 @@ app.post('/api/v1/auth/login', (req, res) => {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    maxAge: SESSION_TTL_MS
   });
 
   const { passwordHash, ...userClean } = matchedUser;
-  res.json({ user: userClean, token });
+  res.json({ user: userClean, token, expiresAt: sessionExpiresAt(db.sessions.get(token)!) });
 });
 
-app.post('/api/v1/auth/register', (req, res) => {
+app.post('/api/v1/auth/register', async (req, res) => {
   const parsed = RegisterRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Ma‘lumotlar to‘liq kiritilmadi' });
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Ism, ko‘pi bilan 8 belgili login, +998 formatidagi telefon va kamida 8 belgili parol kiriting' });
     return;
   }
-
-  const { email, fullName, password, phone } = parsed.data;
-  const normalizedEmail = email.toLowerCase().trim();
-
-  for (const u of db.users.values()) {
-    if (u.email.toLowerCase() === normalizedEmail) {
-      res.status(409).json({ code: 'CONFLICT', message: 'Bu email allaqachon ro‘yxatdan o‘tgan' });
-      return;
-    }
+  let newUser;
+  try {
+    newUser = await registerCustomer(db.users, parsed.data, async user => {
+      await insertRegisteredCustomer(user);
+      if (!isSupabaseConfigured() && !db.saveToFile()) throw new Error('LOCAL_SAVE_FAILED');
+    });
+  } catch (error: any) {
+    const conflict = error?.code === '23505' || error?.message?.includes('allaqachon');
+    res.status(conflict ? 409 : 503).json({ code: conflict ? 'CONFLICT' : 'PERSISTENCE_FAILED', message: conflict ? 'Bu login yoki telefon allaqachon ro‘yxatdan o‘tgan' : 'Hisob bazaga saqlanmadi. Keyinroq qayta urinib ko‘ring.' });
+    return;
   }
-
-  const newUser = {
-    id: uuidv4(),
-    email: normalizedEmail,
-    fullName,
-    phone,
-    role: 'CUSTOMER' as const,
-    status: 'ACTIVE' as const,
-    passwordHash: password,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-
-  db.users.set(newUser.id, newUser);
 
   const token = uuidv4();
   db.sessions.set(token, { userId: newUser.id, createdAt: new Date() });
@@ -296,11 +293,11 @@ app.post('/api/v1/auth/register', (req, res) => {
     httpOnly: true,
     secure: isProduction,
     sameSite: isProduction ? 'none' : 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000
+    maxAge: SESSION_TTL_MS
   });
 
   const { passwordHash, ...userClean } = newUser;
-  res.status(201).json({ user: userClean, token });
+  res.status(201).json({ user: userClean, token, expiresAt: sessionExpiresAt(db.sessions.get(token)!) });
 });
 
 app.get('/api/v1/auth/me', (req, res) => {
@@ -310,7 +307,9 @@ app.get('/api/v1/auth/me', (req, res) => {
     return;
   }
   const { passwordHash, ...userClean } = user as any;
-  res.json({ user: userClean });
+  const token = req.cookies?.session_token || req.headers.authorization?.replace('Bearer ', '');
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ user: userClean, expiresAt: sessionExpiresAt(db.sessions.get(token)!) });
 });
 
 app.post('/api/v1/auth/logout', (req, res) => {
@@ -1011,6 +1010,78 @@ app.post('/api/v1/user/inquiries', (req, res) => {
 });
 
 // ================= MERCHANT OPERATIONS =================
+app.get('/api/v1/owner/organization-types', (_req, res) => {
+  res.json({ types: Array.from(new Set(['RETAIL', 'WHOLESALE', 'MIXED', ...Array.from(db.organizations.values()).map(org => org.type)])) });
+});
+
+app.post('/api/v1/owner/onboarding', (req, res) => {
+  const parsed = OwnerOnboardingSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Tashkilot va owner ma’lumotlarini to‘liq, to‘g‘ri kiriting. Parol kamida 8 belgi bo‘lsin.' });
+  try {
+    const result = createOwnerOrganization(db, parsed.data);
+    const token = uuidv4();
+    db.sessions.set(token, { userId: result.user.id, createdAt: new Date() });
+    res.cookie('session_token', token, { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'lax', maxAge: SESSION_TTL_MS });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(201).json({ ...result, token, expiresAt: sessionExpiresAt(db.sessions.get(token)!) });
+  } catch (error) {
+    return res.status(409).json({ message: error instanceof Error ? error.message : 'Tashkilotni yaratib bo‘lmadi.' });
+  }
+});
+
+// Resolve the tenant from the real session, never from a demo organization.
+app.use('/api/v1/merchant', (req, res, next) => {
+  const user = getCurrentUser(req);
+  if (!user) return res.status(401).json({ message: 'Tizimga kiring.' });
+  const membership = Array.from(db.memberships.values()).find(item => item.userId === user.id && item.status === 'ACTIVE');
+  if (!membership) return res.status(403).json({ message: 'Hisobingizga tashkilot biriktirilmagan.' });
+  const stores = Array.from(db.stores.values()).filter(store => store.organizationId === membership.organizationId);
+  const requestedId = req.query.storeId || req.body?.storeId;
+  const store = requestedId ? stores.find(item => item.id === requestedId) : stores[0];
+  if (!store) return res.status(403).json({ message: 'Bu tashkilotga kirish huquqingiz yo‘q.' });
+  const resourceId = req.path.split('/')[2];
+  const collection = req.path.startsWith('/offers/') ? db.offers : req.path.startsWith('/inbox/') ? db.corrections : req.path.startsWith('/inquiries/') ? db.inquiries : null;
+  if (collection && resourceId) {
+    const resource = collection.get(resourceId);
+    if (!resource || !stores.some(item => item.id === resource.storeId)) return res.status(403).json({ message: 'Bu yozuvga kirish huquqingiz yo‘q.' });
+  }
+  req.query.storeId = store.id;
+  req.body = { ...req.body, storeId: store.id, organizationId: membership.organizationId, userId: user.id };
+  res.locals.organization = db.organizations.get(membership.organizationId);
+  res.locals.stores = stores;
+  res.locals.store = store;
+  if (!isTradeOrganization(res.locals.organization?.type) && (req.path.startsWith('/stock-documents') || (req.path.startsWith('/offers') && req.method !== 'GET'))) {
+    return res.status(400).json({ message: 'Xizmat tashkilotida ombor amallari mavjud emas. Xizmatlar bo‘limidan foydalaning.' });
+  }
+  next();
+});
+
+app.get('/api/v1/merchant/context', (_req, res) => {
+  res.json({ organization: res.locals.organization, stores: res.locals.stores });
+});
+
+app.use('/api/v1/merchant/services', (_req, res, next) => {
+  if (isTradeOrganization(res.locals.organization?.type)) return res.status(400).json({ message: 'Bu tashkilot savdo rejimida ishlaydi.' });
+  next();
+});
+app.get('/api/v1/merchant/services', (_req, res) => {
+  res.json({ services: Array.from(db.offers.values()).filter(offer => offer.storeId === res.locals.store.id && offer.variant.kind === 'SERVICE' && offer.status !== 'INACTIVE') });
+});
+app.post('/api/v1/merchant/services', (req, res) => {
+  try { return res.status(201).json({ service: createService(db, res.locals.organization.id, res.locals.store.id, req.body) }); }
+  catch { return res.status(400).json({ message: 'Xizmat nomi, narxi va davomiyligini to‘g‘ri kiriting.' }); }
+});
+app.get('/api/v1/merchant/services/completions', (_req, res) => {
+  const completions = Array.from(db.stockDocuments.values()).filter(doc => doc.storeId === res.locals.store.id).map(serviceCompletionFromDocument).filter(Boolean);
+  completions.sort((a, b) => b!.createdAt.localeCompare(a!.createdAt));
+  res.json({ completions });
+});
+app.post('/api/v1/merchant/services/completions', (req, res) => {
+  const user = getCurrentUser(req)!;
+  try { return res.status(201).json({ completion: completeService(db, res.locals.organization.id, res.locals.store.id, user.id, req.body) }); }
+  catch (error) { return res.status(400).json({ message: error instanceof Error && !('issues' in error) ? error.message : 'Mijoz va to‘lov ma’lumotlarini to‘g‘ri kiriting.' }); }
+});
+
 app.get('/api/v1/merchant/dashboard', (req, res) => {
   const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
   const summary = db.getMerchantFinancialSummary(storeId);
@@ -1418,7 +1489,8 @@ app.get('/api/v1/admin/users', (req, res) => {
       ...u,
       organizationId,
       organizationName,
-      plainPassword: (u as any).plainPassword || passwordHash || 'DemoPass123!'
+      plainPassword: u.role === 'CUSTOMER' || passwordHash?.startsWith('scrypt:')
+        ? undefined : (u as any).plainPassword || passwordHash || 'DemoPass123!'
     };
   });
   res.json({ users });
@@ -1814,6 +1886,10 @@ app.get('/api/v1/admin/organizations', (req, res) => {
 
 app.post('/api/v1/admin/organizations', (req, res) => {
   const { name, inn, region, city, district, type = 'RETAIL', status = 'ACTIVE', storeName, address, phone, lat, lng, hours, photoUrl } = req.body;
+  if (typeof type !== 'string' || !type.trim() || type.trim().length > 80) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Tashkilot turi 1–80 belgidan iborat bo‘lishi kerak' });
+    return;
+  }
   if (!name) {
     res.status(400).json({ code: 'INVALID_REQUEST', message: 'Tashkilot nomi kiritilishi shart' });
     return;
@@ -1827,7 +1903,7 @@ app.post('/api/v1/admin/organizations', (req, res) => {
     region: region || 'Toshkent shahri',
     city: city || 'Yunusobod',
     district: district || '',
-    type,
+    type: type.trim(),
     status: status || 'ACTIVE',
     createdAt: new Date().toISOString()
   };
@@ -1854,7 +1930,7 @@ app.post('/api/v1/admin/organizations', (req, res) => {
       reviewCount: 0,
       isVerified: true,
       status: 'ACTIVE' as const,
-      type: type,
+      type: type.trim(),
       photoUrl: photoUrl || '',
       hours: hours || [
         { dayOfWeek: 1, openTime: '08:00', closeTime: '22:00', isClosed: false },

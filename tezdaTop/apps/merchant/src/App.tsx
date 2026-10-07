@@ -1,3 +1,4 @@
+import { useCachedSession, clearSessionCache, saveCachedSession } from '@yaqintop/ui';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
@@ -52,10 +53,12 @@ import {
   Key
 } from 'lucide-react';
 import { Button, Tag, Modal } from '@yaqintop/ui';
-import { StockDocument, Offer, MerchantSummary } from '@yaqintop/contracts';
+import { StockDocument, Offer, MerchantSummary, isTradeOrganization } from '@yaqintop/contracts';
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
 import { MerchantInquiriesInbox } from './components/MerchantInquiriesInbox';
+import { OwnerOnboarding } from './components/OwnerOnboarding';
+import { ServiceWorkspace } from './components/ServiceWorkspace';
 
 // Helper for strictly validating and formatting Uzbek phone numbers
 export const formatUzPhone = (value: string): string => {
@@ -65,7 +68,7 @@ export const formatUzPhone = (value: string): string => {
   }
   digits = digits.slice(0, 9);
   if (!digits) return '+998 ';
-  
+
   let formatted = '+998 ';
   if (digits.length > 0) {
     formatted += digits.substring(0, 2);
@@ -175,7 +178,7 @@ export const getMerchantTabFromUrl = (): MerchantTab => {
     const hashPath = '/' + hash.replace(/^\//, '');
     if (MERCHANT_ROUTE_MAP[hashPath]) return MERCHANT_ROUTE_MAP[hashPath];
   }
-  const pathname = window.location.pathname.toLowerCase().replace(/\/$/, '').trim();
+  const pathname = window.location.pathname.toLowerCase().replace(/^\/owner(?=\/|$)/, '').replace(/\/$/, '').trim();
   if (MERCHANT_ROUTE_MAP[pathname]) return MERCHANT_ROUTE_MAP[pathname];
   return 'dashboard';
 };
@@ -187,7 +190,7 @@ export function MerchantApp() {
   // Tab navigation with history push and URL sync
   const navigateTab = (tab: MerchantTab, replace = false) => {
     setActiveTab(tab);
-    const targetPath = MERCHANT_TAB_PATHS[tab] || '/dashboard';
+    const targetPath = (import.meta.env.DEV ? '' : '/owner') + (MERCHANT_TAB_PATHS[tab] || '/dashboard');
     if (typeof window !== 'undefined') {
       if (window.location.pathname !== targetPath) {
         if (replace) {
@@ -283,9 +286,14 @@ export function MerchantApp() {
   ]);
 
   // Current User Session State (Loads from localStorage or null for guest)
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useCachedSession();
 
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [createdOwnerInfo, setCreatedOwnerInfo] = useState<any | null>(null);
+  const [ownerOrganizationId, setOwnerOrganizationId] = useState('');
+  const [ownerOrganizationType, setOwnerOrganizationType] = useState('RETAIL');
+  const isServiceOrganization = !isTradeOrganization(ownerOrganizationType);
+  const [contextReady, setContextReady] = useState(false);
 
   // Modals
   const [isSaleModalOpen, setIsSaleModalOpen] = useState(false);
@@ -395,12 +403,13 @@ export function MerchantApp() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const loadData = async () => {
+  const loadData = async (serviceMode = isServiceOrganization) => {
+    if (!currentUser) return;
     try {
       const [dashRes, offersRes, docsRes, expensesRes, inboxRes] = await Promise.all([
         fetch('/api/v1/merchant/dashboard'),
         fetch('/api/v1/merchant/offers'),
-        fetch('/api/v1/merchant/stock-documents'),
+        fetch(serviceMode ? '/api/v1/merchant/services/completions' : '/api/v1/merchant/stock-documents'),
         fetch('/api/v1/merchant/expenses'),
         fetch('/api/v1/merchant/inbox')
       ]);
@@ -459,8 +468,6 @@ export function MerchantApp() {
   };
 
   useEffect(() => {
-    loadData();
-
     const handleUrlChange = () => {
       const tab = getMerchantTabFromUrl();
       setActiveTab(tab);
@@ -469,7 +476,7 @@ export function MerchantApp() {
     // Normalize initial root '/' path to canonical route
     const currentTab = getMerchantTabFromUrl();
     if (window.location.pathname === '/' || !MERCHANT_ROUTE_MAP[window.location.pathname]) {
-      window.history.replaceState({ tab: currentTab }, '', MERCHANT_TAB_PATHS[currentTab]);
+      window.history.replaceState({ tab: currentTab }, '', (import.meta.env.DEV ? '' : '/owner') + MERCHANT_TAB_PATHS[currentTab]);
     }
 
     window.addEventListener('popstate', handleUrlChange);
@@ -479,6 +486,40 @@ export function MerchantApp() {
       window.removeEventListener('hashchange', handleUrlChange);
     };
   }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    let active = true;
+    setContextReady(false);
+    setDashboardData(null);
+    setOffers([]);
+    setRecentDocs([]);
+    setAllDocs([]);
+    setExpenses([]);
+    setCorrections([]);
+    setBranches([]);
+    fetch('/api/v1/merchant/context', { credentials: 'include' }).then(async res => {
+      if (!res.ok) throw new Error('Hisobingizga tashkilot biriktirilmagan yoki sessiya tugagan.');
+      return res.json();
+    }).then(data => {
+      if (!active) return;
+      setOwnerOrganizationId(data.organization.id);
+      setOwnerOrganizationType(data.organization.type);
+      setOrgInfo(previous => ({ ...previous, name: data.organization.name, legalName: data.organization.name, tin: data.organization.inn || '', phone: data.stores[0]?.phone || '', email: currentUser.email, description: '', website: '', logoUrl: data.stores[0]?.photoUrl || '' }));
+      setBranches(data.stores.map((store: any) => ({ id: store.id, name: store.name, address: store.address, landmark: '', phone: store.phone, lat: store.location.lat, lng: store.location.lng, is24_7: false, openTime: store.hours?.[0]?.openTime || '08:00', closeTime: store.hours?.[0]?.closeTime || '22:00' })));
+      setContextReady(true);
+      loadData(!isTradeOrganization(data.organization.type));
+    }).catch(error => {
+      if (!active) return;
+      showToast(error.message);
+      setCurrentUser(null);
+    });
+    return () => { active = false; };
+  }, [currentUser]);
+
+  useEffect(() => {
+    if (contextReady && isServiceOrganization && ['stock', 'receipt', 'returns'].includes(activeTab)) navigateTab('dashboard', true);
+  }, [contextReady, isServiceOrganization, activeTab]);
 
   // Filtered lists
   const salesDocs = useMemo(() => {
@@ -682,8 +723,8 @@ export function MerchantApp() {
         },
         body: JSON.stringify({
           id: crypto.randomUUID(),
-          organizationId: '11111111-1111-4111-a111-111111111111',
-          storeId: branches[0]?.id || '22222222-2222-4222-a222-222222222222',
+          organizationId: ownerOrganizationId,
+          storeId: branches[0]?.id || '',
           docType: 'SALE',
           status: 'DRAFT',
           documentNumber: `STV-${Math.floor(100 + Math.random() * 900)}`,
@@ -741,8 +782,8 @@ export function MerchantApp() {
         },
         body: JSON.stringify({
           id: crypto.randomUUID(),
-          organizationId: '11111111-1111-4111-a111-111111111111',
-          storeId: branches[0]?.id || '22222222-2222-4222-a222-222222222222',
+          organizationId: ownerOrganizationId,
+          storeId: branches[0]?.id || '',
           docType: 'RECEIPT',
           status: 'DRAFT',
           documentNumber: `KRM-${Math.floor(100 + Math.random() * 900)}`,
@@ -809,8 +850,8 @@ export function MerchantApp() {
         },
         body: JSON.stringify({
           id: crypto.randomUUID(),
-          organizationId: '11111111-1111-4111-a111-111111111111',
-          storeId: branches[0]?.id || '22222222-2222-4222-a222-222222222222',
+          organizationId: ownerOrganizationId,
+          storeId: branches[0]?.id || '',
           docType: 'RETURN',
           status: 'DRAFT',
           documentNumber: `QYT-${Math.floor(100 + Math.random() * 900)}`,
@@ -861,7 +902,7 @@ export function MerchantApp() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          storeId: branches[0]?.id || '22222222-2222-4222-a222-222222222222',
+          storeId: branches[0]?.id || '',
           category: expenseCategory,
           amount: amt,
           date: expenseDate,
@@ -905,8 +946,8 @@ export function MerchantApp() {
         },
         body: JSON.stringify({
           id: crypto.randomUUID(),
-          organizationId: '11111111-1111-4111-a111-111111111111',
-          storeId: branches[0]?.id || '22222222-2222-4222-a222-222222222222',
+          organizationId: ownerOrganizationId,
+          storeId: branches[0]?.id || '',
           docType: 'ADJUSTMENT',
           status: 'DRAFT',
           documentNumber: `INV-${Math.floor(100 + Math.random() * 900)}`,
@@ -996,7 +1037,7 @@ export function MerchantApp() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          storeId: branches[0]?.id || '22222222-2222-4222-a222-222222222222',
+          storeId: branches[0]?.id || '',
           title: newProd.title,
           brand: newProd.brand,
           category: newProd.category,
@@ -1173,7 +1214,7 @@ export function MerchantApp() {
         <div className="bg-red-600 text-white px-6 py-2.5 text-xs font-bold flex items-center justify-between shadow-md z-40 shrink-0">
           <div className="flex items-center gap-2">
             <Store className="w-4 h-4 shrink-0 animate-bounce text-yellow-300" />
-            <span>⚠️ Siz mehmon (guest) holatidasiz. Do‘kon & Tashkilot boshqaruv kabinetiga kirish uchun hisobingiz bilan tizimga kiring.</span>
+            <span>Yangi tashkilotingizni yarating yoki mavjud owner hisobingiz bilan tizimga kiring.</span>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -1204,7 +1245,7 @@ export function MerchantApp() {
                 YaqinTop
               </span>
               <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] font-medium leading-none block mt-0.5">
-                Do‘kon boshqaruvi
+                {isServiceOrganization ? 'Xizmatlar boshqaruvi' : 'Do‘kon boshqaruvi'}
               </span>
             </div>
           </div>
@@ -1226,7 +1267,7 @@ export function MerchantApp() {
 
         {/* Global Actions, Search & Profile */}
         <div className="flex items-center gap-3">
-          {currentUser && (
+          {currentUser && contextReady && !isServiceOrganization && (
             <>
               <div className="relative hidden lg:block w-72">
                 <Search className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
@@ -1314,34 +1355,16 @@ export function MerchantApp() {
 
       {/* Main Layout or Locked Guard */}
       {!currentUser ? (
-        <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-[#F3F6F3] dark:bg-[#0E1713]">
-          <div className="max-w-md w-full bg-white dark:bg-[#14201A] p-8 rounded-3xl border border-red-200 dark:border-red-900/50 shadow-2xl flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-200">
-            <div className="w-16 h-16 rounded-2xl bg-red-100 dark:bg-red-950/60 text-red-600 flex items-center justify-center shadow-inner">
-              <Lock className="w-8 h-8" />
-            </div>
-            <div className="space-y-1.5">
-              <h2 className="text-xl font-extrabold text-[#172C28] dark:text-white">Do‘kon Kabineti Himoyalangan</h2>
-              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] leading-relaxed">
-                Ushbu boshqaruv panelidagi tovar qoldiqlari, savdo tushumlari, kassa va mijozlar ma’lumotlari maxfiy hisoblanadi. Ma’lumotlarni ko‘rish uchun do‘kon hisobingiz bilan tizimga kiring.
-              </p>
-            </div>
-            <div className="flex flex-col gap-2.5 w-full mt-3">
-              <button
-                onClick={() => setIsLoginModalOpen(true)}
-                className="w-full py-3 bg-[#116B50] hover:bg-[#0d533e] text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-              >
-                <Key className="w-4 h-4" />
-                <span>Do‘kon kabinetiga kirish (Login)</span>
-              </button>
-              <a
-                href={"https://yaqintop.uz/customer"}
-                className="w-full py-2.5 bg-gray-100 dark:bg-[#1E3328] hover:bg-gray-200 dark:hover:bg-[#253E32] text-[#172C28] dark:text-[#E8F2EC] font-semibold text-xs rounded-xl transition text-center"
-              >
-                Xaridor tizimiga o‘tish (Mehmon sifatida) →
-              </a>
-            </div>
-          </div>
+        <div className="flex-1 p-6 bg-[#F3F6F3] dark:bg-[#0E1713]">
+          <OwnerOnboarding onLogin={() => setIsLoginModalOpen(true)} onCreated={(data, password) => {
+            saveCachedSession(data.user, data.token, data.expiresAt);
+            setCreatedOwnerInfo({ organization: data.organization, store: data.store, login: data.user.email, password });
+            setCurrentUser(data.user);
+            navigateTab('dashboard', true);
+          }} />
         </div>
+      ) : !contextReady ? (
+        <div className="p-8" role="status">Tashkilotingiz kabineti yuklanmoqda…</div>
       ) : (
         <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
@@ -1359,7 +1382,7 @@ export function MerchantApp() {
               { id: 'reports', label: 'Moliyaviy hisobotlar', icon: FileSpreadsheet },
               { id: 'inbox', label: 'Xabarlar & Murojaatlar', icon: Mail, badge: 3 },
               { id: 'settings', label: 'Sozlamalar', icon: Settings }
-            ].map((item) => {
+            ].filter(item => !isServiceOrganization || !['stock', 'receipt', 'returns'].includes(item.id)).map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -1374,7 +1397,7 @@ export function MerchantApp() {
                 >
                   <div className="flex items-center gap-3">
                     <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
+                    <span>{isServiceOrganization && item.id === 'catalog' ? 'Xizmatlar katalogi' : isServiceOrganization && item.id === 'sales' ? 'Ko‘rsatilgan xizmatlar' : item.label}</span>
                   </div>
                   {item.badge && (
                     <span className="w-4 h-4 bg-[#B42318] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -1387,7 +1410,7 @@ export function MerchantApp() {
           </nav>
 
           {/* Quick Stock Status Widget in Sidebar */}
-          <div className="mt-auto pt-4 border-t border-[#DCE5DF] dark:border-[#22332C]">
+          {!isServiceOrganization && <div className="mt-auto pt-4 border-t border-[#DCE5DF] dark:border-[#22332C]">
             <div
               onClick={() => navigateTab('stock')}
               className="p-3 bg-[#F9FAF9] dark:bg-[#1A2822] hover:bg-[#E0EFE7]/40 dark:hover:bg-[#1E362A]/40 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col gap-2 cursor-pointer transition"
@@ -1408,14 +1431,17 @@ export function MerchantApp() {
                 <span>Tugagan: <strong className="text-rose-600 dark:text-rose-400">{outOfStockCount}</strong></span>
               </div>
             </div>
-          </div>
+          </div>}
         </aside>
 
         {/* Content Area */}
         <main className="flex-1 p-6 md:p-8 overflow-y-auto bg-[#F3F6F3] dark:bg-[#0E1713] transition-colors">
-          
+          {isServiceOrganization && ['dashboard', 'catalog', 'sales', 'reports'].includes(activeTab) && (
+            <ServiceWorkspace storeId={branches[0]?.id || ''} view={activeTab as 'dashboard' | 'catalog' | 'sales' | 'reports'} />
+          )}
+
           {/* ================= 1. DASHBOARD TAB ================= */}
-          {activeTab === 'dashboard' && (
+          {!isServiceOrganization && activeTab === 'dashboard' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
               {/* Header Row */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1629,7 +1655,7 @@ export function MerchantApp() {
           )}
 
           {/* ================= 2. CATALOG TAB (Tovarlar katalogi) ================= */}
-          {activeTab === 'catalog' && (
+          {!isServiceOrganization && activeTab === 'catalog' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -1805,7 +1831,7 @@ export function MerchantApp() {
           )}
 
           {/* ================= 3. STOCK TAB (Qoldiq nazorati & Zaxira) ================= */}
-          {activeTab === 'stock' && (
+          {!isServiceOrganization && activeTab === 'stock' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -2065,7 +2091,7 @@ export function MerchantApp() {
           )}
 
           {/* ================= 4. SALES TAB (Sotuvlar) ================= */}
-          {activeTab === 'sales' && (
+          {!isServiceOrganization && activeTab === 'sales' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -2167,7 +2193,7 @@ export function MerchantApp() {
           )}
 
           {/* ================= 5. RECEIPT TAB (Kirim qilish) ================= */}
-          {activeTab === 'receipt' && (
+          {!isServiceOrganization && activeTab === 'receipt' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -2270,7 +2296,7 @@ export function MerchantApp() {
           )}
 
           {/* ================= 6. RETURNS TAB (Qaytarishlar) ================= */}
-          {activeTab === 'returns' && (
+          {!isServiceOrganization && activeTab === 'returns' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -2680,7 +2706,7 @@ export function MerchantApp() {
           )}
 
           {/* ================= 9. REPORTS TAB ================= */}
-          {activeTab === 'reports' && (
+          {!isServiceOrganization && activeTab === 'reports' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
               <div className="flex items-center justify-between">
                 <div>
@@ -2733,7 +2759,7 @@ export function MerchantApp() {
           {activeTab === 'inbox' && (
             <div className="max-w-4xl mx-auto flex flex-col gap-6">
               <MerchantInquiriesInbox
-                storeId={branches[0]?.id || '22222222-2222-4222-a222-222222222222'}
+                storeId={branches[0]?.id || ''}
                 isDarkMode={theme === 'dark'}
                 onShowToast={(msg) => showToast(msg)}
               />
@@ -3715,6 +3741,7 @@ export function MerchantApp() {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         onLogout={() => {
+          void clearSessionCache();
           setCurrentUser(null);
           showToast('Tizimdan muvaffaqiyatli chiqildi');
           setIsProfileModalOpen(false);
@@ -3730,12 +3757,27 @@ export function MerchantApp() {
       />
 
       {/* Login Modal */}
+      <Modal isOpen={Boolean(createdOwnerInfo && contextReady)} onClose={() => setCreatedOwnerInfo(null)} title="Muvaffaqiyatli yaratildi!">
+        {createdOwnerInfo && <div className="space-y-3 text-sm">
+          <p><strong>Tashkilot:</strong> {createdOwnerInfo.organization.name}</p>
+          <p><strong>STIR:</strong> {createdOwnerInfo.organization.inn}</p>
+          <p><strong>Turi:</strong> {createdOwnerInfo.organization.type}</p>
+          <p><strong>Hudud:</strong> {createdOwnerInfo.organization.region}, {createdOwnerInfo.organization.city}, {createdOwnerInfo.organization.district}</p>
+          <p><strong>Manzil:</strong> {createdOwnerInfo.store.address}</p>
+          <p><strong>Telefon:</strong> {createdOwnerInfo.store.phone}</p>
+          <p><strong>Owner login:</strong> {createdOwnerInfo.login}</p>
+          <p><strong>Owner parol:</strong> <span className="font-mono break-all">{createdOwnerInfo.password}</span></p>
+          <p>Login va parolingizni saqlab oling. Ushbu oyna faqat bir marta ko‘rsatiladi.</p>
+          <Button onClick={() => setCreatedOwnerInfo(null)}>Tushunarli, dashboardga o‘tish</Button>
+        </div>}
+      </Modal>
       <UnifiedLoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         appTitle="Do‘kon Boshqaruvi"
         onLoginSuccess={(user) => {
           setCurrentUser(user);
+          navigateTab('dashboard', true);
           showToast(`Xush kelibsiz, ${user.fullName}!`);
         }}
       />

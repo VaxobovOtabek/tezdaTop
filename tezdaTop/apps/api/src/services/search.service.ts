@@ -94,7 +94,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       if (off.storeId !== cand.store.id) continue;
       if (off.status === 'INACTIVE') continue;
 
-      if (query.inStock && (off.stockOnHand <= 0 || off.status === 'OUT_OF_STOCK')) {
+      if (query.inStock && off.variant.kind !== 'SERVICE' && (off.stockOnHand <= 0 || off.status === 'OUT_OF_STOCK')) {
         continue;
       }
 

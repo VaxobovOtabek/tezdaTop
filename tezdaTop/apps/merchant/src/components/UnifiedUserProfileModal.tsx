@@ -44,7 +44,6 @@ export function UnifiedUserProfileModal({
   const [reqFullName, setReqFullName] = useState('');
   const [reqPhone, setReqPhone] = useState('');
   const [reqReason, setReqReason] = useState('');
-  const [showReqPassword, setShowReqPassword] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [statusMsg, setStatusMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -295,7 +294,7 @@ export function UnifiedUserProfileModal({
                 className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/60 transition text-xs font-bold"
               >
                 <LogOut className="w-4 h-4" />
-                <span>Tizimdan chiqish</span>
+                <span>Keshni tozalash va chiqish</span>
               </button>
             </div>
           </div>
@@ -358,17 +357,10 @@ export function UnifiedUserProfileModal({
                 <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
                   Yangi Parol (Nuqtalarsiz ko‘rinadigan)
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setShowReqPassword(!showReqPassword)}
-                  className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold flex items-center gap-1"
-                >
-                  {showReqPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                  <span>{showReqPassword ? 'Parolni yashirish' : 'Parolni ko‘rsatish'}</span>
-                </button>
+
               </div>
               <input
-                type={showReqPassword ? 'text' : 'password'}
+                type="text"
                 value={reqPassword}
                 onChange={(e) => setReqPassword(e.target.value)}
                 placeholder="Yangi kuchli parol kiriting..."

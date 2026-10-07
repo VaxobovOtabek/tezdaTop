@@ -2,6 +2,8 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import Decimal from 'decimal.js';
 import type { InMemoryDatabase } from './in-memory-db.js';
 import { SEED_IDS } from './seed.js';
+import { serviceCompletionFromDocument } from '../services/service-business.service.js';
+import type { User } from '@yaqintop/contracts';
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://yvxjqimfxlfifhomduox.supabase.co';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2eGpxaW1meGxmaWZob21kdW94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyNjQyOTAsImV4cCI6MjEwNjg0MDI5MH0.5IwdUmzpuvXvIuX6kENo4oNBWeMhrsAa5NNUIAzKRk4';
@@ -24,6 +26,16 @@ if (supabaseUrl && supabaseKey) {
 
 export function isSupabaseConfigured(): boolean {
   return !!supabase;
+}
+
+export async function insertRegisteredCustomer(user: User & { passwordHash: string }): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.from('users').insert({
+    id: user.id, email: user.email, full_name: user.fullName, phone: user.phone,
+    role: 'CUSTOMER', status: 'ACTIVE', password_hash: user.passwordHash,
+    created_at: user.createdAt, updated_at: user.updatedAt
+  });
+  if (error) throw error;
 }
 
 /**
@@ -137,7 +149,7 @@ export async function syncAllToSupabase(db: InMemoryDatabase): Promise<boolean> 
         unit: (v as any).packUnit || (v as any).unit || 'dona',
         image_url: (v as any).imageUrl || null,
         description: (v as any).description || null,
-        attributes: { brand: (v as any).brand, packSize: (v as any).packSize, aliases: (v as any).aliases },
+        attributes: { brand: (v as any).brand, packSize: (v as any).packSize, aliases: (v as any).aliases, kind: v.kind, durationMinutes: v.durationMinutes },
         created_at: (v as any).createdAt || new Date().toISOString(),
         updated_at: (v as any).updatedAt || new Date().toISOString()
       }));
@@ -359,6 +371,7 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
         db.stores.set(s.id, {
           id: s.id,
           organizationId: s.organization_id,
+          type: db.organizations.get(s.organization_id)?.type || 'RETAIL',
           name: s.name,
           address: s.address,
           location: {
@@ -402,6 +415,8 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
           brand: (v.attributes as any)?.brand || '',
           packSize: (v.attributes as any)?.packSize || '1 dona',
           aliases: (v.attributes as any)?.aliases || [],
+          kind: (v.attributes as any)?.kind,
+          durationMinutes: (v.attributes as any)?.durationMinutes,
           createdAt: v.created_at,
           updatedAt: v.updated_at
         } as any);
@@ -431,6 +446,20 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
       }
     }
 
+    // Restore service billing records without applying any inventory movements.
+    const { data: serviceDocuments, error: serviceDocumentError } = await supabase.from('stock_documents').select('*').like('document_number', 'SRV-%');
+    if (!serviceDocumentError && serviceDocuments) {
+      for (const row of serviceDocuments) {
+        const document = {
+          id: row.id, organizationId: row.organization_id, storeId: row.store_id,
+          docType: 'SALE' as const, status: 'POSTED' as const, documentNumber: row.document_number,
+          date: row.created_at, createdAt: row.created_at, createdBy: row.created_by,
+          notes: row.note, lines: row.lines || [], totalAmount: '0', paymentMethod: 'CASH' as const
+        };
+        const completion = serviceCompletionFromDocument(document);
+        if (completion) db.stockDocuments.set(document.id, { ...document, totalAmount: completion.totalAmount, paymentMethod: completion.paymentMethod, supplierOrCustomer: completion.customerName });
+      }
+    }
     console.log(`[Supabase Sync] Successfully loaded: ${db.organizations.size} orgs, ${db.users.size} users, ${db.stores.size} stores, ${db.variants.size} variants, ${db.offers.size} offers.`);
     return true;
   } catch (err) {

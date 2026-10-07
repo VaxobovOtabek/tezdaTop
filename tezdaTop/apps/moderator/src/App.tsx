@@ -1,3 +1,5 @@
+import { MaskedUserPassword } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
@@ -57,7 +59,7 @@ export const formatUzPhone = (value: string): string => {
   }
   digits = digits.slice(0, 9);
   if (!digits) return '+998 ';
-  
+
   let formatted = '+998 ';
   if (digits.length > 0) {
     formatted += digits.substring(0, 2);
@@ -129,9 +131,9 @@ export function ModeratorApp() {
   >('overview');
 
   // Current User Session State (Loads from localStorage or null for guest)
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useCachedSession();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(true);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const [overviewStats, setOverviewStats] = useState({ pendingApps: 0, openReports: 0, overdueCorrections: 0 });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
@@ -196,7 +198,6 @@ export function ModeratorApp() {
     role: 'OPERATOR' as any,
     status: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'PENDING'
   });
-  const [showPassword, setShowPassword] = useState(false);
 
   // Add Organization / Store Modal
   const [isAddOrgModalOpen, setIsAddOrgModalOpen] = useState(false);
@@ -1161,6 +1162,7 @@ export function ModeratorApp() {
                         <th className="py-3.5 px-4 font-semibold">Foydalanuvchi & Telefon</th>
                         <th className="py-3.5 px-4 font-semibold">Tashkilot</th>
                         <th className="py-3.5 px-4 font-semibold">Login / Email</th>
+                        <th className="py-3.5 px-4 font-semibold">Parol</th>
                         <th className="py-3.5 px-4 font-semibold">Roli</th>
                         <th className="py-3.5 px-4 font-semibold">Tasdiqlash & Holat</th>
                         <th className="py-3.5 px-4 font-semibold text-right">Amallar</th>
@@ -1193,6 +1195,7 @@ export function ModeratorApp() {
                               <td className="py-3.5 px-4 font-mono text-[11px] text-[#172C28] dark:text-[#E8F2EC]">
                                 {u.email}
                               </td>
+                              <td className="py-3.5 px-4"><MaskedUserPassword value={(u as any).plainPassword} /></td>
                               <td className="py-3.5 px-4">
                                 <Tag variant="default">{u.role}</Tag>
                               </td>
@@ -1387,20 +1390,14 @@ export function ModeratorApp() {
             </div>
             <div className="relative">
               <input
-                type={showPassword ? 'text' : 'password'}
+                type="text"
                 required
                 value={newUserForm.password}
                 onChange={(e) => setNewUserForm({ ...newUserForm, password: e.target.value })}
                 placeholder="Parol kiriting..."
                 className="w-full p-2.5 pr-10 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#172C28] dark:text-[#E8F2EC] font-mono"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-[#566A63] hover:text-[#172C28] dark:hover:text-white"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
+
             </div>
           </div>
 
@@ -1637,6 +1634,7 @@ export function ModeratorApp() {
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
         onLogout={() => {
+          void clearSessionCache();
           setCurrentUser(null);
           showToast('Tizimdan chiqildi');
         }}

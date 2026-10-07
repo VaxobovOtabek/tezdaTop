@@ -1,5 +1,6 @@
+import { saveCachedSession } from '@yaqintop/ui';
 import React, { useState } from 'react';
-import { User, Lock, Eye, EyeOff, LogIn, AlertTriangle } from 'lucide-react';
+import { User, Lock, LogIn, AlertTriangle } from 'lucide-react';
 import { Button, Modal } from '@yaqintop/ui';
 
 export interface UnifiedLoginModalProps {
@@ -19,7 +20,6 @@ export function UnifiedLoginModal({
 }: UnifiedLoginModalProps) {
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(initialError);
 
@@ -45,8 +45,7 @@ export function UnifiedLoginModal({
 
       const data = await res.json();
       if (res.ok && data.user) {
-        localStorage.setItem('yaqintop_user', JSON.stringify(data.user));
-        if (data.token) localStorage.setItem('yaqintop_token', data.token);
+        saveCachedSession(data.user, data.token, data.expiresAt);
 
         onLoginSuccess(data.user, data.token);
         onClose();
@@ -115,19 +114,12 @@ export function UnifiedLoginModal({
               <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
                 Parol
               </label>
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold flex items-center gap-1"
-              >
-                {showPassword ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                <span>{showPassword ? 'Yashirish' : 'Ko‘rsatish'}</span>
-              </button>
+
             </div>
             <div className="relative">
               <Lock className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
               <input
-                type={showPassword ? 'text' : 'password'}
+                type="text"
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

@@ -30,7 +30,7 @@ import {
   Check
 } from 'lucide-react';
 import { Button, Tag, StarRating, Modal, Input } from '@yaqintop/ui';
-import { Offer, Store } from '@yaqintop/contracts';
+import { Offer, Store, isTradeOrganization } from '@yaqintop/contracts';
 import { apiUrl } from '../config/api.js';
 
 interface StoreFullPageViewProps {
@@ -443,7 +443,7 @@ export function StoreFullPageView({
                   <span className="text-xs px-2.5 py-0.5 rounded-lg bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold">
                     {store?.type === 'WHOLESALE'
                       ? '📦 Ulgurji savdo markazi'
-                      : store?.type === 'SERVICE'
+                      : !isTradeOrganization(store?.type)
                       ? '🛠️ Xizmat ko‘rsatish'
                       : '🏪 Chakana do‘kon'}
                   </span>
@@ -726,7 +726,8 @@ export function StoreFullPageView({
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredOffers.map((off) => {
-                  const isAvailable = off.stockOnHand > 0;
+                  const isService = off.variant.kind === 'SERVICE';
+                  const isAvailable = isService ? off.status === 'ACTIVE' : off.stockOnHand > 0;
                   return (
                     <div
                       key={off.id}
@@ -778,7 +779,7 @@ export function StoreFullPageView({
                           }
                           className="text-[10px]"
                         >
-                          {isAvailable ? `${off.stockOnHand} dona` : 'Tugagan'}
+                          {isService ? `${off.variant.durationMinutes || ''} daqiqa · Xizmat` : isAvailable ? `${off.stockOnHand} dona` : 'Tugagan'}
                         </Tag>
                       </div>
                     </div>

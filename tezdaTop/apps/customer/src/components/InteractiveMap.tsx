@@ -363,8 +363,36 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
         markersLayer.addLayer(marker);
       });
+    } else {
+      nearbyStores.forEach(item => {
+        const latLng = getStoreLatLng(item.store);
+        if (!latLng) return;
+        const label = document.createElement('div');
+        label.textContent = item.organization?.name || item.store.name;
+        label.style.cssText = `padding:6px 10px;border-radius:12px;white-space:nowrap;font-size:12px;font-weight:700;background:${isDarkMode ? '#16241E' : '#ffffff'};color:${isDarkMode ? '#E8F2EC' : '#172C28'};border:2px solid #116B50;box-shadow:0 2px 8px #0003;`;
+        const marker = L.marker(latLng, {
+          icon: L.divIcon({ className: 'custom-store-pin', html: label, iconSize: [140, 36], iconAnchor: [70, 36] }),
+          title: `${item.organization?.name || item.store.name} — tovar va xizmatlarni ko‘rish`,
+          keyboard: true
+        });
+        marker.on('click', () => {
+          onSelectNearbyStore?.(item);
+          onOpenNearbyDetail?.(item);
+        });
+        markersLayer.addLayer(marker);
+      });
     }
-  }, [results, selectedResult, view, isDarkMode, mapReady]);
+  }, [results, nearbyStores, selectedResult, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail]);
+
+  // Show every organization on the initial map and when the list is refreshed.
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || view !== 'search' || results.length > 0) return;
+    const points = nearbyStores.map(item => getStoreLatLng(item.store)).filter((point): point is [number, number] => point !== null);
+    if (points.length) {
+      map.fitBounds(L.latLngBounds(points), { padding: [50, 50], maxZoom: 15 });
+    }
+  }, [nearbyStores, mapReady, view, results.length]);
 
   // Center selected result or nearby store on change
   useEffect(() => {

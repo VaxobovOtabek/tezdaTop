@@ -181,6 +181,20 @@
         "district": "Guliston MFY",
         "createdAt": "2026-10-06T07:22:13.341+00:00"
       }
+    ],
+    [
+      "57b2d645-c396-4ab1-99de-d8229ad1adce",
+      {
+        "id": "57b2d645-c396-4ab1-99de-d8229ad1adce",
+        "name": "Unicon Soft Sirdaryo filiali",
+        "inn": "305109680",
+        "type": "MIXED",
+        "status": "ACTIVE",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston",
+        "district": "Taraqqiyot MFY",
+        "createdAt": "2026-10-07T10:25:39.651+00:00"
+      }
     ]
   ],
   "memberships": [
@@ -201,6 +215,16 @@
         "organizationId": "11111111-1111-4111-a111-111111111111",
         "userId": "cccc3333-3333-4ccc-cccc-333333333333",
         "role": "OPERATOR",
+        "status": "ACTIVE"
+      }
+    ],
+    [
+      "9207dc49-d9ab-460f-afa6-c7d17cc26f25",
+      {
+        "id": "9207dc49-d9ab-460f-afa6-c7d17cc26f25",
+        "organizationId": "57b2d645-c396-4ab1-99de-d8229ad1adce",
+        "userId": "fa9d66ee-497c-4022-8c78-c695c0727887",
+        "role": "MANAGER",
         "status": "ACTIVE"
       }
     ]
@@ -225,13 +249,13 @@
       {
         "id": "cccc2222-2222-4ccc-cccc-222222222222",
         "phone": "+998902223344",
-        "email": "owner@navbahor.uz",
-        "fullName": "Oybek Tursunov",
+        "email": "owner",
+        "fullName": "owner test",
         "role": "OWNER",
         "status": "ACTIVE",
-        "passwordHash": "DemoPass123!",
+        "passwordHash": "2026",
         "createdAt": "2026-10-06T06:17:20.821+00:00",
-        "updatedAt": "2026-10-06T06:17:20.821+00:00"
+        "updatedAt": "2026-10-07T11:16:30.28+00:00"
       }
     ],
     [
@@ -289,6 +313,26 @@
         "createdAt": "2026-10-06T07:05:39.053+00:00",
         "updatedAt": "2026-10-06T07:05:39.053+00:00"
       }
+    ],
+    [
+      "fa9d66ee-497c-4022-8c78-c695c0727887",
+      {
+        "id": "fa9d66ee-497c-4022-8c78-c695c0727887",
+        "email": "unicon",
+        "fullName": "otabek vaxobov",
+        "phone": "+998 97 905 30 31",
+        "role": "MANAGER",
+        "status": "ACTIVE",
+        "organizationId": "57b2d645-c396-4ab1-99de-d8229ad1adce",
+        "organizationName": "Unicon Soft Sirdaryo filiali",
+        "verificationMethod": "TELEGRAM",
+        "isVerified": true,
+        "verificationCode": "396259",
+        "plainPassword": "2026",
+        "passwordHash": "2026",
+        "createdAt": "2026-10-07T11:18:01.026Z",
+        "updatedAt": "2026-10-07T11:18:01.026Z"
+      }
     ]
   ],
   "sessions": [
@@ -300,10 +344,24 @@
       }
     ],
     [
-      "8a46af13-28e3-4736-ae04-ccda2e4e6485",
+      "edc66a23-1c9e-466f-af4e-69ffa21ca85f",
+      {
+        "userId": "cccc2222-2222-4ccc-cccc-222222222222",
+        "createdAt": "2026-10-07T10:52:33.788Z"
+      }
+    ],
+    [
+      "20577036-eb3a-459e-b889-0d7b1111140c",
       {
         "userId": "cccc5555-5555-4ccc-cccc-555555555555",
-        "createdAt": "2026-10-07T07:00:37.006Z"
+        "createdAt": "2026-10-07T11:14:12.104Z"
+      }
+    ],
+    [
+      "fb7c4dc8-a8a2-4130-9132-5c06d5c874d8",
+      {
+        "userId": "fa9d66ee-497c-4022-8c78-c695c0727887",
+        "createdAt": "2026-10-07T11:20:11.567Z"
       }
     ]
   ],
@@ -313,6 +371,7 @@
       {
         "id": "22222222-2222-4222-a222-222222222222",
         "organizationId": "11111111-1111-4111-a111-111111111111",
+        "type": "MIXED",
         "name": "Navbahor Market",
         "address": "Namuna ko‘chasi, 12-uy, Yunusobod tumani",
         "location": {
@@ -377,6 +436,7 @@
       {
         "id": "33333333-3333-4333-a333-333333333333",
         "organizationId": "fdef0c6d-f833-4196-9361-8d811b8f9a66",
+        "type": "RETAIL",
         "name": "Mahalla Savdo",
         "address": "Amir Temur shoh ko‘chasi, 45-uy",
         "location": {
@@ -441,6 +501,7 @@
       {
         "id": "44444444-4444-4444-a444-444444444444",
         "organizationId": "5f2f78bf-82f9-48b4-a3c7-ed15ce395bcb",
+        "type": "RETAIL",
         "name": "Baraka Minimarket",
         "address": "Mustaqillik shoh ko‘chasi, 8-uy",
         "location": {
@@ -505,6 +566,7 @@
       {
         "id": "55555555-5555-4555-a555-555555555555",
         "organizationId": "debcd7a6-cb65-4c7a-89d8-61b64633836c",
+        "type": "WHOLESALE",
         "name": "Chorsu Ulgurji Baza",
         "address": "Zarqaynar ko‘chasi, 100-baza",
         "location": {
@@ -569,6 +631,7 @@
       {
         "id": "88888888-8888-4888-a888-888888888888",
         "organizationId": "11111111-1111-4111-a111-111111111111",
+        "type": "MIXED",
         "name": "Tungi Market 24/7",
         "address": "Shahrisabz ko‘chasi, 3-uy",
         "location": {
@@ -633,6 +696,7 @@
       {
         "id": "66666666-6666-4666-a666-666666666666",
         "organizationId": "fdef0c6d-f833-4196-9361-8d811b8f9a66",
+        "type": "RETAIL",
         "name": "Yangi Savdo (Ariza)",
         "address": "Namuna manzil, 8-uy",
         "location": {
@@ -685,11 +749,11 @@
           }
         ],
         "photos": [],
-        "status": "PENDING",
+        "status": "NEEDS_CHANGES",
         "rating": 5,
         "reviewCount": 0,
         "createdAt": "2026-10-06T06:17:20.833+00:00",
-        "updatedAt": "2026-10-06T06:17:20.833+00:00"
+        "updatedAt": "2026-10-07T11:15:06.624+00:00"
       }
     ],
     [
@@ -697,6 +761,7 @@
       {
         "id": "77777777-7777-4777-a777-777777777777",
         "organizationId": "14478b08-c7e2-449f-a04a-3362b7efb3a3",
+        "type": "RETAIL",
         "name": "To‘xtatilgan Do‘kon",
         "address": "Yopiq ko‘cha, 1-uy",
         "location": {
@@ -754,6 +819,71 @@
         "reviewCount": 2,
         "createdAt": "2026-10-06T06:17:20.833+00:00",
         "updatedAt": "2026-10-06T06:17:20.833+00:00"
+      }
+    ],
+    [
+      "2666e002-c652-46cb-87c7-0684d00c53c2",
+      {
+        "id": "2666e002-c652-46cb-87c7-0684d00c53c2",
+        "organizationId": "57b2d645-c396-4ab1-99de-d8229ad1adce",
+        "type": "MIXED",
+        "name": "Unicon Soft Sirdaryo filiali",
+        "address": "Taraqqiyot MFY",
+        "location": {
+          "lat": 40.490469,
+          "lng": 68.771356
+        },
+        "phone": "+998 95 505 46 46",
+        "hours": [
+          {
+            "isClosed": false,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "dayOfWeek": 1
+          },
+          {
+            "isClosed": false,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "dayOfWeek": 2
+          },
+          {
+            "isClosed": false,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "dayOfWeek": 3
+          },
+          {
+            "isClosed": false,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "dayOfWeek": 4
+          },
+          {
+            "isClosed": false,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "dayOfWeek": 5
+          },
+          {
+            "isClosed": false,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "dayOfWeek": 6
+          },
+          {
+            "isClosed": false,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "dayOfWeek": 0
+          }
+        ],
+        "photos": [],
+        "status": "ACTIVE",
+        "rating": 5,
+        "reviewCount": 0,
+        "createdAt": "2026-10-07T10:25:39.651+00:00",
+        "updatedAt": "2026-10-07T10:25:39.651+00:00"
       }
     ]
   ],
@@ -1358,7 +1488,7 @@
         "currency": "UZS",
         "stockOnHand": 24,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1394,7 +1524,7 @@
         "currency": "UZS",
         "stockOnHand": 6,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1429,7 +1559,7 @@
         "currency": "UZS",
         "stockOnHand": 18,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1465,7 +1595,7 @@
         "currency": "UZS",
         "stockOnHand": 0,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1501,7 +1631,7 @@
         "currency": "UZS",
         "stockOnHand": 12,
         "stockVerifiedAt": "2026-10-04T07:22:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1537,7 +1667,7 @@
         "currency": "UZS",
         "stockOnHand": 29,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1573,7 +1703,7 @@
         "currency": "UZS",
         "stockOnHand": 20,
         "stockVerifiedAt": "2026-10-06T07:22:13.379+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1610,7 +1740,7 @@
         "currency": "UZS",
         "stockOnHand": 8,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1645,7 +1775,7 @@
         "currency": "UZS",
         "stockOnHand": 14,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1719,7 +1849,7 @@
         "currency": "UZS",
         "stockOnHand": 500,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "NEW",
+        "freshness": "STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -2016,8 +2146,31 @@
         "requestedPassword": "NewOperatorPass2026!",
         "requestedPhone": "+998903334455",
         "reason": "Rasmiy korporativ elektron pochtaga o‘tkazish",
-        "status": "PENDING",
-        "createdAt": "2026-10-06T03:17:20.867Z"
+        "status": "REJECTED",
+        "createdAt": "2026-10-06T03:17:20.867Z",
+        "adminComment": "test",
+        "resolvedAt": "2026-10-07T11:16:27.152Z"
+      }
+    ],
+    [
+      "0a6e44c0-c883-4fe1-a818-fa642acefc39",
+      {
+        "id": "0a6e44c0-c883-4fe1-a818-fa642acefc39",
+        "userId": "cccc2222-2222-4ccc-cccc-222222222222",
+        "userName": "Oybek Tursunov",
+        "userEmail": "owner@navbahor.uz",
+        "userPhone": "+998902223344",
+        "userRole": "OWNER",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
+        "organizationName": "Navbahor Savdo MCHJ",
+        "requestedEmail": "owner",
+        "requestedPassword": "2026",
+        "requestedFullName": "owner test",
+        "reason": "wqe",
+        "status": "APPROVED",
+        "createdAt": "2026-10-07T11:12:10.842Z",
+        "adminComment": "Admin tomonidan tasdiqlandi",
+        "resolvedAt": "2026-10-07T11:16:30.280Z"
       }
     ]
   ],
@@ -2066,7 +2219,7 @@
         "title": "Administrator xabari",
         "message": "Do‘koningizga administrator tomonidan yangi rasmiy so‘rov yuborildi. Iltimos, xabarlar bo‘limida ko‘rib chiqing.",
         "type": "INFO",
-        "isRead": false,
+        "isRead": true,
         "createdAt": "2026-10-06T06:17:20.867Z"
       }
     ],
@@ -2080,6 +2233,42 @@
         "type": "SUCCESS",
         "isRead": false,
         "createdAt": "2026-10-06T06:17:20.867Z"
+      }
+    ],
+    [
+      "c6b1c756-ac0b-4e0c-8d40-9a581295e0ad",
+      {
+        "id": "d87569d4-712b-494b-b54b-fa55aa9b0f5d",
+        "userId": "cccc5555-5555-4ccc-cccc-555555555555",
+        "title": "Yangi login/parol almashtirish so‘rovi",
+        "message": "Oybek Tursunov (owner@navbahor.uz) login/parol ma‘lumotlarini o‘zgartirish uchun so‘rov yubordi.",
+        "type": "WARNING",
+        "isRead": false,
+        "createdAt": "2026-10-07T11:12:10.842Z"
+      }
+    ],
+    [
+      "b71af050-ce4f-4428-b93e-1e3844c7e439",
+      {
+        "id": "ee7b1310-bad9-4f30-9c75-8ad1f81d8dcf",
+        "userId": "cccc3333-3333-4ccc-cccc-333333333333",
+        "title": "So‘rovingiz rad etildi",
+        "message": "Login/parol almashtirish so‘rovingiz rad etildi. Sabab: test",
+        "type": "WARNING",
+        "isRead": false,
+        "createdAt": "2026-10-07T11:16:27.152Z"
+      }
+    ],
+    [
+      "0241bbf9-9720-4df3-87fc-6360dcf78960",
+      {
+        "id": "f415421d-9239-402f-be52-90b826d22b26",
+        "userId": "cccc2222-2222-4ccc-cccc-222222222222",
+        "title": "So‘rovingiz tasdiqlandi!",
+        "message": "Sizning login va parol ma‘lumotlarini o‘zgartirish haqidagi so‘rovingiz administrator tomonidan tasdiqlandi.",
+        "type": "SUCCESS",
+        "isRead": false,
+        "createdAt": "2026-10-07T11:16:30.280Z"
       }
     ]
   ],
@@ -2125,6 +2314,74 @@
         "isVerified": true
       },
       "timestamp": "2026-10-06T07:05:39.053Z"
+    },
+    {
+      "id": "23ce7305-0cf2-4fa5-b7c1-400a708063ab",
+      "actorId": "cccc2222-2222-4ccc-cccc-222222222222",
+      "actorEmail": "owner@navbahor.uz",
+      "action": "REQUEST_CREDENTIAL_CHANGE",
+      "entityType": "CREDENTIAL_REQUEST",
+      "entityId": "0a6e44c0-c883-4fe1-a818-fa642acefc39",
+      "diff": {
+        "requestedEmail": "owner",
+        "requestedFullName": "owner test",
+        "reason": "wqe"
+      },
+      "timestamp": "2026-10-07T11:12:10.842Z"
+    },
+    {
+      "id": "0d453c3a-a42d-4c5a-92eb-c5408d8d837b",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "STORE_APP_REQUEST_CHANGES",
+      "entityType": "STORE",
+      "entityId": "66666666-6666-4666-a666-666666666666",
+      "diff": {
+        "status": "NEEDS_CHANGES"
+      },
+      "timestamp": "2026-10-07T11:15:06.624Z"
+    },
+    {
+      "id": "e2ff7820-3d85-433d-8de3-ce1139c90acb",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "CREDENTIAL_REQUEST_REJECT",
+      "entityType": "CREDENTIAL_REQUEST",
+      "entityId": "1a83b6d8-f50c-4c4e-a3b8-d9a342896142",
+      "diff": {
+        "status": "REJECTED",
+        "adminComment": "test"
+      },
+      "timestamp": "2026-10-07T11:16:27.152Z"
+    },
+    {
+      "id": "3851e3ce-fe3f-446b-acab-d696a3fa32d9",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "CREDENTIAL_REQUEST_APPROVE",
+      "entityType": "CREDENTIAL_REQUEST",
+      "entityId": "0a6e44c0-c883-4fe1-a818-fa642acefc39",
+      "diff": {
+        "status": "APPROVED",
+        "adminComment": "Admin tomonidan tasdiqlandi"
+      },
+      "timestamp": "2026-10-07T11:16:30.280Z"
+    },
+    {
+      "id": "42ac81a6-7312-4cb3-b48e-88e5b86bfd8c",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "CREATE_ORGANIZATION_USER",
+      "entityType": "USER",
+      "entityId": "fa9d66ee-497c-4022-8c78-c695c0727887",
+      "diff": {
+        "organizationId": "57b2d645-c396-4ab1-99de-d8229ad1adce",
+        "email": "unicon",
+        "role": "MANAGER",
+        "verificationMethod": "TELEGRAM",
+        "isVerified": true
+      },
+      "timestamp": "2026-10-07T11:18:01.026Z"
     }
   ],
   "idempotencyRecords": []

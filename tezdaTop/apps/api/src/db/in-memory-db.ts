@@ -25,7 +25,7 @@ export interface DBOrganization {
   id: string;
   name: string;
   inn?: string;
-  type: 'RETAIL' | 'WHOLESALE' | 'MIXED';
+  type: string;
   status: 'ACTIVE' | 'SUSPENDED';
   region?: string;
   city?: string;
