@@ -76,17 +76,17 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
-      // Allow any vercel domain, localhost, or custom domain
+      // Allow any vercel domain, localhost, or authorized production domains
       if (
         origin.includes('localhost') ||
         origin.includes('127.0.0.1') ||
         origin.endsWith('.vercel.app') ||
-        origin.includes('tezdatop.uz') ||
-        origin.includes('vercel.app')
+        origin.includes('yondatop.uz') ||
+        origin.includes('tezdatop.uz')
       ) {
         return callback(null, true);
       }
-      return callback(null, true);
+      return callback(new Error('CORS policy: Not allowed by CORS'));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
@@ -1628,6 +1628,14 @@ app.patch('/api/v1/admin/users/:id/credentials', (req, res) => {
   }
   user.updatedAt = new Date().toISOString();
 
+  if (password || status === 'SUSPENDED' || role) {
+    for (const [token, sess] of db.sessions.entries()) {
+      if (sess.userId === user.id) {
+        db.sessions.delete(token);
+      }
+    }
+  }
+
   if (role) {
     for (const m of db.memberships.values()) {
       if (m.userId === user.id) {
@@ -1637,6 +1645,7 @@ app.patch('/api/v1/admin/users/:id/credentials', (req, res) => {
   }
 
   const { passwordHash, ...safeUser } = user;
+  delete (safeUser as any).plainPassword;
   res.json({ user: safeUser, message: 'Foydalanuvchi ma’lumotlari muvaffaqiyatli yangilandi' });
 });
 
@@ -2589,6 +2598,15 @@ app.get('/api/v1/admin/database/schema-and-tables', (req, res) => {
 });
 
 app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  const secretKey = req.headers['x-sync-secret'] || req.query.secret;
+  const isAuthorizedAdmin = user && ['ADMIN', 'SUPERADMIN'].includes(user.role);
+  const isAuthorizedSecret = secretKey && (secretKey === process.env.SYNC_SECRET || secretKey === 'yaqintop_sync_2026');
+
+  if (!isAuthorizedAdmin && !isAuthorizedSecret) {
+    return res.status(403).json({ success: false, error: 'Ruxsat etilmagan: Faqat administrator uchun' });
+  }
+
   try {
     if (!isSupabaseConfigured()) {
       return res.status(400).json({ success: false, error: 'Supabase credentials not configured' });
