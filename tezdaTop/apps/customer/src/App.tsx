@@ -33,7 +33,7 @@ import { StoreFullPageView } from './components/StoreFullPageView';
 import { UserPersonalHubView } from './components/UserPersonalHubView';
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
-import { UzbekistanRegionPickerModal } from './components/UzbekistanRegionPickerModal';
+import { UzbekistanRegionPickerModal, detectNearestUzbekistanLocation } from './components/UzbekistanRegionPickerModal';
 import { apiUrl } from './config/api.js';
 
 export function CustomerApp() {
@@ -316,6 +316,15 @@ export function CustomerApp() {
         (pos) => {
           const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
           setUserLocation(coords);
+          const detected = detectNearestUzbekistanLocation(coords.lat, coords.lng);
+          if (detected) {
+            setSelectedLocationName(detected.name);
+            try {
+              localStorage.setItem('yaqintop_location_name', detected.name);
+            } catch (e) {
+              console.error(e);
+            }
+          }
           try {
             localStorage.setItem('yaqintop_user_location', JSON.stringify(coords));
           } catch (e) {
@@ -1458,6 +1467,7 @@ export function CustomerApp() {
           <InteractiveMap
             userLocation={userLocation}
             radiusM={radiusM}
+            locationName={selectedLocationName}
             results={results}
             nearbyStores={nearbyStores}
             selectedResult={selectedResult}
@@ -1473,6 +1483,16 @@ export function CustomerApp() {
             isDarkMode={isDarkMode}
             onLocationChange={(lat, lng) => {
               setUserLocation({ lat, lng });
+              const detected = detectNearestUzbekistanLocation(lat, lng);
+              if (detected) {
+                setSelectedLocationName(detected.name);
+                try {
+                  localStorage.setItem('yaqintop_location_name', detected.name);
+                  localStorage.setItem('yaqintop_user_location', JSON.stringify({ lat, lng }));
+                } catch (e) {
+                  console.error(e);
+                }
+              }
             }}
             onToast={showToast}
           />

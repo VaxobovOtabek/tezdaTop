@@ -331,6 +331,38 @@ export const POPULAR_PRESETS = [
   { name: 'Nukus', sub: 'Markaz', region: 'Qoraqalpog‘iston Respublikasi', district: 'Nukus shahri (Markaz)', lat: 42.4611, lng: 59.6167 }
 ];
 
+export function detectNearestUzbekistanLocation(lat: number, lng: number): { region: string; district: string; name: string; lat: number; lng: number } {
+  let minDistance = Infinity;
+  let bestMatch = {
+    region: 'Toshkent shahri',
+    district: 'Yunusobod tumani',
+    name: 'Toshkent, Yunusobod',
+    lat: 41.311081,
+    lng: 69.240562
+  };
+
+  for (const reg of UZBEKISTAN_REGIONS) {
+    for (const dist of reg.districts) {
+      const dLat = dist.lat - lat;
+      const dLng = dist.lng - lng;
+      const d = dLat * dLat + dLng * dLng;
+      if (d < minDistance) {
+        minDistance = d;
+        const regShort = reg.name.replace(' viloyati', '').replace(' shahri', '').replace(' Respublikasi', '');
+        const distShort = dist.name.replace(' tumani', '').replace(' shahri', '').replace(/ \(.*\)/, '').replace(/ \/ .*/, '');
+        bestMatch = {
+          region: reg.name,
+          district: dist.name,
+          name: `${regShort}, ${distShort}`,
+          lat: dist.lat,
+          lng: dist.lng
+        };
+      }
+    }
+  }
+  return bestMatch;
+}
+
 interface UzbekistanRegionPickerModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -407,10 +439,11 @@ export function UzbekistanRegionPickerModal({
       (pos) => {
         setLocating(false);
         const { latitude, longitude } = pos.coords;
+        const detected = detectNearestUzbekistanLocation(latitude, longitude);
         onSelectLocation({
-          name: 'Joriy joylashuvim (GPS)',
-          region: 'Avtomatik aniqlangan',
-          district: 'GPS koordinatalar',
+          name: detected.name,
+          region: detected.region,
+          district: detected.district,
           lat: latitude,
           lng: longitude
         });
