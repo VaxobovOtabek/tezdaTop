@@ -115,12 +115,32 @@ export function UnifiedLoginModal({
           className="flex flex-col gap-3"
         >
           {register && <>
-            <label className="text-xs font-semibold">Ism va familiya
-              <input required minLength={2} maxLength={160} autoComplete="name" value={fullName} onChange={e => setFullName(e.target.value)} className="w-full h-10 px-3 mt-1 rounded-xl border bg-white dark:bg-[#16241E]" />
+            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block">Ism va familiya
+              <input required minLength={2} maxLength={160} autoComplete="name" value={fullName} onChange={e => setFullName(e.target.value)} placeholder="Masalan: Anvar Qodirov" className="w-full h-10 px-3 mt-1 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs" />
             </label>
-            <label className="text-xs font-semibold">Telefon raqami
-              <input required type="tel" maxLength={13} inputMode="tel" autoComplete="tel" placeholder="+998901112233" pattern="\+998[0-9]{9}" value={phone} onChange={e => setPhone(e.target.value.replace(/[^0-9+]/g, '').replace(/(?!^)\+/g, '').slice(0, 13))} className="w-full h-10 px-3 mt-1 rounded-xl border bg-white dark:bg-[#16241E]" />
-            </label>
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                Telefon raqami
+              </label>
+              <div className="relative flex items-center">
+                <span className="absolute left-3 font-bold text-xs text-[#116B50] dark:text-[#4ADE80] select-none pointer-events-none">
+                  +998
+                </span>
+                <input
+                  required
+                  type="tel"
+                  maxLength={9}
+                  inputMode="numeric"
+                  placeholder="90 123 45 67"
+                  value={phone.startsWith('+998') ? phone.slice(4) : phone.replace(/\D/g, '').slice(0, 9)}
+                  onChange={e => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
+                    setPhone('+998' + digits);
+                  }}
+                  className="w-full h-10 pl-14 pr-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-mono font-medium text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                />
+              </div>
+            </div>
           </>}
           <div>
             <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">

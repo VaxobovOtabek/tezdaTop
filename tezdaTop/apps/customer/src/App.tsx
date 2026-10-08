@@ -23,7 +23,8 @@ import {
   Moon,
   Sun,
   LogIn,
-  ChevronDown
+  ChevronDown,
+  Building2
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
@@ -92,6 +93,7 @@ export function CustomerApp() {
   const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history'>('favorites');
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
   const [mobileTab, setMobileTab] = useState<'xarita' | 'royxat'>('xarita');
+  const [searchCategory, setSearchCategory] = useState<'products' | 'organizations'>('products');
   const [searchQuery, setSearchQuery] = useState('');
   const [radiusM, setRadiusM] = useState(1000);
   const [openNow, setOpenNow] = useState(false);
@@ -155,12 +157,15 @@ export function CustomerApp() {
     }
   };
 
-  // Fetch all nearby stores when no query
-  const loadNearbyStores = async (loc?: { lat: number; lng: number }) => {
+  // Fetch all nearby stores or search organizations
+  const loadNearbyStores = async (loc?: { lat: number; lng: number }, queryStr?: string) => {
     try {
       const uLat = loc?.lat ?? userLocation?.lat ?? 41.311081;
       const uLng = loc?.lng ?? userLocation?.lng ?? 69.240562;
-      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}&radiusM=0${openNow ? '&openNow=true' : ''}`));
+      const targetQuery = queryStr !== undefined ? queryStr : (searchCategory === 'organizations' ? searchQuery.trim() : '');
+      const queryParam = targetQuery ? `&q=${encodeURIComponent(targetQuery)}` : '';
+      const radiusParam = radiusM ? `&radiusM=${radiusM}` : '&radiusM=0';
+      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}${radiusParam}${openNow ? '&openNow=true' : ''}${queryParam}`));
       if (res.ok) {
         const data = await res.json();
         const items = (data.items || []).map((item: any) => {
@@ -174,7 +179,7 @@ export function CustomerApp() {
           return item;
         });
         setNearbyStores(items);
-        setSelectedNearbyStore(null);
+        setSelectedNearbyStore(items.length > 0 ? items[0] : null);
       }
     } catch (err) {
       console.error('Error fetching nearby stores:', err);
@@ -338,6 +343,14 @@ export function CustomerApp() {
   // Fetch search results from API
   const doSearch = async (queryStr?: string, loc?: { lat: number; lng: number }) => {
     const q = (typeof queryStr === 'string' ? queryStr : searchQuery).trim();
+
+    if (searchCategory === 'organizations') {
+      setResults([]);
+      setSelectedResult(null);
+      loadNearbyStores(loc, q);
+      return;
+    }
+
     if (!q) {
       setResults([]);
       setSelectedResult(null);
@@ -387,14 +400,18 @@ export function CustomerApp() {
   };
 
   useEffect(() => {
-    if (searchQuery.trim()) {
+    if (searchCategory === 'organizations') {
+      setResults([]);
+      setSelectedResult(null);
+      loadNearbyStores(undefined, searchQuery.trim());
+    } else if (searchQuery.trim()) {
       doSearch();
     } else {
       setResults([]);
       setSelectedResult(null);
       loadNearbyStores();
     }
-  }, [userLocation, radiusM, openNow, inStock, freshOnly, selectedSort, searchQuery]);
+  }, [userLocation, radiusM, openNow, inStock, freshOnly, selectedSort, searchQuery, searchCategory]);
 
   // Fetch route
   const fetchRoute = async (storeParam: any, mode: 'walking' | 'driving') => {
@@ -699,15 +716,33 @@ export function CustomerApp() {
           {/* Desktop Navigation Links */}
           <nav className="hidden lg:flex items-center gap-1.5 ml-4">
             <button
-              onClick={() => navigateTo('/')}
+              onClick={() => {
+                setSearchCategory('products');
+                navigateTo('/');
+              }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
-                view === 'search' || (view as string) === 'route'
+                (view === 'search' || (view as string) === 'route') && searchCategory === 'products'
                   ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
                   : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
               }`}
             >
               <Search className="w-3.5 h-3.5" />
-              <span>Xarita & Izlash</span>
+              <span>Mahsulot izlash</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setSearchCategory('organizations');
+                navigateTo('/');
+              }}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                (view === 'search' || (view as string) === 'route') && searchCategory === 'organizations'
+                  ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
+              }`}
+            >
+              <Building2 className="w-3.5 h-3.5" />
+              <span>Tashkilot izlash</span>
             </button>
 
             <button
@@ -855,13 +890,47 @@ export function CustomerApp() {
             >
           {view === 'search' && (
             <div className="p-5 flex flex-col gap-4">
+              {/* Search Mode Switcher Tabs */}
+              <div className="flex p-1 bg-[#EAEFEA] dark:bg-[#1A2822] rounded-2xl gap-1 border border-[#DCE5DF] dark:border-[#263D33]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchCategory('products');
+                    setSearchQuery('');
+                  }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                    searchCategory === 'products'
+                      ? 'bg-white dark:bg-[#16241E] text-[#116B50] dark:text-[#4ADE80] shadow-xs'
+                      : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+                  }`}
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  <span>Mahsulot izlash</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchCategory('organizations');
+                    setSearchQuery('');
+                  }}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition ${
+                    searchCategory === 'organizations'
+                      ? 'bg-white dark:bg-[#16241E] text-[#116B50] dark:text-[#4ADE80] shadow-xs'
+                      : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+                  }`}
+                >
+                  <Building2 className="w-3.5 h-3.5" />
+                  <span>Tashkilot izlash</span>
+                </button>
+              </div>
+
               {/* Search Box */}
               <div>
                 <span className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] uppercase tracking-wider">
                   Yaqiningizdan toping
                 </span>
                 <h1 className="text-2xl font-bold tracking-tight text-[#172C28] dark:text-white mt-1 mb-3">
-                  Kerakli tovar. Yaqin do‘kon.
+                  {searchCategory === 'products' ? 'Kerakli tovar. Yaqin do‘kon.' : 'Tashkilot va xizmatlar qidiruvi.'}
                 </h1>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -870,14 +939,14 @@ export function CustomerApp() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-                      placeholder="Mahsulot nomi, masalan: snikers"
+                      placeholder={searchCategory === 'products' ? "Mahsulot nomi, masalan: snikers" : "Tashkilot nomi, masalan: paynet"}
                       className="w-full h-11 pl-3.5 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E]"
                     />
                     {searchQuery && (
                       <button
                         onClick={() => {
                           setSearchQuery('');
-                          doSearch();
+                          doSearch('');
                         }}
                         className="absolute right-2.5 top-3 text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white"
                       >

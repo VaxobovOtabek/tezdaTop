@@ -583,14 +583,26 @@ app.get('/api/v1/search/markers', (req, res) => {
 app.get('/api/v1/stores', (req, res) => {
   const lat = req.query.lat ? parseFloat(req.query.lat as string) : 41.311081;
   const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
-  const radiusM = req.query.radiusM ? parseInt(req.query.radiusM as string, 10) : 3000;
+  const radiusM = req.query.radiusM ? parseInt(req.query.radiusM as string, 10) : 0;
   const openNow = req.query.openNow === 'true';
+  const query = (req.query.q || req.query.query || '').toString().trim().toLowerCase();
 
   const results: any[] = [];
   for (const store of db.stores.values()) {
     if (store.status !== 'ACTIVE') continue;
     const org = db.organizations.get(store.organizationId);
     if (!org || org.status !== 'ACTIVE') continue;
+
+    if (query) {
+      const matchName = store.name.toLowerCase().includes(query);
+      const matchOrgName = org.name.toLowerCase().includes(query);
+      const matchType = (store.type || org.type || '').toLowerCase().includes(query);
+      const matchAddress = (store.address || '').toLowerCase().includes(query);
+      const matchCity = (store.city || org.city || '').toLowerCase().includes(query);
+      if (!matchName && !matchOrgName && !matchType && !matchAddress && !matchCity) {
+        continue;
+      }
+    }
 
     const dist = calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng);
     if (radiusM && dist > radiusM) continue;

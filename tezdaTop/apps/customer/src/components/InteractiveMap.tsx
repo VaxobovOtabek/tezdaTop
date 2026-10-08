@@ -305,16 +305,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         const customIcon = L.divIcon({
           className: 'custom-store-pin',
           html: `
-            <div style="transform: translate(-50%, -50%); cursor: pointer; transition: transform 0.2s;">
-              <div style="${bgStyle} padding: 6px 10px; border-radius: 12px; font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 6px; white-space: nowrap;">
+            <div style="position: absolute; transform: translate(-50%, -100%); cursor: pointer; white-space: nowrap; transition: transform 0.2s;">
+              <div style="${bgStyle} padding: 5px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;">
                 <span>🛒</span>
                 <span>${formattedPrice} so‘m</span>
               </div>
               <div style="width: 8px; height: 8px; background: ${arrowColor}; transform: rotate(45deg); margin: -4px auto 0 auto;"></div>
             </div>
           `,
-          iconSize: [120, 40],
-          iconAnchor: [60, 36]
+          iconSize: [0, 0],
+          iconAnchor: [0, 0]
         });
 
         const marker = L.marker(latLng, {
@@ -367,11 +367,39 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       nearbyStores.forEach(item => {
         const latLng = getStoreLatLng(item.store);
         if (!latLng) return;
-        const label = document.createElement('div');
-        label.textContent = item.organization?.name || item.store.name;
-        label.style.cssText = `padding:6px 10px;border-radius:12px;white-space:nowrap;font-size:12px;font-weight:700;background:${isDarkMode ? '#16241E' : '#ffffff'};color:${isDarkMode ? '#E8F2EC' : '#172C28'};border:2px solid #116B50;box-shadow:0 2px 8px #0003;`;
+        const isSelected = selectedNearbyStore?.store?.id === item.store?.id;
+        const storeName = (item.organization?.name || item.store.name || '').replace(/"/g, '&quot;');
+        const badgeBg = isSelected
+          ? '#116B50'
+          : (isDarkMode ? '#16241E' : '#ffffff');
+        const badgeColor = isSelected
+          ? '#ffffff'
+          : (isDarkMode ? '#E8F2EC' : '#172C28');
+        const borderColor = isSelected
+          ? '#ffffff'
+          : '#116B50';
+        const shadow = isSelected
+          ? '0 6px 16px rgba(17,107,80,0.5)'
+          : '0 3px 10px rgba(0,0,0,0.18)';
+
+        const pinHtml = `
+          <div style="position: absolute; transform: translate(-50%, -100%); cursor: pointer; white-space: nowrap; pointer-events: auto;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; border: 2px solid ${borderColor}; box-shadow: ${shadow}; transition: transform 0.15s ease;">
+              <span style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 9999px; background: ${isSelected ? '#ffffff' : '#116B50'}; color: ${isSelected ? '#116B50' : '#ffffff'}; font-size: 10px;">🏢</span>
+              <span style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${storeName}</span>
+            </div>
+            <div style="width: 8px; height: 8px; background: ${borderColor}; transform: rotate(45deg); margin: -4px auto 0 auto;"></div>
+          </div>
+        `;
+
         const marker = L.marker(latLng, {
-          icon: L.divIcon({ className: 'custom-store-pin', html: label, iconSize: [140, 36], iconAnchor: [70, 36] }),
+          icon: L.divIcon({
+            className: 'custom-store-pin',
+            html: pinHtml,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0]
+          }),
+          zIndexOffset: isSelected ? 500 : 100,
           title: `${item.organization?.name || item.store.name} — tovar va xizmatlarni ko‘rish`,
           keyboard: true
         });
@@ -382,7 +410,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         markersLayer.addLayer(marker);
       });
     }
-  }, [results, nearbyStores, selectedResult, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail]);
+  }, [results, nearbyStores, selectedResult, selectedNearbyStore, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail]);
 
   // Center selected result or nearby store on change
   useEffect(() => {
