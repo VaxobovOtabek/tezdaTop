@@ -304,6 +304,27 @@ export function CustomerApp() {
     showToast('Marshrut rejimi to‘xtatildi');
   };
 
+  // Request user's real geolocation on initial load
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+          setUserLocation(coords);
+          try {
+            localStorage.setItem('yaqintop_user_location', JSON.stringify(coords));
+          } catch (e) {
+            console.error(e);
+          }
+        },
+        (err) => {
+          console.warn('Geolocation access not granted or unavailable:', err);
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+      );
+    }
+  }, []);
+
   // Listen to popstate (browser back/forward button) and initial URL load
   useEffect(() => {
     handleRoute(window.location.pathname || '/');

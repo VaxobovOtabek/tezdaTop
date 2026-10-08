@@ -54,7 +54,18 @@ export function UnifiedLoginModal({
           : { email: targetLogin, login: targetLogin, password: targetPass })
       });
 
-      const data = await res.json();
+      let data: any = {};
+      const contentType = res.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      } else {
+        const text = await res.text();
+        try {
+          data = JSON.parse(text);
+        } catch {
+          data = { message: res.ok ? 'Muvaffaqiyatli' : (res.status === 401 ? 'Login yoki parol noto‘g‘ri' : `Server javobida xatolik (${res.status})`) };
+        }
+      }
       if (res.ok && data.user) {
         saveCachedSession(data.user, data.token, data.expiresAt);
 

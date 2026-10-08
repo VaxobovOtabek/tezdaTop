@@ -81,6 +81,7 @@ app.use(
         origin.includes('localhost') ||
         origin.includes('127.0.0.1') ||
         origin.endsWith('.vercel.app') ||
+        origin.includes('yaqintop.uz') ||
         origin.includes('yondatop.uz') ||
         origin.includes('tezdatop.uz')
       ) {
@@ -2618,14 +2619,17 @@ app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => 
   }
 });
 
-// 404 Fallback handler to prevent serverless function hangs
-app.use((req: Request, res: Response) => {
-  if (!res.headersSent) {
-    res.status(404).json({
-      code: 'NOT_FOUND',
-      message: `Marshrut topilmadi: ${req.method} ${req.url}`
-    });
+// Global error handling middleware (always return JSON)
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[YaqinTop API Error]', err);
+  if (res.headersSent) {
+    return next(err);
   }
+  const status = typeof err.status === 'number' ? err.status : 500;
+  res.status(status).json({
+    code: err.code || 'SERVER_ERROR',
+    message: err.message || 'Serverda ichki xatolik yuz berdi'
+  });
 });
 
 // Start persistent server if not running in Serverless / Vercel environment

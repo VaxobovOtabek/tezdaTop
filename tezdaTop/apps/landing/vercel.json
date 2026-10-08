@@ -5,6 +5,22 @@
       "destination": "https://tez-api.vercel.app/api/:path*"
     },
     {
+      "source": "/customer/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/admin/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/moderator/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/owner/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
       "source": "/customer/:path*",
       "destination": "https://tezda-customer.vercel.app/:path*"
     },

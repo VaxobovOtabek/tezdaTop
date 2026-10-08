@@ -840,7 +840,6 @@ export function LandingApp() {
           <a href="/owner" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Do‘kon Kabineti</a>
           <a href="/moderator" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Moderator Portali</a>
           <a href="/admin" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white transition">Admin Paneli</a>
-          <a href="/api/v1/health/ready" target="_blank" rel="noreferrer" className="text-[#116B50] dark:text-[#4ADE80] hover:underline">API Holati</a>
         </div>
       </footer>
     </div>

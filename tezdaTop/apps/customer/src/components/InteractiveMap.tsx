@@ -384,16 +384,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     }
   }, [results, nearbyStores, selectedResult, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail]);
 
-  // Show every organization on the initial map and when the list is refreshed.
-  useEffect(() => {
-    const map = mapInstanceRef.current;
-    if (!map || !mapReady || view !== 'search' || results.length > 0) return;
-    const points = nearbyStores.map(item => getStoreLatLng(item.store)).filter((point): point is [number, number] => point !== null);
-    if (points.length) {
-      map.fitBounds(L.latLngBounds(points), { padding: [50, 50], maxZoom: 15 });
-    }
-  }, [nearbyStores, mapReady, view, results.length]);
-
   // Center selected result or nearby store on change
   useEffect(() => {
     const map = mapInstanceRef.current;

@@ -5,6 +5,10 @@
       "destination": "/assets/:path*"
     },
     {
+      "source": "/customer/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://tez-api.vercel.app/api/:path*"
     },
