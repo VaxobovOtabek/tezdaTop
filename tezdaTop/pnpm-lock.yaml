@@ -425,6 +425,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      leaflet:
+        specifier: ^1.9.4
+        version: 1.9.4
       lucide-react:
         specifier: ^1.16.0
         version: 1.51.0(@types/react@19.3.0)(react@19.3.0)
@@ -438,6 +441,9 @@ importers:
         specifier: ^3.0.2
         version: 3.7.0
     devDependencies:
+      '@types/leaflet':
+        specifier: ^1.9.22
+        version: 1.9.22
       '@types/react':
         specifier: ^19.0.10
         version: 19.3.0

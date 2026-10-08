@@ -51,9 +51,23 @@ export type RegisterRequest = z.infer<typeof RegisterRequestSchema>;
 export const OrganizationTypeSchema = z.string().trim().min(1).max(80);
 export type OrganizationType = z.infer<typeof OrganizationTypeSchema>;
 
+export const STANDARD_ORGANIZATION_TYPES = [
+  { value: 'RETAIL', label: 'Chakana savdo (Do‘kon / Supermarket / Minimarket)', category: 'TRADE' },
+  { value: 'PHARMACY', label: 'Apteka (Dorixona)', category: 'TRADE' },
+  { value: 'GAME_CLUB', label: 'Game Club (Kompyuter klubi / PlayStation)', category: 'SERVICE' },
+  { value: 'GAS_STATION', label: 'Zapravka (Yoqilg‘i quyish / Zaryadlash stansiyasi)', category: 'TRADE' },
+  { value: 'BEAUTY_SALON', label: 'Sartaroshxona / Go‘zallik saloni / Barbershop', category: 'SERVICE' },
+  { value: 'EDUCATION', label: 'O‘quv markaz / Kurslar / Maktab', category: 'SERVICE' },
+  { value: 'RESTAURANT', label: 'Kafe / Restoran / Fast food / Oshxona', category: 'SERVICE' },
+  { value: 'AUTO_SERVICE', label: 'Avtoservis / Ustaxona / Avtoyuvish', category: 'SERVICE' },
+  { value: 'WHOLESALE', label: 'Ulgurji savdo (Baza / Optom)', category: 'TRADE' },
+  { value: 'SERVICES', label: 'Boshqa xizmat ko‘rsatish sohasi', category: 'SERVICE' },
+  { value: 'MIXED', label: 'Aralash faoliyat (Savdo va xizmatlar)', category: 'TRADE' }
+] as const;
+
 export function isTradeOrganization(type: string | undefined): boolean {
   const normalized = (type || 'RETAIL').toUpperCase().replace(/[‘’ʻʼ`]/g, "'");
-  return /\b(RETAIL|WHOLESALE|MIXED|MAGAZIN|SAVDO|MARKET|SHOP|STORE|SUPERMARKET|CHAKANA|ULGURJI|ARALASH)\b/.test(normalized) || normalized.includes("DO'KON");
+  return /\b(RETAIL|WHOLESALE|MIXED|MAGAZIN|SAVDO|MARKET|SHOP|STORE|SUPERMARKET|CHAKANA|ULGURJI|ARALASH|PHARMACY|DORIXONA|APTEKA|GAS_STATION|ZAPRAVKA)\b/.test(normalized) || normalized.includes("DO'KON");
 }
 
 export const StoreStatusSchema = z.enum([

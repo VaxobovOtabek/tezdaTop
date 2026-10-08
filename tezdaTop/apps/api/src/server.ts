@@ -1012,7 +1012,20 @@ app.post('/api/v1/user/inquiries', (req, res) => {
 
 // ================= MERCHANT OPERATIONS =================
 app.get('/api/v1/owner/organization-types', (_req, res) => {
-  res.json({ types: Array.from(new Set(['RETAIL', 'WHOLESALE', 'MIXED', ...Array.from(db.organizations.values()).map(org => org.type)])) });
+  const defaultTypes = [
+    'RETAIL',
+    'PHARMACY',
+    'GAME_CLUB',
+    'GAS_STATION',
+    'BEAUTY_SALON',
+    'EDUCATION',
+    'RESTAURANT',
+    'AUTO_SERVICE',
+    'WHOLESALE',
+    'SERVICES',
+    'MIXED'
+  ];
+  res.json({ types: Array.from(new Set([...defaultTypes, ...Array.from(db.organizations.values()).map(org => org.type)])) });
 });
 
 app.post('/api/v1/owner/onboarding', (req, res) => {
