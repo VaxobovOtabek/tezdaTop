@@ -183,44 +183,39 @@ export function AdminMapHub({
       const hasIssues = (store.openReportsCount || 0) > 0 || store.status === 'PENDING' || store.status === 'NEEDS_CHANGES';
       const issueCount = store.openReportsCount || (store.status === 'PENDING' ? 1 : 0);
 
+      const badgeBg = hasIssues
+        ? 'background: #172C28; color: #ffffff; border: 1.5px solid #EF4444; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.35);'
+        : store.status === 'ACTIVE'
+        ? 'background: #116B50; color: #ffffff; border: 1.5px solid #34D399; box-shadow: 0 4px 12px rgba(17, 107, 80, 0.35);'
+        : 'background: #92400E; color: #ffffff; border: 1.5px solid #FBBF24; box-shadow: 0 4px 12px rgba(146, 64, 14, 0.35);';
+
+      const triangleColor = hasIssues ? '#EF4444' : store.status === 'ACTIVE' ? '#116B50' : '#92400E';
+
       const markerHtml = `
-        <div class="relative group cursor-pointer" style="transform: translate(-50%, -100%);">
-          <!-- Outer pin card -->
-          <div class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl shadow-lg border text-xs font-bold transition-transform group-hover:scale-105 ${
-            hasIssues
-              ? 'bg-[#172C28] text-white border-red-500 shadow-red-500/20'
-              : store.status === 'ACTIVE'
-              ? 'bg-[#116B50] text-white border-emerald-400/40 shadow-emerald-900/20'
-              : 'bg-amber-800 text-white border-amber-400/40 shadow-amber-900/20'
-          }">
-            <span class="text-sm">🏪</span>
-            <span class="max-w-[130px] truncate">${store.name}</span>
+        <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none;">
+          <div style="position: relative; ${badgeBg} display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 12px; font-size: 11px; font-weight: 700; white-space: nowrap;">
+            <span style="font-size: 13px;">🏪</span>
+            <span style="max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${store.name}</span>
+            ${
+              hasIssues
+                ? `
+              <div style="position: absolute; top: -7px; right: -7px; min-width: 18px; height: 18px; padding: 0 3px; background: #DC2626; color: white; font-size: 10px; font-weight: 800; border-radius: 9999px; display: flex; align-items: center; justify-content: center; border: 2px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);">
+                🔴 ${issueCount}
+              </div>
+            `
+                : ''
+            }
           </div>
-
-          <!-- Red badge with issue count -->
-          ${
-            hasIssues
-              ? `
-            <div class="absolute -top-2.5 -right-2.5 min-w-[20px] h-[20px] px-1 bg-red-600 text-white text-[10px] font-extrabold rounded-full flex items-center justify-center border-2 border-white dark:border-[#14201A] shadow-md animate-bounce">
-              🔴 ${issueCount}
-            </div>
-          `
-              : ''
-          }
-
-          <!-- Pin pointer triangle -->
-          <div class="w-2.5 h-2.5 mx-auto -mt-1 rotate-45 ${
-            hasIssues ? 'bg-[#172C28] border-r border-b border-red-500' : 'bg-[#116B50]'
-          }"></div>
+          <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid ${triangleColor}; margin-top: -1px;"></div>
         </div>
       `;
 
       const customIcon = L.divIcon({
         className: 'custom-admin-marker',
         html: markerHtml,
-        iconSize: [140, 42],
-        iconAnchor: [70, 42],
-        popupAnchor: [0, -42]
+        iconSize: [0, 0],
+        iconAnchor: [0, 0],
+        popupAnchor: [0, -36]
       });
 
       const marker = L.marker([lat, lng], { icon: customIcon });

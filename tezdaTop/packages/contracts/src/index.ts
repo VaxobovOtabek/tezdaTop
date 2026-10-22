@@ -450,3 +450,29 @@ export const UserNotificationSchema = z.object({
 });
 export type UserNotification = z.infer<typeof UserNotificationSchema>;
 
+
+
+// ================= CROWDSOURCED ITEM PROPOSALS =================
+export const ItemProposalSchema = z.object({
+  id: z.string().uuid(),
+  storeId: z.string(),
+  userId: z.string(),
+  userFullName: z.string().optional(),
+  userPhone: z.string().optional(),
+  title: z.string().min(1),
+  normalizedTitle: z.string(),
+  type: z.enum(['PRODUCT', 'SERVICE']),
+  category: z.string(),
+  price: z.number().min(0),
+  stockOnHand: z.number().min(0),
+  packUnit: z.string(),
+  barcode: z.string().optional(),
+  description: z.string().optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'AUTO_APPROVED']),
+  approvedBy: z.string().optional(),
+  consensusGroupKey: z.string(),
+  createdOfferId: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+export type ItemProposal = z.infer<typeof ItemProposalSchema>;

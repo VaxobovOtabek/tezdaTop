@@ -73,7 +73,7 @@ export function LocationPickerModal({
     return L.divIcon({
       className: 'custom-picker-pin',
       html: `
-        <div style="position: relative; display: flex; flex-direction: column; align-items: center; transform: translate(-50%, -100%);">
+        <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; pointer-events: auto; user-select: none;">
           <div style="width: 38px; height: 38px; border-radius: 50% 50% 50% 0; background: #116B50; transform: rotate(-45deg); display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.35); border: 2.5px solid white;">
             <div style="transform: rotate(45deg); color: white; font-weight: 800; font-size: 15px;">📍</div>
           </div>
@@ -81,7 +81,8 @@ export function LocationPickerModal({
         </div>
       `,
       iconSize: [0, 0],
-      iconAnchor: [0, 0]
+      iconAnchor: [0, 0],
+      popupAnchor: [0, -42]
     });
   };
 

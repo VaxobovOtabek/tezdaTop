@@ -17,6 +17,7 @@ import {
   Search,
   Filter,
   Check,
+  Sparkles,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -31,7 +32,7 @@ export interface RequestsInquiriesHubProps {
 }
 
 export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: RequestsInquiriesHubProps) {
-  const [activeTab, setActiveTab] = useState<'credentials' | 'inquiries'>('credentials');
+  const [activeTab, setActiveTab] = useState<'credentials' | 'inquiries' | 'proposals'>('credentials');
 
   // Credential Requests State
   const [credentialRequests, setCredentialRequests] = useState<CredentialChangeRequest[]>([]);
@@ -47,6 +48,13 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   const [inquiryStatusFilter, setInquiryStatusFilter] = useState<'ALL' | 'PENDING_MERCHANT_REPLY' | 'MERCHANT_SUBMITTED' | 'CUSTOMER' | 'RESOLVED'>('ALL');
   const [inquirySearch, setInquirySearch] = useState('');
   const [isCreateInquiryModalOpen, setIsCreateInquiryModalOpen] = useState(false);
+  // Item Proposals State
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [proposalStatusFilter, setProposalStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'AUTO_APPROVED' | 'REJECTED'>('PENDING');
+  const [proposalSearch, setProposalSearch] = useState('');
+  const [isProcessingProposal, setIsProcessingProposal] = useState(false);
+
+  const targetStatePlaceholder = true;
   const [newInquiryForm, setNewInquiryForm] = useState({
     storeId: '',
     subject: '',
@@ -130,6 +138,46 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   };
 
   // Create new inquiry to store
+  const handleApproveProposal = async (id: string, title: string) => {
+    setIsProcessingProposal(true);
+    try {
+      const res = await fetch(`/api/v1/admin/item-proposals/${id}/approve`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`"${title}" muvaffaqiyatli tasdiqlandi va do‘konga qo‘shildi!`);
+        await loadData();
+      } else {
+        onShowToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      onShowToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+
+  const handleRejectProposal = async (id: string, title: string) => {
+    setIsProcessingProposal(true);
+    try {
+      const res = await fetch(`/api/v1/admin/item-proposals/${id}/reject`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`"${title}" taklifi rad etildi`);
+        await loadData();
+      } else {
+        onShowToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      onShowToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+
   const handleCreateInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newInquiryForm.storeId || !newInquiryForm.subject.trim() || !newInquiryForm.message.trim()) {
@@ -264,6 +312,16 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   });
 
   const pendingCredCount = credentialRequests.filter(r => r.status === 'PENDING').length;
+  const pendingProposalsCount = proposals.filter(p => p.status === 'PENDING').length;
+
+  const filteredProposals = proposals.filter((p) => {
+    const matchesFilter = proposalStatusFilter === 'ALL' || p.status === proposalStatusFilter;
+    const matchesSearch = !proposalSearch.trim() ||
+      (p.title && p.title.toLowerCase().includes(proposalSearch.toLowerCase())) ||
+      (p.storeName && p.storeName.toLowerCase().includes(proposalSearch.toLowerCase())) ||
+      (p.category && p.category.toLowerCase().includes(proposalSearch.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
   const pendingInqRepliesCount = inquiries.filter(i => i.status === 'MERCHANT_SUBMITTED').length;
 
   return (
@@ -334,6 +392,23 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           {pendingInqRepliesCount > 0 && (
             <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white">
               {pendingInqRepliesCount} yangi javob
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('proposals')}
+          className={`pb-3 px-4 text-sm font-bold transition flex items-center gap-2 border-b-2 ${
+            activeTab === 'proposals'
+              ? 'border-[#116B50] text-[#116B50] dark:text-[#4ADE80] dark:border-[#4ADE80]'
+              : 'border-transparent text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Tovar & Xizmat Takliflari</span>
+          {pendingProposalsCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#F59E0B] text-white">
+              {pendingProposalsCount}
             </span>
           )}
         </button>
@@ -565,7 +640,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div className="flex items-center gap-2 flex-wrap">
                         {isCustomerInquiry ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-[#E0EFE7] text-[#116B50] dark:bg-[#1E362A] dark:text-[#4ADE80]">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
                             👤 Xaridor: {inq.senderName || 'Mijoz'} {inq.senderPhone ? `(${inq.senderPhone})` : ''}
                           </span>
                         ) : (
@@ -654,19 +729,19 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
 
                     {/* Admin Resolution Section if exists */}
                     {(inq.adminResolutionNotes || inq.adminReply) && (
-                      <div className="p-3.5 rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#273B32] text-xs">
+                      <div className="p-3.5 rounded-xl bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs">
                         <div className="flex items-center justify-between mb-1">
-                          <strong className="font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center gap-1">
+                          <strong className="font-bold text-blue-800 dark:text-blue-300 flex items-center gap-1">
                             <Shield className="w-3.5 h-3.5" />
                             Administrator yakuniy xulosasi / javobi:
                           </strong>
                           {inq.updatedAt && (
-                            <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                            <span className="text-[10px] text-blue-700 dark:text-blue-400">
                               {new Date(inq.updatedAt).toLocaleString('uz-UZ')}
                             </span>
                           )}
                         </div>
-                        <p className="text-[#172C28] dark:text-[#E8F2EC] whitespace-pre-wrap">
+                        <p className="text-blue-950 dark:text-blue-100 whitespace-pre-wrap">
                           {inq.adminResolutionNotes || inq.adminReply}
                         </p>
                       </div>

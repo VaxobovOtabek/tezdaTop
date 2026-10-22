@@ -333,6 +333,34 @@
         "createdAt": "2026-10-07T11:18:01.026Z",
         "updatedAt": "2026-10-07T11:18:01.026Z"
       }
+    ],
+    [
+      "9ef697e2-23f5-423f-a4e4-07182f61cf3f",
+      {
+        "id": "9ef697e2-23f5-423f-a4e4-07182f61cf3f",
+        "phone": "+998979053000",
+        "email": "otabek12",
+        "fullName": "otabek vaxobov",
+        "role": "CUSTOMER",
+        "status": "ACTIVE",
+        "passwordHash": "scrypt:9bc0c3f5126f7eb6784c29ebda5b5820:818ac0a0f7d4890c88f51bbe19cb36c2bfc271535d17cf9ff9f446c1e64b09d39f11086d103c7422cc8bcc2a950f8bce6beb400462b6b28ebbb834de3ad86e43",
+        "createdAt": "2026-10-07T14:46:59.279+00:00",
+        "updatedAt": "2026-10-07T14:46:59.279+00:00"
+      }
+    ],
+    [
+      "fa9938fa-d5aa-49f7-a16e-1e715db3a90e",
+      {
+        "id": "fa9938fa-d5aa-49f7-a16e-1e715db3a90e",
+        "phone": "+998975555555",
+        "email": "res1",
+        "fullName": "1234",
+        "role": "CUSTOMER",
+        "status": "ACTIVE",
+        "passwordHash": "scrypt:a6a8e5b8a099dcb41315dd9395ad1992:3d29bc00b5982c888636d726319a0ea0dfadccad0a4697d121dd8e831807177de0fff6f29e3ed526b5cea2e43d3a5b02164b417c7cabe29bb274fb146f943781",
+        "createdAt": "2026-10-08T12:19:36.689+00:00",
+        "updatedAt": "2026-10-08T12:19:36.689+00:00"
+      }
     ]
   ],
   "sessions": [
@@ -365,10 +393,10 @@
       }
     ],
     [
-      "6fb750be-fee1-4eaf-b66d-c3b19be3f23e",
+      "37bf6fb2-0f52-4b04-abab-62ebb25ef37e",
       {
-        "userId": "aba63b8b-1868-446e-a427-dd74fe57906e",
-        "createdAt": "2026-10-07T12:34:54.620Z"
+        "userId": "cccc5555-5555-4ccc-cccc-555555555555",
+        "createdAt": "2026-10-22T12:17:45.252Z"
       }
     ]
   ],
@@ -1097,7 +1125,7 @@
         "currency": "UZS",
         "stockOnHand": 24,
         "stockVerifiedAt": "2026-10-06T06:07:20.833+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1133,7 +1161,7 @@
         "currency": "UZS",
         "stockOnHand": 6,
         "stockVerifiedAt": "2026-10-06T06:07:20.833+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1168,7 +1196,7 @@
         "currency": "UZS",
         "stockOnHand": 18,
         "stockVerifiedAt": "2026-10-06T06:07:20.833+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1204,7 +1232,7 @@
         "currency": "UZS",
         "stockOnHand": 0,
         "stockVerifiedAt": "2026-10-06T06:07:20.833+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1276,7 +1304,7 @@
         "currency": "UZS",
         "stockOnHand": 29,
         "stockVerifiedAt": "2026-10-06T06:07:20.833+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1312,7 +1340,7 @@
         "currency": "UZS",
         "stockOnHand": 20,
         "stockVerifiedAt": "2026-10-06T06:17:20.858+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1349,7 +1377,7 @@
         "currency": "UZS",
         "stockOnHand": 8,
         "stockVerifiedAt": "2026-10-06T06:07:20.833+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1384,7 +1412,7 @@
         "currency": "UZS",
         "stockOnHand": 14,
         "stockVerifiedAt": "2026-10-06T06:07:20.833+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1458,7 +1486,7 @@
         "currency": "UZS",
         "stockOnHand": 500,
         "stockVerifiedAt": "2026-10-06T06:07:20.833+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1495,7 +1523,7 @@
         "currency": "UZS",
         "stockOnHand": 24,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1531,7 +1559,7 @@
         "currency": "UZS",
         "stockOnHand": 6,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1566,7 +1594,7 @@
         "currency": "UZS",
         "stockOnHand": 18,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1602,7 +1630,7 @@
         "currency": "UZS",
         "stockOnHand": 0,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1674,7 +1702,7 @@
         "currency": "UZS",
         "stockOnHand": 29,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1710,7 +1738,7 @@
         "currency": "UZS",
         "stockOnHand": 20,
         "stockVerifiedAt": "2026-10-06T07:22:13.379+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1747,7 +1775,7 @@
         "currency": "UZS",
         "stockOnHand": 8,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1782,7 +1810,7 @@
         "currency": "UZS",
         "stockOnHand": 14,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -1856,7 +1884,7 @@
         "currency": "UZS",
         "stockOnHand": 500,
         "stockVerifiedAt": "2026-10-06T07:12:13.344+00:00",
-        "freshness": "STALE",
+        "freshness": "VERY_STALE",
         "status": "ACTIVE",
         "version": 1
       }
@@ -2292,6 +2320,7 @@
     ]
   ],
   "bookmarks": [],
+  "itemProposals": [],
   "auditLogs": [
     {
       "id": "1e586834-9531-4b80-8de1-a3415b404432",

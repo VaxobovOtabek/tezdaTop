@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { StoreSearchResult, RouteResponse, Store } from '@yaqintop/contracts';
-import { Navigation, MapPin, Maximize2, Store as StoreIcon, Crosshair, CircleDot, XCircle } from 'lucide-react';
+import { Navigation, MapPin, Maximize2, Store as StoreIcon, Crosshair, CircleDot, XCircle, X } from 'lucide-react';
 
 export interface NearbyStoreItem {
   store: Store;
@@ -33,10 +33,11 @@ interface InteractiveMapProps {
   onSelectNearbyStore?: (store: NearbyStoreItem) => void;
   onOpenDetail: (store: StoreSearchResult) => void;
   onOpenNearbyDetail?: (store: NearbyStoreItem) => void;
-  onNavigate: (store: StoreSearchResult | { store: Store; distanceM: number }) => void;
+  onNavigate: (store: StoreSearchResult | { store: any; distanceM?: number }) => void;
   onCancelRoute?: () => void;
   routeData: RouteResponse | null;
-  view: 'search' | 'detail' | 'route' | 'saved' | 'profile';
+  view: 'search' | 'detail' | 'route' | 'saved' | 'profile' | 'products' | 'product-detail';
+  onOpenProduct?: (variant: any) => void;
   isDarkMode?: boolean;
   locationName?: string;
   onLocationChange?: (lat: number, lng: number) => void;
@@ -54,6 +55,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onSelectNearbyStore,
   onOpenDetail,
   onOpenNearbyDetail,
+  onOpenProduct,
   onNavigate,
   onCancelRoute,
   routeData,
@@ -71,6 +73,41 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const routePolylineRef = useRef<L.Polyline | null>(null);
   const routeMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const cardListRef = useRef<HTMLDivElement | null>(null);
+
+  // Global handlers for Leaflet popups
+  useEffect(() => {
+    (window as any).__yaqintop_open_nearby_detail = (storeId: string) => {
+      const item = nearbyStores.find((s) => s.store.id === storeId);
+      if (item && onOpenNearbyDetail) {
+        onOpenNearbyDetail(item);
+      }
+    };
+    (window as any).__yaqintop_route_nearby = (storeId: string) => {
+      const item = nearbyStores.find((s) => s.store.id === storeId);
+      if (item && onNavigate) {
+        onNavigate({ store: item.store, distanceM: item.distanceM || 0 });
+      }
+    };
+    (window as any).__yaqintop_open_result_detail = (storeId: string) => {
+      const item = results.find((s) => s.store.id === storeId);
+      if (item && onOpenDetail) {
+        onOpenDetail(item);
+      }
+    };
+    (window as any).__yaqintop_route_result = (storeId: string) => {
+      const item = results.find((s) => s.store.id === storeId);
+      if (item && onNavigate) {
+        onNavigate(item);
+      }
+    };
+
+    return () => {
+      delete (window as any).__yaqintop_open_nearby_detail;
+      delete (window as any).__yaqintop_route_nearby;
+      delete (window as any).__yaqintop_open_result_detail;
+      delete (window as any).__yaqintop_route_result;
+    };
+  }, [nearbyStores, results, onOpenNearbyDetail, onOpenDetail, onNavigate]);
 
   const [mapReady, setMapReady] = useState(false);
 
@@ -307,16 +344,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         const customIcon = L.divIcon({
           className: 'custom-store-pin',
           html: `
-            <div style="position: absolute; transform: translate(-50%, -100%); cursor: pointer; white-space: nowrap; transition: transform 0.2s;">
+            <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none;">
               <div style="${bgStyle} padding: 5px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;">
                 <span>🛒</span>
                 <span>${formattedPrice} so‘m</span>
               </div>
-              <div style="width: 8px; height: 8px; background: ${arrowColor}; transform: rotate(45deg); margin: -4px auto 0 auto;"></div>
+              <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid ${arrowColor}; margin-top: -1px;"></div>
             </div>
           `,
           iconSize: [0, 0],
-          iconAnchor: [0, 0]
+          iconAnchor: [0, 0],
+          popupAnchor: [0, -36]
         });
 
         const marker = L.marker(latLng, {
@@ -338,7 +376,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               ${item.store.address}
             </div>
             <div style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px;">
-              <div style="font-size: 11px; color: ${popupMuted};">${item.bestOffer?.variant?.title || 'Mahsulot'}</div>
+              <div id="btn-prod-${item.store.id}" style="font-size: 12px; font-weight: 700; color: #116B50; cursor: pointer; text-decoration: underline; margin-bottom: 2px;">
+                ${item.bestOffer?.variant?.title || 'Mahsulot'} ↗
+              </div>
               <div style="font-size: 14px; font-weight: 800; color: #116B50;">
                 ${formattedPrice} so‘m <span style="font-size: 10px; font-weight: normal; color: ${popupMuted};">/ ${item.bestOffer?.variant?.packUnit || 'dona'}</span>
               </div>
@@ -359,8 +399,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         marker.on('popupopen', () => {
           const detailBtn = document.getElementById(`btn-detail-${item.store.id}`);
           const routeBtn = document.getElementById(`btn-route-${item.store.id}`);
+          const prodBtn = document.getElementById(`btn-prod-${item.store.id}`);
           if (detailBtn) detailBtn.onclick = (e) => { e.stopPropagation(); onOpenDetail(item); };
           if (routeBtn) routeBtn.onclick = (e) => { e.stopPropagation(); onNavigate(item); };
+          if (prodBtn) prodBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (onOpenProduct) {
+              onOpenProduct(item.bestOffer?.variant?.id || item.bestOffer?.variant?.sku || '');
+            }
+          };
         });
 
         markersLayer.addLayer(marker);
@@ -385,12 +432,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           : '0 3px 10px rgba(0,0,0,0.18)';
 
         const pinHtml = `
-          <div style="position: absolute; transform: translate(-50%, -100%); cursor: pointer; white-space: nowrap; pointer-events: auto;">
-            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; border: 2px solid ${borderColor}; box-shadow: ${shadow}; transition: transform 0.15s ease;">
+          <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none;">
+            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; border: 2px solid ${borderColor}; box-shadow: ${shadow}; white-space: nowrap;">
               <span style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 9999px; background: ${isSelected ? '#ffffff' : '#116B50'}; color: ${isSelected ? '#116B50' : '#ffffff'}; font-size: 10px;">🏢</span>
               <span style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${storeName}</span>
             </div>
-            <div style="width: 8px; height: 8px; background: ${borderColor}; transform: rotate(45deg); margin: -4px auto 0 auto;"></div>
+            <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid ${borderColor}; margin-top: -1px;"></div>
           </div>
         `;
 
@@ -399,16 +446,77 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             className: 'custom-store-pin',
             html: pinHtml,
             iconSize: [0, 0],
-            iconAnchor: [0, 0]
+            iconAnchor: [0, 0],
+            popupAnchor: [0, -36]
           }),
           zIndexOffset: isSelected ? 500 : 100,
           title: `${item.organization?.name || item.store.name} — tovar va xizmatlarni ko‘rish`,
           keyboard: true
         });
+
+        const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
+        const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
+        const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
+        const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
+        const storeType = item.store?.type === 'WHOLESALE' ? 'Ulgurji savdo' : 'Chakana do‘kon';
+        const isOpen = item.isOpenNow ?? true;
+        const openStatusHtml = isOpen
+          ? `<span style="color: ${isDarkMode ? '#4ADE80' : '#116B50'}; font-weight: 700; font-size: 11px;">● Ochiq</span>`
+          : `<span style="color: #EF4444; font-weight: 700; font-size: 11px;">○ Yopiq</span>`;
+        const distanceHtml = item.distanceM
+          ? `<span style="color: ${popupMuted}; font-size: 11px;"> · ${item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${item.distanceM} m`}</span>`
+          : '';
+
+        const popupContent = `
+          <div style="min-width: 220px; max-width: 280px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${isDarkMode ? '#1E362A' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; padding: 2px 6px; border-radius: 4px;">
+                ${storeType}
+              </span>
+              <div>${openStatusHtml}${distanceHtml}</div>
+            </div>
+            <div style="font-weight: 800; font-size: 14px; color: ${popupTitle}; margin-bottom: 3px; line-height: 1.25;">
+              ${storeName}
+            </div>
+            <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 3px;">
+              <span>📍</span> <span>${item.store.address || 'Toshkent shahri'}</span>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button id="btn-nearby-detail-${item.store.id}" onclick="window.__yaqintop_open_nearby_detail && window.__yaqintop_open_nearby_detail('${item.store.id}')" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <span>🏢</span> <span>Sahifasiga o‘tish</span>
+              </button>
+              <button id="btn-nearby-route-${item.store.id}" onclick="window.__yaqintop_route_nearby && window.__yaqintop_route_nearby('${item.store.id}')" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <span>🧭</span> <span>Marshrut</span>
+              </button>
+            </div>
+          </div>
+        `;
+
+        marker.bindPopup(popupContent, { offset: [0, -20] });
         marker.on('click', () => {
           onSelectNearbyStore?.(item);
-          onOpenNearbyDetail?.(item);
         });
+        marker.on('popupopen', () => {
+          const detailBtn = document.getElementById(`btn-nearby-detail-${item.store.id}`);
+          const routeBtn = document.getElementById(`btn-nearby-route-${item.store.id}`);
+          if (detailBtn) detailBtn.onclick = (e) => {
+            e.stopPropagation();
+            onOpenNearbyDetail?.(item);
+          };
+          if (routeBtn) routeBtn.onclick = (e) => {
+            e.stopPropagation();
+            onNavigate?.({ store: item.store, distanceM: item.distanceM || 0 });
+          };
+        });
+
+        if (isSelected) {
+          setTimeout(() => {
+            try {
+              marker.openPopup();
+            } catch {}
+          }, 30);
+        }
+
         markersLayer.addLayer(marker);
       });
     }
@@ -468,7 +576,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       const destIcon = L.divIcon({
         className: 'dest-marker',
         html: `
-          <div style="width: 32px; height: 32px; border-radius: 9999px; background: #116B50; border: 2px solid white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold; transform: translate(-50%, -50%);">
+          <div style="width: 32px; height: 32px; border-radius: 9999px; background: #116B50; border: 2px solid white; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold;">
             🏁
           </div>
         `,
@@ -642,6 +750,61 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Mobile Floating Card for Selected Nearby Store (when user taps store pin on map) */}
+      {!results.length && selectedNearbyStore && view !== 'route' && (
+        <div className="absolute bottom-20 md:hidden left-3 right-3 z-30 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border-2 border-[#116B50] dark:border-[#4ADE80] rounded-2xl p-3.5 shadow-xl pointer-events-auto flex flex-col gap-2.5">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-[10px] font-black uppercase tracking-wider">
+                    {selectedNearbyStore.store?.type === 'WHOLESALE' ? 'Ulgurji' : 'Do‘kon'}
+                  </span>
+                  <span className={selectedNearbyStore.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] text-xs font-bold' : 'text-red-500 text-xs font-bold'}>
+                    {selectedNearbyStore.isOpenNow ? '● Ochiq' : '○ Yopiq'}
+                  </span>
+                </div>
+                <h3 className="font-extrabold text-sm text-[#172C28] dark:text-[#E8F2EC] truncate">
+                  {selectedNearbyStore.organization?.name || selectedNearbyStore.store?.name}
+                </h3>
+                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 truncate">
+                  📍 {selectedNearbyStore.store?.address || 'Toshkent shahri'}
+                  {selectedNearbyStore.distanceM && (
+                    <span className="font-bold text-[#116B50] dark:text-[#4ADE80] ml-1">
+                      · {selectedNearbyStore.distanceM >= 1000 ? `${(selectedNearbyStore.distanceM / 1000).toFixed(1)} km` : `${selectedNearbyStore.distanceM} m`}
+                    </span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => onSelectNearbyStore?.(null as any)}
+                className="text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white p-1 rounded-lg"
+                title="Yopish"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 pt-1.5 border-t border-[#DCE5DF]/60 dark:border-[#273B32]">
+              <button
+                onClick={() => onOpenNearbyDetail?.(selectedNearbyStore)}
+                className="flex-1 py-2 px-3 rounded-xl bg-[#116B50] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
+              >
+                <StoreIcon className="w-3.5 h-3.5" />
+                <span>Sahifasiga o‘tish</span>
+              </button>
+              <button
+                onClick={() => onNavigate?.({ store: selectedNearbyStore.store, distanceM: selectedNearbyStore.distanceM || 0 })}
+                className="py-2 px-3.5 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] active:scale-95 text-[#116B50] dark:text-[#4ADE80] text-xs font-bold transition flex items-center gap-1.5"
+              >
+                <Navigation className="w-3.5 h-3.5" />
+                <span>Marshrut</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Information & Store Cards Carousel Bar (Search Results Mode) */}
       {results.length > 0 && view !== 'route' && (

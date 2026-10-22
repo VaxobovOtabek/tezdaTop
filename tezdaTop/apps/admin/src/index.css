@@ -22,6 +22,11 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   outline-offset: 2px;
 }
 
+.custom-admin-marker, .custom-picker-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
 .leaflet-container {
   width: 100% !important;
   height: 100% !important;

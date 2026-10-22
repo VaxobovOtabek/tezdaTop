@@ -565,6 +565,312 @@ app.get('/api/v1/search/products', (req, res) => {
   }
 });
 
+// ================= PRODUCTS CATALOG =================
+app.get('/api/v1/products', (req: Request, res: Response) => {
+  try {
+    const q = ((req.query.q as string) || '').trim().toLowerCase();
+    const category = ((req.query.category as string) || '').trim();
+    const lat = req.query.lat ? parseFloat(req.query.lat as string) : 41.311081;
+    const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
+
+    const getProductImage = (title: string, cat?: string) => {
+      const t = title.toLowerCase();
+      if (t.includes('snickers')) {
+        return 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('mars')) {
+        return 'https://images.unsplash.com/photo-1582293041079-7814c2f12063?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('twix')) {
+        return 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('bounty')) {
+        return 'https://images.unsplash.com/photo-1548848221-0c2e497ed557?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('cola')) {
+        return 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('nesquik') || t.includes('kakao')) {
+        return 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?w=500&auto=format&fit=crop&q=80';
+      }
+      if (cat && cat.toLowerCase().includes('ichimlik')) {
+        return 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?w=500&auto=format&fit=crop&q=80';
+      }
+      return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=80';
+    };
+
+    const productList = [];
+
+    for (const variant of db.variants.values()) {
+      if (category && category !== 'Barchasi' && variant.category !== category) {
+        continue;
+      }
+
+      if (q) {
+        const matchTitle = variant.title.toLowerCase().includes(q);
+        const matchBrand = variant.brand ? variant.brand.toLowerCase().includes(q) : false;
+        const matchCat = variant.category ? variant.category.toLowerCase().includes(q) : false;
+        const matchBarcode = variant.barcode ? variant.barcode.includes(q) : false;
+        const matchAliases = (variant.aliases || []).some((a: string) => a.toLowerCase().includes(q));
+        if (!matchTitle && !matchBrand && !matchCat && !matchBarcode && !matchAliases) {
+          continue;
+        }
+      }
+
+      // Gather active offers & deduplicate per store
+      const storeOfferMap = new Map<string, any>();
+      for (const off of db.offers.values()) {
+        if (off.variantId !== variant.id) continue;
+        if (off.status === 'INACTIVE' || off.stockOnHand <= 0) continue;
+
+        const store = db.stores.get(off.storeId);
+        if (!store || store.status !== 'ACTIVE') continue;
+
+        const org = db.organizations.get(store.organizationId);
+        if (!org || org.status !== 'ACTIVE') continue;
+
+        const priceNum = Number(off.price);
+        const existing = storeOfferMap.get(store.id);
+        if (!existing || priceNum < existing.price) {
+          const dist = store.location
+            ? Math.round(calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng))
+            : 0;
+
+          storeOfferMap.set(store.id, {
+            offerId: off.id,
+            storeId: store.id,
+            storeName: store.name,
+            storeAddress: store.address,
+            storeDistrict: store.district,
+            storePhone: store.phone,
+            storeType: store.type,
+            storeRating: store.rating || 4.5,
+            location: store.location,
+            price: priceNum,
+            stockOnHand: off.stockOnHand,
+            wholesaleTiers: off.wholesaleTiers || [],
+            distanceM: dist,
+            isOpenNow: checkStoreIsOpenNow(store),
+            stockVerifiedAt: off.stockVerifiedAt
+          });
+        }
+      }
+      const matchingOffers = Array.from(storeOfferMap.values());
+
+      matchingOffers.sort((a, b) => a.price - b.price);
+
+      const minPrice = matchingOffers.length > 0 ? matchingOffers[0].price : 0;
+      const maxPrice = matchingOffers.length > 0 ? matchingOffers[matchingOffers.length - 1].price : 0;
+      const totalStock = matchingOffers.reduce((sum, o) => sum + o.stockOnHand, 0);
+
+      const discountPercent = Math.min(35, Math.max(12, Math.round(((variant.id.charCodeAt(0) % 20) + 12))));
+      const originalPrice = minPrice > 0 ? Math.round(minPrice * (1 + discountPercent / 100)) : 0;
+
+      productList.push({
+        id: variant.id,
+        productId: variant.productId,
+        title: variant.title,
+        brand: variant.brand || 'Boshqa',
+        category: variant.category || 'Oziq-ovqat',
+        packSize: variant.packSize,
+        packUnit: variant.packUnit || 'dona',
+        barcode: variant.barcode,
+        sku: variant.sku,
+        imageUrl: getProductImage(variant.title, variant.category),
+        minPrice,
+        maxPrice,
+        originalPrice,
+        discountPercent,
+        totalStock,
+        availableStoresCount: matchingOffers.length,
+        stores: matchingOffers
+      });
+    }
+
+    productList.sort((a, b) => (b.availableStoresCount - a.availableStoresCount) || (a.minPrice - b.minPrice));
+
+    res.json({
+      items: productList,
+      totalCount: productList.length
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/products/:id', (req: Request, res: Response) => {
+  try {
+    const param = req.params.id.toLowerCase();
+    let variant = db.variants.get(param);
+    if (!variant) {
+      for (const v of db.variants.values()) {
+        const slug = v.title.toLowerCase().replace(/[^a-z0-9а-яёўқғҳ]+/gi, '-').replace(/^-+|-+$/g, '');
+        if (v.id.toLowerCase() === param || slug === param || v.barcode === param) {
+          variant = v;
+          break;
+        }
+      }
+    }
+
+    if (!variant) {
+      res.status(404).json({ error: 'Mahsulot topilmadi' });
+      return;
+    }
+
+    const lat = req.query.lat ? parseFloat(req.query.lat as string) : 41.311081;
+    const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
+
+    const getProductImage = (title: string, cat?: string) => {
+      const t = title.toLowerCase();
+      if (t.includes('snickers')) return 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('mars')) return 'https://images.unsplash.com/photo-1582293041079-7814c2f12063?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('twix')) return 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('bounty')) return 'https://images.unsplash.com/photo-1548848221-0c2e497ed557?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('cola')) return 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('nesquik') || t.includes('kakao')) return 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?w=500&auto=format&fit=crop&q=80';
+      if (cat && cat.toLowerCase().includes('ichimlik')) return 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?w=500&auto=format&fit=crop&q=80';
+      return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=80';
+    };
+
+    const storeOfferMap = new Map<string, any>();
+    for (const off of db.offers.values()) {
+      if (off.variantId !== variant.id) continue;
+      if (off.status === 'INACTIVE' || off.stockOnHand <= 0) continue;
+
+      const store = db.stores.get(off.storeId);
+      if (!store || store.status !== 'ACTIVE') continue;
+
+      const org = db.organizations.get(store.organizationId);
+      if (!org || org.status !== 'ACTIVE') continue;
+
+      const priceNum = Number(off.price);
+      const existing = storeOfferMap.get(store.id);
+      if (!existing || priceNum < existing.price) {
+        const dist = store.location
+          ? Math.round(calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng))
+          : 0;
+
+        storeOfferMap.set(store.id, {
+          offerId: off.id,
+          storeId: store.id,
+          storeName: store.name,
+          storeAddress: store.address,
+          storeDistrict: store.district,
+          storePhone: store.phone,
+          storeType: store.type,
+          storeRating: store.rating || 4.5,
+          location: store.location,
+          price: priceNum,
+          stockOnHand: off.stockOnHand,
+          wholesaleTiers: off.wholesaleTiers || [],
+          distanceM: dist,
+          isOpenNow: checkStoreIsOpenNow(store),
+          stockVerifiedAt: off.stockVerifiedAt
+        });
+      }
+    }
+
+    const matchingOffers = Array.from(storeOfferMap.values());
+    matchingOffers.sort((a, b) => a.price - b.price);
+
+    const minPrice = matchingOffers.length > 0 ? matchingOffers[0].price : 0;
+    const maxPrice = matchingOffers.length > 0 ? matchingOffers[matchingOffers.length - 1].price : 0;
+    const totalStock = matchingOffers.reduce((sum, o) => sum + o.stockOnHand, 0);
+
+    const discountPercent = Math.min(35, Math.max(12, Math.round(((variant.id.charCodeAt(0) % 20) + 12))));
+    const originalPrice = minPrice > 0 ? Math.round(minPrice * (1 + discountPercent / 100)) : 0;
+
+    // Alternative / Similar products in the same category or brand
+    const similarProducts = [];
+    for (const altVariant of db.variants.values()) {
+      if (altVariant.id === variant.id) continue;
+
+      const isSameCategory = altVariant.category && variant.category && altVariant.category === variant.category;
+      const isSameBrand = altVariant.brand && variant.brand && altVariant.brand === variant.brand;
+
+      const altOffersMap = new Map<string, any>();
+      for (const off of db.offers.values()) {
+        if (off.variantId !== altVariant.id) continue;
+        if (off.status === 'INACTIVE' || off.stockOnHand <= 0) continue;
+        const s = db.stores.get(off.storeId);
+        if (!s || s.status !== 'ACTIVE') continue;
+        const org = db.organizations.get(s.organizationId);
+        if (!org || org.status !== 'ACTIVE') continue;
+
+        const pNum = Number(off.price);
+        const ex = altOffersMap.get(s.id);
+        if (!ex || pNum < ex.price) {
+          altOffersMap.set(s.id, {
+            offerId: off.id,
+            storeId: s.id,
+            storeName: s.name,
+            price: pNum,
+            stockOnHand: off.stockOnHand,
+            location: s.location
+          });
+        }
+      }
+
+      const altOffers = Array.from(altOffersMap.values());
+      altOffers.sort((a, b) => a.price - b.price);
+      const altMinPrice = altOffers.length > 0 ? altOffers[0].price : 0;
+      const altMaxPrice = altOffers.length > 0 ? altOffers[altOffers.length - 1].price : 0;
+      const altStock = altOffers.reduce((sum, o) => sum + o.stockOnHand, 0);
+
+      let relevance = 0;
+      if (isSameCategory) relevance += 3;
+      if (isSameBrand) relevance += 2;
+      if (altOffers.length > 0) relevance += 1;
+
+      similarProducts.push({
+        id: altVariant.id,
+        productId: altVariant.productId,
+        title: altVariant.title,
+        brand: altVariant.brand || 'Boshqa',
+        category: altVariant.category || 'Oziq-ovqat',
+        packSize: altVariant.packSize,
+        packUnit: altVariant.packUnit || 'dona',
+        barcode: altVariant.barcode,
+        sku: altVariant.sku,
+        imageUrl: getProductImage(altVariant.title, altVariant.category),
+        minPrice: altMinPrice,
+        maxPrice: altMaxPrice,
+        totalStock: altStock,
+        availableStoresCount: altOffers.length,
+        stores: altOffers,
+        relevance
+      });
+    }
+
+    similarProducts.sort((a, b) => b.relevance - a.relevance || b.availableStoresCount - a.availableStoresCount);
+
+    res.json({
+      product: {
+        id: variant.id,
+        productId: variant.productId,
+        title: variant.title,
+        brand: variant.brand || 'Boshqa',
+        category: variant.category || 'Oziq-ovqat',
+        packSize: variant.packSize,
+        packUnit: variant.packUnit || 'dona',
+        barcode: variant.barcode,
+        sku: variant.sku,
+        imageUrl: getProductImage(variant.title, variant.category),
+        minPrice,
+        maxPrice,
+        originalPrice,
+        discountPercent,
+        totalStock,
+        availableStoresCount: matchingOffers.length,
+        stores: matchingOffers,
+        similarProducts: similarProducts.slice(0, 8)
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/v1/search/markers', (req, res) => {
   try {
     const q = req.query.q as string | undefined;
@@ -628,8 +934,75 @@ app.get('/api/v1/stores', (req, res) => {
   res.json({ items: results, total: results.length });
 });
 
+function findStoreByParam(param: string): Store | undefined {
+  let store = db.stores.get(param);
+  if (store) return store;
+
+  // Coordinates matching like @41.3135,69.2435 or 41.3135,69.2435
+  if (param.includes('@') || param.includes(',')) {
+    const coordStr = param.replace(/^.*@/, '');
+    const [latStr, lngStr] = coordStr.split(',');
+    const lat = parseFloat(latStr);
+    const lng = parseFloat(lngStr);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      for (const s of db.stores.values()) {
+        if (s.location && Math.abs(s.location.lat - lat) < 0.0008 && Math.abs(s.location.lng - lng) < 0.0008) {
+          return s;
+        }
+      }
+    }
+  }
+
+  // Slug matching
+  const cleanParam = param.toLowerCase().replace(/@.*$/, '').replace(/^-+|-+$/g, '');
+  if (cleanParam) {
+    for (const s of db.stores.values()) {
+      const sSlug = s.name.toLowerCase().replace(/[^a-z0-9а-яёўқғҳ]+/gi, '-').replace(/^-+|-+$/g, '');
+      if (sSlug === cleanParam || sSlug.includes(cleanParam) || cleanParam.includes(sSlug)) {
+        return s;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+// Support multi-segment slug and coordinates like /api/v1/stores/:slug/@:lat,:lng
+app.get('/api/v1/stores/:slug/@:lat,:lng', (req, res) => {
+  const param = `@${req.params.lat},${req.params.lng}`;
+  const store = findStoreByParam(param) || findStoreByParam(req.params.slug);
+  if (!store || store.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  const org = db.organizations.get(store.organizationId);
+  if (!org || org.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  const offersCount = Array.from(db.offers.values()).filter(
+    (o) => o.storeId === store.id && o.status !== 'INACTIVE'
+  ).length;
+  res.json({
+    store,
+    organization: org,
+    isOpenNow: checkStoreIsOpenNow(store),
+    offersCount
+  });
+});
+
+app.get('/api/v1/stores/:slug/@:lat,:lng/offers', (req, res) => {
+  const param = `@${req.params.lat},${req.params.lng}`;
+  const matchedStore = findStoreByParam(param) || findStoreByParam(req.params.slug);
+  const storeId = matchedStore ? matchedStore.id : req.params.slug;
+  const storeOffers = Array.from(db.offers.values()).filter(
+    (o) => o.storeId === storeId && o.status !== 'INACTIVE'
+  );
+  res.json({ offers: storeOffers });
+});
+
 app.get('/api/v1/stores/:id', (req, res) => {
-  const store = db.stores.get(req.params.id);
+  const store = findStoreByParam(req.params.id);
   if (!store || store.status === 'SUSPENDED') {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
@@ -653,7 +1026,8 @@ app.get('/api/v1/stores/:id', (req, res) => {
 });
 
 app.get('/api/v1/stores/:id/offers', (req, res) => {
-  const storeId = req.params.id;
+  const matchedStore = findStoreByParam(req.params.id);
+  const storeId = matchedStore ? matchedStore.id : req.params.id;
   const storeOffers = Array.from(db.offers.values()).filter(
     (o) => o.storeId === storeId && o.status !== 'INACTIVE'
   );
@@ -674,6 +1048,452 @@ app.get('/api/v1/offers/:id/similar', (req, res) => {
       o.stockOnHand > 0
   );
   res.json({ similar: similar.slice(0, 6) });
+});
+
+
+// ================= CROWDSOURCED ITEM PROPOSALS (TOVAR VA XIZMAT TAKLIF QILISH & 3-USER KONSENSUS) =================
+
+// Helper to check if user can manage a store (Admin, Moderator, or Store Owner)
+function canUserManageStoreProposals(user: any, storeId: string): boolean {
+  if (!user) return false;
+  if (['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) return true;
+  const store = db.stores.get(storeId);
+  if (!store) return false;
+  if (store.ownerId === user.id) return true;
+  const isMember = Array.from(db.memberships.values()).some(
+    (m) => m.userId === user.id && m.organizationId === store.organizationId && m.status === 'ACTIVE'
+  );
+  return isMember;
+}
+
+// 1. Foydalanuvchi do'konga tovar yoki xizmat taklif qilishi
+app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tovar yoki xizmat taklif qilish uchun iltimos, tizimga kiring' });
+    return;
+  }
+
+  const { storeId } = req.params;
+  const store = findStoreByParam(storeId) || db.stores.get(storeId);
+  if (!store || store.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const {
+    title,
+    type = 'PRODUCT',
+    category = 'Boshqa',
+    price = 0,
+    stockOnHand = 1,
+    packUnit = 'dona',
+    barcode,
+    description
+  } = req.body;
+
+  if (!title || typeof title !== 'string' || title.trim().length < 2) {
+    res.status(400).json({ code: 'INVALID_INPUT', message: 'Tovar yoki xizmat nomi kamida 2 ta belgidan iborat bo‘lishi kerak' });
+    return;
+  }
+
+  const numPrice = Math.max(0, Math.round(Number(price) || 0));
+  const numStock = Math.max(1, Math.round(Number(stockOnHand) || 1));
+  const cleanTitle = title.trim();
+  const itemType: 'PRODUCT' | 'SERVICE' = type === 'SERVICE' ? 'SERVICE' : 'PRODUCT';
+  const cleanUnit = (packUnit || (itemType === 'SERVICE' ? 'xizmat' : 'dona')).trim();
+  const cleanCategory = (category || (itemType === 'SERVICE' ? 'Xizmatlar' : 'Oziq-ovqat')).trim();
+  const cleanBarcode = barcode && typeof barcode === 'string' && barcode.trim() ? barcode.trim() : undefined;
+
+  // Normalized title for consensus matching
+  const normalizedTitle = cleanTitle.toLowerCase().replace(/[^a-z0-9а-яёўқғҳ]+/gi, ' ').replace(/\s+/g, ' ').trim();
+  const consensusGroupKey = cleanBarcode
+    ? `${store.id}_bc_${cleanBarcode}`
+    : `${store.id}_${itemType}_${normalizedTitle}`;
+
+  const now = new Date().toISOString();
+
+  // Check if THIS user already submitted a pending proposal for this item
+  let existingUserProposal = Array.from(db.itemProposals.values()).find(
+    (p) => p.storeId === store.id && p.consensusGroupKey === consensusGroupKey && p.userId === user.id && p.status === 'PENDING'
+  );
+
+  let proposalId: string;
+  if (existingUserProposal) {
+    // Update existing proposal values
+    existingUserProposal.title = cleanTitle;
+    existingUserProposal.price = numPrice;
+    existingUserProposal.stockOnHand = numStock;
+    existingUserProposal.category = cleanCategory;
+    existingUserProposal.packUnit = cleanUnit;
+    if (description) existingUserProposal.description = description.trim();
+    existingUserProposal.updatedAt = now;
+    proposalId = existingUserProposal.id;
+    db.itemProposals.set(proposalId, existingUserProposal);
+  } else {
+    // Create new proposal
+    proposalId = uuidv4();
+    const newProposal = {
+      id: proposalId,
+      storeId: store.id,
+      userId: user.id,
+      userFullName: user.fullName || user.email.split('@')[0],
+      userPhone: user.phone || '',
+      title: cleanTitle,
+      normalizedTitle,
+      type: itemType,
+      category: cleanCategory,
+      price: numPrice,
+      stockOnHand: numStock,
+      packUnit: cleanUnit,
+      barcode: cleanBarcode,
+      description: description && typeof description === 'string' ? description.trim() : undefined,
+      status: 'PENDING' as const,
+      consensusGroupKey,
+      createdAt: now,
+      updatedAt: now
+    };
+    db.itemProposals.set(proposalId, newProposal);
+  }
+
+  // Calculate consensus: find all PENDING proposals for this consensusGroupKey
+  const matchingPending = Array.from(db.itemProposals.values()).filter(
+    (p) => p.storeId === store.id && p.consensusGroupKey === consensusGroupKey && p.status === 'PENDING'
+  );
+
+  // Group by distinct user
+  const distinctUserProposals = new Map<string, any>();
+  for (const p of matchingPending) {
+    distinctUserProposals.set(p.userId, p);
+  }
+
+  const distinctCount = distinctUserProposals.size;
+
+  // RULE: If 3 or more distinct users proposed the same item -> AUTO APPROVE!
+  if (distinctCount >= 3) {
+    const list = Array.from(distinctUserProposals.values());
+    const avgPrice = Math.round(list.reduce((sum, p) => sum + Number(p.price), 0) / list.length);
+    const avgStock = Math.round(list.reduce((sum, p) => sum + Number(p.stockOnHand), 0) / list.length);
+
+    // Find or create variant
+    let variantId = uuidv4();
+    if (cleanBarcode) {
+      const existingV = Array.from(db.variants.values()).find((v) => v.barcode === cleanBarcode);
+      if (existingV) variantId = existingV.id;
+    }
+    if (!db.variants.has(variantId)) {
+      const existingByName = Array.from(db.variants.values()).find(
+        (v) => v.title.toLowerCase().trim() === cleanTitle.toLowerCase()
+      );
+      if (existingByName) {
+        variantId = existingByName.id;
+      } else {
+        db.variants.set(variantId, {
+          id: variantId,
+          sku: cleanBarcode || `SKU-${Date.now().toString(36).toUpperCase()}`,
+          barcode: cleanBarcode,
+          title: cleanTitle,
+          category: cleanCategory,
+          packUnit: cleanUnit,
+          unitSize: 1,
+          createdAt: now,
+          updatedAt: now
+        });
+      }
+    }
+
+    // Check if store already has an offer for this variant
+    let targetOffer = Array.from(db.offers.values()).find(
+      (o) => o.storeId === store.id && o.variantId === variantId
+    );
+
+    let newOfferId: string;
+    if (targetOffer) {
+      targetOffer.price = avgPrice.toString();
+      targetOffer.stockOnHand = avgStock;
+      targetOffer.status = 'ACTIVE';
+      targetOffer.updatedAt = now;
+      newOfferId = targetOffer.id;
+    } else {
+      newOfferId = uuidv4();
+      const newOffer: Offer = {
+        id: newOfferId,
+        storeId: store.id,
+        variantId,
+        price: avgPrice.toString(),
+        stockOnHand: avgStock,
+        freshness: 'FRESH',
+        status: 'ACTIVE',
+        currency: 'UZS',
+        inStock: true,
+        variant: db.variants.get(variantId)!,
+        createdAt: now,
+        updatedAt: now
+      };
+      db.offers.set(newOfferId, newOffer);
+    }
+
+    // Update balances
+    db.balances.set(newOfferId, {
+      offerId: newOfferId,
+      onHand: new Decimal(avgStock),
+      averageUnitCost: new Decimal(Math.round(avgPrice * 0.7)),
+      lastVerifiedAt: new Date(),
+      version: 1
+    });
+
+    // Mark all matching proposals as AUTO_APPROVED
+    for (const p of list) {
+      p.status = 'AUTO_APPROVED';
+      p.approvedBy = 'CONSENSUS_3_USERS';
+      p.createdOfferId = newOfferId;
+      p.updatedAt = now;
+      db.itemProposals.set(p.id, p);
+    }
+
+    db.scheduleSave();
+
+    res.json({
+      success: true,
+      autoApproved: true,
+      offerId: newOfferId,
+      avgPrice,
+      avgStock,
+      message: `Tabriklaymiz! 3 ta mustaqil foydalanuvchi bir xil ${itemType === 'SERVICE' ? 'xizmat' : 'tovar'}ni kiritgani sababli, u o‘rtacha narxi (${avgPrice.toLocaleString('uz-UZ')} so‘m) va soni (${avgStock} ${cleanUnit}) bilan avtomatik tasdiqlanib, do‘kon sahifasiga qo‘shildi!`
+    });
+    return;
+  }
+
+  // Not yet 3 distinct users -> remains PENDING
+  db.scheduleSave();
+  const remaining = 3 - distinctCount;
+  res.json({
+    success: true,
+    autoApproved: false,
+    proposalId,
+    pendingCount: distinctCount,
+    remainingForAutoApproval: remaining,
+    message: `Taklifingiz muvaffaqiyatli qabul qilindi! Admin, moderator yoki do‘kon egasi tasdiqlaganidan so‘ng do‘kon sahifasida paydo bo‘ladi. (Eslatma: agar yana ${remaining} ta mustaqil foydalanuvchi xuddi shu ${itemType === 'SERVICE' ? 'xizmat' : 'tovar'}ni kiritsa, tizim o‘rtacha narx va soni bilan avtomatik tasdiqlaydi).`
+  });
+});
+
+// 2. Do'kon bo'yicha takliflarni olish
+app.get('/api/v1/stores/:storeId/proposals', (req: Request, res: Response) => {
+  const { storeId } = req.params;
+  const store = findStoreByParam(storeId) || db.stores.get(storeId);
+  const targetId = store ? store.id : storeId;
+
+  const proposals = Array.from(db.itemProposals.values())
+    .filter((p) => p.storeId === targetId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Attach consensus counts
+  const enriched = proposals.map((p) => {
+    const distinctUsers = new Set(
+      Array.from(db.itemProposals.values())
+        .filter((x) => x.storeId === p.storeId && x.consensusGroupKey === p.consensusGroupKey)
+        .map((x) => x.userId)
+    );
+    return {
+      ...p,
+      consensusCount: distinctUsers.size
+    };
+  });
+
+  res.json({ items: enriched, total: enriched.length });
+});
+
+// 3. Admin / Moderator / Merchant uchun barcha takliflarni olish
+app.get('/api/v1/admin/item-proposals', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  let proposals = Array.from(db.itemProposals.values());
+
+  // If merchant/owner, only show proposals for their stores
+  if (!['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    const userOrgs = new Set(
+      Array.from(db.memberships.values())
+        .filter((m) => m.userId === user.id && m.status === 'ACTIVE')
+        .map((m) => m.organizationId)
+    );
+    const storeIds = new Set(
+      Array.from(db.stores.values())
+        .filter((s) => s.ownerId === user.id || userOrgs.has(s.organizationId))
+        .map((s) => s.id)
+    );
+    proposals = proposals.filter((p) => storeIds.has(p.storeId));
+  }
+
+  // Filter by status if requested
+  const statusFilter = req.query.status as string;
+  if (statusFilter && statusFilter !== 'ALL') {
+    proposals = proposals.filter((p) => p.status === statusFilter);
+  }
+
+  // Attach storeName & consensusCount
+  const enriched = proposals
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map((p) => {
+      const store = db.stores.get(p.storeId);
+      const distinctUsers = new Set(
+        Array.from(db.itemProposals.values())
+          .filter((x) => x.storeId === p.storeId && x.consensusGroupKey === p.consensusGroupKey)
+          .map((x) => x.userId)
+      );
+      return {
+        ...p,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || '',
+        consensusCount: distinctUsers.size
+      };
+    });
+
+  res.json({ items: enriched, total: enriched.length });
+});
+
+// 4. Taklifni tasdiqlash (Admin, Moderator yoki Do'kon egasi)
+app.post('/api/v1/admin/item-proposals/:id/approve', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  const proposal = db.itemProposals.get(req.params.id);
+  if (!proposal) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Taklif topilmadi' });
+    return;
+  }
+
+  if (!canUserManageStoreProposals(user, proposal.storeId)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ushbu do‘kon takliflarini tasdiqlash huquqingiz yo‘q' });
+    return;
+  }
+
+  const store = db.stores.get(proposal.storeId);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  // Create or find variant
+  let variantId = uuidv4();
+  if (proposal.barcode) {
+    const existingV = Array.from(db.variants.values()).find((v) => v.barcode === proposal.barcode);
+    if (existingV) variantId = existingV.id;
+  }
+  if (!db.variants.has(variantId)) {
+    const existingByName = Array.from(db.variants.values()).find(
+      (v) => v.title.toLowerCase().trim() === proposal.title.toLowerCase().trim()
+    );
+    if (existingByName) {
+      variantId = existingByName.id;
+    } else {
+      db.variants.set(variantId, {
+        id: variantId,
+        sku: proposal.barcode || `SKU-${Date.now().toString(36).toUpperCase()}`,
+        barcode: proposal.barcode,
+        title: proposal.title,
+        category: proposal.category,
+        packUnit: proposal.packUnit,
+        unitSize: 1,
+        createdAt: now,
+        updatedAt: now
+      });
+    }
+  }
+
+  // Create or update offer
+  let targetOffer = Array.from(db.offers.values()).find(
+    (o) => o.storeId === store.id && o.variantId === variantId
+  );
+
+  let offerId: string;
+  if (targetOffer) {
+    targetOffer.price = proposal.price.toString();
+    targetOffer.stockOnHand = proposal.stockOnHand;
+    targetOffer.status = 'ACTIVE';
+    targetOffer.updatedAt = now;
+    offerId = targetOffer.id;
+  } else {
+    offerId = uuidv4();
+    const newOffer: Offer = {
+      id: offerId,
+      storeId: store.id,
+      variantId,
+      price: proposal.price.toString(),
+      stockOnHand: proposal.stockOnHand,
+      freshness: 'FRESH',
+      status: 'ACTIVE',
+      currency: 'UZS',
+      inStock: true,
+      variant: db.variants.get(variantId)!,
+      createdAt: now,
+      updatedAt: now
+    };
+    db.offers.set(offerId, newOffer);
+  }
+
+  // Update inventory balance
+  db.balances.set(offerId, {
+    offerId,
+    onHand: new Decimal(proposal.stockOnHand),
+    averageUnitCost: new Decimal(Math.round(proposal.price * 0.7)),
+    lastVerifiedAt: new Date(),
+    version: 1
+  });
+
+  proposal.status = 'APPROVED';
+  proposal.approvedBy = `${user.fullName || user.email} (${user.role})`;
+  proposal.createdOfferId = offerId;
+  proposal.updatedAt = now;
+  db.itemProposals.set(proposal.id, proposal);
+
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: `"${proposal.title}" muvaffaqiyatli tasdiqlandi va do‘konga qo‘shildi!`,
+    offerId
+  });
+});
+
+// 5. Taklifni rad etish
+app.post('/api/v1/admin/item-proposals/:id/reject', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  const proposal = db.itemProposals.get(req.params.id);
+  if (!proposal) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Taklif topilmadi' });
+    return;
+  }
+
+  if (!canUserManageStoreProposals(user, proposal.storeId)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ushbu do‘kon takliflarini rad etish huquqingiz yo‘q' });
+    return;
+  }
+
+  proposal.status = 'REJECTED';
+  proposal.approvedBy = `${user.fullName || user.email} (${user.role})`;
+  proposal.updatedAt = new Date().toISOString();
+  db.itemProposals.set(proposal.id, proposal);
+
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: `"${proposal.title}" taklifi rad etildi.`
+  });
 });
 
 // ================= ROUTING =================

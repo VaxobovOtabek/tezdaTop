@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   ArrowLeft,
+  PlusCircle,
   MapPin,
   Clock,
   Phone,
@@ -95,6 +96,106 @@ export function StoreFullPageView({
     }
   });
   const [copiedLink, setCopiedLink] = useState(false);
+
+  // Crowdsourced Item Proposal State
+  const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
+  const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
+  const [proposalFeedback, setProposalFeedback] = useState<{
+    type: 'success' | 'auto_approved' | 'error';
+    message: string;
+  } | null>(null);
+  const [proposalForm, setProposalForm] = useState({
+    title: '',
+    type: 'PRODUCT' as 'PRODUCT' | 'SERVICE',
+    category: '',
+    price: '',
+    stockOnHand: '10',
+    packUnit: 'dona',
+    barcode: '',
+    description: ''
+  });
+
+  const handleOpenProposalModal = () => {
+    if (!currentUser) {
+      onRequireAuth?.('Tovar yoki xizmat taklif qilish uchun iltimos, tizimga kiring');
+      return;
+    }
+    setProposalFeedback(null);
+    setProposalForm({
+      title: '',
+      type: 'PRODUCT',
+      category: '',
+      price: '',
+      stockOnHand: '10',
+      packUnit: 'dona',
+      barcode: '',
+      description: ''
+    });
+    setIsProposalModalOpen(true);
+  };
+
+  const handleSubmitProposal = async () => {
+    if (!proposalForm.title.trim()) {
+      onShowToast('Iltimos, tovar yoki xizmat nomini kiriting');
+      return;
+    }
+    const token = localStorage.getItem('yaqintop_session_token') || '';
+    setIsSubmittingProposal(true);
+    setProposalFeedback(null);
+
+    try {
+      const res = await fetch(apiUrl(`/api/v1/stores/${store.id}/proposals`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          title: proposalForm.title.trim(),
+          type: proposalForm.type,
+          category: proposalForm.category.trim() || (proposalForm.type === 'SERVICE' ? 'Xizmatlar' : 'Oziq-ovqat'),
+          price: Number(proposalForm.price) || 0,
+          stockOnHand: Number(proposalForm.stockOnHand) || 1,
+          packUnit: proposalForm.packUnit,
+          barcode: proposalForm.barcode.trim() || undefined,
+          description: proposalForm.description.trim() || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        if (data.autoApproved) {
+          setProposalFeedback({
+            type: 'auto_approved',
+            message: data.message
+          });
+          onShowToast('🎉 3 ta foydalanuvchi konsensusi: Tovar avtomatik tasdiqlandi!');
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else {
+          setProposalFeedback({
+            type: 'success',
+            message: data.message
+          });
+          onShowToast('Taklifingiz muvaffaqiyatli qabul qilindi');
+        }
+      } else {
+        setProposalFeedback({
+          type: 'error',
+          message: data.message || 'Taklifni yuborishda xatolik yuz berdi'
+        });
+      }
+    } catch {
+      setProposalFeedback({
+        type: 'error',
+        message: 'Server bilan bog‘lanishda xatolik yuz berdi'
+      });
+    } finally {
+      setIsSubmittingProposal(false);
+    }
+  };
 
   // Sync favorite state when store changes
   useEffect(() => {
@@ -645,24 +746,37 @@ export function StoreFullPageView({
                 </p>
               </div>
 
-              {/* In-Store Search Bar */}
-              <div className="relative w-full md:w-80">
-                <Search className="w-4 h-4 absolute left-3.5 top-3 text-[#566A63] dark:text-[#8B9E95]" />
-                <input
-                  type="text"
-                  value={productSearch}
-                  onChange={(e) => setProductSearch(e.target.value)}
-                  placeholder="Do‘kon tovarlaridan qidirish..."
-                  className="w-full h-10 pl-9 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs md:text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none"
-                />
-                {productSearch && (
-                  <button
-                    onClick={() => setProductSearch('')}
-                    className="absolute right-3 top-3 text-[#566A63] dark:text-[#8B9E95]"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
+              <div className="flex items-center gap-2.5 w-full md:w-auto">
+                {/* In-Store Search Bar */}
+                <div className="relative flex-1 md:w-72">
+                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-[#566A63] dark:text-[#8B9E95]" />
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Do‘kon tovarlaridan qidirish..."
+                    className="w-full h-10 pl-9 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs md:text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none"
+                  />
+                  {productSearch && (
+                    <button
+                      onClick={() => setProductSearch('')}
+                      className="absolute right-3 top-3 text-[#566A63] dark:text-[#8B9E95]"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleOpenProposalModal}
+                  className="h-10 px-3.5 md:px-4 rounded-xl bg-[#116B50] hover:bg-[#0D523D] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer shrink-0"
+                  title="Do‘konga tovar yoki xizmat taklif qilish"
+                >
+                  <PlusCircle className="w-4 h-4" />
+                  <span className="hidden sm:inline">+ Tovar/xizmat taklif qilish</span>
+                  <span className="sm:hidden">+ Taklif</span>
+                </button>
               </div>
             </div>
 
@@ -1159,6 +1273,197 @@ export function StoreFullPageView({
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* CROWDSOURCED ITEM PROPOSAL MODAL */}
+      <Modal
+        isOpen={isProposalModalOpen}
+        onClose={() => {
+          if (!isSubmittingProposal) {
+            setIsProposalModalOpen(false);
+            setProposalFeedback(null);
+          }
+        }}
+        title="Tovar yoki xizmat taklif qilish"
+      >
+        <div className="flex flex-col gap-4 text-xs md:text-sm">
+          {/* Info Banner on 3-user consensus rule */}
+          <div className="p-3.5 rounded-2xl bg-[#E0EFE7] dark:bg-[#1C3328] border border-[#116B50]/30 dark:border-[#4ADE80]/30 text-[#172C28] dark:text-[#E8F2EC] flex items-start gap-2.5">
+            <Sparkles className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80] shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed">
+              <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80]">Kraudsorring qoidasi:</span> Siz taklif qilgan tovar yoki xizmat admin, moderator yoki do‘kon egasi tasdiqlaganidan so‘ng katalogga qo‘shiladi.
+              <div className="mt-1 font-semibold text-[#0D523D] dark:text-[#86EFAC]">
+                ✨ Agar <span className="underline font-bold">3 xil foydalanuvchi</span> bir xil narsani qo‘shsa, u administratorlarsiz <b>avtomatik tasdiqlanadi</b> hamda o‘rtacha narxi va soni qo‘yiladi!
+              </div>
+            </div>
+          </div>
+
+          {/* Feedback Banner if submitted */}
+          {proposalFeedback && (
+            <div className={`p-3.5 rounded-xl text-xs font-bold flex items-start gap-2 animate-in fade-in duration-200 ${
+              proposalFeedback.type === 'auto_approved'
+                ? 'bg-emerald-100 dark:bg-emerald-950/80 text-emerald-900 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700'
+                : proposalFeedback.type === 'success'
+                ? 'bg-amber-100 dark:bg-amber-950/80 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700'
+                : 'bg-red-100 dark:bg-red-950/80 text-red-900 dark:text-red-200 border border-red-300 dark:border-red-700'
+            }`}>
+              <span>{proposalFeedback.type === 'auto_approved' ? '🎉' : proposalFeedback.type === 'success' ? '⏳' : '⚠️'}</span>
+              <div className="flex-1 leading-normal">{proposalFeedback.message}</div>
+            </div>
+          )}
+
+          {/* Type Toggle: Product vs Service */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">Turi</label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36]">
+              <button
+                type="button"
+                onClick={() => setProposalForm(f => ({ ...f, type: 'PRODUCT', packUnit: f.packUnit === 'xizmat' ? 'dona' : f.packUnit }))}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  proposalForm.type === 'PRODUCT'
+                    ? 'bg-white dark:bg-[#116B50] text-[#116B50] dark:text-white shadow-xs'
+                    : 'text-[#566A63] dark:text-[#8B9E95]'
+                }`}
+              >
+                <span>🛒</span> <span>Mahsulot (Tovar)</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setProposalForm(f => ({ ...f, type: 'SERVICE', packUnit: 'xizmat', stockOnHand: '1' }))}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                  proposalForm.type === 'SERVICE'
+                    ? 'bg-white dark:bg-[#116B50] text-[#116B50] dark:text-white shadow-xs'
+                    : 'text-[#566A63] dark:text-[#8B9E95]'
+                }`}
+              >
+                <span>🛠️</span> <span>Xizmat ko‘rsatish</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Title */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">
+              {proposalForm.type === 'SERVICE' ? 'Xizmat nomi' : 'Tovar nomi'} <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              value={proposalForm.title}
+              onChange={(e) => setProposalForm(f => ({ ...f, title: e.target.value }))}
+              placeholder={proposalForm.type === 'SERVICE' ? 'Masalan: Avtomobil moyini almashtirish' : 'Masalan: Coca-Cola 1.5L'}
+              className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs md:text-sm font-semibold text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+            />
+          </div>
+
+          {/* Category */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">Kategoriya</label>
+            <input
+              type="text"
+              value={proposalForm.category}
+              onChange={(e) => setProposalForm(f => ({ ...f, category: e.target.value }))}
+              placeholder="Masalan: Ichimliklar, Oziq-ovqat, Xizmatlar..."
+              list="store-categories-list"
+              className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs md:text-sm text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+            />
+            <datalist id="store-categories-list">
+              {uniqueCategories.map(c => <option key={c} value={c} />)}
+            </datalist>
+          </div>
+
+          {/* Price & Stock */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">
+                Narxi (so‘m) <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="500"
+                value={proposalForm.price}
+                onChange={(e) => setProposalForm(f => ({ ...f, price: e.target.value }))}
+                placeholder="15000"
+                className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs md:text-sm font-bold text-[#116B50] dark:text-[#4ADE80] focus:outline-none focus:border-[#116B50]"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">
+                {proposalForm.type === 'SERVICE' ? 'Bajarish soni' : 'Taxminiy soni / qoldiq'}
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={proposalForm.stockOnHand}
+                onChange={(e) => setProposalForm(f => ({ ...f, stockOnHand: e.target.value }))}
+                placeholder="10"
+                className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs md:text-sm text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+              />
+            </div>
+          </div>
+
+          {/* Pack unit & Barcode */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">O‘lchov birligi</label>
+              <select
+                value={proposalForm.packUnit}
+                onChange={(e) => setProposalForm(f => ({ ...f, packUnit: e.target.value }))}
+                className="w-full h-10 px-3 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs text-[#172C28] dark:text-white focus:outline-none"
+              >
+                <option value="dona">dona</option>
+                <option value="kg">kg (kilogramm)</option>
+                <option value="litr">litr</option>
+                <option value="quti">quti / blok</option>
+                <option value="metr">metr</option>
+                <option value="xizmat">xizmat</option>
+                <option value="soat">soat</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">Shtrix-kod (ixtiyoriy)</label>
+              <input
+                type="text"
+                value={proposalForm.barcode}
+                onChange={(e) => setProposalForm(f => ({ ...f, barcode: e.target.value }))}
+                placeholder="478000..."
+                className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+              />
+            </div>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#DCE5DF] dark:border-[#2A3F36]">
+            <button
+              type="button"
+              disabled={isSubmittingProposal}
+              onClick={() => {
+                setIsProposalModalOpen(false);
+                setProposalFeedback(null);
+              }}
+              className="px-4 py-2 rounded-xl text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] hover:bg-gray-100 dark:hover:bg-[#1E2E25] transition cursor-pointer"
+            >
+              Bekor qilish
+            </button>
+            <button
+              type="button"
+              disabled={isSubmittingProposal || !proposalForm.title.trim()}
+              onClick={handleSubmitProposal}
+              className="px-5 py-2.5 rounded-xl bg-[#116B50] hover:bg-[#0D523D] disabled:opacity-50 text-white text-xs font-bold transition flex items-center gap-2 shadow-xs cursor-pointer"
+            >
+              {isSubmittingProposal ? (
+                <span>Yuborilmoqda...</span>
+              ) : (
+                <>
+                  <Send className="w-3.5 h-3.5" />
+                  <span>Taklifni yuborish</span>
+                </>
+              )}
+            </button>
+          </div>
+        </div>
       </Modal>
 
       {/* REPORT / INQUIRY MODAL */}

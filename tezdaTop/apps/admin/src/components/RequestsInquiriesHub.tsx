@@ -17,6 +17,7 @@ import {
   Search,
   Filter,
   Check,
+  Sparkles,
   Eye,
   EyeOff
 } from 'lucide-react';
@@ -31,7 +32,7 @@ export interface RequestsInquiriesHubProps {
 }
 
 export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: RequestsInquiriesHubProps) {
-  const [activeTab, setActiveTab] = useState<'credentials' | 'inquiries'>('credentials');
+  const [activeTab, setActiveTab] = useState<'credentials' | 'inquiries' | 'proposals'>('credentials');
 
   // Credential Requests State
   const [credentialRequests, setCredentialRequests] = useState<CredentialChangeRequest[]>([]);
@@ -47,6 +48,13 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   const [inquiryStatusFilter, setInquiryStatusFilter] = useState<'ALL' | 'PENDING_MERCHANT_REPLY' | 'MERCHANT_SUBMITTED' | 'CUSTOMER' | 'RESOLVED'>('ALL');
   const [inquirySearch, setInquirySearch] = useState('');
   const [isCreateInquiryModalOpen, setIsCreateInquiryModalOpen] = useState(false);
+  // Item Proposals State
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [proposalStatusFilter, setProposalStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'AUTO_APPROVED' | 'REJECTED'>('PENDING');
+  const [proposalSearch, setProposalSearch] = useState('');
+  const [isProcessingProposal, setIsProcessingProposal] = useState(false);
+
+  const targetStatePlaceholder = true;
   const [newInquiryForm, setNewInquiryForm] = useState({
     storeId: '',
     subject: '',
@@ -130,6 +138,46 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   };
 
   // Create new inquiry to store
+  const handleApproveProposal = async (id: string, title: string) => {
+    setIsProcessingProposal(true);
+    try {
+      const res = await fetch(`/api/v1/admin/item-proposals/${id}/approve`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`"${title}" muvaffaqiyatli tasdiqlandi va do‘konga qo‘shildi!`);
+        await loadData();
+      } else {
+        onShowToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      onShowToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+
+  const handleRejectProposal = async (id: string, title: string) => {
+    setIsProcessingProposal(true);
+    try {
+      const res = await fetch(`/api/v1/admin/item-proposals/${id}/reject`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`"${title}" taklifi rad etildi`);
+        await loadData();
+      } else {
+        onShowToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      onShowToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+
   const handleCreateInquiry = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newInquiryForm.storeId || !newInquiryForm.subject.trim() || !newInquiryForm.message.trim()) {
@@ -264,6 +312,16 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   });
 
   const pendingCredCount = credentialRequests.filter(r => r.status === 'PENDING').length;
+  const pendingProposalsCount = proposals.filter(p => p.status === 'PENDING').length;
+
+  const filteredProposals = proposals.filter((p) => {
+    const matchesFilter = proposalStatusFilter === 'ALL' || p.status === proposalStatusFilter;
+    const matchesSearch = !proposalSearch.trim() ||
+      (p.title && p.title.toLowerCase().includes(proposalSearch.toLowerCase())) ||
+      (p.storeName && p.storeName.toLowerCase().includes(proposalSearch.toLowerCase())) ||
+      (p.category && p.category.toLowerCase().includes(proposalSearch.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
   const pendingInqRepliesCount = inquiries.filter(i => i.status === 'MERCHANT_SUBMITTED').length;
 
   return (
@@ -334,6 +392,23 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           {pendingInqRepliesCount > 0 && (
             <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white">
               {pendingInqRepliesCount} yangi javob
+            </span>
+          )}
+        </button>
+
+        <button
+          onClick={() => setActiveTab('proposals')}
+          className={`pb-3 px-4 text-sm font-bold transition flex items-center gap-2 border-b-2 ${
+            activeTab === 'proposals'
+              ? 'border-[#116B50] text-[#116B50] dark:text-[#4ADE80] dark:border-[#4ADE80]'
+              : 'border-transparent text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+          }`}
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Tovar & Xizmat Takliflari</span>
+          {pendingProposalsCount > 0 && (
+            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#F59E0B] text-white">
+              {pendingProposalsCount}
             </span>
           )}
         </button>

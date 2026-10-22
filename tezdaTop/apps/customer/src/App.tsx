@@ -1,5 +1,5 @@
 import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
   MapPin,
@@ -24,7 +24,8 @@ import {
   Sun,
   LogIn,
   ChevronDown,
-  Building2
+  Building2,
+  Package
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
@@ -33,6 +34,8 @@ import { StoreFullPageView } from './components/StoreFullPageView';
 import { UserPersonalHubView } from './components/UserPersonalHubView';
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
+import { ProductsCatalogView, CatalogProduct } from './components/ProductsCatalogView';
+import { ProductDetailPageView, DetailedProduct, AlternativeProduct } from './components/ProductDetailPageView';
 import { UzbekistanRegionPickerModal, detectNearestUzbekistanLocation } from './components/UzbekistanRegionPickerModal';
 import { apiUrl } from './config/api.js';
 
@@ -89,7 +92,8 @@ export function CustomerApp() {
   });
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [view, setView] = useState<'search' | 'detail' | 'route' | 'hub'>('search');
+  const [view, setView] = useState<'search' | 'detail' | 'route' | 'hub' | 'products' | 'product-detail'>('search');
+  const [activeProductParam, setActiveProductParam] = useState<string>('');
   const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history'>('favorites');
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
   const [mobileTab, setMobileTab] = useState<'xarita' | 'royxat'>('xarita');
@@ -116,6 +120,7 @@ export function CustomerApp() {
   const [storeSelectedCategory, setStoreSelectedCategory] = useState('ALL');
 
   const [routeData, setRouteData] = useState<RouteResponse | null>(null);
+  const routeDataRef = useRef<RouteResponse | null>(null);
   const [routeMode, setRouteMode] = useState<'walking' | 'driving'>('walking');
 
   // Modals
@@ -179,7 +184,7 @@ export function CustomerApp() {
           return item;
         });
         setNearbyStores(items);
-        setSelectedNearbyStore(items.length > 0 ? items[0] : null);
+        // Do not auto-select store on load, only when user clicks pin or chooses one
       }
     } catch (err) {
       console.error('Error fetching nearby stores:', err);
@@ -191,9 +196,10 @@ export function CustomerApp() {
     setStoreOffersLoading(true);
     setActiveStoreOffers([]);
     try {
+      const cleanId = storeId.startsWith('/') ? storeId.slice(1) : storeId;
       const [detailRes, offersRes] = await Promise.all([
-        fetch(apiUrl(`/api/v1/stores/${storeId}`)),
-        fetch(apiUrl(`/api/v1/stores/${storeId}/offers`))
+        fetch(apiUrl(`/api/v1/stores/${cleanId}`)),
+        fetch(apiUrl(`/api/v1/stores/${cleanId}/offers`))
       ]);
       if (detailRes.ok) {
         const detailPayload = await detailRes.json();
@@ -240,6 +246,101 @@ export function CustomerApp() {
     }
   };
 
+  // Format clean store URL with coordinates & slug (replaces raw UUID)
+  const getStoreUrl = (store: { id: string; name?: string; location?: { lat: number; lng: number } }) => {
+    if (store.location && typeof store.location.lat === 'number' && typeof store.location.lng === 'number') {
+      const lat = store.location.lat.toFixed(6);
+      const lng = store.location.lng.toFixed(6);
+      const slug = (store.name || 'dokon').toLowerCase().replace(/[^a-z0-9а-яёўқғҳ]+/gi, '-').replace(/^-+|-+$/g, '');
+      return `/dokon/${slug}/@${lat},${lng}`;
+    }
+    return `/dokon/${store.id}`;
+  };
+
+  // Open product detail page
+  const handleOpenProductDetail = (variantOrTitle: { id?: string; title: string }) => {
+    const slug = (variantOrTitle.title || variantOrTitle.id || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9а-яёўқғҳ]+/gi, '-')
+      .replace(/^-+|-+$/g, '');
+    setActiveProductParam(slug || variantOrTitle.id || '');
+    setView('product-detail');
+    navigateTo(`/mahsulot/${slug || variantOrTitle.id}`);
+  };
+
+  // Handler to show product availability on map
+  const handleShowProductOnMap = (product: CatalogProduct, targetStoreId?: string) => {
+    const mappedResults: StoreSearchResult[] = product.stores.map((s) => ({
+      store: {
+        id: s.storeId,
+        organizationId: '',
+        name: s.storeName,
+        inn: '',
+        region: 'Toshkent shahri',
+        city: 'Toshkent',
+        district: s.storeDistrict,
+        address: s.storeAddress,
+        phone: s.storePhone || '',
+        location: s.location,
+        rating: s.storeRating,
+        reviewCount: 10,
+        isVerified: true,
+        status: 'ACTIVE',
+        type: s.storeType as any,
+        hours: [],
+        createdAt: '',
+        updatedAt: ''
+      },
+      bestOffer: {
+        id: s.offerId,
+        storeId: s.storeId,
+        variantId: product.id,
+        price: s.price.toString(),
+        minOrderQuantity: 1,
+        stockOnHand: s.stockOnHand,
+        stockVerifiedAt: s.stockVerifiedAt || new Date().toISOString(),
+        priceUpdatedAt: new Date().toISOString(),
+        freshness: 'FRESH' as any,
+        status: 'ACTIVE' as any,
+        wholesaleTiers: s.wholesaleTiers || [],
+        version: 1,
+        variant: {
+          id: product.id,
+          productId: product.productId,
+          title: product.title,
+          brand: product.brand,
+          category: product.category,
+          packSize: product.packSize,
+          packUnit: product.packUnit,
+          barcode: product.barcode,
+          sku: product.sku
+        }
+      },
+      isOpenNow: s.isOpenNow,
+      distanceM: s.distanceM,
+      otherMatchingOfferCount: 0,
+      similarProducts: []
+    }));
+
+    setResults(mappedResults);
+    setSearchCategory('products');
+    setSearchQuery(product.title);
+    setRadiusM(0);
+
+    if (targetStoreId) {
+      const target = mappedResults.find((r) => r.store.id === targetStoreId);
+      if (target) setSelectedResult(target);
+      else if (mappedResults.length > 0) setSelectedResult(mappedResults[0]);
+    } else if (mappedResults.length > 0) {
+      setSelectedResult(mappedResults[0]);
+    }
+
+    setView('search');
+    setMobileTab('xarita');
+    navigateTo('/');
+    showToast(`Xaritada "${product.title}" mavjud bo‘lgan ${mappedResults.length} ta do‘kon ko‘rsatilmoqda`);
+  };
+
   // URL Routing Sync
   const handleRoute = (path: string) => {
     const cleanPath = path.split('?')[0];
@@ -273,7 +374,10 @@ export function CustomerApp() {
       setView('hub');
       setHubSection('history');
     } else if (cleanPath === '/marshrut') {
-      if (routeData) {
+      if (routeData || routeDataRef.current) {
+        if (!routeData && routeDataRef.current) {
+          setRouteData(routeDataRef.current);
+        }
         setView('route');
       } else {
         // Prevent history loop on back/forward or reload when route data is not in memory
@@ -281,6 +385,8 @@ export function CustomerApp() {
         setCurrentPath('/');
         setView('search');
       }
+    } else if (cleanPath === '/mahsulotlar' || cleanPath === '/tovarlar') {
+      setView('products');
     } else if (cleanPath.startsWith('/dokon/')) {
       const storeId = cleanPath.replace('/dokon/', '').trim();
       if (storeId) {
@@ -481,6 +587,7 @@ export function CustomerApp() {
       });
       if (res.ok) {
         const data = await res.json();
+        routeDataRef.current = data;
         setRouteData(data);
         setView('route');
         navigateTo('/marshrut', { replace: true });
@@ -506,6 +613,7 @@ export function CustomerApp() {
           isApproximateTraffic: true,
           externalMapUrl: `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&travelmode=${mode}`
         };
+        routeDataRef.current = fallbackRoute;
         setRouteData(fallbackRoute);
         setView('route');
         navigateTo('/marshrut', { replace: true });
@@ -532,6 +640,7 @@ export function CustomerApp() {
         isApproximateTraffic: true,
         externalMapUrl: `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&travelmode=${mode}`
       };
+      routeDataRef.current = fallbackRoute;
       setRouteData(fallbackRoute);
       setView('route');
       navigateTo('/marshrut', { replace: true });
@@ -566,12 +675,17 @@ export function CustomerApp() {
 
   const handleOpenDetail = (item: StoreSearchResult) => {
     setSelectedResult(item);
+    setActiveStoreDetail(item.store);
     recordStoreView(item.store);
-    navigateTo(`/dokon/${item.store.id}`);
+    setView('detail');
+    const url = getStoreUrl(item.store);
+    loadStoreCatalog(item.store.id);
+    navigateTo(url);
   };
 
   const handleOpenNearbyDetail = (item: any) => {
     setSelectedNearbyStore(item);
+    setActiveStoreDetail(item.store);
     recordStoreView(item.store);
     setSelectedResult({
       store: item.store,
@@ -594,7 +708,10 @@ export function CustomerApp() {
       otherMatchingOfferCount: 0,
       similarProducts: []
     } as any);
-    navigateTo(`/dokon/${item.store.id}`);
+    setView('detail');
+    const url = getStoreUrl(item.store);
+    loadStoreCatalog(item.store.id);
+    navigateTo(url);
   };
 
   // Filtered store catalog products
@@ -1044,6 +1161,59 @@ export function CustomerApp() {
                 </button>
               </div>
 
+              {/* Selected Organization Preview Card (when user clicks pin on map) */}
+              {selectedNearbyStore && !searchQuery.trim() && (
+                <div className="p-4 mb-3 bg-white dark:bg-[#16241E] rounded-2xl border-2 border-[#116B50] dark:border-[#4ADE80] shadow-sm flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-[10px] font-black uppercase tracking-wider">
+                          {selectedNearbyStore.store?.type === 'WHOLESALE' ? 'Ulgurji' : 'Do‘kon'}
+                        </span>
+                        <span className={selectedNearbyStore.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] text-xs font-bold' : 'text-red-500 text-xs font-bold'}>
+                          {selectedNearbyStore.isOpenNow ? '● Ochiq' : '○ Yopiq'}
+                        </span>
+                      </div>
+                      <h3 className="font-extrabold text-base text-[#172C28] dark:text-[#E8F2EC]">
+                        {selectedNearbyStore.organization?.name || selectedNearbyStore.store?.name}
+                      </h3>
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                        📍 {selectedNearbyStore.store?.address}
+                        {selectedNearbyStore.distanceM && (
+                          <span className="font-bold text-[#116B50] dark:text-[#4ADE80] ml-1">
+                            · {selectedNearbyStore.distanceM} m
+                          </span>
+                        )}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedNearbyStore(null)}
+                      title="Tanlovni bekor qilish"
+                      className="text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white p-1"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#273B32]">
+                    <button
+                      onClick={() => handleOpenNearbyDetail(selectedNearbyStore)}
+                      className="flex-1 py-2 px-3 rounded-xl bg-[#116B50] hover:bg-[#0D523D] text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-2xs"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Sahifasiga o‘tish</span>
+                    </button>
+                    <button
+                      onClick={() => fetchRoute(selectedNearbyStore.store, 'walking')}
+                      className="py-2 px-3 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] hover:bg-[#D0E7DC] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold transition flex items-center gap-1.5"
+                    >
+                      <Navigation className="w-3.5 h-3.5" />
+                      <span>Marshrut</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Mode 1: No search query -> Initial Clean Search Prompt */}
               {!searchQuery.trim() ? (
                 <div className="flex flex-col gap-4 mt-2">
@@ -1475,6 +1645,7 @@ export function CustomerApp() {
             onSelectStore={handleSelectStore}
             onSelectNearbyStore={handleSelectNearbyStore}
             onOpenDetail={handleOpenDetail}
+            onOpenProduct={(v) => handleOpenProductDetail(v)}
             onOpenNearbyDetail={handleOpenNearbyDetail}
             onNavigate={(item) => fetchRoute(item.store, routeMode)}
             onCancelRoute={handleStopRoute}
