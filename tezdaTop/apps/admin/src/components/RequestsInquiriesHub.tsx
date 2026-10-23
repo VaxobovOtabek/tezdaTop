@@ -32,6 +32,12 @@ export interface RequestsInquiriesHubProps {
   onShowToast: (msg: string) => void;
 }
 
+
+const getHubAuthHeaders = (): Record<string, string> => {
+  const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: RequestsInquiriesHubProps) {
   const [activeTab, setActiveTab] = useState<'credentials' | 'inquiries' | 'proposals'>('credentials');
 
@@ -77,11 +83,12 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   const loadData = async () => {
     setIsLoading(true);
     try {
+      const authHeaders = getHubAuthHeaders();
       const [credRes, inqRes, propRes, photoRes] = await Promise.all([
-        fetch('/api/v1/admin/credential-requests'),
-        fetch('/api/v1/admin/inquiries'),
-        fetch('/api/v1/admin/item-proposals'),
-        fetch('/api/v1/admin/photo-proposals')
+        fetch('/api/v1/admin/credential-requests', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/inquiries', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/item-proposals', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/photo-proposals', { credentials: 'include', headers: authHeaders })
       ]);
 
       if (credRes.ok) {
@@ -154,7 +161,9 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
     setIsProcessingProposal(true);
     try {
       const res = await fetch(`/api/v1/admin/item-proposals/${id}/approve`, {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include',
+        headers: getHubAuthHeaders()
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -174,7 +183,9 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
     setIsProcessingProposal(true);
     try {
       const res = await fetch(`/api/v1/admin/photo-proposals/${id}/approve`, {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include',
+        headers: getHubAuthHeaders()
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -194,7 +205,9 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
     setIsProcessingProposal(true);
     try {
       const res = await fetch(`/api/v1/admin/photo-proposals/${id}/reject`, {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include',
+        headers: getHubAuthHeaders()
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -214,7 +227,9 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
     setIsProcessingProposal(true);
     try {
       const res = await fetch(`/api/v1/admin/item-proposals/${id}/reject`, {
-        method: 'POST'
+        method: 'POST',
+        credentials: 'include',
+        headers: getHubAuthHeaders()
       });
       const data = await res.json();
       if (res.ok && data.success) {
@@ -240,7 +255,8 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
     try {
       const res = await fetch('/api/v1/admin/inquiries', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getHubAuthHeaders() },
+        credentials: 'include',
         body: JSON.stringify(newInquiryForm)
       });
 
@@ -283,7 +299,8 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
     try {
       const res = await fetch(`/api/v1/admin/inquiries/${selectedInqForReply.id}/reply`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getHubAuthHeaders() },
+        credentials: 'include',
         body: JSON.stringify({
           reply: adminReplyText.trim(),
           status: adminResolutionStatus
@@ -311,7 +328,8 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
     try {
       const res = await fetch(`/api/v1/admin/inquiries/${inquiryId}/status`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getHubAuthHeaders() },
+        credentials: 'include',
         body: JSON.stringify({ status })
       });
 

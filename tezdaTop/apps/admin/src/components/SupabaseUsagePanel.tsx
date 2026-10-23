@@ -22,7 +22,7 @@ export function SupabaseUsagePanel() {
     async function load() {
       setLoading(true); setError('');
       try {
-        const token = localStorage.getItem('yaqintop_token');
+        const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
         const response = await fetch(`/api/v1/admin/supabase-usage?period=${period}`, {
           credentials: 'include', headers: token ? { Authorization: `Bearer ${token}` } : {}, signal: controller.signal
         });
@@ -52,7 +52,22 @@ export function SupabaseUsagePanel() {
       {([['day', 'Kunlik · 24 soat'], ['week', 'Haftalik · 7 kun'], ['month', 'Oylik · 30 kun']] as const).map(([value, label]) =>
         <button key={value} aria-pressed={period === value} onClick={() => { if (value !== period) { setData(null); setPeriod(value); } }} className={`px-4 py-2 rounded-xl text-sm font-semibold ${period === value ? 'bg-[#116B50] text-white' : 'bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C]'}`}>{label}</button>)}
     </div>
-    {error && <div role="alert" className="p-4 rounded-xl bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200">{error}</div>}
+    {error && (
+      <div role="alert" className="p-4 rounded-xl bg-red-50 dark:bg-red-950 text-red-700 dark:text-red-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border border-red-200 dark:border-red-900/40">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-5 h-5 shrink-0" />
+          <span>{error}</span>
+        </div>
+        {(error.includes('kiring') || error.includes('ruxsat') || error.includes('401') || error.includes('Avtorizatsiya')) && (
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('yaqintop-open-login'))}
+            className="px-4 py-2 rounded-xl bg-[#116B50] hover:bg-[#0D523D] text-white text-xs font-bold transition shadow whitespace-nowrap"
+          >
+            Qayta tizimga kirish (Login)
+          </button>
+        )}
+      </div>
+    )}
     {data?.issue && <div role="status" className="flex gap-3 p-4 rounded-xl bg-amber-50 dark:bg-amber-950 text-amber-800 dark:text-amber-200 text-sm"><AlertTriangle className="w-5 h-5 shrink-0" />{data.issue}</div>}
     {loading && !data && !error && <p role="status" className={muted}>Ko‘rsatkichlar yuklanmoqda…</p>}
     {data && <>

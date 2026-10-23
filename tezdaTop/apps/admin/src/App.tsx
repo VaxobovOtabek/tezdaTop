@@ -179,6 +179,12 @@ export function AdminApp() {
     }
   }, [currentUser?.role, activeTab]);
 
+  useEffect(() => {
+    const handleOpenLogin = () => setIsLoginModalOpen(true);
+    window.addEventListener('yaqintop-open-login', handleOpenLogin);
+    return () => window.removeEventListener('yaqintop-open-login', handleOpenLogin);
+  }, []);
+
   // Modals
   const [selectedApp, setSelectedApp] = useState<StoreType | null>(null);
   const [isAppModalOpen, setIsAppModalOpen] = useState(false);
@@ -327,14 +333,16 @@ export function AdminApp() {
 
   const loadData = async () => {
     try {
+      const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
+      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [overRes, orgRes, storeRes, appRes, repRes, usersRes, auditRes] = await Promise.all([
-        fetch('/api/v1/admin/overview'),
-        fetch('/api/v1/admin/organizations'),
-        fetch('/api/v1/admin/stores'),
-        fetch('/api/v1/admin/applications'),
-        fetch('/api/v1/admin/reports'),
-        fetch('/api/v1/admin/users'),
-        fetch('/api/v1/admin/audit')
+        fetch('/api/v1/admin/overview', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/organizations', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/stores', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/applications', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/reports', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/users', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/audit', { credentials: 'include', headers: authHeaders })
       ]);
 
       if (overRes.ok) setOverviewStats(await overRes.json());

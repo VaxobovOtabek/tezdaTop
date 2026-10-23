@@ -193,7 +193,7 @@ export function StoreFullPageView({
       onShowToast('Iltimos, rasm tanlang yoki rasm havolasini kiriting');
       return;
     }
-    const token = localStorage.getItem('yaqintop_session_token') || '';
+    const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
     setIsSubmittingPhoto(true);
 
     try {
@@ -254,7 +254,7 @@ export function StoreFullPageView({
       onShowToast('Iltimos, tovar yoki xizmat nomini kiriting');
       return;
     }
-    const token = localStorage.getItem('yaqintop_session_token') || '';
+    const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
     setIsSubmittingProposal(true);
     setProposalFeedback(null);
 

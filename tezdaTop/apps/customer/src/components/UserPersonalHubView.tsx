@@ -130,7 +130,7 @@ export function UserPersonalHubView({
   const loadUserProposals = async () => {
     setLoadingProposals(true);
     try {
-      const token = localStorage.getItem('yaqintop_session_token') || '';
+      const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
       const [itemRes, photoRes] = await Promise.all([
         fetch(
           apiUrl(`/api/v1/user/proposals?userId=${currentUser?.id || ''}`),

@@ -255,13 +255,15 @@ export function ModeratorApp() {
 
   const loadData = async () => {
     try {
+      const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
+      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
       const [statsRes, orgsRes, appsRes, repRes, usersRes, auditRes] = await Promise.all([
-        fetch('/api/v1/admin/overview-stats'),
-        fetch('/api/v1/admin/organizations'),
-        fetch('/api/v1/admin/store-applications'),
-        fetch('/api/v1/admin/reports'),
-        fetch('/api/v1/admin/users'),
-        fetch('/api/v1/admin/audit-logs')
+        fetch('/api/v1/admin/overview-stats', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/organizations', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/store-applications', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/reports', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/users', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/audit-logs', { credentials: 'include', headers: authHeaders })
       ]);
 
       if (statsRes.ok) setOverviewStats(await statsRes.json());
