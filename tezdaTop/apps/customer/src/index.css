@@ -36,23 +36,57 @@
 }
 
 /* Prevent black focus bounding box / rectangle on Leaflet SVG paths and layers */
+.search-radius-circle,
+.pointer-events-none,
+.leaflet-overlay-pane,
+.leaflet-overlay-pane svg,
+.leaflet-overlay-pane svg g,
+.leaflet-overlay-pane svg path,
+.leaflet-overlay-pane path,
 .leaflet-container svg,
 .leaflet-container svg path,
-.leaflet-container path,
-.leaflet-interactive,
-.leaflet-overlay-pane svg,
-.leaflet-overlay-pane svg path {
+.leaflet-container path {
   outline: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  outline-color: transparent !important;
+  -webkit-focus-ring-color: transparent !important;
+  box-shadow: none !important;
+  pointer-events: none !important;
   -webkit-tap-highlight-color: transparent !important;
 }
 
+.search-radius-circle:focus,
+.search-radius-circle:focus-visible,
+.search-radius-circle:active,
+.pointer-events-none:focus,
+.pointer-events-none:focus-visible,
+.leaflet-overlay-pane:focus,
+.leaflet-overlay-pane svg:focus,
+.leaflet-overlay-pane svg path:focus,
+.leaflet-overlay-pane svg path:focus-visible,
+.leaflet-overlay-pane svg path:active,
 .leaflet-container svg:focus,
 .leaflet-container svg path:focus,
-.leaflet-container path:focus,
-.leaflet-interactive:focus,
-.leaflet-overlay-pane svg:focus,
-.leaflet-overlay-pane svg path:focus {
+.leaflet-container svg path:focus-visible,
+.leaflet-container svg path:active {
   outline: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  outline-color: transparent !important;
+  -webkit-focus-ring-color: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Ensure store markers, user marker, and popups remain fully interactive */
+.leaflet-marker-pane,
+.leaflet-marker-pane *,
+.leaflet-popup-pane,
+.leaflet-popup-pane *,
+.custom-store-pin,
+.custom-user-marker,
+.dest-marker {
+  pointer-events: auto !important;
 }
 
 .leaflet-popup-content-wrapper {

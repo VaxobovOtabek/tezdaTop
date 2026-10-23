@@ -257,12 +257,18 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           dashArray: '6, 6',
           fillColor: fillColor,
           fillOpacity: isDarkMode ? 0.22 : 0.16,
-          interactive: false
+          interactive: false,
+          className: 'search-radius-circle pointer-events-none'
         });
         const elem = radiusCircleRef.current.getElement() as SVGElement | null;
-        if (elem?.style) {
-          elem.style.outline = 'none';
-          elem.style.pointerEvents = 'none';
+        if (elem) {
+          elem.setAttribute('class', 'search-radius-circle pointer-events-none');
+          elem.setAttribute('pointer-events', 'none');
+          elem.setAttribute('tabindex', '-1');
+          if (elem.style) {
+            elem.style.setProperty('outline', 'none', 'important');
+            elem.style.setProperty('pointer-events', 'none', 'important');
+          }
         }
       } else {
         const circle = L.circle([userLocation.lat, userLocation.lng], {
@@ -273,13 +279,19 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           dashArray: '6, 6',
           fillColor: fillColor,
           fillOpacity: isDarkMode ? 0.22 : 0.16,
-          interactive: false
+          interactive: false,
+          className: 'search-radius-circle pointer-events-none'
         }).addTo(map);
 
         const elem = circle.getElement() as SVGElement | null;
-        if (elem?.style) {
-          elem.style.outline = 'none';
-          elem.style.pointerEvents = 'none';
+        if (elem) {
+          elem.setAttribute('class', 'search-radius-circle pointer-events-none');
+          elem.setAttribute('pointer-events', 'none');
+          elem.setAttribute('tabindex', '-1');
+          if (elem.style) {
+            elem.style.setProperty('outline', 'none', 'important');
+            elem.style.setProperty('pointer-events', 'none', 'important');
+          }
         }
 
         radiusCircleRef.current = circle;
@@ -306,12 +318,19 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     radiusCircleRef.current.setStyle({
       color: strokeColor,
       fillColor: fillColor,
-      fillOpacity: isDarkMode ? 0.22 : 0.16
+      fillOpacity: isDarkMode ? 0.22 : 0.16,
+      interactive: false,
+      className: 'search-radius-circle pointer-events-none'
     });
     const elem = radiusCircleRef.current.getElement() as SVGElement | null;
-    if (elem?.style) {
-      elem.style.outline = 'none';
-      elem.style.pointerEvents = 'none';
+    if (elem) {
+      elem.setAttribute('class', 'search-radius-circle pointer-events-none');
+      elem.setAttribute('pointer-events', 'none');
+      elem.setAttribute('tabindex', '-1');
+      if (elem.style) {
+        elem.style.setProperty('outline', 'none', 'important');
+        elem.style.setProperty('pointer-events', 'none', 'important');
+      }
     }
   }, [isDarkMode]);
 

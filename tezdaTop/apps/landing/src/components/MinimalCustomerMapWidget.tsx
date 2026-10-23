@@ -207,7 +207,9 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
       radiusCircleRef.current.setStyle({
         color: strokeColor,
         fillColor: fillColor,
-        fillOpacity: isDarkMode ? 0.18 : 0.12
+        fillOpacity: isDarkMode ? 0.18 : 0.12,
+        interactive: false,
+        className: 'search-radius-circle pointer-events-none'
       });
     } else {
       const circle = L.circle([TASHKENT_CENTER.lat, TASHKENT_CENTER.lng], {
@@ -216,7 +218,9 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         weight: 2,
         dashArray: '6, 6',
         fillColor: fillColor,
-        fillOpacity: isDarkMode ? 0.18 : 0.12
+        fillOpacity: isDarkMode ? 0.18 : 0.12,
+        interactive: false,
+        className: 'search-radius-circle pointer-events-none'
       }).addTo(map);
       radiusCircleRef.current = circle;
     }
