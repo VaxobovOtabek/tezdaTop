@@ -382,7 +382,7 @@ export function LandingApp() {
             {/* Main Headline */}
             <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-extrabold tracking-tight text-[#172C28] dark:text-white leading-[1.18] sm:leading-[1.15]">
               Kerakli tovar va xizmatni{' '}
-              <span className="text-[#116B50] dark:text-[#4ADE80] underline decoration-[#116B50]/40 decoration-wavy decoration-2">
+              <span className="text-[#116B50] dark:text-[#4ADE80]">
                 1 soniyada
               </span>{' '}
               eng yaqin do‘kondan toping
@@ -415,7 +415,7 @@ export function LandingApp() {
             </form>
 
             {/* Quick Category Pills Row */}
-            <div className="mt-4 sm:mt-5 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar max-w-full w-full">
+            <div className="mt-4 sm:mt-5 flex flex-wrap items-center gap-2 max-w-full w-full">
               {[
                 { icon: '🛒', label: 'Oziq-ovqat', query: 'Oziq-ovqat' },
                 { icon: '💊', label: 'Dorixonalar', query: 'Dorixonalar' },
@@ -428,7 +428,7 @@ export function LandingApp() {
                   key={idx}
                   type="button"
                   onClick={() => handleQuickCategoryClick(item.query)}
-                  className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50] dark:hover:border-[#4ADE80] hover:bg-[#E0EFE7]/50 text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5 transition shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                  className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50] dark:hover:border-[#4ADE80] hover:bg-[#E0EFE7]/50 text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5 transition shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <span>{item.icon}</span>
                   <span>{item.label}</span>
@@ -489,7 +489,7 @@ export function LandingApp() {
                   </div>
 
                   {/* Filter chips inside mockup */}
-                  <div className="flex items-center gap-1.5 mt-2 overflow-x-auto pb-0.5 no-scrollbar text-[10px]">
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2 pb-0.5 no-scrollbar text-[10px]">
                     <span className="px-2 py-0.5 rounded-md bg-[#116B50] text-white font-bold">📍 Sirdaryo v</span>
                     <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold">⚡ 1 km v</span>
                     <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#566A63] font-semibold">⭐ Reyting</span>
@@ -702,8 +702,8 @@ export function LandingApp() {
       {/* 5. "JUDA OSON — 3 QADAMDA" (Qanday ishlaydi?) */}
       <section id="how-it-works" className="py-12 sm:py-16 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
-          {/* Left: 3 Steps */}
-          <div className="lg:col-span-7 flex flex-col items-start">
+          {/* Left: 3 Steps (6 cols) */}
+          <div className="lg:col-span-6 flex flex-col items-start">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Qanday ishlaydi?</span>
@@ -715,7 +715,7 @@ export function LandingApp() {
               Kerakli tovarni topish endi bir necha soniya masala.
             </p>
 
-            <div className="flex flex-col gap-4 sm:gap-5 mt-8 w-full">
+            <div className="flex flex-col gap-3.5 sm:gap-4 mt-6 sm:mt-8 w-full">
               {[
                 {
                   step: '1',
@@ -747,7 +747,7 @@ export function LandingApp() {
                     <h3 className="font-extrabold text-base text-[#172C28] dark:text-white flex items-center gap-2">
                       <span>{s.title}</span>
                     </h3>
-                    <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] mt-1 font-medium">
+                    <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] mt-1 font-medium leading-relaxed">
                       {s.desc}
                     </p>
                   </div>
@@ -756,15 +756,15 @@ export function LandingApp() {
             </div>
           </div>
 
-          {/* Right: Customer Visual & Benefits */}
-          <div className="lg:col-span-5 relative flex flex-col items-center">
-            <div className="relative w-full max-w-sm sm:max-w-md rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-[#16241E]">
+          {/* Right: Supermarket Visual & Benefits (6 cols) */}
+          <div className="lg:col-span-6 relative flex flex-col items-center">
+            <div className="relative w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border-4 border-white dark:border-[#16241E]">
               <img
-                src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=600&auto=format&fit=crop&q=80"
-                alt="YaqinTop Customer"
-                className="w-full h-80 sm:h-96 object-cover"
+                src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=80"
+                alt="YaqinTop do‘konlar va xarid jarayoni"
+                className="w-full h-[360px] sm:h-[440px] object-cover"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
 
               {/* Floating Price Badge */}
               <div className="absolute top-4 left-4 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-500/30 shadow-lg flex items-center gap-2">
@@ -776,18 +776,22 @@ export function LandingApp() {
               </div>
 
               {/* Floating Benefits Card on Bottom */}
-              <div className="absolute bottom-4 left-4 right-4 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-3.5 rounded-2xl border border-white/20 shadow-xl grid grid-cols-2 gap-2 text-[11px] font-extrabold text-[#116B50] dark:text-[#4ADE80]">
+              <div className="absolute bottom-4 left-4 right-4 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-3.5 rounded-2xl border border-white/20 shadow-xl grid grid-cols-2 gap-2.5 text-xs font-bold text-[#116B50] dark:text-[#4ADE80]">
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> <span>Tezroq xarid</span>
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[#172C28] dark:text-white">Tezroq xarid</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> <span>Kamroq vaqt</span>
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[#172C28] dark:text-white">Kamroq vaqt</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> <span>Yaqin do‘konlar</span>
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[#172C28] dark:text-white">Yaqin do‘konlar</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> <span>Eng yaxshi narx</span>
+                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[#172C28] dark:text-white">Eng yaxshi narx</span>
                 </div>
               </div>
             </div>
@@ -844,55 +848,53 @@ export function LandingApp() {
 
       {/* 7. "ATROFINGIZDAGI BARCHA DO'KONLAR BIR XARITADA" (Interaktiv xarita) */}
       <section id="interactive-map" className="py-12 sm:py-16 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full">
-        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 sm:p-8 shadow-sm">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-            {/* Left: Real Interactive Leaflet Widget */}
-            <div className="lg:col-span-7">
-              <MinimalCustomerMapWidget isDarkMode={isDarkMode} />
-            </div>
-
-            {/* Right: Map Features & Direct CTA */}
-            <div className="lg:col-span-5 flex flex-col items-start text-left">
+        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 sm:p-8 shadow-sm flex flex-col gap-6 sm:gap-8">
+          {/* Header Row: Title, Description & CTA */}
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-2 border-b border-[#DCE5DF]/60 dark:border-[#22332C]">
+            <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3">
                 <Compass className="w-3.5 h-3.5" />
                 <span>Interaktiv xarita</span>
               </div>
-
-              <h3 className="text-2xl sm:text-3xl font-extrabold text-[#172C28] dark:text-white tracking-tight leading-tight">
+              <h3 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight leading-tight">
                 Atrofingizdagi barcha do‘konlar <span className="text-[#116B50] dark:text-[#4ADE80]">bir xaritada</span>
               </h3>
-
-              <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] mt-3 leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-2 leading-relaxed font-medium">
                 Real vaqt rejimida do‘konlar, narxlar, tovarlar va xizmatlar. Sizga eng yaqin va qulay variantlarni xaritada ko‘ring.
               </p>
+            </div>
 
+            <div className="flex items-center gap-3 shrink-0">
               <a
                 href="/customer"
-                className="mt-6 px-6 py-3 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shadow-md cursor-pointer"
+                className="px-6 py-3 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shadow-md cursor-pointer"
               >
-                <span>Xaritani ochish</span>
+                <span>Xaritani to‘liq ochish</span>
                 <ArrowRight className="w-4 h-4" />
               </a>
+            </div>
+          </div>
 
-              {/* 4 Feature Badges Grid */}
-              <div className="grid grid-cols-2 gap-3 mt-8 w-full">
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] font-bold text-[#172C28] dark:text-[#E8F2EC]">
-                  <Zap className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Real vaqt ma’lumotlari</span>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] font-bold text-[#172C28] dark:text-[#E8F2EC]">
-                  <MapPin className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Aniq lokatsiya</span>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] font-bold text-[#172C28] dark:text-[#E8F2EC]">
-                  <Navigation className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Qulay marshrut</span>
-                </div>
-                <div className="flex items-center gap-2 p-2.5 rounded-xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] font-bold text-[#172C28] dark:text-[#E8F2EC]">
-                  <Store className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <span>Do‘kon tafsilotlari</span>
-                </div>
-              </div>
+          {/* Interactive Map Widget (Full Width) */}
+          <MinimalCustomerMapWidget isDarkMode={isDarkMode} />
+
+          {/* 4 Feature Badges Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
+            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+              <Zap className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Real vaqt ma’lumotlari</span>
+            </div>
+            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+              <MapPin className="w-4 h-4 text-teal-500 shrink-0" />
+              <span>Aniq geolokatsiya</span>
+            </div>
+            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+              <Navigation className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span>Qulay marshrut</span>
+            </div>
+            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+              <Store className="w-4 h-4 text-teal-500 shrink-0" />
+              <span>Do‘kon tafsilotlari</span>
             </div>
           </div>
         </div>
@@ -1182,7 +1184,7 @@ export function LandingApp() {
               </button>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1">
+            <div className="grid grid-cols-2 gap-2 max-h-72 overflow-y-auto pr-1 no-scrollbar">
               {UZBEKISTAN_REGIONS.map((reg) => (
                 <button
                   key={reg}

@@ -310,9 +310,9 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
   return (
     <div className="w-full flex flex-col gap-4">
       {/* Top Controls Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3.5 sm:p-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-white/10 rounded-2xl shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-white/10 rounded-2xl shadow-sm">
         {/* Radius Selector */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <span className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95] mr-1 flex items-center gap-1">
             <Compass className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
             <span>Radius:</span>
@@ -321,7 +321,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
             <button
               key={r}
               onClick={() => setSelectedRadius(r)}
-              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-bold transition ${
+              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 selectedRadius === r
                   ? 'bg-[#116B50] dark:bg-[#4ADE80] text-white dark:text-[#0E1713] shadow-sm'
                   : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
@@ -333,7 +333,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         </div>
 
         {/* Demo Search Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none w-full sm:w-auto">
+        <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
           <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold mr-1 shrink-0">
             Qidiruv:
           </span>
@@ -341,7 +341,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
             <button
               key={pill}
               onClick={() => setActiveSearchFilter(pill)}
-              className={`text-[11px] px-2.5 py-1 rounded-lg font-bold shrink-0 transition ${
+              className={`text-[11px] px-2.5 py-1 rounded-lg font-bold shrink-0 transition cursor-pointer ${
                 activeSearchFilter === pill
                   ? 'bg-[#116B50]/15 dark:bg-[#4ADE80]/15 text-[#116B50] dark:text-[#4ADE80] border border-[#116B50]/30 dark:border-[#4ADE80]/30'
                   : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-transparent hover:border-[#DCE5DF] dark:hover:border-white/10'
@@ -356,7 +356,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
       {/* Main Interactive Map Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
         {/* Real Leaflet Map Viewport (Left 8 cols) */}
-        <div className="lg:col-span-8 h-[320px] sm:h-[430px] rounded-3xl relative overflow-hidden border border-[#DCE5DF] dark:border-white/10 shadow-inner flex flex-col justify-between">
+        <div className="lg:col-span-8 min-h-[360px] sm:min-h-[460px] h-[360px] sm:h-[460px] rounded-3xl relative overflow-hidden border border-[#DCE5DF] dark:border-white/10 shadow-inner flex flex-col justify-between">
           <div ref={mapContainerRef} className="w-full h-full z-0" />
 
           {/* Floating Zoom & Center Map Controls */}
