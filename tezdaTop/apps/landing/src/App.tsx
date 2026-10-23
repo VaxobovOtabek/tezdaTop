@@ -34,7 +34,8 @@ import {
   SlidersHorizontal,
   Smartphone,
   QrCode,
-  Tag
+  Tag,
+  FileText
 } from 'lucide-react';
 import { MinimalCustomerMapWidget } from './components/MinimalCustomerMapWidget';
 
@@ -1150,61 +1151,120 @@ export function LandingApp() {
         </div>
       </section>
 
-      {/* 10. APP DOWNLOAD & CTA BANNER */}
+      {/* 10. FOYDALANISH JARAYONI (4 Bosqichli Timeline Karta) */}
       <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full my-6 sm:my-10">
-        <div className="rounded-3xl bg-gradient-to-r from-[#0C3426] via-[#116B50] to-[#0A2E22] p-6 sm:p-10 text-white shadow-2xl relative overflow-hidden flex flex-col lg:flex-row items-center justify-between gap-8">
-          <div className="max-w-xl z-10 text-center lg:text-left">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-300 mb-2 block">
-              Mobil Ilova
-            </span>
-            <h3 className="text-2xl sm:text-3xl md:text-4xl font-extrabold tracking-tight leading-tight">
-              Atrofingizdagi imkoniyatlarni{' '}
-              <span className="text-white underline decoration-emerald-400 decoration-2">YaqinTop</span> bilan kashf eting!
-            </h3>
-            <p className="text-xs sm:text-sm text-emerald-100/90 mt-3 font-medium leading-relaxed">
-              Ilovani smartfoningizga o‘rnating va istalgan vaqtda yaqin do‘konlar, aksiyalar va tovar narxlaridan xabardor bo‘ling.
-            </p>
-
-            <div className="flex items-center justify-center lg:justify-start gap-3 mt-6">
-              <a
-                href="/customer"
-                className="px-5 py-3 rounded-2xl bg-black hover:bg-slate-900 text-white text-xs font-bold flex items-center gap-2 transition shadow-md"
-              >
-                <span className="text-base">▶️</span>
-                <div className="text-left">
-                  <span className="text-[9px] text-gray-400 block leading-none">Yuklab oling</span>
-                  <span className="text-xs font-bold leading-tight">Google Play</span>
+        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-[32px] p-6 sm:p-10 lg:p-12 shadow-sm">
+          {/* 4 Process Columns */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
+            {/* Step 1 */}
+            <div className="flex flex-col items-start text-left">
+              <div className="flex items-center gap-2.5 mb-3.5">
+                <div className="relative shrink-0 w-10 h-13 flex items-start justify-center">
+                  <svg viewBox="0 0 40 52" className="w-10 h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
+                    <path d="M20 0C8.95 0 0 8.95 0 20C0 32.5 17.8 49.6 18.9 50.8C19.5 51.4 20.5 51.4 21.1 50.8C22.2 49.6 40 32.5 40 20C40 8.95 31.05 0 20 0Z" />
+                  </svg>
+                  <div className="absolute top-[6px] w-5.5 h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                    <span className="font-black text-xs text-[#116B50]">1</span>
+                  </div>
                 </div>
-              </a>
-
-              <a
-                href="/customer"
-                className="px-5 py-3 rounded-2xl bg-black hover:bg-slate-900 text-white text-xs font-bold flex items-center gap-2 transition shadow-md"
-              >
-                <span className="text-base">🍏</span>
-                <div className="text-left">
-                  <span className="text-[9px] text-gray-400 block leading-none">Yuklab oling</span>
-                  <span className="text-xs font-bold leading-tight">App Store</span>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                  <Search className="w-5 h-5" />
                 </div>
-              </a>
+              </div>
+              <h4 className="text-base sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-2">
+                Tovarni qidirish va lokatsiya
+              </h4>
+              <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
+                Qidiruv maydoniga kerakli tovar yoki xizmat nomini yozing. Tizim geolokatsiya asosida 50 metrdan 3 km gacha radiusdagi eng yaqin do‘konlarni bir zumda aniqlaydi.
+              </p>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex flex-col items-start text-left">
+              <div className="flex items-center gap-2.5 mb-3.5">
+                <div className="relative shrink-0 w-10 h-13 flex items-start justify-center">
+                  <svg viewBox="0 0 40 52" className="w-10 h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
+                    <path d="M20 0C8.95 0 0 8.95 0 20C0 32.5 17.8 49.6 18.9 50.8C19.5 51.4 20.5 51.4 21.1 50.8C22.2 49.6 40 32.5 40 20C40 8.95 31.05 0 20 0Z" />
+                  </svg>
+                  <div className="absolute top-[6px] w-5.5 h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                    <span className="font-black text-xs text-[#116B50]">2</span>
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                  <FileText className="w-5 h-5" />
+                </div>
+              </div>
+              <h4 className="text-base sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-2">
+                Narx va qoldiqni solishtirish
+              </h4>
+              <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
+                Bir nechta do‘konlardagi kassa narxlarini, tovar mavjudligi (qoldiqlari) va xaridorlar sharhlarini taqqoslab, eng arzon va maqbul variantni tanlang.
+              </p>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex flex-col items-start text-left">
+              <div className="flex items-center gap-2.5 mb-3.5">
+                <div className="relative shrink-0 w-10 h-13 flex items-start justify-center">
+                  <svg viewBox="0 0 40 52" className="w-10 h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
+                    <path d="M20 0C8.95 0 0 8.95 0 20C0 32.5 17.8 49.6 18.9 50.8C19.5 51.4 20.5 51.4 21.1 50.8C22.2 49.6 40 32.5 40 20C40 8.95 31.05 0 20 0Z" />
+                  </svg>
+                  <div className="absolute top-[6px] w-5.5 h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                    <span className="font-black text-xs text-[#116B50]">3</span>
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                  <Navigation className="w-5 h-5" />
+                </div>
+              </div>
+              <h4 className="text-base sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-2">
+                Xaritada qulay yo‘l olish
+              </h4>
+              <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
+                Tanlangan do‘konga piyoda yoki avtomobilda eng qisqa marshrutni oling, do‘konning ochiq/yopiq holati va ish vaqtini bir qadamda tekshiring.
+              </p>
+            </div>
+
+            {/* Step 4 */}
+            <div className="flex flex-col items-start text-left">
+              <div className="flex items-center gap-2.5 mb-3.5">
+                <div className="relative shrink-0 w-10 h-13 flex items-start justify-center">
+                  <svg viewBox="0 0 40 52" className="w-10 h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
+                    <path d="M20 0C8.95 0 0 8.95 0 20C0 32.5 17.8 49.6 18.9 50.8C19.5 51.4 20.5 51.4 21.1 50.8C22.2 49.6 40 32.5 40 20C40 8.95 31.05 0 20 0Z" />
+                  </svg>
+                  <div className="absolute top-[6px] w-5.5 h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                    <span className="font-black text-xs text-[#116B50]">4</span>
+                  </div>
+                </div>
+                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+              </div>
+              <h4 className="text-base sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-2">
+                Xaridni yakunlash va baholash
+              </h4>
+              <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
+                Do‘konga tashrif buyurib to‘g‘ridan-to‘g‘ri kassa narxida xaridni amalga oshiring. Xarid yakunida xizmat sifatini baholab, sharh qoldiring.
+              </p>
             </div>
           </div>
 
-          {/* QR Code & Phone Card */}
-          <div className="z-10 flex items-center gap-4 bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/20">
-            <div className="w-24 h-24 sm:w-28 sm:h-28 bg-white rounded-xl p-2 flex items-center justify-center shrink-0 shadow">
-              <img
-                src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=https://yaqintop.uz/customer"
-                alt="QR Code"
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <div className="text-left text-xs">
-              <span className="font-extrabold text-white block">QR kodni skanerlang</span>
-              <p className="text-[11px] text-emerald-200 mt-1">
-                Kamerani yo‘naltiring yoki brauzeringizda «YaqinTop» deb qidiring.
-              </p>
-            </div>
+          {/* Dashed Timeline Track at Bottom */}
+          <div className="hidden lg:flex items-center w-full mt-10 pt-4">
+            <div className="w-3.5 h-3.5 rounded-full bg-[#116B50] dark:bg-[#22C55E] shrink-0 ring-4 ring-emerald-100 dark:ring-emerald-950/60" />
+            <div className="flex-1 border-b-2 border-dashed border-[#116B50] dark:border-[#22C55E]/60 mx-1" />
+            <div className="w-3.5 h-3.5 rounded-full bg-[#116B50] dark:bg-[#22C55E] shrink-0 ring-4 ring-emerald-100 dark:ring-emerald-950/60" />
+          </div>
+
+          {/* Bottom Interactive Pill (like in reference image) */}
+          <div className="flex justify-end mt-4">
+            <a
+              href="/customer"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#E0EFE7] dark:bg-[#1A2E24] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold hover:bg-[#116B50] hover:text-white dark:hover:bg-[#22C55E] dark:hover:text-[#0E1713] transition shadow-2xs group cursor-pointer"
+            >
+              <span>Sizga kerakli tovar yoki do‘kon</span>
+              <span className="font-mono text-[#116B50] dark:text-[#4ADE80] group-hover:text-white animate-pulse font-bold">|</span>
+            </a>
           </div>
         </div>
       </section>
