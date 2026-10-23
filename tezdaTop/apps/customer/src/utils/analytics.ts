@@ -8,7 +8,7 @@ declare global {
   }
 }
 
-const DEFAULT_GA_ID = 'G-YAQINTOP01';
+const DEFAULT_GA_ID = 'G-MHCRMDTCKM';
 
 export const getMeasurementId = (): string => {
   const envId = (import.meta as any).env?.VITE_GA_MEASUREMENT_ID;
