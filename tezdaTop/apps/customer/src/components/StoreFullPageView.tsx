@@ -565,18 +565,19 @@ export function StoreFullPageView({
   const currentDayOfWeek = new Date().getDay();
 
   return (
-    <div className="flex-1 bg-[#F3F6F3] dark:bg-[#0E1713] overflow-y-auto min-h-screen text-[#172C28] dark:text-[#E8F2EC] flex flex-col">
+    <div className="flex-1 bg-[#F3F6F3] dark:bg-[#0E1713] overflow-y-auto overflow-x-hidden h-full min-h-0 text-[#172C28] dark:text-[#E8F2EC] flex flex-col">
       {/* Top Sticky Header */}
-      <div className="sticky top-0 z-30 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur border-b border-[#DCE5DF] dark:border-[#22332C] px-4 md:px-8 py-3.5 flex items-center justify-between shadow-sm">
+      <div className="sticky top-0 z-30 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur border-b border-[#DCE5DF] dark:border-[#22332C] px-3 sm:px-6 md:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 shadow-sm w-full">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-xs md:text-sm font-bold text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] px-3 py-2 rounded-xl transition"
+          className="flex items-center gap-1.5 sm:gap-2 text-xs md:text-sm font-bold text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl transition shrink-0 cursor-pointer"
         >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Xaritaga qaytish</span>
+          <ArrowLeft className="w-4 h-4 shrink-0" />
+          <span className="hidden sm:inline">Xaritaga qaytish</span>
+          <span className="sm:hidden text-xs">Qaytish</span>
         </button>
 
-        <div className="flex items-center gap-1.5 sm:gap-2">
+        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
           <Button
             variant="secondary"
             size="sm"
@@ -601,32 +602,33 @@ export function StoreFullPageView({
             variant="secondary"
             size="sm"
             onClick={toggleFavorite}
-            className={isFavorite ? 'text-rose-600 dark:text-rose-400 border-rose-200' : ''}
+            className={`${isFavorite ? 'text-rose-600 dark:text-rose-400 border-rose-200' : ''} px-2 sm:px-3`}
           >
-            <Heart className={`w-4 h-4 mr-1.5 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
+            <Heart className={`w-4 h-4 sm:mr-1.5 ${isFavorite ? 'fill-rose-500 text-rose-500' : ''}`} />
             <span className="hidden sm:inline">{isFavorite ? 'Saqlangan' : 'Saqlash'}</span>
           </Button>
 
-          <Button variant="secondary" size="sm" onClick={handleShare}>
-            {copiedLink ? <Check className="w-4 h-4 mr-1 text-emerald-500" /> : <Share2 className="w-4 h-4 mr-1.5" />}
+          <Button variant="secondary" size="sm" onClick={handleShare} className="px-2 sm:px-3">
+            {copiedLink ? <Check className="w-4 h-4 sm:mr-1 text-emerald-500" /> : <Share2 className="w-4 h-4 sm:mr-1.5" />}
             <span className="hidden sm:inline">{copiedLink ? 'Nusxalandi' : 'Ulashish'}</span>
           </Button>
 
-          <Button variant="primary" size="sm" onClick={() => onGetRoute('walking')} className="font-bold">
-            <Navigation className="w-4 h-4 mr-1.5" />
-            <span>Yo‘nalish olish</span>
+          <Button variant="primary" size="sm" onClick={() => onGetRoute('walking')} className="font-bold px-2.5 sm:px-3 text-xs sm:text-sm">
+            <Navigation className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-1.5 shrink-0" />
+            <span className="hidden xs:inline sm:inline">Yo‘nalish olish</span>
+            <span className="xs:hidden sm:hidden">Yo‘nalish</span>
           </Button>
         </div>
       </div>
 
       {/* Main Content Body */}
-      <div className="max-w-6xl mx-auto w-full p-4 md:p-8 flex flex-col gap-6">
+      <div className="max-w-6xl mx-auto w-full px-3.5 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 flex flex-col gap-4 sm:gap-5 pb-24 md:pb-12 overflow-x-hidden">
         {/* HERO SECTION: Gallery & Summary Card */}
-        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 md:p-7 shadow-sm">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-sm overflow-hidden">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 md:gap-6 items-start">
             {/* Gallery (Left: 7 cols) */}
-            <div className="lg:col-span-7 flex flex-col gap-3">
-              <div className="relative w-full h-64 sm:h-80 md:h-96 rounded-2xl overflow-hidden bg-[#E2EEE4] dark:bg-[#182C22] border border-[#DCE5DF] dark:border-[#2A3F36] shadow-inner group">
+            <div className="lg:col-span-7 flex flex-col gap-3 min-w-0">
+              <div className="relative w-full h-56 sm:h-72 md:h-84 rounded-2xl overflow-hidden bg-[#E2EEE4] dark:bg-[#182C22] border border-[#DCE5DF] dark:border-[#2A3F36] shadow-inner group">
                 <img
                   src={storeImages[activeImageIndex]}
                   alt={store?.name}
@@ -657,35 +659,38 @@ export function StoreFullPageView({
                 )}
 
                 {/* Photo Badge & Suggest Store Photo */}
-                <div className="absolute bottom-3.5 left-4 right-4 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-3 py-1 rounded-full bg-black/70 text-white backdrop-blur-sm font-semibold">
-                      📸 {activeImageIndex + 1} / {storeImages.length} rasm
+                <div className="absolute bottom-2.5 sm:bottom-3.5 left-2.5 sm:left-4 right-2.5 sm:right-4 flex items-center justify-between gap-1.5 flex-wrap">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[11px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-black/70 text-white backdrop-blur-sm font-semibold">
+                      📸 {activeImageIndex + 1} / {storeImages.length}
                     </span>
-                    <span className="text-xs px-3 py-1 rounded-full bg-[#116B50]/90 text-white backdrop-blur-sm font-semibold flex items-center gap-1">
-                      <ShoppingBag className="w-3.5 h-3.5" /> {offers.length} ta tovar & xizmat
+                    <span className="text-[11px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-[#116B50]/90 text-white backdrop-blur-sm font-semibold flex items-center gap-1">
+                      <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {offers.length} ta
                     </span>
                   </div>
 
                   <button
                     type="button"
                     onClick={() => handleOpenPhotoModal('STORE')}
-                    className="text-xs px-3 py-1 rounded-full bg-white/90 dark:bg-black/80 hover:bg-white dark:hover:bg-black text-[#172C28] dark:text-white backdrop-blur-sm font-bold flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
+                    className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-white/90 dark:bg-black/80 hover:bg-white dark:hover:bg-black text-[#172C28] dark:text-white backdrop-blur-sm font-bold flex items-center gap-1 shadow transition active:scale-95 cursor-pointer shrink-0"
                     title="Tashkilot rasmini yangilash yoki taklif qilish"
                   >
-                    <Camera className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-                    <span className="hidden sm:inline">Rasm taklif qilish</span>
+                    <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                    <span>Rasm taklif qilish</span>
                   </button>
                 </div>
               </div>
 
               {/* Thumbnails */}
-              <div className="flex items-center gap-2.5 overflow-x-auto pb-1">
+              <div
+                className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar max-w-full"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 {storeImages.map((img, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
-                    className={`relative w-20 h-16 rounded-xl overflow-hidden shrink-0 border-2 transition ${
+                    className={`relative w-16 sm:w-20 h-14 sm:h-16 rounded-xl overflow-hidden shrink-0 border-2 transition cursor-pointer ${
                       activeImageIndex === idx
                         ? 'border-[#116B50] dark:border-[#4ADE80] ring-2 ring-[#116B50]/30'
                         : 'border-transparent opacity-70 hover:opacity-100'
@@ -698,7 +703,7 @@ export function StoreFullPageView({
             </div>
 
             {/* Store Quick Info (Right: 5 cols) */}
-            <div className="lg:col-span-5 flex flex-col gap-4">
+            <div className="lg:col-span-5 flex flex-col gap-3.5 sm:gap-4 min-w-0">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
                   {store?.isVerified && (
@@ -715,14 +720,14 @@ export function StoreFullPageView({
                   </span>
                 </div>
 
-                <h1 className="text-2xl sm:text-3xl font-extrabold text-[#172C28] dark:text-white tracking-tight mt-2 leading-tight">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#172C28] dark:text-white tracking-tight mt-1.5 sm:mt-2 leading-tight break-words">
                   {store?.name}
                 </h1>
 
                 {organization && (
-                  <div className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5 flex items-center gap-1.5 font-medium">
-                    <Building2 className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-                    <span>
+                  <div className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5 flex items-center gap-1.5 font-medium break-words">
+                    <Building2 className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
+                    <span className="line-clamp-2">
                       {organization.legalName || organization.name}
                       {organization.inn && ` · STIR (INN): ${organization.inn}`}
                     </span>
@@ -876,7 +881,10 @@ export function StoreFullPageView({
         )}
 
         {/* TABS NAVIGATION */}
-        <div className="flex items-center gap-2 border-b border-[#DCE5DF] dark:border-[#22332C] pb-px">
+        <div
+          className="flex items-center gap-1.5 sm:gap-2 border-b border-[#DCE5DF] dark:border-[#22332C] pb-px overflow-x-auto scrollbar-none no-scrollbar max-w-full"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {[
             { id: 'catalog', label: `📦 Tovar va xizmatlar (${offers.length})` },
             { id: 'reviews', label: `⭐ Izohlar & Baholar (${reviews.length})` },
@@ -886,7 +894,7 @@ export function StoreFullPageView({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-3 font-bold text-xs md:text-sm border-b-2 transition whitespace-nowrap ${
+              className={`px-3.5 sm:px-4 py-2.5 sm:py-3 font-bold text-xs md:text-sm border-b-2 transition whitespace-nowrap shrink-0 cursor-pointer ${
                 activeTab === tab.id
                   ? 'border-[#116B50] dark:border-[#4ADE80] text-[#116B50] dark:text-[#4ADE80] bg-white dark:bg-[#14201A] rounded-t-xl'
                   : 'border-transparent text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
@@ -899,11 +907,11 @@ export function StoreFullPageView({
 
         {/* TAB 1: CATALOG OF GOODS & SERVICES */}
         {activeTab === 'catalog' && (
-          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 md:p-7 flex flex-col gap-5 shadow-sm">
+          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 shadow-sm">
             {/* Header with Search & Filter */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
-                <h3 className="text-xl font-bold text-[#172C28] dark:text-white">
+                <h3 className="text-lg sm:text-xl font-bold text-[#172C28] dark:text-white">
                   Tovar va xizmatlar assortimenti
                 </h3>
                 <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
@@ -911,21 +919,21 @@ export function StoreFullPageView({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2.5 w-full md:w-auto">
+              <div className="flex items-center gap-2 w-full sm:w-auto">
                 {/* In-Store Search Bar */}
-                <div className="relative flex-1 md:w-72">
-                  <Search className="w-4 h-4 absolute left-3.5 top-3 text-[#566A63] dark:text-[#8B9E95]" />
+                <div className="relative flex-1 sm:w-64 md:w-72">
+                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#566A63] dark:text-[#8B9E95]" />
                   <input
                     type="text"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     placeholder="Do‘kon tovarlaridan qidirish..."
-                    className="w-full h-10 pl-9 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs md:text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none"
+                    className="w-full h-9 sm:h-10 pl-8.5 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs md:text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none"
                   />
                   {productSearch && (
                     <button
                       onClick={() => setProductSearch('')}
-                      className="absolute right-3 top-3 text-[#566A63] dark:text-[#8B9E95]"
+                      className="absolute right-2.5 top-2.5 text-[#566A63] dark:text-[#8B9E95]"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -935,7 +943,7 @@ export function StoreFullPageView({
                 <button
                   type="button"
                   onClick={handleOpenProposalModal}
-                  className="h-10 px-3.5 md:px-4 rounded-xl bg-[#116B50] hover:bg-[#0D523D] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer shrink-0"
+                  className="h-9 sm:h-10 px-3 sm:px-4 rounded-xl bg-[#116B50] hover:bg-[#0D523D] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs whitespace-nowrap cursor-pointer shrink-0"
                   title="Do‘konga tovar yoki xizmat taklif qilish"
                 >
                   <PlusCircle className="w-4 h-4" />
@@ -947,10 +955,13 @@ export function StoreFullPageView({
 
             {/* Category Filter Pills */}
             {uniqueCategories.length > 0 && (
-              <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+              <div
+                className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar max-w-full"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 <button
                   onClick={() => setSelectedCategory('ALL')}
-                  className={`text-xs px-3.5 py-1.5 rounded-xl font-bold transition whitespace-nowrap ${
+                  className={`text-xs px-3 sm:px-3.5 py-1.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
                     selectedCategory === 'ALL'
                       ? 'bg-[#116B50] text-white shadow-sm'
                       : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
@@ -962,7 +973,7 @@ export function StoreFullPageView({
                   <button
                     key={cat}
                     onClick={() => setSelectedCategory(cat)}
-                    className={`text-xs px-3.5 py-1.5 rounded-xl font-bold transition whitespace-nowrap ${
+                    className={`text-xs px-3 sm:px-3.5 py-1.5 rounded-xl font-bold transition whitespace-nowrap shrink-0 cursor-pointer ${
                       selectedCategory === cat
                         ? 'bg-[#116B50] text-white shadow-sm'
                         : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
@@ -1139,13 +1150,13 @@ export function StoreFullPageView({
 
             {/* Catalog Grid / List */}
             {loadingOffers ? (
-              <div className="py-16 text-center text-sm text-[#566A63] dark:text-[#8B9E95] flex flex-col items-center gap-2">
+              <div className="py-8 sm:py-12 text-center text-sm text-[#566A63] dark:text-[#8B9E95] flex flex-col items-center gap-2">
                 <div className="w-8 h-8 border-3 border-[#116B50] border-t-transparent rounded-full animate-spin" />
                 <span>Tovar katalogi yuklanmoqda...</span>
               </div>
             ) : filteredOffers.length === 0 ? (
-              <div className="py-16 text-center bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col items-center gap-2">
-                <ShoppingBag className="w-10 h-10 text-[#566A63] dark:text-[#8B9E95] opacity-40" />
+              <div className="py-7 sm:py-9 px-4 text-center bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col items-center gap-2">
+                <ShoppingBag className="w-8 h-8 sm:w-10 sm:h-10 text-[#566A63] dark:text-[#8B9E95] opacity-40" />
                 <h4 className="font-bold text-sm text-[#172C28] dark:text-[#E8F2EC]">
                   Mos keluvchi tovar topilmadi
                 </h4>
@@ -1265,7 +1276,7 @@ export function StoreFullPageView({
 
         {/* TAB 2: REVIEWS & RATINGS */}
         {activeTab === 'reviews' && (
-          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 md:p-7 flex flex-col gap-6 shadow-sm">
+          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 sm:gap-5 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-xl font-bold text-[#172C28] dark:text-white">
@@ -1351,11 +1362,11 @@ export function StoreFullPageView({
 
             {/* Reviews List */}
             {loadingReviews ? (
-              <div className="py-12 text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
+              <div className="py-8 sm:py-10 text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
                 Sharhlar yuklanmoqda...
               </div>
             ) : reviews.length === 0 ? (
-              <div className="py-12 text-center bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col items-center gap-2">
+              <div className="py-8 sm:py-10 text-center bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col items-center gap-2">
                 <MessageSquare className="w-8 h-8 text-[#566A63] dark:text-[#8B9E95] opacity-40" />
                 <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
                   Hozircha sharhlar mavjud emas. Birinchi bo‘lib sharh qoldiring!
@@ -1412,9 +1423,9 @@ export function StoreFullPageView({
 
         {/* TAB 3: ABOUT STORE & WORKING HOURS */}
         {activeTab === 'about' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {/* Working Hours Schedule */}
-            <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 md:p-7 flex flex-col gap-4 shadow-sm">
+            <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 shadow-sm">
               <div className="flex items-center gap-2">
                 <Clock className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80]" />
                 <h3 className="text-lg font-bold text-[#172C28] dark:text-white">
@@ -1452,7 +1463,7 @@ export function StoreFullPageView({
             </div>
 
             {/* Legal Organization Info */}
-            <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 md:p-7 flex flex-col gap-4 shadow-sm">
+            <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 shadow-sm">
               <div className="flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80]" />
                 <h3 className="text-lg font-bold text-[#172C28] dark:text-white">
@@ -1518,7 +1529,7 @@ export function StoreFullPageView({
 
         {/* TAB 4: MAP & NAVIGATION */}
         {activeTab === 'map' && (
-          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 md:p-7 flex flex-col gap-5 shadow-sm">
+          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 sm:gap-5 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-[#172C28] dark:text-white">
@@ -1540,7 +1551,7 @@ export function StoreFullPageView({
             </div>
 
             {/* Map Preview Banner */}
-            <div className="w-full h-80 rounded-2xl bg-gradient-to-br from-[#E2EEE4] to-[#C8E4D0] dark:from-[#182C22] dark:to-[#112019] border border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
+            <div className="w-full h-64 sm:h-80 rounded-2xl bg-gradient-to-br from-[#E2EEE4] to-[#C8E4D0] dark:from-[#182C22] dark:to-[#112019] border border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col items-center justify-center p-6 text-center relative overflow-hidden">
               <div className="w-16 h-16 rounded-full bg-white dark:bg-[#14201A] shadow-lg flex items-center justify-center text-3xl mb-3 animate-bounce">
                 📍
               </div>

@@ -293,7 +293,7 @@ export function UserPersonalHubView({
   });
 
   return (
-    <div className="flex-1 bg-[#F3F6F3] dark:bg-[#0E1713] overflow-y-auto min-h-screen text-[#172C28] dark:text-[#E8F2EC] flex flex-col">
+    <div className="flex-1 bg-[#F3F6F3] dark:bg-[#0E1713] overflow-y-auto overflow-x-hidden h-full min-h-0 text-[#172C28] dark:text-[#E8F2EC] flex flex-col">
       {/* Sticky Header */}
       <div className="sticky top-0 z-30 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur border-b border-[#DCE5DF] dark:border-[#22332C] px-4 md:px-8 py-3.5 flex items-center justify-between shadow-sm">
         <button
@@ -312,9 +312,12 @@ export function UserPersonalHubView({
       </div>
 
       {/* Main Container */}
-      <div className="max-w-5xl mx-auto w-full p-4 md:p-8 flex flex-col gap-6">
+      <div className="max-w-5xl mx-auto w-full px-3.5 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 flex flex-col gap-4 sm:gap-6 pb-24 md:pb-12 overflow-x-hidden">
         {/* Navigation Tabs */}
-        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-2 md:p-3 shadow-sm flex items-center gap-1.5 overflow-x-auto scrollbar-none">
+        <div
+          className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-2 md:p-3 shadow-sm flex items-center gap-1.5 overflow-x-auto scrollbar-none no-scrollbar max-w-full"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
           {[
             { id: 'favorites', label: `Sevimlilar (${favorites.length})`, icon: Heart },
             { id: 'reviews', label: `Sharhlarim (${reviews.length})`, icon: MessageSquare },
