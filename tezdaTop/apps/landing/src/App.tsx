@@ -286,6 +286,7 @@ export function LandingApp() {
 
           {/* Nav Links (Desktop) */}
           <nav className="hidden lg:flex items-center gap-7 text-xs font-semibold text-[#566A63] dark:text-[#9CB3A8]">
+            <a href="#portals" className="text-[#116B50] dark:text-[#4ADE80] font-bold hover:underline transition">Portallar</a>
             <a href="#features" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Platforma</a>
             <a href="#interactive-map" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Xarita</a>
             <a href="#categories" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Do‘konlar</a>
@@ -339,6 +340,7 @@ export function LandingApp() {
         {isMobileMenuOpen && (
           <div className="lg:hidden max-w-7xl mx-auto mt-3 pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="flex flex-col gap-1 text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
+              <a href="#portals" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg bg-[#E0EFE7]/50 dark:bg-[#1B2F25] text-[#116B50] dark:text-[#4ADE80] font-bold">Tizim Portallari (Kirish)</a>
               <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Platforma haqida</a>
               <a href="#interactive-map" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Xarita ko‘rinishi</a>
               <a href="#categories" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Asosiy toifalar</a>
@@ -614,13 +616,154 @@ export function LandingApp() {
             </div>
           </div>
 
-          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-3.5 hover:border-[#116B50]/40 transition">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+          <a
+            href="#portals"
+            className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-3.5 hover:border-[#116B50] dark:hover:border-[#4ADE80] transition group cursor-pointer"
+          >
+            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
               <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <div className="text-lg sm:text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-tight">4 Ta Portal</div>
-              <div className="text-[11px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium">Markaziy REST API</div>
+              <div className="text-lg sm:text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-tight flex items-center gap-1.5">
+                <span>4 Ta Portal</span>
+                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+              </div>
+              <div className="text-[11px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium">Barchasini ko‘rish</div>
+            </div>
+          </a>
+        </div>
+      </section>
+
+      {/* 2.5. TIZIM PORTALLARI (Xaridor, Do'kon egasi, Moderator, Admin) */}
+      <section id="portals" className="py-10 sm:py-14 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full">
+        <div className="flex flex-col items-center text-center max-w-2xl mx-auto mb-8 sm:mb-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3 shadow-2xs">
+            <Layers className="w-3.5 h-3.5" />
+            <span>Tizim Portallari & Ilovalar</span>
+          </div>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
+            Qaysi rolda <span className="text-[#116B50] dark:text-[#4ADE80]">kirmoqchisiz?</span>
+          </h2>
+          <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-2.5 font-medium max-w-lg">
+            Xaridorlar, do‘kon egalari, moderatorlar va tizim ma’murlari uchun 4 ta alohida moslashtirilgan portal:
+          </p>
+        </div>
+
+        {/* 4 Ta Katta Portal Kartochkasi */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {/* 1. Xaridor Ilovasi */}
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
+                  <Search className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                  Xaridor
+                </span>
+              </div>
+              <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+                Xaridor Ilovasi
+              </h3>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
+                Kerakli tovar va xizmatlarni 1 soniyada qidirish, yaqin do‘konlar, kassa narxlarini taqqoslash va xaritada marshrut olish.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
+              <a
+                href="/customer"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <span>Xaridor sifatida kirish</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+              </a>
+            </div>
+          </div>
+
+          {/* 2. Do'kon & Tadbirkor Kabineti */}
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
+                  <Store className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                  Tadbirkor
+                </span>
+              </div>
+              <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+                Do‘kon & Tadbirkor
+              </h3>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
+                Do‘kon va filiallar ma’lumotlari, tovar va xizmatlar narxi, kassa qoldiqlari, Excel import va yangi mijozlar oqimi.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
+              <a
+                href="/owner"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#0F5A44] hover:bg-[#0B4534] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <span>Do‘kon egasi sifatida kirish</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+              </a>
+            </div>
+          </div>
+
+          {/* 3. Moderator Portali */}
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                  Moderator
+                </span>
+              </div>
+              <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+                Moderator Portali
+              </h3>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
+                Yangi ochilgan do‘konlar arizalarini tekshirish, xaridorlar e’tirozlari, sharhlar nazorati va ma’lumotlar to‘g‘riligi.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
+              <a
+                href="/moderator"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <span>Moderator sifatida kirish</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+              </a>
+            </div>
+          </div>
+
+          {/* 4. Admin Paneli */}
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
+                  <Shield className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-500/20">
+                  Administrator
+                </span>
+              </div>
+              <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+                Boshqaruv Admin
+              </h3>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
+                Tizim umumiy nazorati, butun shahar bo‘yicha qidiruv analitikasi, ma’lumotlar bazasi, rollar va xavfsizlik arxitekturasi.
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
+              <a
+                href="/admin"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#0A3D2E] hover:bg-[#06291F] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <span>Admin sifatida kirish</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+              </a>
             </div>
           </div>
         </div>
@@ -1069,6 +1212,47 @@ export function LandingApp() {
       {/* 11. FOOTER */}
       <footer className="mt-auto bg-white dark:bg-[#0E1713] border-t border-[#DCE5DF] dark:border-[#22332C] pt-12 pb-8 px-4 sm:px-6 lg:px-12 transition-colors">
         <div className="max-w-7xl mx-auto flex flex-col gap-10">
+          {/* Quick Portal Access Ribbon in Footer */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-[#F4F8F5] dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-center md:text-left">
+              <span className="text-xs sm:text-sm font-bold text-[#172C28] dark:text-white block">
+                Tizim Portallariga to‘g‘ridan-to‘g‘ri kirish:
+              </span>
+              <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5 block">
+                O‘z rolingiz bo‘yicha kerakli portalni tanlang
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center justify-center gap-2 w-full md:w-auto">
+              <a
+                href="/customer"
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer"
+              >
+                <Search className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                <span>Xaridor Ilovasi</span>
+              </a>
+              <a
+                href="/owner"
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer"
+              >
+                <Store className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                <span>Do‘kon Kabineti</span>
+              </a>
+              <a
+                href="/moderator"
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer"
+              >
+                <ShieldCheck className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                <span>Moderator Portali</span>
+              </a>
+              <a
+                href="/admin"
+                className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer"
+              >
+                <Shield className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                <span>Admin Paneli</span>
+              </a>
+            </div>
+          </div>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-8">
             {/* Col 1: Brand */}
             <div className="col-span-2 md:col-span-1">
