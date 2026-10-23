@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { StoreSearchResult, RouteResponse, Store } from '@yaqintop/contracts';
-import { Navigation, MapPin, Maximize2, Store as StoreIcon, Crosshair, CircleDot, XCircle, X } from 'lucide-react';
+import { Navigation, MapPin, Maximize2, Store as StoreIcon, Crosshair, CircleDot, XCircle, X, ExternalLink } from 'lucide-react';
 
 export interface NearbyStoreItem {
   store: Store;
@@ -36,6 +36,8 @@ interface InteractiveMapProps {
   onNavigate: (store: StoreSearchResult | { store: any; distanceM?: number }) => void;
   onCancelRoute?: () => void;
   routeData: RouteResponse | null;
+  routeMode?: 'walking' | 'driving';
+  onChangeRouteMode?: (mode: 'walking' | 'driving') => void;
   view: 'search' | 'detail' | 'route' | 'saved' | 'profile' | 'products' | 'product-detail';
   onOpenProduct?: (variant: any) => void;
   isDarkMode?: boolean;
@@ -59,6 +61,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   onNavigate,
   onCancelRoute,
   routeData,
+  routeMode = 'walking',
+  onChangeRouteMode,
   view,
   isDarkMode = false,
   locationName,
@@ -561,13 +565,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     if (view === 'route' && routeData && routeData.geometry && routeData.geometry.length > 0) {
       const latLngs: [number, number][] = routeData.geometry.map(([lng, lat]) => [lat, lng]);
 
+      const isWalking = (routeMode || routeData.mode) === 'walking';
       const polyline = L.polyline(latLngs, {
         color: isDarkMode ? '#22C55E' : '#116B50',
         weight: 6,
         opacity: 0.9,
         lineCap: 'round',
         lineJoin: 'round',
-        dashArray: routeData.mode === 'walking' ? '1, 10' : undefined
+        dashArray: isWalking ? '1, 10' : undefined
       }).addTo(map);
 
       routePolylineRef.current = polyline;
@@ -586,9 +591,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       L.marker(destCoords, { icon: destIcon }).addTo(routeMarkersLayer);
 
-      map.fitBounds(polyline.getBounds(), { padding: [60, 60], animate: true });
+      setTimeout(() => {
+        try {
+          map.invalidateSize();
+          map.fitBounds(polyline.getBounds(), { padding: [60, 60], animate: true });
+        } catch {}
+      }, 50);
     }
-  }, [view, routeData, isDarkMode, mapReady]);
+  }, [view, routeData, routeMode, isDarkMode, mapReady]);
 
   // Re-center on User Location
   const handleRecenter = () => {
@@ -681,22 +691,88 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       {/* Floating Route Mode Top Notification / Stop Action */}
       {view === 'route' && routeData && (
-        <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex justify-between items-center gap-2">
-          <div className="bg-[#116B50] text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-lg flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-white animate-ping" />
-            <span>Marshrut faol · {Math.round(routeData.durationSec / 60) || 1} daqiqa ({routeData.distanceM >= 1000 ? `${(routeData.distanceM / 1000).toFixed(1)} km` : `${routeData.distanceM} m`})</span>
-          </div>
+        <div className="absolute top-3 md:top-4 left-3 md:left-4 right-3 md:right-4 z-20 flex flex-col gap-2 max-w-md pointer-events-auto">
+          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-3 rounded-2xl border border-[#DCE5DF] dark:border-[#273B32] shadow-xl flex flex-col gap-2">
+            {/* Top row: Store Name & Stop button */}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+                <div className="min-w-0">
+                  <h4 className="text-xs md:text-sm font-bold text-[#172C28] dark:text-[#E8F2EC] truncate">
+                    {selectedResult?.store?.name || selectedNearbyStore?.store?.name || 'Do‘konga marshrut'}
+                  </h4>
+                  {(selectedResult?.store?.address || selectedNearbyStore?.store?.address) && (
+                    <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] truncate">
+                      {selectedResult?.store?.address || selectedNearbyStore?.store?.address}
+                    </p>
+                  )}
+                </div>
+              </div>
 
-          {onCancelRoute && (
-            <button
-              onClick={onCancelRoute}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-bold shadow-lg transition cursor-pointer"
-              title="Marshrutni to‘xtatish"
-            >
-              <XCircle className="w-4 h-4" />
-              <span>To‘xtatish</span>
-            </button>
-          )}
+              {onCancelRoute && (
+                <button
+                  onClick={onCancelRoute}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 active:scale-95 text-white text-xs font-bold shadow-xs transition shrink-0 cursor-pointer"
+                  title="Marshrutni to‘xtatish"
+                >
+                  <XCircle className="w-4 h-4" />
+                  <span>To‘xtatish</span>
+                </button>
+              )}
+            </div>
+
+            {/* Bottom row: Time/Distance summary + Mode Selector (Piyoda / Mashina) + External map */}
+            <div className="flex items-center justify-between gap-2 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#273B32]">
+              <div className="flex items-center gap-1.5 text-xs font-extrabold text-[#116B50] dark:text-[#4ADE80]">
+                <span>{(routeMode || routeData.mode) === 'walking' ? '🚶' : '🚗'}</span>
+                <span>{Math.round(routeData.durationSec / 60) || 1} daqiqa</span>
+                <span className="text-[#566A63] dark:text-[#8B9E95] font-normal">
+                  · {routeData.distanceM >= 1000 ? `${(routeData.distanceM / 1000).toFixed(1)} km` : `${routeData.distanceM} m`}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                {onChangeRouteMode && (
+                  <div className="flex p-0.5 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-lg border border-[#DCE5DF] dark:border-[#2A3F36] text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => onChangeRouteMode('walking')}
+                      className={`px-2 py-1 rounded-md transition ${
+                        (routeMode || routeData.mode) === 'walking'
+                          ? 'bg-[#116B50] text-white shadow-xs'
+                          : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+                      }`}
+                    >
+                      🚶 Piyoda
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onChangeRouteMode('driving')}
+                      className={`px-2 py-1 rounded-md transition ${
+                        (routeMode || routeData.mode) === 'driving'
+                          ? 'bg-[#116B50] text-white shadow-xs'
+                          : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+                      }`}
+                    >
+                      🚗 Avto
+                    </button>
+                  </div>
+                )}
+
+                {routeData.externalMapUrl && (
+                  <a
+                    href={routeData.externalMapUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="p-1.5 rounded-lg bg-[#E0EFE7] dark:bg-[#1E362A] hover:bg-[#D0E7DC] text-[#116B50] dark:text-[#4ADE80] transition flex items-center justify-center"
+                    title="Google / Yandex xaritasida ochish"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -711,7 +787,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       )}
 
       {/* Floating Map Controls (Top Right: Recenter, Radius, Fit & Zoom) */}
-      <div className="absolute right-3 md:right-4 top-3 md:top-4 flex flex-col gap-2 z-20">
+      <div className="absolute right-3 md:right-4 top-32 md:top-4 flex flex-col gap-2 z-20">
         <button
           onClick={handleRecenter}
           title="Mening joylashuvim (GPS)"
@@ -831,7 +907,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             {/* Horizontal Scrollable Store Cards */}
             <div
               ref={cardListRef}
-              className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-thin"
+              className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
             >
               {results.map((item) => {
                 const isSelected = selectedResult?.store.id === item.store.id;

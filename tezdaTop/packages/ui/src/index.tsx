@@ -128,9 +128,19 @@ export interface ModalProps {
   title: string;
   children: React.ReactNode;
   footer?: React.ReactNode;
+  maxWidth?: string;
+  className?: string;
 }
 
-export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) {
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  footer,
+  maxWidth = 'max-w-[550px]',
+  className = ''
+}: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -155,26 +165,29 @@ export function Modal({ isOpen, onClose, title, children, footer }: ModalProps) 
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#142E27]/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#142E27]/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="w-full max-w-[550px] max-h-[90vh] overflow-y-auto bg-white dark:bg-[#14201A] rounded-[20px] p-7 shadow-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-5 text-[#172C28] dark:text-[#E8F2EC]"
+        className={`w-full ${maxWidth} max-h-[92vh] overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar bg-white dark:bg-[#14201A] rounded-2xl sm:rounded-[20px] p-4 sm:p-6 shadow-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-4 text-[#172C28] dark:text-[#E8F2EC] ${className}`}
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        <div className="flex items-center justify-between pb-3 border-b border-[#DCE5DF] dark:border-[#22332C]">
-          <h2 className="text-xl font-bold tracking-tight text-[#172C28] dark:text-[#E8F2EC]">{title}</h2>
+        <div className="flex items-center justify-between pb-3 border-b border-[#DCE5DF] dark:border-[#22332C] gap-2">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold tracking-tight text-[#172C28] dark:text-[#E8F2EC] truncate">
+            {title}
+          </h2>
           <button
             onClick={onClose}
             aria-label="Yopish"
-            className="w-9 h-9 rounded-full flex items-center justify-center text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] text-lg font-bold"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] text-base sm:text-lg font-bold shrink-0 cursor-pointer"
           >
             ✕
           </button>
         </div>
-        <div className="py-1">{children}</div>
+        <div className="py-1 min-w-0 overflow-x-hidden">{children}</div>
         {footer && <div className="pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] flex justify-end gap-3">{footer}</div>}
       </div>
     </div>

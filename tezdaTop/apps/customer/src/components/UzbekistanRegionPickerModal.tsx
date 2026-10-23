@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, MapPin, Check, Compass, ChevronRight, Building, Sparkles } from 'lucide-react';
+import { Search, MapPin, Check, Compass, ChevronRight, Building, Sparkles, ChevronDown } from 'lucide-react';
 import { Modal, Button } from '@yaqintop/ui';
 
 export interface LocationPreset {
@@ -462,17 +462,18 @@ export function UzbekistanRegionPickerModal({
       isOpen={isOpen}
       onClose={onClose}
       title="Hududni tanlash (Viloyat va Tumanlar)"
+      maxWidth="max-w-3xl"
     >
-      <div className="w-full sm:min-w-[620px] md:min-w-[700px] flex flex-col gap-4 text-xs">
+      <div className="w-full flex flex-col gap-3.5 text-xs overflow-x-hidden">
         {/* Search Bar & GPS Button */}
         <div className="flex items-center gap-2">
-          <div className="relative flex-1">
+          <div className="relative flex-1 min-w-0">
             <Search className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3.5 top-3" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Viloyat, shahar yoki tuman nomini yozing (masalan: Samarqand, Chilonzor, Xiva)..."
+              placeholder="Viloyat yoki tuman nomini yozing..."
               className="w-full h-10 pl-9 pr-4 bg-[#F3F6F3] dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC] placeholder-[#566A63]/70 focus:outline-none focus:border-[#116B50]"
             />
           </div>
@@ -480,21 +481,25 @@ export function UzbekistanRegionPickerModal({
             variant="secondary"
             onClick={handleGetCurrentLocation}
             disabled={locating}
-            className="shrink-0 font-bold flex items-center gap-1.5 h-10 px-3 bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] border-emerald-200 dark:border-emerald-800"
+            className="shrink-0 font-bold flex items-center gap-1.5 h-10 px-2.5 sm:px-3 bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] border-emerald-200 dark:border-emerald-800 text-xs"
           >
             <Compass className={`w-4 h-4 ${locating ? 'animate-spin' : ''}`} />
             <span className="hidden sm:inline">{locating ? 'Aniqlanmoqda...' : 'GPS Joylashuvim'}</span>
+            <span className="sm:hidden">{locating ? '...' : 'GPS'}</span>
           </Button>
         </div>
 
         {/* Quick Popular Presets (Chips) */}
         {!searchQuery && (
           <div>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] mb-2 uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] mb-1.5 uppercase tracking-wider">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
               <span>Ommabop markazlar:</span>
             </div>
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <div
+              className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
               {POPULAR_PRESETS.map((p) => {
                 const isSelected =
                   Math.abs(selectedLocation.lat - p.lat) < 0.05 &&
@@ -504,7 +509,7 @@ export function UzbekistanRegionPickerModal({
                     key={p.district}
                     type="button"
                     onClick={() => handlePick(p.region, p.district, p.lat, p.lng)}
-                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+                    className={`px-3 py-1.5 rounded-xl border text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 shrink-0 ${
                       isSelected
                         ? 'bg-[#116B50] text-white border-[#116B50] shadow-sm'
                         : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#172C28] dark:text-[#E8F2EC] border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#20362C]'
@@ -522,7 +527,10 @@ export function UzbekistanRegionPickerModal({
 
         {/* Dynamic Search Results Mode */}
         {searchResults !== null ? (
-          <div className="flex flex-col gap-2 max-h-96 overflow-y-auto pr-1">
+          <div
+            className="flex flex-col gap-2 max-h-80 sm:max-h-96 overflow-y-auto pr-1 scrollbar-none no-scrollbar"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             <span className="text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95]">
               Topilgan natijalar ({searchResults.length}):
             </span>
@@ -539,11 +547,11 @@ export function UzbekistanRegionPickerModal({
                     onClick={() => handlePick(item.region, item.district, item.lat, item.lng)}
                     className="p-3 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] hover:border-[#116B50] hover:bg-[#F3F8F5] dark:hover:bg-[#1E3328] text-left transition flex items-center justify-between group cursor-pointer"
                   >
-                    <div>
-                      <strong className="text-xs text-[#172C28] dark:text-white block group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80]">
+                    <div className="min-w-0 pr-2">
+                      <strong className="text-xs text-[#172C28] dark:text-white block group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] truncate">
                         {item.district}
                       </strong>
-                      <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] block mt-0.5">
+                      <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] block mt-0.5 truncate">
                         📍 {item.region}
                       </span>
                     </div>
@@ -554,93 +562,133 @@ export function UzbekistanRegionPickerModal({
             )}
           </div>
         ) : (
-          /* Two-Column Region & Districts Browser */
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 h-80 sm:h-96 border border-[#DCE5DF] dark:border-[#2A3F36] rounded-2xl overflow-hidden bg-white dark:bg-[#14201A]">
-            {/* Left: 14 Regions Tabs */}
-            <div className="md:col-span-5 bg-[#F9FAF9] dark:bg-[#16241E] border-r border-[#DCE5DF] dark:border-[#2A3F36] overflow-y-auto p-2 flex flex-col gap-1">
-              <span className="text-[10px] font-bold text-[#566A63] dark:text-[#8B9E95] px-2 py-1 uppercase tracking-wider">
-                Viloyatni tanlang:
-              </span>
-              {UZBEKISTAN_REGIONS.map((reg) => {
-                const isActive = reg.id === activeRegionId;
-                return (
-                  <button
-                    key={reg.id}
-                    type="button"
-                    onClick={() => setActiveRegionId(reg.id)}
-                    className={`px-3 py-2.5 rounded-xl text-left font-bold text-xs transition flex items-center justify-between cursor-pointer ${
-                      isActive
-                        ? 'bg-[#116B50] text-white shadow-sm'
-                        : 'text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#E0EFE7]/50 dark:hover:bg-[#1E3328]'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Building className={`w-3.5 h-3.5 ${isActive ? 'text-white' : 'text-[#116B50] dark:text-[#4ADE80]'}`} />
-                      <span>{reg.name}</span>
-                    </div>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${isActive ? 'bg-white/20 text-white' : 'bg-[#DCE5DF]/60 dark:bg-[#2A3F36] text-[#566A63] dark:text-[#8B9E95]'}`}>
-                      {reg.districts.length}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Right: Districts in Selected Region */}
-            <div className="md:col-span-7 overflow-y-auto p-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between pb-2 border-b border-[#DCE5DF] dark:border-[#2A3F36]">
-                <div>
-                  <h4 className="font-extrabold text-sm text-[#172C28] dark:text-white">
-                    {activeRegion.name}
-                  </h4>
-                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
-                    Quyidagi tuman yoki shaharni tanlang ({activeRegion.districts.length} ta hudud):
-                  </span>
-                </div>
+          /* Main Browser: Fully Adaptive */
+          <div className="flex flex-col gap-2.5">
+            {/* Mobile-only Region Selector Dropdown (< md) */}
+            <div className="md:hidden flex flex-col gap-1.5 p-2 bg-[#F9FAF9] dark:bg-[#16241E] rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36]">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-[#566A63] dark:text-[#8B9E95] uppercase tracking-wider">
+                  Viloyatni tanlang:
+                </span>
                 <button
                   type="button"
                   onClick={() => handlePick(activeRegion.name, 'Viloyat markazi', activeRegion.centerLat, activeRegion.centerLng)}
-                  className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition shrink-0"
+                  className="text-[10px] font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline"
                 >
-                  Butun viloyat markazi →
+                  Markazga o‘tish →
                 </button>
               </div>
+              <div className="relative">
+                <Building className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <select
+                  value={activeRegionId}
+                  onChange={(e) => setActiveRegionId(e.target.value)}
+                  className="w-full h-10 pl-9 pr-8 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-lg text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] outline-none cursor-pointer appearance-none"
+                >
+                  {UZBEKISTAN_REGIONS.map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.name} ({r.districts.length} ta tuman/shahar)
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
+            </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
-                {activeRegion.districts.map((d) => {
-                  const isCurrent =
-                    Math.abs(selectedLocation.lat - d.lat) < 0.02 &&
-                    Math.abs(selectedLocation.lng - d.lng) < 0.02;
-
+            {/* Desktop Two-Column / Mobile Single Column Container */}
+            <div className="grid grid-cols-1 md:grid-cols-12 border border-[#DCE5DF] dark:border-[#2A3F36] rounded-2xl overflow-hidden bg-white dark:bg-[#14201A]">
+              {/* Left: 14 Regions List (Desktop only >= md) */}
+              <div
+                className="hidden md:flex md:col-span-5 bg-[#F9FAF9] dark:bg-[#16241E] border-r border-[#DCE5DF] dark:border-[#2A3F36] h-80 sm:h-96 overflow-y-auto p-2 flex-col gap-1 scrollbar-none no-scrollbar"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <span className="text-[10px] font-bold text-[#566A63] dark:text-[#8B9E95] px-2 py-1 uppercase tracking-wider">
+                  Viloyatlar:
+                </span>
+                {UZBEKISTAN_REGIONS.map((reg) => {
+                  const isActive = reg.id === activeRegionId;
                   return (
                     <button
-                      key={d.name}
+                      key={reg.id}
                       type="button"
-                      onClick={() => handlePick(activeRegion.name, d.name, d.lat, d.lng)}
-                      className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer ${
-                        isCurrent
-                          ? 'border-[#116B50] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold shadow-2xs'
-                          : 'border-[#DCE5DF]/80 dark:border-[#2A3F36] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:border-[#116B50]/60 hover:bg-white dark:hover:bg-[#1E3328]'
+                      onClick={() => setActiveRegionId(reg.id)}
+                      className={`px-3 py-2.5 rounded-xl text-left font-bold text-xs transition flex items-center justify-between cursor-pointer ${
+                        isActive
+                          ? 'bg-[#116B50] text-white shadow-sm'
+                          : 'text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#E0EFE7]/50 dark:hover:bg-[#1E3328]'
                       }`}
                     >
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className={`w-3.5 h-3.5 shrink-0 ${isCurrent ? 'text-[#116B50] dark:text-[#4ADE80]' : 'text-[#566A63] dark:text-[#8B9E95]'}`} />
-                        <span className="text-xs leading-tight">{d.name}</span>
+                      <div className="flex items-center gap-2 min-w-0 pr-1">
+                        <Building className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-white' : 'text-[#116B50] dark:text-[#4ADE80]'}`} />
+                        <span className="truncate">{reg.name}</span>
                       </div>
-                      {isCurrent && <Check className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0 ml-1" />}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-md shrink-0 ${isActive ? 'bg-white/20 text-white' : 'bg-[#DCE5DF]/60 dark:bg-[#2A3F36] text-[#566A63] dark:text-[#8B9E95]'}`}>
+                        {reg.districts.length}
+                      </span>
                     </button>
                   );
                 })}
+              </div>
+
+              {/* Right: Districts in Selected Region (Mobile: full width, Desktop: col-span-7) */}
+              <div
+                className="w-full md:col-span-7 h-72 sm:h-80 md:h-96 overflow-y-auto p-3 flex flex-col gap-2 scrollbar-none no-scrollbar"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                <div className="flex items-center justify-between pb-2 border-b border-[#DCE5DF] dark:border-[#2A3F36] gap-2">
+                  <div className="min-w-0 flex-1">
+                    <h4 className="font-extrabold text-xs sm:text-sm text-[#172C28] dark:text-white truncate">
+                      {activeRegion.name}
+                    </h4>
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] block truncate">
+                      Tuman yoki shaharni tanlang ({activeRegion.districts.length} ta):
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handlePick(activeRegion.name, 'Viloyat markazi', activeRegion.centerLat, activeRegion.centerLng)}
+                    className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition shrink-0 whitespace-nowrap"
+                  >
+                    Butun viloyat markazi →
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                  {activeRegion.districts.map((d) => {
+                    const isCurrent =
+                      Math.abs(selectedLocation.lat - d.lat) < 0.02 &&
+                      Math.abs(selectedLocation.lng - d.lng) < 0.02;
+
+                    return (
+                      <button
+                        key={d.name}
+                        type="button"
+                        onClick={() => handlePick(activeRegion.name, d.name, d.lat, d.lng)}
+                        className={`p-2.5 rounded-xl border text-left transition flex items-center justify-between cursor-pointer min-w-0 ${
+                          isCurrent
+                            ? 'border-[#116B50] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold shadow-2xs'
+                            : 'border-[#DCE5DF]/80 dark:border-[#2A3F36] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:border-[#116B50]/60 hover:bg-white dark:hover:bg-[#1E3328]'
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 min-w-0 pr-1">
+                          <MapPin className={`w-3.5 h-3.5 shrink-0 ${isCurrent ? 'text-[#116B50] dark:text-[#4ADE80]' : 'text-[#566A63] dark:text-[#8B9E95]'}`} />
+                          <span className="text-xs leading-tight truncate">{d.name}</span>
+                        </div>
+                        {isCurrent && <Check className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0 ml-1" />}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        <div className="flex justify-between items-center pt-2 border-t border-[#DCE5DF] dark:border-[#2A3F36]">
-          <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+        <div className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-2 border-t border-[#DCE5DF] dark:border-[#2A3F36]">
+          <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] text-center sm:text-left">
             📍 Hududni tanlaganingizda xarita avtomatik o‘sha hududga o‘tadi va atrofdagi do‘konlar yangilanadi.
           </span>
-          <Button variant="secondary" size="sm" onClick={onClose}>
+          <Button variant="secondary" size="sm" onClick={onClose} className="w-full sm:w-auto shrink-0 font-bold">
             Yopish
           </Button>
         </div>

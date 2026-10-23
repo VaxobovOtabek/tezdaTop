@@ -19,7 +19,8 @@ import {
   Check,
   Sparkles,
   Eye,
-  EyeOff
+  EyeOff,
+  Camera
 } from 'lucide-react';
 import { Button, Tag, Modal } from '@yaqintop/ui';
 import { CredentialChangeRequest, AdminInquiry } from '@yaqintop/contracts';
@@ -53,8 +54,9 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   const [proposalStatusFilter, setProposalStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'AUTO_APPROVED' | 'REJECTED'>('PENDING');
   const [proposalSearch, setProposalSearch] = useState('');
   const [isProcessingProposal, setIsProcessingProposal] = useState(false);
+  const [photoProposals, setPhotoProposals] = useState<any[]>([]);
+  const [proposalSubTab, setProposalSubTab] = useState<'items' | 'photos'>('items');
 
-  const targetStatePlaceholder = true;
   const [newInquiryForm, setNewInquiryForm] = useState({
     storeId: '',
     subject: '',
@@ -75,9 +77,11 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const [credRes, inqRes] = await Promise.all([
+      const [credRes, inqRes, propRes, photoRes] = await Promise.all([
         fetch('/api/v1/admin/credential-requests'),
-        fetch('/api/v1/admin/inquiries')
+        fetch('/api/v1/admin/inquiries'),
+        fetch('/api/v1/admin/item-proposals'),
+        fetch('/api/v1/admin/photo-proposals')
       ]);
 
       if (credRes.ok) {
@@ -87,6 +91,14 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
       if (inqRes.ok) {
         const d = await inqRes.json();
         setInquiries(d.inquiries || []);
+      }
+      if (propRes.ok) {
+        const d = await propRes.json();
+        setProposals(d.items || d.proposals || []);
+      }
+      if (photoRes.ok) {
+        const d = await photoRes.json();
+        setPhotoProposals(d.items || []);
       }
     } catch (e) {
       console.error(e);
@@ -167,6 +179,45 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
       const data = await res.json();
       if (res.ok && data.success) {
         onShowToast(`"${title}" taklifi rad etildi`);
+        await loadData();
+      } else {
+        onShowToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      onShowToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+  const handleApprovePhotoProposal = async (id: string, label: string) => {
+    setIsProcessingProposal(true);
+    try {
+      const res = await fetch(`/api/v1/admin/photo-proposals/${id}/approve`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`"${label}" rasmi muvaffaqiyatli tasdiqlandi va yangilandi!`);
+        await loadData();
+      } else {
+        onShowToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      onShowToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+
+  const handleRejectPhotoProposal = async (id: string, label: string) => {
+    setIsProcessingProposal(true);
+    try {
+      const res = await fetch(`/api/v1/admin/photo-proposals/${id}/reject`, {
+        method: 'POST'
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`"${label}" rasm so‘rovi rad etildi`);
         await loadData();
       } else {
         onShowToast(data.message || 'Xatolik yuz berdi');
@@ -313,6 +364,16 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
 
   const pendingCredCount = credentialRequests.filter(r => r.status === 'PENDING').length;
   const pendingProposalsCount = proposals.filter(p => p.status === 'PENDING').length;
+  const pendingPhotoProposalsCount = photoProposals.filter(p => p.status === 'PENDING').length;
+
+  const filteredPhotoProposals = photoProposals.filter((p) => {
+    const matchesFilter = proposalStatusFilter === 'ALL' || p.status === proposalStatusFilter;
+    const matchesSearch = !proposalSearch.trim() ||
+      (p.storeName && p.storeName.toLowerCase().includes(proposalSearch.toLowerCase())) ||
+      (p.productTitle && p.productTitle.toLowerCase().includes(proposalSearch.toLowerCase())) ||
+      (p.comment && p.comment.toLowerCase().includes(proposalSearch.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
 
   const filteredProposals = proposals.filter((p) => {
     const matchesFilter = proposalStatusFilter === 'ALL' || p.status === proposalStatusFilter;
@@ -405,10 +466,10 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>Tovar & Xizmat Takliflari</span>
-          {pendingProposalsCount > 0 && (
+          <span>Tovar, Xizmat & Rasm Takliflari</span>
+          {(pendingProposalsCount + pendingPhotoProposalsCount) > 0 && (
             <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#F59E0B] text-white">
-              {pendingProposalsCount}
+              {pendingProposalsCount + pendingPhotoProposalsCount}
             </span>
           )}
         </button>
@@ -785,6 +846,310 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
                 );
               })}
             </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 3: ITEM & PHOTO PROPOSALS */}
+      {activeTab === 'proposals' && (
+        <div className="flex flex-col gap-4">
+          {/* Subtabs Switcher */}
+          <div className="flex items-center gap-2 p-1.5 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-2xl w-fit border border-[#DCE5DF] dark:border-[#22332C]">
+            <button
+              onClick={() => setProposalSubTab('items')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                proposalSubTab === 'items'
+                  ? 'bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] shadow-sm'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Tovar & Xizmat Takliflari</span>
+              {pendingProposalsCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
+                  {pendingProposalsCount}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setProposalSubTab('photos')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-2 ${
+                proposalSubTab === 'photos'
+                  ? 'bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] shadow-sm'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28]'
+              }`}
+            >
+              <Camera className="w-3.5 h-3.5" />
+              <span>Rasm O‘zgartirish So‘rovlari</span>
+              {pendingPhotoProposalsCount > 0 && (
+                <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
+                  {pendingPhotoProposalsCount}
+                </span>
+              )}
+            </button>
+          </div>
+
+          {/* Controls & Filter Bar */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] flex flex-col md:flex-row gap-3 items-center justify-between shadow-sm">
+            <div className="relative w-full md:w-80">
+              <Search className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
+              <input
+                type="text"
+                value={proposalSearch}
+                onChange={(e) => setProposalSearch(e.target.value)}
+                placeholder={proposalSubTab === 'items' ? "Tovar, do‘kon yoki toifa bo‘yicha izlash..." : "Do‘kon, mahsulot yoki izoh bo‘yicha izlash..."}
+                className="w-full h-10 pl-9 pr-4 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto">
+              {(['ALL', 'PENDING', 'APPROVED', 'REJECTED'] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setProposalStatusFilter(st)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                    proposalStatusFilter === st
+                      ? 'bg-[#116B50] text-white'
+                      : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#22362E]'
+                  }`}
+                >
+                  {st === 'ALL' && `Barchasi (${proposalSubTab === 'items' ? proposals.length : photoProposals.length})`}
+                  {st === 'PENDING' && `Kutilayotgan (${proposalSubTab === 'items' ? pendingProposalsCount : pendingPhotoProposalsCount})`}
+                  {st === 'APPROVED' && 'Tasdiqlangan'}
+                  {st === 'REJECTED' && 'Rad etilgan'}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Items Proposals List */}
+          {proposalSubTab === 'items' && (
+            isLoading ? (
+              <div className="py-16 text-center text-xs text-[#566A63] dark:text-[#8B9E95] flex flex-col items-center gap-2">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#116B50]" />
+                <span>Takliflar yuklanmoqda...</span>
+              </div>
+            ) : filteredProposals.length === 0 ? (
+              <div className="py-16 text-center bg-white dark:bg-[#14201A] border border-dashed border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-6 flex flex-col items-center gap-2">
+                <Sparkles className="w-8 h-8 text-[#566A63] dark:text-[#8B9E95] opacity-40" />
+                <p className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
+                  Ushbu holat bo‘yicha tovar/xizmat takliflari topilmadi
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredProposals.map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex flex-col justify-between gap-4"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                          {prop.type === 'SERVICE' ? '🛠 Xizmat' : '📦 Tovar'}
+                        </span>
+                        {prop.status === 'PENDING' && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 flex items-center gap-1">
+                            <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+                            <span>Kutilmoqda ({prop.consensusCount || 1}/3)</span>
+                          </span>
+                        )}
+                        {(prop.status === 'APPROVED' || prop.status === 'AUTO_APPROVED') && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Tasdiqlangan</span>
+                          </span>
+                        )}
+                        {prop.status === 'REJECTED' && (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/60 flex items-center gap-1">
+                            <XCircle className="w-3 h-3 text-rose-600" />
+                            <span>Rad etilgan</span>
+                          </span>
+                        )}
+                      </div>
+
+                      {prop.photoUrl && (
+                        <div className="w-full h-32 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-[#DCE5DF] dark:border-[#2A3F36]">
+                          <img src={prop.photoUrl} alt={prop.title} className="w-full h-full object-cover" />
+                        </div>
+                      )}
+
+                      <h4 className="text-sm font-extrabold text-[#172C28] dark:text-[#E8F2EC]">
+                        {prop.title}
+                      </h4>
+
+                      <div className="text-xs text-[#566A63] dark:text-[#8B9E95] flex flex-col gap-1">
+                        <div className="flex items-center gap-1.5 font-semibold text-[#116B50] dark:text-[#4ADE80]">
+                          <Building2 className="w-3.5 h-3.5" />
+                          <span>{prop.storeName || 'Do‘kon'}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span>Toifa: <strong>{prop.category}</strong></span>
+                          <span>Narxi: <strong className="text-[#172C28] dark:text-white">{Number(prop.price).toLocaleString('uz-UZ')} so‘m</strong></span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px]">
+                          <span>Birlik: {prop.packUnit || 'dona'}</span>
+                          <span>Miqdor: {prop.stockOnHand || 1} ta</span>
+                        </div>
+                        <div className="text-[11px] text-[#6E827B] dark:text-[#7A9388] mt-1 pt-1 border-t border-[#E8EEEA] dark:border-[#22332C]">
+                          Kirituvchi: <strong>{prop.userFullName || 'Foydalanuvchi'}</strong>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    {prop.status === 'PENDING' ? (
+                      <div className="flex items-center gap-2 pt-2 border-t border-[#E8EEEA] dark:border-[#22332C]">
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={isProcessingProposal}
+                          onClick={() => handleRejectProposal(prop.id, prop.title)}
+                          className="flex-1 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                        >
+                          Rad etish
+                        </Button>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          disabled={isProcessingProposal}
+                          onClick={() => handleApproveProposal(prop.id, prop.title)}
+                          className="flex-1 text-xs font-bold bg-[#116B50] text-white hover:bg-[#0D523D]"
+                        >
+                          Tasdiqlash
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-[11px] text-right font-medium text-[#6E827B] dark:text-[#7A9388] pt-2 border-t border-[#E8EEEA] dark:border-[#22332C]">
+                        {prop.approvedBy ? `Tasdiqladi: ${prop.approvedBy}` : 'Amal bajarilgan'}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
+          )}
+
+          {/* Photo Proposals List */}
+          {proposalSubTab === 'photos' && (
+            isLoading ? (
+              <div className="py-16 text-center text-xs text-[#566A63] dark:text-[#8B9E95] flex flex-col items-center gap-2">
+                <RefreshCw className="w-6 h-6 animate-spin text-[#116B50]" />
+                <span>Rasm so‘rovlari yuklanmoqda...</span>
+              </div>
+            ) : filteredPhotoProposals.length === 0 ? (
+              <div className="py-16 text-center bg-white dark:bg-[#14201A] border border-dashed border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-6 flex flex-col items-center gap-2">
+                <Camera className="w-8 h-8 text-[#566A63] dark:text-[#8B9E95] opacity-40" />
+                <p className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
+                  Ushbu holat bo‘yicha rasm o‘zgartirish so‘rovlari topilmadi
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredPhotoProposals.map((photoProp) => {
+                  const targetLabel = photoProp.targetType === 'STORE'
+                    ? (photoProp.storeName || 'Tashkilot')
+                    : (photoProp.productTitle || 'Mahsulot');
+                  return (
+                    <div
+                      key={photoProp.id}
+                      className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex flex-col justify-between gap-4"
+                    >
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                            photoProp.targetType === 'STORE'
+                              ? 'bg-blue-500/10 text-blue-700 dark:text-blue-300'
+                              : 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'
+                          }`}>
+                            {photoProp.targetType === 'STORE' ? '🏢 Tashkilot Rasmi' : '📦 Mahsulot Rasmi'}
+                          </span>
+                          {photoProp.status === 'PENDING' && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-amber-600 animate-pulse" />
+                              <span>Kutilmoqda</span>
+                            </span>
+                          )}
+                          {photoProp.status === 'APPROVED' && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                              <span>Tasdiqlangan</span>
+                            </span>
+                          )}
+                          {photoProp.status === 'REJECTED' && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/60 flex items-center gap-1">
+                              <XCircle className="w-3 h-3 text-rose-600" />
+                              <span>Rad etilgan</span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Photo Preview */}
+                        <div className="w-full h-44 rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-800 border border-[#DCE5DF] dark:border-[#2A3F36] relative group">
+                          <img
+                            src={photoProp.photoUrl}
+                            alt={targetLabel}
+                            className="w-full h-full object-cover transition duration-300 group-hover:scale-105"
+                          />
+                        </div>
+
+                        <div className="flex flex-col gap-1 text-xs text-[#566A63] dark:text-[#8B9E95]">
+                          <div className="flex items-center gap-1.5 font-bold text-sm text-[#172C28] dark:text-[#E8F2EC]">
+                            <Building2 className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
+                            <span>{photoProp.storeName || 'Tashkilot'}</span>
+                          </div>
+
+                          {photoProp.targetType === 'PRODUCT' && photoProp.productTitle && (
+                            <div className="p-2 rounded-lg bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/50 dark:border-emerald-800/40 text-[11px] font-semibold text-emerald-900 dark:text-emerald-300">
+                              Mahsulot: {photoProp.productTitle}
+                            </div>
+                          )}
+
+                          {photoProp.comment && (
+                            <div className="italic text-[11px] text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/50 p-2 rounded-lg">
+                              &ldquo;{photoProp.comment}&rdquo;
+                            </div>
+                          )}
+
+                          <div className="flex items-center justify-between text-[11px] pt-1 border-t border-[#E8EEEA] dark:border-[#22332C]">
+                            <span>Yuboruvchi: <strong>{photoProp.userFullName || 'Foydalanuvchi'}</strong></span>
+                            <span>{new Date(photoProp.createdAt).toLocaleDateString('uz-UZ')}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      {photoProp.status === 'PENDING' ? (
+                        <div className="flex items-center gap-2 pt-2 border-t border-[#E8EEEA] dark:border-[#22332C]">
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            disabled={isProcessingProposal}
+                            onClick={() => handleRejectPhotoProposal(photoProp.id, targetLabel)}
+                            className="flex-1 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                          >
+                            Rad etish
+                          </Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            disabled={isProcessingProposal}
+                            onClick={() => handleApprovePhotoProposal(photoProp.id, targetLabel)}
+                            className="flex-1 text-xs font-bold bg-[#116B50] text-white hover:bg-[#0D523D]"
+                          >
+                            Tasdiqlash
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="text-[11px] text-right font-medium text-[#6E827B] dark:text-[#7A9388] pt-2 border-t border-[#E8EEEA] dark:border-[#22332C]">
+                          {photoProp.approvedBy ? `Tasdiqladi: ${photoProp.approvedBy}` : 'Amal bajarilgan'}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )
           )}
         </div>
       )}

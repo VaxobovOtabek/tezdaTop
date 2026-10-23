@@ -18,14 +18,16 @@ import {
   RefreshCw,
   Search,
   Navigation,
-  FileText
+  FileText,
+  Sparkles,
+  Camera
 } from 'lucide-react';
 import { Button, Tag, Modal, Input } from '@yaqintop/ui';
 import { apiUrl } from '../config/api.js';
 
 interface UserPersonalHubProps {
-  activeSection: 'reviews' | 'inquiries' | 'history' | 'favorites';
-  onNavigateSection: (section: 'reviews' | 'inquiries' | 'history' | 'favorites') => void;
+  activeSection: 'reviews' | 'inquiries' | 'history' | 'favorites' | 'proposals';
+  onNavigateSection: (section: 'reviews' | 'inquiries' | 'history' | 'favorites' | 'proposals') => void;
   onBackToSearch: () => void;
   onOpenStore: (storeId: string) => void;
   onGetRoute: (store: any) => void;
@@ -70,6 +72,13 @@ export function UserPersonalHubView({
 
   // Favorites State (localStorage)
   const [favorites, setFavorites] = useState<any[]>([]);
+
+  // Item Proposals State
+  const [proposals, setProposals] = useState<any[]>([]);
+  const [loadingProposals, setLoadingProposals] = useState(false);
+  const [proposalStatusFilter, setProposalStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'REJECTED'>('ALL');
+  const [proposalSearch, setProposalSearch] = useState('');
+  const [photoProposals, setPhotoProposals] = useState<any[]>([]);
 
   // Fetch reviews
   const loadUserReviews = async () => {
@@ -117,6 +126,42 @@ export function UserPersonalHubView({
     }
   };
 
+  // Fetch proposals
+  const loadUserProposals = async () => {
+    setLoadingProposals(true);
+    try {
+      const token = localStorage.getItem('yaqintop_session_token') || '';
+      const [itemRes, photoRes] = await Promise.all([
+        fetch(
+          apiUrl(`/api/v1/user/proposals?userId=${currentUser?.id || ''}`),
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            credentials: 'include'
+          }
+        ),
+        fetch(
+          apiUrl(`/api/v1/user/photo-proposals?userId=${currentUser?.id || ''}`),
+          {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            credentials: 'include'
+          }
+        )
+      ]);
+      if (itemRes.ok) {
+        const data = await itemRes.json();
+        setProposals(data.items || []);
+      }
+      if (photoRes.ok) {
+        const pdata = await photoRes.json();
+        setPhotoProposals(pdata.items || []);
+      }
+    } catch (err) {
+      console.error('Error fetching user proposals:', err);
+    } finally {
+      setLoadingProposals(false);
+    }
+  };
+
   // Load history & favorites from localStorage
   const loadLocalActivity = () => {
     try {
@@ -148,6 +193,7 @@ export function UserPersonalHubView({
   useEffect(() => {
     loadUserReviews();
     loadUserInquiries();
+    loadUserProposals();
     loadLocalActivity();
   }, [currentUser?.id]);
 
@@ -218,6 +264,34 @@ export function UserPersonalHubView({
     onShowToast('Sevimlilardan o‘chirildi');
   };
 
+  const filteredProposals = proposals.filter((p) => {
+    const matchesFilter =
+      proposalStatusFilter === 'ALL'
+        ? true
+        : proposalStatusFilter === 'APPROVED'
+        ? p.status === 'APPROVED' || p.status === 'AUTO_APPROVED'
+        : p.status === proposalStatusFilter;
+    const matchesSearch =
+      !proposalSearch.trim() ||
+      p.title?.toLowerCase().includes(proposalSearch.toLowerCase()) ||
+      p.storeName?.toLowerCase().includes(proposalSearch.toLowerCase()) ||
+      p.category?.toLowerCase().includes(proposalSearch.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
+  const filteredPhotoProposals = photoProposals.filter((p) => {
+    const matchesFilter =
+      proposalStatusFilter === 'ALL'
+        ? true
+        : p.status === proposalStatusFilter;
+    const matchesSearch =
+      !proposalSearch.trim() ||
+      p.storeName?.toLowerCase().includes(proposalSearch.toLowerCase()) ||
+      p.productTitle?.toLowerCase().includes(proposalSearch.toLowerCase()) ||
+      p.comment?.toLowerCase().includes(proposalSearch.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
+
   return (
     <div className="flex-1 bg-[#F3F6F3] dark:bg-[#0E1713] overflow-y-auto min-h-screen text-[#172C28] dark:text-[#E8F2EC] flex flex-col">
       {/* Sticky Header */}
@@ -244,6 +318,7 @@ export function UserPersonalHubView({
           {[
             { id: 'favorites', label: `Sevimlilar (${favorites.length})`, icon: Heart },
             { id: 'reviews', label: `Sharhlarim (${reviews.length})`, icon: MessageSquare },
+            { id: 'proposals', label: `Takliflarim (${proposals.length + photoProposals.length})`, icon: Sparkles },
             { id: 'inquiries', label: `Murojaatlar & Arizalar (${reports.length + inquiries.length})`, icon: AlertTriangle },
             { id: 'history', label: `Tanlov & Qidiruv Tarixi (${searchHistory.length})`, icon: Clock }
           ].map((tab) => {
@@ -435,6 +510,256 @@ export function UserPersonalHubView({
                         </p>
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SECTION: TOVAR & XIZMAT TAKLIFLARI (ITEM PROPOSALS) */}
+        {activeSection === 'proposals' && (
+          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-6 md:p-8 flex flex-col gap-6 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 className="text-xl md:text-2xl font-extrabold text-[#172C28] dark:text-white flex items-center gap-2.5">
+                  <Sparkles className="w-6 h-6 text-[#116B50] dark:text-[#4ADE80]" />
+                  <span>Tovar va Xizmat Takliflarim</span>
+                </h2>
+                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
+                  Tashkilotlarga taklif qilgan tovar va xizmatlaringiz hamda ularning moderatsiya holati
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" size="sm" onClick={loadUserProposals}>
+                  <RefreshCw className={`w-3.5 h-3.5 ${loadingProposals ? 'animate-spin' : ''}`} />
+                </Button>
+                <Button variant="primary" size="sm" onClick={onBackToSearch}>
+                  Tashkilot izlash
+                </Button>
+              </div>
+            </div>
+
+            {/* Filter and Search Bar */}
+            <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 p-3 rounded-2xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36]">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-3" />
+                <input
+                  type="text"
+                  value={proposalSearch}
+                  onChange={(e) => setProposalSearch(e.target.value)}
+                  placeholder="Tovar nomi, kategoriya yoki do‘kon nomi bo‘yicha izlash..."
+                  className="w-full h-10 pl-9 pr-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
+                />
+              </div>
+
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+                {[
+                  { id: 'ALL', label: `Barchasi (${proposals.length + photoProposals.length})` },
+                  { id: 'PENDING', label: `Kutilmoqda (${proposals.filter(p => p.status === 'PENDING').length + photoProposals.filter(p => p.status === 'PENDING').length})` },
+                  { id: 'APPROVED', label: `Tasdiqlangan (${proposals.filter(p => p.status === 'APPROVED' || p.status === 'AUTO_APPROVED').length + photoProposals.filter(p => p.status === 'APPROVED').length})` },
+                  { id: 'REJECTED', label: `Rad etilgan (${proposals.filter(p => p.status === 'REJECTED').length + photoProposals.filter(p => p.status === 'REJECTED').length})` }
+                ].map((st) => (
+                  <button
+                    key={st.id}
+                    onClick={() => setProposalStatusFilter(st.id as any)}
+                    className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                      proposalStatusFilter === st.id
+                        ? 'bg-[#116B50] text-white shadow-xs'
+                        : 'bg-white dark:bg-[#14201A] text-[#566A63] dark:text-[#8B9E95] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                    }`}
+                  >
+                    {st.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Proposals List */}
+            {loadingProposals ? (
+              <div className="py-16 text-center text-sm text-[#566A63] dark:text-[#8B9E95] flex flex-col items-center gap-2">
+                <div className="w-8 h-8 border-3 border-[#116B50] border-t-transparent rounded-full animate-spin" />
+                <span>Takliflaringiz yuklanmoqda...</span>
+              </div>
+            ) : (filteredProposals.length === 0 && filteredPhotoProposals.length === 0) ? (
+              <div className="py-16 text-center bg-[#F9FAF9] dark:bg-[#1A2822] rounded-3xl border border-dashed border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col items-center gap-3 p-6">
+                <Sparkles className="w-12 h-12 text-[#116B50] dark:text-[#4ADE80] opacity-40" />
+                <div className="max-w-md">
+                  <h4 className="font-extrabold text-base text-[#172C28] dark:text-[#E8F2EC]">
+                    {proposalSearch || proposalStatusFilter !== 'ALL'
+                      ? 'Qidiruv bo‘yicha taklif topilmadi'
+                      : 'Siz hali tovar, xizmat yoki rasm taklif qilmadingiz'}
+                  </h4>
+                  <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
+                    Istalgan tashkilot sahifasiga kirib, yangi tovar yoki rasm taklif qilishingiz mumkin.
+                  </p>
+                </div>
+                <Button variant="primary" size="sm" onClick={onBackToSearch} className="mt-2">
+                  Tashkilotlarni ko‘rish
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Item Proposals */}
+                {filteredProposals.map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="p-5 rounded-2xl bg-[#F9FAF9] dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col justify-between gap-3.5 hover:shadow-sm transition"
+                  >
+                    <div className="flex flex-col gap-2">
+                      {prop.photoUrl && (
+                        <div className="w-full h-36 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-[#DCE5DF] dark:border-[#2A3F36]">
+                          <img src={prop.photoUrl} alt="Product" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                          {prop.type === 'SERVICE' ? '🛠 Xizmat' : '📦 Tovar'}
+                        </span>
+
+                        {prop.status === 'PENDING' && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 animate-pulse text-amber-600 dark:text-amber-400" />
+                            <span>Kutilmoqda ({prop.consensusCount || 1}/3)</span>
+                          </span>
+                        )}
+                        {(prop.status === 'APPROVED' || prop.status === 'AUTO_APPROVED') && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>Tasdiqlandi</span>
+                          </span>
+                        )}
+                        {prop.status === 'REJECTED' && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/60 flex items-center gap-1.5">
+                            <XCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                            <span>Rad etildi</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="text-sm md:text-base font-extrabold text-[#172C28] dark:text-[#E8F2EC]">
+                        {prop.title}
+                      </h4>
+
+                      <button
+                        type="button"
+                        onClick={() => onOpenStore(prop.storeId)}
+                        className="text-left text-xs font-semibold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1.5 w-fit"
+                      >
+                        <Building2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{prop.storeName}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
+                      </button>
+
+                      <div className="flex items-center gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] flex-wrap mt-0.5">
+                        <span className="font-semibold">{prop.category}</span>
+                        {prop.price > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80]">
+                              {Number(prop.price).toLocaleString('uz-UZ')} so‘m / {prop.packUnit || 'dona'}
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {prop.description && (
+                        <p className="text-xs text-[#566A63] dark:text-[#CBD5E1] bg-white dark:bg-[#14201A] p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#22332C] mt-1">
+                          {prop.description}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-2.5 border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-between text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+                      <span>{new Date(prop.createdAt).toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+
+                      {prop.status === 'PENDING' && (
+                        <span className="font-semibold text-amber-700 dark:text-amber-400">
+                          Moderator ko‘rib chiqmoqda
+                        </span>
+                      )}
+                      {(prop.status === 'APPROVED' || prop.status === 'AUTO_APPROVED') && (
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                          Do‘kon katalogiga qo‘shildi
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Photo Change Proposals */}
+                {filteredPhotoProposals.map((prop) => (
+                  <div
+                    key={prop.id}
+                    className="p-5 rounded-2xl bg-[#F9FAF9] dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col justify-between gap-3.5 hover:shadow-sm transition"
+                  >
+                    <div className="flex flex-col gap-2.5">
+                      <div className="w-full h-44 rounded-xl overflow-hidden bg-gray-100 dark:bg-gray-800 border border-[#DCE5DF] dark:border-[#2A3F36]">
+                        <img src={prop.photoUrl} alt="Proposed" className="w-full h-full object-cover" />
+                      </div>
+
+                      <div className="flex items-start justify-between gap-2">
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300 flex items-center gap-1">
+                          <Camera className="w-3 h-3" />
+                          <span>{prop.targetType === 'STORE' ? 'Tashkilot rasmi' : 'Tovar rasmi'}</span>
+                        </span>
+
+                        {prop.status === 'PENDING' && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 animate-pulse text-amber-600 dark:text-amber-400" />
+                            <span>Kutilmoqda</span>
+                          </span>
+                        )}
+                        {prop.status === 'APPROVED' && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                            <span>Tasdiqlangan</span>
+                          </span>
+                        )}
+                        {prop.status === 'REJECTED' && (
+                          <span className="px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/60 flex items-center gap-1.5">
+                            <XCircle className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                            <span>Rad etildi</span>
+                          </span>
+                        )}
+                      </div>
+
+                      <h4 className="text-sm md:text-base font-extrabold text-[#172C28] dark:text-[#E8F2EC]">
+                        {prop.targetType === 'STORE' ? prop.storeName : prop.productTitle}
+                      </h4>
+
+                      <button
+                        type="button"
+                        onClick={() => onOpenStore(prop.storeId)}
+                        className="text-left text-xs font-semibold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1.5 w-fit"
+                      >
+                        <Building2 className="w-3.5 h-3.5 shrink-0" />
+                        <span>{prop.storeName || 'Do‘kon'}</span>
+                        <ExternalLink className="w-3 h-3 shrink-0 opacity-70" />
+                      </button>
+
+                      {prop.comment && (
+                        <p className="text-xs text-[#566A63] dark:text-[#CBD5E1] bg-white dark:bg-[#14201A] p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#22332C]">
+                          «{prop.comment}»
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="pt-2.5 border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-between text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+                      <span>{new Date(prop.createdAt).toLocaleDateString('uz-UZ', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+
+                      {prop.status === 'PENDING' && (
+                        <span className="font-semibold text-amber-700 dark:text-amber-400">
+                          Moderator ko‘rib chiqmoqda
+                        </span>
+                      )}
+                      {prop.status === 'APPROVED' && (
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                          Rasm yangilandi
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

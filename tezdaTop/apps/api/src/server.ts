@@ -968,7 +968,7 @@ function findStoreByParam(param: string): Store | undefined {
 }
 
 // Support multi-segment slug and coordinates like /api/v1/stores/:slug/@:lat,:lng
-app.get('/api/v1/stores/:slug/@:lat,:lng', (req, res) => {
+app.get('/api/v1/stores/:slug/@:lat,:lng', (req: any, res: any) => {
   const param = `@${req.params.lat},${req.params.lng}`;
   const store = findStoreByParam(param) || findStoreByParam(req.params.slug);
   if (!store || store.status === 'SUSPENDED') {
@@ -991,7 +991,7 @@ app.get('/api/v1/stores/:slug/@:lat,:lng', (req, res) => {
   });
 });
 
-app.get('/api/v1/stores/:slug/@:lat,:lng/offers', (req, res) => {
+app.get('/api/v1/stores/:slug/@:lat,:lng/offers', (req: any, res: any) => {
   const param = `@${req.params.lat},${req.params.lng}`;
   const matchedStore = findStoreByParam(param) || findStoreByParam(req.params.slug);
   const storeId = matchedStore ? matchedStore.id : req.params.slug;
@@ -1059,7 +1059,7 @@ function canUserManageStoreProposals(user: any, storeId: string): boolean {
   if (['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) return true;
   const store = db.stores.get(storeId);
   if (!store) return false;
-  if (store.ownerId === user.id) return true;
+  if ((store as any).ownerId === user.id) return true;
   const isMember = Array.from(db.memberships.values()).some(
     (m) => m.userId === user.id && m.organizationId === store.organizationId && m.status === 'ACTIVE'
   );
@@ -1089,7 +1089,8 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
     stockOnHand = 1,
     packUnit = 'dona',
     barcode,
-    description
+    description,
+    photoUrl
   } = req.body;
 
   if (!title || typeof title !== 'string' || title.trim().length < 2) {
@@ -1127,6 +1128,7 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
     existingUserProposal.category = cleanCategory;
     existingUserProposal.packUnit = cleanUnit;
     if (description) existingUserProposal.description = description.trim();
+    if (photoUrl) existingUserProposal.photoUrl = photoUrl.trim();
     existingUserProposal.updatedAt = now;
     proposalId = existingUserProposal.id;
     db.itemProposals.set(proposalId, existingUserProposal);
@@ -1147,6 +1149,7 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
       stockOnHand: numStock,
       packUnit: cleanUnit,
       barcode: cleanBarcode,
+      photoUrl: photoUrl && typeof photoUrl === 'string' ? photoUrl.trim() : undefined,
       description: description && typeof description === 'string' ? description.trim() : undefined,
       status: 'PENDING' as const,
       consensusGroupKey,
@@ -1175,6 +1178,8 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
     const avgPrice = Math.round(list.reduce((sum, p) => sum + Number(p.price), 0) / list.length);
     const avgStock = Math.round(list.reduce((sum, p) => sum + Number(p.stockOnHand), 0) / list.length);
 
+    const chosenPhotoUrl = list.find((p) => p.photoUrl)?.photoUrl || (typeof photoUrl === 'string' ? photoUrl.trim() : undefined);
+
     // Find or create variant
     let variantId = uuidv4();
     if (cleanBarcode) {
@@ -1190,14 +1195,14 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
       } else {
         db.variants.set(variantId, {
           id: variantId,
+          productId: uuidv4(),
           sku: cleanBarcode || `SKU-${Date.now().toString(36).toUpperCase()}`,
           barcode: cleanBarcode,
           title: cleanTitle,
           category: cleanCategory,
           packUnit: cleanUnit,
-          unitSize: 1,
-          createdAt: now,
-          updatedAt: now
+          photoUrl: chosenPhotoUrl,
+          ...({ createdAt: now, updatedAt: now } as any)
         });
       }
     }
@@ -1212,7 +1217,12 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
       targetOffer.price = avgPrice.toString();
       targetOffer.stockOnHand = avgStock;
       targetOffer.status = 'ACTIVE';
-      targetOffer.updatedAt = now;
+      if (chosenPhotoUrl) {
+        targetOffer.variant.photoUrl = chosenPhotoUrl;
+        const v = db.variants.get(variantId);
+        if (v) v.photoUrl = chosenPhotoUrl;
+      }
+      targetOffer.priceUpdatedAt = now;
       newOfferId = targetOffer.id;
     } else {
       newOfferId = uuidv4();
@@ -1221,14 +1231,14 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
         storeId: store.id,
         variantId,
         price: avgPrice.toString(),
+        minOrderQuantity: 1,
         stockOnHand: avgStock,
-        freshness: 'FRESH',
+        freshness: 'NEW',
         status: 'ACTIVE',
-        currency: 'UZS',
-        inStock: true,
-        variant: db.variants.get(variantId)!,
-        createdAt: now,
-        updatedAt: now
+        priceUpdatedAt: now,
+        wholesaleTiers: [],
+        version: 1,
+        variant: db.variants.get(variantId)!
       };
       db.offers.set(newOfferId, newOffer);
     }
@@ -1322,7 +1332,7 @@ app.get('/api/v1/admin/item-proposals', (req: Request, res: Response) => {
     );
     const storeIds = new Set(
       Array.from(db.stores.values())
-        .filter((s) => s.ownerId === user.id || userOrgs.has(s.organizationId))
+        .filter((s) => (s as any).ownerId === user.id || userOrgs.has(s.organizationId))
         .map((s) => s.id)
     );
     proposals = proposals.filter((p) => storeIds.has(p.storeId));
@@ -1397,14 +1407,14 @@ app.post('/api/v1/admin/item-proposals/:id/approve', (req: Request, res: Respons
     } else {
       db.variants.set(variantId, {
         id: variantId,
+        productId: uuidv4(),
         sku: proposal.barcode || `SKU-${Date.now().toString(36).toUpperCase()}`,
         barcode: proposal.barcode,
         title: proposal.title,
         category: proposal.category,
         packUnit: proposal.packUnit,
-        unitSize: 1,
-        createdAt: now,
-        updatedAt: now
+        photoUrl: proposal.photoUrl,
+        ...({ createdAt: now, updatedAt: now } as any)
       });
     }
   }
@@ -1419,7 +1429,12 @@ app.post('/api/v1/admin/item-proposals/:id/approve', (req: Request, res: Respons
     targetOffer.price = proposal.price.toString();
     targetOffer.stockOnHand = proposal.stockOnHand;
     targetOffer.status = 'ACTIVE';
-    targetOffer.updatedAt = now;
+    if (proposal.photoUrl) {
+      targetOffer.variant.photoUrl = proposal.photoUrl;
+      const v = db.variants.get(variantId);
+      if (v) v.photoUrl = proposal.photoUrl;
+    }
+    targetOffer.priceUpdatedAt = now;
     offerId = targetOffer.id;
   } else {
     offerId = uuidv4();
@@ -1428,14 +1443,14 @@ app.post('/api/v1/admin/item-proposals/:id/approve', (req: Request, res: Respons
       storeId: store.id,
       variantId,
       price: proposal.price.toString(),
+      minOrderQuantity: 1,
       stockOnHand: proposal.stockOnHand,
-      freshness: 'FRESH',
+      freshness: 'NEW',
       status: 'ACTIVE',
-      currency: 'UZS',
-      inStock: true,
-      variant: db.variants.get(variantId)!,
-      createdAt: now,
-      updatedAt: now
+      priceUpdatedAt: now,
+      wholesaleTiers: [],
+      version: 1,
+      variant: db.variants.get(variantId)!
     };
     db.offers.set(offerId, newOffer);
   }
@@ -1493,6 +1508,199 @@ app.post('/api/v1/admin/item-proposals/:id/reject', (req: Request, res: Response
   res.json({
     success: true,
     message: `"${proposal.title}" taklifi rad etildi.`
+  });
+});
+
+// ================= PHOTO CHANGE PROPOSALS (TASHKILOT VA TOVAR RASMINI O'ZGARTIRISH) =================
+app.post('/api/v1/stores/:storeId/photo-proposals', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Rasm taklif qilish uchun iltimos, tizimga kiring' });
+    return;
+  }
+
+  const { storeId } = req.params;
+  const store = findStoreByParam(storeId) || db.stores.get(storeId);
+  if (!store || store.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const { targetType = 'STORE', variantId, photoUrl, comment } = req.body;
+
+  if (!photoUrl || typeof photoUrl !== 'string' || !photoUrl.trim()) {
+    res.status(400).json({ code: 'INVALID_INPUT', message: 'Rasm kiritilishi shart' });
+    return;
+  }
+
+  let productTitle: string | undefined;
+  if (targetType === 'PRODUCT') {
+    if (!variantId) {
+      res.status(400).json({ code: 'INVALID_INPUT', message: 'Tovar tanlanishi shart' });
+      return;
+    }
+    const variant = db.variants.get(variantId);
+    if (!variant) {
+      res.status(404).json({ code: 'NOT_FOUND', message: 'Mahsulot varianti topilmadi' });
+      return;
+    }
+    productTitle = variant.title;
+  }
+
+  const now = new Date().toISOString();
+  const proposalId = uuidv4();
+  const proposal: any = {
+    id: proposalId,
+    targetType: targetType === 'PRODUCT' ? 'PRODUCT' : 'STORE',
+    storeId: store.id,
+    storeName: store.name,
+    variantId: targetType === 'PRODUCT' ? variantId : undefined,
+    productTitle,
+    photoUrl: photoUrl.trim(),
+    comment: comment && typeof comment === 'string' ? comment.trim() : undefined,
+    userId: user.id,
+    userFullName: user.fullName || user.email.split('@')[0],
+    userPhone: user.phone || '',
+    status: 'PENDING',
+    createdAt: now,
+    updatedAt: now
+  };
+
+  db.photoProposals.set(proposalId, proposal);
+  db.scheduleSave();
+
+  res.status(201).json({
+    success: true,
+    message: 'Rasm moderatsiyaga muvaffaqiyatli yuborildi. Moderator tasdiqlaganidan so‘ng yangilanadi.',
+    proposal
+  });
+});
+
+app.get('/api/v1/stores/:storeId/photo-proposals', (req: Request, res: Response) => {
+  const { storeId } = req.params;
+  const store = findStoreByParam(storeId) || db.stores.get(storeId);
+  const targetId = store ? store.id : storeId;
+
+  const proposals = Array.from(db.photoProposals.values())
+    .filter((p) => p.storeId === targetId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({ items: proposals, total: proposals.length });
+});
+
+app.get('/api/v1/user/photo-proposals', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  const userId = user?.id || (req.query.userId as string);
+  if (!userId) {
+    res.json({ items: [], total: 0 });
+    return;
+  }
+
+  const proposals = Array.from(db.photoProposals.values())
+    .filter((p) => p.userId === userId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({ items: proposals, total: proposals.length });
+});
+
+app.get('/api/v1/admin/photo-proposals', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  let proposals = Array.from(db.photoProposals.values());
+
+  const statusFilter = req.query.status as string;
+  if (statusFilter && statusFilter !== 'ALL') {
+    proposals = proposals.filter((p) => p.status === statusFilter);
+  }
+
+  proposals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ items: proposals, total: proposals.length });
+});
+
+app.post('/api/v1/admin/photo-proposals/:id/approve', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  const proposal = db.photoProposals.get(req.params.id);
+  if (!proposal) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Rasm so‘rovi topilmadi' });
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  if (proposal.targetType === 'STORE') {
+    const store = db.stores.get(proposal.storeId);
+    if (store) {
+      store.photoUrl = proposal.photoUrl;
+      store.updatedAt = now;
+      db.stores.set(store.id, store);
+    }
+  } else if (proposal.targetType === 'PRODUCT' && proposal.variantId) {
+    const variant = db.variants.get(proposal.variantId);
+    if (variant) {
+      variant.photoUrl = proposal.photoUrl;
+      (variant as any).updatedAt = now;
+      db.variants.set(variant.id, variant);
+    }
+    for (const off of db.offers.values()) {
+      if (off.variantId === proposal.variantId) {
+        off.variant.photoUrl = proposal.photoUrl;
+        off.priceUpdatedAt = now;
+        db.offers.set(off.id, off);
+      }
+    }
+  }
+
+  proposal.status = 'APPROVED';
+  proposal.reviewedBy = `${user.fullName || user.email} (${user.role})`;
+  proposal.updatedAt = now;
+  db.photoProposals.set(proposal.id, proposal);
+
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: proposal.targetType === 'STORE'
+      ? 'Tashkilot rasmi muvaffaqiyatli tasdiqlandi va yangilandi!'
+      : 'Tovar rasmi muvaffaqiyatli tasdiqlandi va yangilandi!',
+    proposal
+  });
+});
+
+app.post('/api/v1/admin/photo-proposals/:id/reject', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  const proposal = db.photoProposals.get(req.params.id);
+  if (!proposal) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Rasm so‘rovi topilmadi' });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  proposal.status = 'REJECTED';
+  proposal.reviewedBy = `${user.fullName || user.email} (${user.role})`;
+  proposal.reviewNotes = req.body?.notes || 'Moderator tomonidan qabul qilinmadi';
+  proposal.updatedAt = now;
+  db.photoProposals.set(proposal.id, proposal);
+
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: 'Rasm so‘rovi rad etildi.',
+    proposal
   });
 });
 
@@ -1743,6 +1951,34 @@ app.get('/api/v1/user/reports', (req, res) => {
     })
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   res.json({ items: reports });
+});
+
+app.get('/api/v1/user/proposals', (req, res) => {
+  const user = getCurrentUser(req);
+  const userId = user?.id || (req.query.userId as string);
+  if (!userId) {
+    res.json({ items: [], total: 0 });
+    return;
+  }
+  const proposals = Array.from(db.itemProposals.values())
+    .filter((p) => p.userId === userId)
+    .map((p) => {
+      const store = db.stores.get(p.storeId);
+      const distinctUsers = new Set(
+        Array.from(db.itemProposals.values())
+          .filter((x) => x.storeId === p.storeId && x.consensusGroupKey === p.consensusGroupKey)
+          .map((x) => x.userId)
+      );
+      return {
+        ...p,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || 'Toshkent shahri',
+        storeSlug: (store as any)?.slug || store?.id,
+        consensusCount: distinctUsers.size
+      };
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ items: proposals, total: proposals.length });
 });
 
 app.get('/api/v1/user/inquiries', (req, res) => {

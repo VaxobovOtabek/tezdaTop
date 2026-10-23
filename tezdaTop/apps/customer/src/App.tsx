@@ -25,7 +25,8 @@ import {
   LogIn,
   ChevronDown,
   Building2,
-  Package
+  Package,
+  Sparkles
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
@@ -94,7 +95,7 @@ export function CustomerApp() {
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
   const [view, setView] = useState<'search' | 'detail' | 'route' | 'hub' | 'products' | 'product-detail'>('search');
   const [activeProductParam, setActiveProductParam] = useState<string>('');
-  const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history'>('favorites');
+  const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history' | 'proposals'>('favorites');
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
   const [mobileTab, setMobileTab] = useState<'xarita' | 'royxat'>('xarita');
   const [searchCategory, setSearchCategory] = useState<'products' | 'organizations'>('products');
@@ -350,7 +351,7 @@ export function CustomerApp() {
       setRouteData(null);
     }
 
-    if (cleanPath === '/sevimlilar' || cleanPath === '/sharhlarim' || cleanPath === '/ariza' || cleanPath === '/murojaatlar' || cleanPath === '/tarix') {
+    if (cleanPath === '/sevimlilar' || cleanPath === '/sharhlarim' || cleanPath === '/ariza' || cleanPath === '/murojaatlar' || cleanPath === '/tarix' || cleanPath === '/takliflarim' || cleanPath === '/takliflar') {
       if (!currentUser) {
         setAuthErrorBanner('⚠️ Shaxsiy kabinet va ma‘lumotlarni ko‘rish uchun iltimos, tizimga kiring!');
         setIsLoginModalOpen(true);
@@ -373,6 +374,9 @@ export function CustomerApp() {
     } else if (cleanPath === '/tarix') {
       setView('hub');
       setHubSection('history');
+    } else if (cleanPath === '/takliflarim' || cleanPath === '/takliflar') {
+      setView('hub');
+      setHubSection('proposals');
     } else if (cleanPath === '/marshrut') {
       if (routeData || routeDataRef.current) {
         if (!routeData && routeDataRef.current) {
@@ -589,6 +593,7 @@ export function CustomerApp() {
         const data = await res.json();
         routeDataRef.current = data;
         setRouteData(data);
+        setMobileTab('xarita');
         setView('route');
         navigateTo('/marshrut', { replace: true });
       } else {
@@ -605,16 +610,14 @@ export function CustomerApp() {
           distanceM: straightM,
           durationSec,
           geometry: [[origin.lng, origin.lat], [dest.lng, dest.lat]],
-          steps: [
-            { instruction: 'Hozirgi joyingizdan to‘g‘ri harakatlaning', distanceM: Math.round(straightM * 0.4), durationSec: Math.round(durationSec * 0.4) },
-            { instruction: `${targetStore.name} do‘koniga yetib keldingiz`, distanceM: Math.round(straightM * 0.6), durationSec: Math.round(durationSec * 0.6) }
-          ],
+          steps: [],
           provider: 'local-osrm-fallback',
           isApproximateTraffic: true,
           externalMapUrl: `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&travelmode=${mode}`
         };
         routeDataRef.current = fallbackRoute;
         setRouteData(fallbackRoute);
+        setMobileTab('xarita');
         setView('route');
         navigateTo('/marshrut', { replace: true });
       }
@@ -632,16 +635,14 @@ export function CustomerApp() {
         distanceM: straightM,
         durationSec,
         geometry: [[origin.lng, origin.lat], [dest.lng, dest.lat]],
-        steps: [
-          { instruction: 'Hozirgi joyingizdan to‘g‘ri harakatlaning', distanceM: Math.round(straightM * 0.4), durationSec: Math.round(durationSec * 0.4) },
-          { instruction: `${targetStore.name} do‘koniga yetib keldingiz`, distanceM: Math.round(straightM * 0.6), durationSec: Math.round(durationSec * 0.6) }
-        ],
+        steps: [],
         provider: 'local-osrm-fallback',
         isApproximateTraffic: true,
         externalMapUrl: `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&travelmode=${mode}`
       };
       routeDataRef.current = fallbackRoute;
       setRouteData(fallbackRoute);
+      setMobileTab('xarita');
       setView('route');
       navigateTo('/marshrut', { replace: true });
     }
@@ -896,6 +897,18 @@ export function CustomerApp() {
             </button>
 
             <button
+              onClick={() => navigateTo('/takliflarim')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
+                view === 'hub' && hubSection === 'proposals'
+                  ? 'bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]'
+                  : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Takliflarim</span>
+            </button>
+
+            <button
               onClick={() => navigateTo('/ariza')}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 view === 'hub' && hubSection === 'inquiries'
@@ -968,6 +981,7 @@ export function CustomerApp() {
               const pathToMap: Record<string, string> = {
                 favorites: '/sevimlilar',
                 reviews: '/sharhlarim',
+                proposals: '/takliflarim',
                 inquiries: '/ariza',
                 history: '/tarix'
               };
@@ -1011,7 +1025,7 @@ export function CustomerApp() {
             {/* Left Column / Mobile Results */}
             <section
               className={`w-full md:w-[420px] lg:w-[450px] bg-white dark:bg-[#14201A] border-r border-[#DCE5DF] dark:border-[#22332C] flex flex-col overflow-y-auto h-full ${
-                mobileTab === 'xarita' && view === 'search' ? 'hidden md:flex' : 'flex'
+                (mobileTab === 'xarita' && view === 'search') || view === 'route' ? 'hidden md:flex' : 'flex'
               }`}
             >
           {view === 'search' && (
@@ -1122,7 +1136,10 @@ export function CustomerApp() {
               </div>
 
               {/* Filter Chips */}
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              <div
+                className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
                 <button
                   onClick={() => setOpenNow(!openNow)}
                   className={`text-xs px-3 py-1.5 rounded-lg border font-medium whitespace-nowrap transition ${
@@ -1476,23 +1493,6 @@ export function CustomerApp() {
                     </div>
                   </div>
 
-                  {/* Turn-by-Turn Steps */}
-                  <div className="flex flex-col border border-[#DCE5DF] dark:border-[#2A3F36] rounded-2xl bg-white dark:bg-[#16241E] divide-y divide-[#DCE5DF]/60 dark:divide-[#2A3F36]">
-                    {routeData.steps.map((st, i) => (
-                      <div key={i} className="p-3.5 flex items-start gap-3 text-xs text-[#172C28] dark:text-[#E8F2EC]">
-                        <span className="w-5 h-5 rounded-full bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold flex items-center justify-center shrink-0 text-[11px]">
-                          {i + 1}
-                        </span>
-                        <div className="flex-1">
-                          <span className="font-semibold">{st.instruction}</span>
-                          <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                            {st.distanceM} m · ~{Math.round(st.durationSec / 60) || 1} daqiqa
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
                   {routeData.externalMapUrl && (
                     <a
                       href={routeData.externalMapUrl}
@@ -1578,7 +1578,10 @@ export function CustomerApp() {
                 </div>
 
                 {/* Quick filter badges */}
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none text-[11px]">
+                <div
+                  className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none no-scrollbar text-[11px]"
+                  style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                >
                   <button
                     onClick={() => setIsFilterModalOpen(true)}
                     className="px-2.5 py-1 rounded-lg bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] border border-[#116B50]/30 font-bold whitespace-nowrap flex items-center gap-1 shrink-0"
@@ -1650,6 +1653,14 @@ export function CustomerApp() {
             onNavigate={(item) => fetchRoute(item.store, routeMode)}
             onCancelRoute={handleStopRoute}
             routeData={routeData}
+            routeMode={routeMode}
+            onChangeRouteMode={(mode) => {
+              setRouteMode(mode);
+              const storeToRoute = selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail;
+              if (storeToRoute) {
+                fetchRoute(storeToRoute, mode);
+              }
+            }}
             view={view}
             isDarkMode={isDarkMode}
             onLocationChange={(lat, lng) => {
@@ -1676,11 +1687,15 @@ export function CustomerApp() {
       <nav className="md:hidden h-16 bg-white dark:bg-[#14201A] border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40">
         <button
           onClick={() => {
-            navigateTo('/');
-            setMobileTab('xarita');
+            if (view === 'route') {
+              handleStopRoute();
+            } else {
+              navigateTo('/');
+              setMobileTab('xarita');
+            }
           }}
           className={`flex flex-col items-center gap-1 text-[10px] font-semibold ${
-            view === 'search' && mobileTab === 'xarita'
+            (view === 'search' || view === 'route') && mobileTab === 'xarita'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
           }`}

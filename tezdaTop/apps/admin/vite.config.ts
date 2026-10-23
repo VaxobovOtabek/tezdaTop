@@ -13,6 +13,7 @@ export default defineConfig(({ command }) => ({
     }
   },
   server: {
+    host: true,
     port: 3002,
     proxy: {
       '/api': {

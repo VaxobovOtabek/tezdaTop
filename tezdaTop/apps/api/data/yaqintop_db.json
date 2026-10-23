@@ -361,6 +361,20 @@
         "createdAt": "2026-10-08T12:19:36.689+00:00",
         "updatedAt": "2026-10-08T12:19:36.689+00:00"
       }
+    ],
+    [
+      "ec770f62-6d94-4dd4-b53a-903a26f37517",
+      {
+        "id": "ec770f62-6d94-4dd4-b53a-903a26f37517",
+        "phone": "+998979053030",
+        "email": "ota",
+        "fullName": "Otabek Vaxobov",
+        "role": "CUSTOMER",
+        "status": "ACTIVE",
+        "passwordHash": "scrypt:e7a9933f99302011391efdeee9743d2c:f8d93e20d76ee92408e1584eec5b1dbc5e63f7aa0ff90956f671c3f6be14562938cf428028723f037dbf9f44fc205f94bc83c9a17cb904b9774cb4a80b774e38",
+        "createdAt": "2026-10-23T05:27:33.458+00:00",
+        "updatedAt": "2026-10-23T05:27:33.458+00:00"
+      }
     ]
   ],
   "sessions": [
@@ -397,6 +411,27 @@
       {
         "userId": "cccc5555-5555-4ccc-cccc-555555555555",
         "createdAt": "2026-10-22T12:17:45.252Z"
+      }
+    ],
+    [
+      "cd4b1a1c-1323-453f-8ed6-302490f32f25",
+      {
+        "userId": "ec770f62-6d94-4dd4-b53a-903a26f37517",
+        "createdAt": "2026-10-23T05:49:19.122Z"
+      }
+    ],
+    [
+      "4accfa08-ab75-4ba9-866d-b5da7b1d3c6d",
+      {
+        "userId": "cccc4444-4444-4ccc-cccc-444444444444",
+        "createdAt": "2026-10-23T06:35:21.986Z"
+      }
+    ],
+    [
+      "668d29d9-bb15-40f3-a970-58df8ca10e9e",
+      {
+        "userId": "ec770f62-6d94-4dd4-b53a-903a26f37517",
+        "createdAt": "2026-10-23T07:00:48.397Z"
       }
     ]
   ],
@@ -1089,6 +1124,19 @@
         ],
         "createdAt": "2026-10-06T07:24:21.62+00:00",
         "updatedAt": "2026-10-06T07:24:21.62+00:00"
+      }
+    ],
+    [
+      "63515447-8c09-476e-9276-56883c81f130",
+      {
+        "id": "63515447-8c09-476e-9276-56883c81f130",
+        "sku": "SKU-MVKMBNSH",
+        "title": "edo.ijro.uz platformasiga ulanish",
+        "category": "IT dastur",
+        "packUnit": "xizmat",
+        "unitSize": 1,
+        "createdAt": "2026-10-23T06:58:01.648Z",
+        "updatedAt": "2026-10-23T06:58:01.648Z"
       }
     ]
   ],
@@ -1888,6 +1936,32 @@
         "status": "ACTIVE",
         "version": 1
       }
+    ],
+    [
+      "0c164e49-340a-4efa-877c-884cc276e95c",
+      {
+        "id": "0c164e49-340a-4efa-877c-884cc276e95c",
+        "storeId": "2666e002-c652-46cb-87c7-0684d00c53c2",
+        "variantId": "63515447-8c09-476e-9276-56883c81f130",
+        "price": "55000",
+        "stockOnHand": 1,
+        "freshness": "FRESH",
+        "status": "ACTIVE",
+        "currency": "UZS",
+        "inStock": true,
+        "variant": {
+          "id": "63515447-8c09-476e-9276-56883c81f130",
+          "sku": "SKU-MVKMBNSH",
+          "title": "edo.ijro.uz platformasiga ulanish",
+          "category": "IT dastur",
+          "packUnit": "xizmat",
+          "unitSize": 1,
+          "createdAt": "2026-10-23T06:58:01.648Z",
+          "updatedAt": "2026-10-23T06:58:01.648Z"
+        },
+        "createdAt": "2026-10-23T06:58:01.648Z",
+        "updatedAt": "2026-10-23T06:58:01.648Z"
+      }
     ]
   ],
   "balances": [
@@ -1998,6 +2072,16 @@
         "onHand": "500",
         "averageUnitCost": "5250",
         "lastVerifiedAt": "2026-10-06T06:07:20.833Z",
+        "version": 1
+      }
+    ],
+    [
+      "0c164e49-340a-4efa-877c-884cc276e95c",
+      {
+        "offerId": "0c164e49-340a-4efa-877c-884cc276e95c",
+        "onHand": "1",
+        "averageUnitCost": "38500",
+        "lastVerifiedAt": "2026-10-23T06:58:01.649Z",
         "version": 1
       }
     ]
@@ -2233,9 +2317,9 @@
         "subject": "Do‘kon ish vaqtlari va kirish joyi fotosuratlari talabi",
         "message": "Hurmatli do‘kon egasi! Mijozlar qulayligi uchun yangi kirish eshigi fotosuratlarini yuklashingiz va yakshanba kungi ish tartibingizni tasdiqlashingizni so‘raymiz.",
         "priority": "HIGH",
-        "status": "PENDING_MERCHANT_REPLY",
+        "status": "RESOLVED",
         "createdAt": "2026-10-05T06:17:20.867Z",
-        "updatedAt": "2026-10-05T06:17:20.867Z"
+        "updatedAt": "2026-10-23T06:41:27.424Z"
       }
     ],
     [
@@ -2249,11 +2333,11 @@
         "subject": "Kassada to‘lov tizimlari (HUMO/Uzcard) integratsiyasi",
         "message": "Assalomu alaykum. Do‘koningizda barcha turdagi plastik kartalar qabul qilinishini tekshirish yuzasidan so‘rov.",
         "priority": "NORMAL",
-        "status": "MERCHANT_SUBMITTED",
+        "status": "RESOLVED",
         "merchantReply": "Barcha terminallarimiz va QR-to‘lov tizimlarimiz to‘liq ishlamoqda. Har qanday karta orqali qabul qilinadi.",
         "merchantRepliedAt": "2026-10-06T04:17:20.867Z",
         "createdAt": "2026-10-04T06:17:20.867Z",
-        "updatedAt": "2026-10-06T04:17:20.867Z"
+        "updatedAt": "2026-10-23T06:41:28.352Z"
       }
     ]
   ],
@@ -2320,7 +2404,53 @@
     ]
   ],
   "bookmarks": [],
-  "itemProposals": [],
+  "itemProposals": [
+    [
+      "bc6f4176-b20e-45a0-8d6c-12562655f12d",
+      {
+        "id": "bc6f4176-b20e-45a0-8d6c-12562655f12d",
+        "storeId": "2666e002-c652-46cb-87c7-0684d00c53c2",
+        "userId": "ec770f62-6d94-4dd4-b53a-903a26f37517",
+        "userFullName": "Otabek Vaxobov",
+        "userPhone": "+998979053030",
+        "title": "edo.ijro.uz platformasiga ulanish",
+        "normalizedTitle": "edo ijro uz platformasiga ulanish",
+        "type": "SERVICE",
+        "category": "IT dastur",
+        "price": 55000,
+        "stockOnHand": 1,
+        "packUnit": "xizmat",
+        "status": "APPROVED",
+        "consensusGroupKey": "2666e002-c652-46cb-87c7-0684d00c53c2_SERVICE_edo ijro uz platformasiga ulanish",
+        "createdAt": "2026-10-23T06:31:20.590Z",
+        "updatedAt": "2026-10-23T06:58:01.648Z",
+        "approvedBy": "Nilufar Moderator (MODERATOR)",
+        "createdOfferId": "0c164e49-340a-4efa-877c-884cc276e95c"
+      }
+    ],
+    [
+      "4938310e-3c48-4c02-9017-cb57ad0d5519",
+      {
+        "id": "4938310e-3c48-4c02-9017-cb57ad0d5519",
+        "storeId": "2666e002-c652-46cb-87c7-0684d00c53c2",
+        "userId": "cccc4444-4444-4ccc-cccc-444444444444",
+        "userFullName": "Nilufar Moderator",
+        "userPhone": "+998904445566",
+        "title": "test",
+        "normalizedTitle": "test",
+        "type": "SERVICE",
+        "category": "1",
+        "price": 11111,
+        "stockOnHand": 1,
+        "packUnit": "xizmat",
+        "status": "REJECTED",
+        "consensusGroupKey": "2666e002-c652-46cb-87c7-0684d00c53c2_SERVICE_test",
+        "createdAt": "2026-10-23T06:40:32.995Z",
+        "updatedAt": "2026-10-23T06:58:00.248Z",
+        "approvedBy": "Nilufar Moderator (MODERATOR)"
+      }
+    ]
+  ],
   "auditLogs": [
     {
       "id": "1e586834-9531-4b80-8de1-a3415b404432",

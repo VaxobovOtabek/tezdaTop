@@ -17,7 +17,8 @@ import {
   CredentialChangeRequest,
   AdminInquiry,
   UserNotification,
-  ItemProposal
+  ItemProposal,
+  PhotoProposal
 } from '@yaqintop/contracts';
 import { calculateWeightedAverageCost, sanitizeCsvField, calculateFinancialSummary } from '../services/ledger.service.js';
 import { syncAllToSupabase } from './supabase.js';
@@ -118,6 +119,7 @@ export class InMemoryDatabase {
   public notifications: Map<string, UserNotification> = new Map();
   public bookmarks: Map<string, DBBookmark> = new Map();
   public itemProposals: Map<string, ItemProposal> = new Map();
+  public photoProposals: Map<string, PhotoProposal> = new Map();
   public auditLogs: DBAuditLog[] = [];
   public idempotencyRecords: Map<string, DBIdempotencyRecord> = new Map();
 
@@ -178,6 +180,7 @@ export class InMemoryDatabase {
         notifications: Array.from(this.notifications.entries()),
         bookmarks: Array.from(this.bookmarks.entries()),
         itemProposals: Array.from(this.itemProposals.entries()),
+        photoProposals: Array.from(this.photoProposals.entries()),
         auditLogs: this.auditLogs,
         idempotencyRecords: Array.from(this.idempotencyRecords.entries())
       };
@@ -243,6 +246,7 @@ export class InMemoryDatabase {
       if (Array.isArray(data.notifications)) this.notifications = new Map(data.notifications);
       if (Array.isArray(data.bookmarks)) this.bookmarks = new Map(data.bookmarks);
       if (Array.isArray(data.itemProposals)) this.itemProposals = new Map(data.itemProposals);
+      if (Array.isArray(data.photoProposals)) this.photoProposals = new Map(data.photoProposals);
       if (Array.isArray(data.auditLogs)) this.auditLogs = data.auditLogs;
       if (Array.isArray(data.idempotencyRecords)) this.idempotencyRecords = new Map(data.idempotencyRecords);
 

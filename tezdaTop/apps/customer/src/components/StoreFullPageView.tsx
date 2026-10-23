@@ -28,7 +28,12 @@ import {
   User,
   ShoppingBag,
   Info,
-  Check
+  Check,
+  CheckCircle2,
+  XCircle,
+  Camera,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Button, Tag, StarRating, Modal, Input } from '@yaqintop/ui';
 import { Offer, Store, isTradeOrganization } from '@yaqintop/contracts';
@@ -100,6 +105,8 @@ export function StoreFullPageView({
   // Crowdsourced Item Proposal State
   const [isProposalModalOpen, setIsProposalModalOpen] = useState(false);
   const [isSubmittingProposal, setIsSubmittingProposal] = useState(false);
+  const [storeProposals, setStoreProposals] = useState<any[]>([]);
+  const [loadingStoreProposals, setLoadingStoreProposals] = useState(false);
   const [proposalFeedback, setProposalFeedback] = useState<{
     type: 'success' | 'auto_approved' | 'error';
     message: string;
@@ -112,8 +119,115 @@ export function StoreFullPageView({
     stockOnHand: '10',
     packUnit: 'dona',
     barcode: '',
+    photoUrl: '',
     description: ''
   });
+
+  // Photo Change Request State
+  const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
+  const [photoModalTarget, setPhotoModalTarget] = useState<'STORE' | 'PRODUCT'>('STORE');
+  const [photoModalVariantId, setPhotoModalVariantId] = useState<string | undefined>(undefined);
+  const [photoModalProductTitle, setPhotoModalProductTitle] = useState<string | undefined>(undefined);
+  const [photoFormUrl, setPhotoFormUrl] = useState('');
+  const [photoFormComment, setPhotoFormComment] = useState('');
+  const [isSubmittingPhoto, setIsSubmittingPhoto] = useState(false);
+  const [storePhotoProposals, setStorePhotoProposals] = useState<any[]>([]);
+
+  const handleOpenPhotoModal = (target: 'STORE' | 'PRODUCT', variantId?: string, productTitle?: string) => {
+    if (!currentUser) {
+      onRequireAuth?.('Rasm taklif qilish yoki o‘zgartirish uchun iltimos, tizimga kiring');
+      return;
+    }
+    setPhotoModalTarget(target);
+    setPhotoModalVariantId(variantId);
+    setPhotoModalProductTitle(productTitle);
+    setPhotoFormUrl('');
+    setPhotoFormComment('');
+    setIsPhotoModalOpen(true);
+  };
+
+  const handlePhotoFileUpload = (e: React.ChangeEvent<HTMLInputElement>, setter: (url: string) => void) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 900;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            setter(canvas.toDataURL('image/jpeg', 0.8));
+          } else {
+            setter(event.target?.result as string);
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.error('Failed to read image file:', err);
+      onShowToast('Rasmni yuklashda xatolik');
+    }
+  };
+
+  const handleSubmitPhotoProposal = async () => {
+    if (!photoFormUrl.trim()) {
+      onShowToast('Iltimos, rasm tanlang yoki rasm havolasini kiriting');
+      return;
+    }
+    const token = localStorage.getItem('yaqintop_session_token') || '';
+    setIsSubmittingPhoto(true);
+
+    try {
+      const res = await fetch(apiUrl(`/api/v1/stores/${store.id}/photo-proposals`), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          targetType: photoModalTarget,
+          variantId: photoModalVariantId,
+          photoUrl: photoFormUrl.trim(),
+          comment: photoFormComment.trim() || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast('📸 Rasm taklifingiz muvaffaqiyatli qabul qilindi va moderatsiyaga yuborildi!');
+        setIsPhotoModalOpen(false);
+        setPhotoFormUrl('');
+        setPhotoFormComment('');
+        await loadStoreProposals();
+      } else {
+        onShowToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      onShowToast('Server bilan aloqada xatolik yuz berdi');
+    } finally {
+      setIsSubmittingPhoto(false);
+    }
+  };
 
   const handleOpenProposalModal = () => {
     if (!currentUser) {
@@ -129,6 +243,7 @@ export function StoreFullPageView({
       stockOnHand: '10',
       packUnit: 'dona',
       barcode: '',
+      photoUrl: '',
       description: ''
     });
     setIsProposalModalOpen(true);
@@ -159,12 +274,14 @@ export function StoreFullPageView({
           stockOnHand: Number(proposalForm.stockOnHand) || 1,
           packUnit: proposalForm.packUnit,
           barcode: proposalForm.barcode.trim() || undefined,
+          photoUrl: proposalForm.photoUrl.trim() || undefined,
           description: proposalForm.description.trim() || undefined
         })
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
+        await loadStoreProposals();
         if (data.autoApproved) {
           setProposalFeedback({
             type: 'auto_approved',
@@ -177,9 +294,9 @@ export function StoreFullPageView({
         } else {
           setProposalFeedback({
             type: 'success',
-            message: data.message
+            message: data.message || 'Taklifingiz muvaffaqiyatli qabul qilindi va moderator ko‘rib chiqishiga yuborildi'
           });
-          onShowToast('Taklifingiz muvaffaqiyatli qabul qilindi');
+          onShowToast('Taklifingiz qabul qilindi va moderatsiyaga yuborildi');
         }
       } else {
         setProposalFeedback({
@@ -196,6 +313,42 @@ export function StoreFullPageView({
       setIsSubmittingProposal(false);
     }
   };
+
+  // Load store item proposals
+  const loadStoreProposals = async () => {
+    if (!store?.id) return;
+    try {
+      setLoadingStoreProposals(true);
+      const [itemRes, photoRes] = await Promise.all([
+        fetch(apiUrl(`/api/v1/stores/${store.id}/proposals`)),
+        fetch(apiUrl(`/api/v1/stores/${store.id}/photo-proposals`))
+      ]);
+      if (itemRes.ok) {
+        const d = await itemRes.json();
+        setStoreProposals(d.items || []);
+      }
+      if (photoRes.ok) {
+        const pd = await photoRes.json();
+        setStorePhotoProposals(pd.items || []);
+      }
+    } catch (e) {
+      console.error('Failed to load store proposals', e);
+    } finally {
+      setLoadingStoreProposals(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStoreProposals();
+  }, [store?.id]);
+
+  const myProposalsForThisStore = storeProposals.filter(
+    (p) => currentUser && (p.userId === currentUser.id || (currentUser.phone && p.userPhone === currentUser.phone))
+  );
+
+  const myPhotoProposalsForThisStore = storePhotoProposals.filter(
+    (p) => currentUser && (p.userId === currentUser.id || (currentUser.phone && p.userPhone === currentUser.phone))
+  );
 
   // Sync favorite state when store changes
   useEffect(() => {
@@ -503,14 +656,26 @@ export function StoreFullPageView({
                   </>
                 )}
 
-                {/* Photo Badge */}
-                <div className="absolute bottom-3.5 left-4 flex items-center gap-2">
-                  <span className="text-xs px-3 py-1 rounded-full bg-black/70 text-white backdrop-blur-sm font-semibold">
-                    📸 {activeImageIndex + 1} / {storeImages.length} rasm
-                  </span>
-                  <span className="text-xs px-3 py-1 rounded-full bg-[#116B50]/90 text-white backdrop-blur-sm font-semibold flex items-center gap-1">
-                    <ShoppingBag className="w-3.5 h-3.5" /> {offers.length} ta tovar & xizmat
-                  </span>
+                {/* Photo Badge & Suggest Store Photo */}
+                <div className="absolute bottom-3.5 left-4 right-4 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs px-3 py-1 rounded-full bg-black/70 text-white backdrop-blur-sm font-semibold">
+                      📸 {activeImageIndex + 1} / {storeImages.length} rasm
+                    </span>
+                    <span className="text-xs px-3 py-1 rounded-full bg-[#116B50]/90 text-white backdrop-blur-sm font-semibold flex items-center gap-1">
+                      <ShoppingBag className="w-3.5 h-3.5" /> {offers.length} ta tovar & xizmat
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleOpenPhotoModal('STORE')}
+                    className="text-xs px-3 py-1 rounded-full bg-white/90 dark:bg-black/80 hover:bg-white dark:hover:bg-black text-[#172C28] dark:text-white backdrop-blur-sm font-bold flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer"
+                    title="Tashkilot rasmini yangilash yoki taklif qilish"
+                  >
+                    <Camera className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                    <span className="hidden sm:inline">Rasm taklif qilish</span>
+                  </button>
                 </div>
               </div>
 
@@ -809,6 +974,169 @@ export function StoreFullPageView({
               </div>
             )}
 
+            {/* USER'S PROPOSALS IN THIS STORE */}
+            {(myProposalsForThisStore.length > 0 || myPhotoProposalsForThisStore.length > 0) && (
+              <div className="mb-6 p-4 md:p-5 rounded-2xl bg-gradient-to-br from-amber-50/80 via-emerald-50/40 to-teal-50/30 dark:from-[#17251E] dark:via-[#13201A] dark:to-[#111A15] border border-amber-200/90 dark:border-[#2C4A3B] shadow-sm">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 mb-3.5 pb-2.5 border-b border-amber-200/60 dark:border-[#2C4A3B]">
+                  <div className="flex items-center gap-2.5">
+                    <span className="p-2 rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+                      <Clock className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h4 className="text-xs md:text-sm font-extrabold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-2">
+                        <span>Siz ushbu tashkilotga taklif qilgan ma’lumotlar</span>
+                        <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#116B50] text-white">
+                          {myProposalsForThisStore.length + myPhotoProposalsForThisStore.length}
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+                        Kiritilgan tovar, xizmat va rasmlar moderator tomonidan ko‘rib chiqilmoqda
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPhotoModal('STORE')}
+                      className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1 shrink-0"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Rasm taklif qilish</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleOpenProposalModal}
+                      className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1 shrink-0"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>Tovar/xizmat taklif qilish</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {myProposalsForThisStore.map((prop) => (
+                    <div
+                      key={prop.id}
+                      className="p-3.5 rounded-xl bg-white dark:bg-[#1A2A22] border border-[#DCE5DF] dark:border-[#2C4A3B] shadow-2xs flex flex-col justify-between gap-2.5"
+                    >
+                      <div>
+                        {prop.photoUrl && (
+                          <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                            <img src={prop.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                            {prop.type === 'SERVICE' ? '🛠 Xizmat' : '📦 Tovar'}
+                          </span>
+                          {prop.status === 'PENDING' && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 flex items-center gap-1">
+                              <Clock className="w-3 h-3 animate-pulse text-amber-600 dark:text-amber-400" /> Kutilmoqda
+                            </span>
+                          )}
+                          {(prop.status === 'APPROVED' || prop.status === 'AUTO_APPROVED') && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Tasdiqlandi
+                            </span>
+                          )}
+                          {prop.status === 'REJECTED' && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/60 flex items-center gap-1">
+                              <XCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" /> Rad etildi
+                            </span>
+                          )}
+                        </div>
+                        <h5 className="font-bold text-xs md:text-sm text-[#172C28] dark:text-[#E8F2EC] line-clamp-2">
+                          {prop.title}
+                        </h5>
+                        <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1 flex items-center gap-2 flex-wrap">
+                          <span>{prop.category}</span>
+                          {prop.price > 0 && (
+                            <>
+                              <span>•</span>
+                              <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80]">
+                                {Number(prop.price).toLocaleString('uz-UZ')} so‘m / {prop.packUnit || 'dona'}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-[#E8EEEA] dark:border-[#243B30] flex items-center justify-between text-[10px] text-[#6E827B] dark:text-[#7A9388]">
+                        <span>{new Date(prop.createdAt).toLocaleDateString('uz-UZ')}</span>
+                        {prop.status === 'PENDING' && (
+                          <span className="font-semibold text-amber-700 dark:text-amber-400">
+                            Konsensus: {prop.consensusCount || 1}/3
+                          </span>
+                        )}
+                        {(prop.status === 'APPROVED' || prop.status === 'AUTO_APPROVED') && (
+                          <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                            Katalogga qo‘shilgan
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Photo Proposals */}
+                  {myPhotoProposalsForThisStore.map((prop) => (
+                    <div
+                      key={prop.id}
+                      className="p-3.5 rounded-xl bg-white dark:bg-[#1A2A22] border border-[#DCE5DF] dark:border-[#2C4A3B] shadow-2xs flex flex-col justify-between gap-2.5"
+                    >
+                      <div>
+                        <div className="w-full h-24 mb-2 rounded-lg overflow-hidden bg-gray-100 dark:bg-gray-800">
+                          <img src={prop.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+                        </div>
+                        <div className="flex items-start justify-between gap-2 mb-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-700 dark:text-purple-300">
+                            📸 {prop.targetType === 'STORE' ? 'Tashkilot rasmi' : 'Tovar rasmi'}
+                          </span>
+                          {prop.status === 'PENDING' && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/60 flex items-center gap-1">
+                              <Clock className="w-3 h-3 animate-pulse text-amber-600 dark:text-amber-400" /> Kutilmoqda
+                            </span>
+                          )}
+                          {prop.status === 'APPROVED' && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700/60 flex items-center gap-1">
+                              <CheckCircle2 className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> Yangilandi
+                            </span>
+                          )}
+                          {prop.status === 'REJECTED' && (
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-extrabold bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-700/60 flex items-center gap-1">
+                              <XCircle className="w-3 h-3 text-rose-600 dark:text-rose-400" /> Rad etildi
+                            </span>
+                          )}
+                        </div>
+                        <h5 className="font-bold text-xs md:text-sm text-[#172C28] dark:text-[#E8F2EC] line-clamp-1">
+                          {prop.targetType === 'STORE' ? (store?.name || 'Do‘kon') : (prop.productTitle || 'Tovar')}
+                        </h5>
+                        {prop.comment && (
+                          <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1 line-clamp-2 italic">
+                            «{prop.comment}»
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-[#E8EEEA] dark:border-[#243B30] flex items-center justify-between text-[10px] text-[#6E827B] dark:text-[#7A9388]">
+                        <span>{new Date(prop.createdAt).toLocaleDateString('uz-UZ')}</span>
+                        {prop.status === 'PENDING' && (
+                          <span className="font-semibold text-amber-700 dark:text-amber-400">
+                            Moderatsiya kutilmoqda
+                          </span>
+                        )}
+                        {prop.status === 'APPROVED' && (
+                          <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                            Rasm tasdiqlangan
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Catalog Grid / List */}
             {loadingOffers ? (
               <div className="py-16 text-center text-sm text-[#566A63] dark:text-[#8B9E95] flex flex-col items-center gap-2">
@@ -848,6 +1176,25 @@ export function StoreFullPageView({
                       className="bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-2xl p-4 flex flex-col justify-between hover:border-[#116B50] dark:hover:border-[#4ADE80] transition shadow-sm hover:shadow-md group"
                     >
                       <div>
+                        {/* Product Photo if available */}
+                        {off.variant.photoUrl ? (
+                          <div className="relative w-full h-32 mb-2.5 rounded-xl overflow-hidden bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF]/60 dark:border-[#2A3F36]">
+                            <img
+                              src={off.variant.photoUrl}
+                              alt={off.variant.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleOpenPhotoModal('PRODUCT', off.variantId, off.variant.title)}
+                              className="absolute top-1.5 right-1.5 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white backdrop-blur-sm transition cursor-pointer"
+                              title="Rasmni o‘zgartirish"
+                            >
+                              <Camera className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ) : null}
+
                         {/* Top Category & Freshness Badge */}
                         <div className="flex items-center justify-between gap-1 mb-2">
                           <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95]">
@@ -867,6 +1214,18 @@ export function StoreFullPageView({
                           <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95] font-mono mt-1">
                             Barkod: {off.variant.barcode}
                           </div>
+                        )}
+
+                        {!off.variant.photoUrl && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenPhotoModal('PRODUCT', off.variantId, off.variant.title)}
+                            className="mt-2 text-[10px] font-semibold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1 cursor-pointer"
+                            title="Ushbu tovar uchun rasm taklif qilish"
+                          >
+                            <Camera className="w-3 h-3" />
+                            <span>+ Rasm taklif qilish</span>
+                          </button>
                         )}
                       </div>
 
@@ -1434,6 +1793,48 @@ export function StoreFullPageView({
             </div>
           </div>
 
+          {/* Photo for Item Proposal */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95] flex items-center justify-between">
+              <span>{proposalForm.type === 'SERVICE' ? 'Xizmat rasmi' : 'Tovar rasmi'} (ixtiyoriy)</span>
+              {proposalForm.photoUrl && (
+                <button
+                  type="button"
+                  onClick={() => setProposalForm(f => ({ ...f, photoUrl: '' }))}
+                  className="text-[11px] text-red-500 hover:underline cursor-pointer"
+                >
+                  O‘chirish
+                </button>
+              )}
+            </label>
+
+            {proposalForm.photoUrl ? (
+              <div className="relative w-full h-32 rounded-xl overflow-hidden border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822]">
+                <img src={proposalForm.photoUrl} alt="Preview" className="w-full h-full object-cover" />
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row gap-2">
+                <label className="flex-1 h-10 px-3.5 rounded-xl border border-dashed border-[#116B50] dark:border-[#4ADE80] bg-[#E0EFE7]/40 dark:bg-[#16241E] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] text-xs font-semibold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center gap-2 cursor-pointer transition">
+                  <Camera className="w-4 h-4" />
+                  <span>Suratga olish / Fayl yuklash</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handlePhotoFileUpload(e, (url) => setProposalForm(f => ({ ...f, photoUrl: url })))}
+                  />
+                </label>
+                <input
+                  type="url"
+                  placeholder="Yoki rasm URL manzili..."
+                  value={proposalForm.photoUrl}
+                  onChange={(e) => setProposalForm(f => ({ ...f, photoUrl: e.target.value }))}
+                  className="flex-1 h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+                />
+              </div>
+            )}
+          </div>
+
           {/* Action buttons */}
           <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-[#DCE5DF] dark:border-[#2A3F36]">
             <button
@@ -1462,6 +1863,121 @@ export function StoreFullPageView({
                 </>
               )}
             </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* PHOTO CHANGE / SUGGESTION MODAL */}
+      <Modal
+        isOpen={isPhotoModalOpen}
+        onClose={() => {
+          if (!isSubmittingPhoto) {
+            setIsPhotoModalOpen(false);
+            setPhotoFormUrl('');
+            setPhotoFormComment('');
+          }
+        }}
+        title={
+          photoModalTarget === 'STORE'
+            ? '📸 Tashkilot rasmini taklif qilish / yangilash'
+            : `📸 Tovarga rasm taklif qilish: ${photoModalProductTitle || ''}`
+        }
+      >
+        <div className="flex flex-col gap-4 text-xs md:text-sm">
+          {/* Info Banner on moderation */}
+          <div className="p-3.5 rounded-2xl bg-[#E0EFE7] dark:bg-[#1C3328] border border-[#116B50]/30 dark:border-[#4ADE80]/30 text-[#172C28] dark:text-[#E8F2EC] flex items-start gap-2.5">
+            <Sparkles className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80] shrink-0 mt-0.5" />
+            <div className="text-xs leading-relaxed">
+              <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80]">Moderatsiya qoidasi:</span>{' '}
+              Siz taklif qilgan rasm moderator yoki platforma administratori tomonidan tekshirilib, tasdiqlanganidan so‘ng ommaga ko‘rinadi.
+            </div>
+          </div>
+
+          {/* Photo File Upload or URL */}
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">
+              Suratni tanlang <span className="text-red-500">*</span>
+            </label>
+
+            {photoFormUrl ? (
+              <div className="relative w-full h-48 sm:h-56 rounded-2xl overflow-hidden border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F3F6F3] dark:bg-[#1A2822] group">
+                <img src={photoFormUrl} alt="Preview" className="w-full h-full object-cover" />
+                <button
+                  type="button"
+                  onClick={() => setPhotoFormUrl('')}
+                  className="absolute top-2 right-2 px-3 py-1.5 rounded-xl bg-red-600 text-white font-bold text-xs shadow-md hover:bg-red-700 transition cursor-pointer"
+                >
+                  Rasmni o‘chirish
+                </button>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                <label className="w-full h-28 rounded-2xl border-2 border-dashed border-[#116B50]/60 dark:border-[#4ADE80]/60 bg-[#E0EFE7]/30 dark:bg-[#16241E] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] flex flex-col items-center justify-center gap-2 cursor-pointer transition p-4 text-center">
+                  <div className="w-10 h-10 rounded-full bg-[#116B50]/10 dark:bg-[#4ADE80]/10 flex items-center justify-center text-[#116B50] dark:text-[#4ADE80]">
+                    <Upload className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs text-[#116B50] dark:text-[#4ADE80]">Suratga olish yoki Galereyadan tanlash</span>
+                    <p className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">JPEG, PNG, WebP formatlari qo‘llab-quvvatlanadi</p>
+                  </div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => handlePhotoFileUpload(e, setPhotoFormUrl)}
+                  />
+                </label>
+
+                <div className="flex items-center gap-2">
+                  <div className="h-px flex-1 bg-[#DCE5DF] dark:bg-[#2A3F36]" />
+                  <span className="text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95]">yoki internetdan havola</span>
+                  <div className="h-px flex-1 bg-[#DCE5DF] dark:bg-[#2A3F36]" />
+                </div>
+
+                <input
+                  type="url"
+                  placeholder="https://example.com/photo.jpg"
+                  value={photoFormUrl}
+                  onChange={(e) => setPhotoFormUrl(e.target.value)}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+                />
+              </div>
+            )}
+          </div>
+
+          {/* Comment / Note */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">
+              Izoh yoki tavsif (ixtiyoriy)
+            </label>
+            <textarea
+              rows={2}
+              value={photoFormComment}
+              onChange={(e) => setPhotoFormComment(e.target.value)}
+              placeholder={photoModalTarget === 'STORE' ? "Masalan: Do‘kon yangi peshtoqi va tashqi ko‘rinishi" : "Masalan: Yangi qadoqdagi ko‘rinishi"}
+              className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+            />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#DCE5DF] dark:border-[#2A3F36]">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isSubmittingPhoto}
+              onClick={() => setIsPhotoModalOpen(false)}
+            >
+              Bekor qilish
+            </Button>
+            <Button
+              type="button"
+              variant="primary"
+              disabled={isSubmittingPhoto || !photoFormUrl.trim()}
+              onClick={handleSubmitPhotoProposal}
+              className="bg-[#116B50] hover:bg-[#0D523D] text-white font-bold"
+            >
+              {isSubmittingPhoto ? 'Yuborilmoqda...' : 'Moderatsiyaga yuborish'}
+            </Button>
           </div>
         </div>
       </Modal>

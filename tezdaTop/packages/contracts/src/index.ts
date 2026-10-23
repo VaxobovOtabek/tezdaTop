@@ -467,6 +467,7 @@ export const ItemProposalSchema = z.object({
   stockOnHand: z.number().min(0),
   packUnit: z.string(),
   barcode: z.string().optional(),
+  photoUrl: z.string().optional(),
   description: z.string().optional(),
   status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'AUTO_APPROVED']),
   approvedBy: z.string().optional(),
@@ -476,3 +477,24 @@ export const ItemProposalSchema = z.object({
   updatedAt: z.string()
 });
 export type ItemProposal = z.infer<typeof ItemProposalSchema>;
+
+// ================= PHOTO & MEDIA PROPOSALS =================
+export const PhotoProposalSchema = z.object({
+  id: z.string().uuid(),
+  targetType: z.enum(['STORE', 'PRODUCT']),
+  storeId: z.string(),
+  storeName: z.string().optional(),
+  variantId: z.string().optional(),
+  productTitle: z.string().optional(),
+  photoUrl: z.string().min(1),
+  comment: z.string().optional(),
+  userId: z.string(),
+  userFullName: z.string().optional(),
+  userPhone: z.string().optional(),
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED']),
+  reviewedBy: z.string().optional(),
+  reviewNotes: z.string().optional(),
+  createdAt: z.string(),
+  updatedAt: z.string()
+});
+export type PhotoProposal = z.infer<typeof PhotoProposalSchema>;
