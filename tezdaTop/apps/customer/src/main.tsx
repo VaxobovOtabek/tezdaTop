@@ -1,7 +1,11 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
 import { CustomerApp } from './App';
+import { initAnalytics } from './utils/analytics';
 import './index.css';
+
+// Initialize Google Analytics for Customer App
+initAnalytics();
 
 interface ErrorBoundaryProps {
   children: ReactNode;

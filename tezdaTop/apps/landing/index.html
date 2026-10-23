@@ -9,6 +9,28 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Google Analytics (GA4) -->
+    <script>
+      (function() {
+        var gaId = (typeof window !== 'undefined' && window.VITE_GA_MEASUREMENT_ID) || 'G-YAQINTOP01';
+        var script = document.createElement('script');
+        script.id = 'ga-gtag-script';
+        script.async = true;
+        script.src = 'https://www.googletagmanager.com/gtag/js?id=' + gaId;
+        document.head.appendChild(script);
+
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', gaId, {
+          page_path: window.location.pathname + window.location.search,
+          page_title: document.title,
+          send_page_view: true
+        });
+      })();
+    </script>
   </head>
   <body class="bg-[#0B1310] text-[#E8F2EC] font-sans antialiased selection:bg-[#116B50] selection:text-white">
     <div id="root"></div>
