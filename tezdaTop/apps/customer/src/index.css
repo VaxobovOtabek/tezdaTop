@@ -35,6 +35,26 @@
   border: none !important;
 }
 
+/* Prevent black focus bounding box / rectangle on Leaflet SVG paths and layers */
+.leaflet-container svg,
+.leaflet-container svg path,
+.leaflet-container path,
+.leaflet-interactive,
+.leaflet-overlay-pane svg,
+.leaflet-overlay-pane svg path {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent !important;
+}
+
+.leaflet-container svg:focus,
+.leaflet-container svg path:focus,
+.leaflet-container path:focus,
+.leaflet-interactive:focus,
+.leaflet-overlay-pane svg:focus,
+.leaflet-overlay-pane svg path:focus {
+  outline: none !important;
+}
+
 .leaflet-popup-content-wrapper {
   border-radius: 16px !important;
   padding: 4px !important;

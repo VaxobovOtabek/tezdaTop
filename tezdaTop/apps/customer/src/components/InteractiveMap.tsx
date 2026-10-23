@@ -246,7 +246,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       // Radius circle (Qidiruv maydoni)
       const strokeColor = isDarkMode ? '#4ADE80' : '#059669';
       const fillColor = isDarkMode ? '#22C55E' : '#10B981';
-      const radiusLabel = radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`;
 
       if (radiusCircleRef.current) {
         radiusCircleRef.current.setLatLng([userLocation.lat, userLocation.lng]);
@@ -257,14 +256,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           opacity: 0.9,
           dashArray: '6, 6',
           fillColor: fillColor,
-          fillOpacity: isDarkMode ? 0.22 : 0.16
+          fillOpacity: isDarkMode ? 0.22 : 0.16,
+          interactive: false
         });
-        radiusCircleRef.current.unbindTooltip();
-        radiusCircleRef.current.bindTooltip(`🔍 Qidiruv maydoni: ${radiusLabel}`, {
-          permanent: false,
-          direction: 'top',
-          className: 'font-semibold text-xs'
-        });
+        const elem = radiusCircleRef.current.getElement() as SVGElement | null;
+        if (elem?.style) {
+          elem.style.outline = 'none';
+          elem.style.pointerEvents = 'none';
+        }
       } else {
         const circle = L.circle([userLocation.lat, userLocation.lng], {
           radius: radiusM,
@@ -273,14 +272,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           opacity: 0.9,
           dashArray: '6, 6',
           fillColor: fillColor,
-          fillOpacity: isDarkMode ? 0.22 : 0.16
+          fillOpacity: isDarkMode ? 0.22 : 0.16,
+          interactive: false
         }).addTo(map);
 
-        circle.bindTooltip(`🔍 Qidiruv maydoni: ${radiusLabel}`, {
-          permanent: false,
-          direction: 'top',
-          className: 'font-semibold text-xs'
-        });
+        const elem = circle.getElement() as SVGElement | null;
+        if (elem?.style) {
+          elem.style.outline = 'none';
+          elem.style.pointerEvents = 'none';
+        }
 
         radiusCircleRef.current = circle;
       }
@@ -308,6 +308,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       fillColor: fillColor,
       fillOpacity: isDarkMode ? 0.22 : 0.16
     });
+    const elem = radiusCircleRef.current.getElement() as SVGElement | null;
+    if (elem?.style) {
+      elem.style.outline = 'none';
+      elem.style.pointerEvents = 'none';
+    }
   }, [isDarkMode]);
 
   // Update Store Markers
@@ -572,8 +577,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         opacity: 0.9,
         lineCap: 'round',
         lineJoin: 'round',
-        dashArray: isWalking ? '1, 10' : undefined
+        dashArray: isWalking ? '1, 10' : undefined,
+        interactive: false
       }).addTo(map);
+
+      const polyElem = polyline.getElement() as SVGElement | null;
+      if (polyElem?.style) {
+        polyElem.style.outline = 'none';
+        polyElem.style.pointerEvents = 'none';
+      }
 
       routePolylineRef.current = polyline;
 
