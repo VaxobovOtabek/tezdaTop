@@ -267,19 +267,19 @@ export function LandingApp() {
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[1200px] h-[450px] bg-gradient-to-b from-[#116B50]/15 via-[#22C55E]/10 to-transparent blur-[140px] pointer-events-none -z-10" />
 
       {/* HEADER / NAVBAR */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-[#0E1713]/90 backdrop-blur-md border-b border-[#DCE5DF] dark:border-[#22332C] px-4 sm:px-6 lg:px-12 py-3 transition-colors">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-[#0E1713]/90 backdrop-blur-md border-b border-[#DCE5DF] dark:border-[#22332C] px-3 sm:px-6 lg:px-12 py-2.5 sm:py-3 transition-colors">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo & Brand */}
-          <a href="#" className="flex items-center gap-3 shrink-0 group">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#116B50] to-[#22C55E] flex items-center justify-center text-white font-extrabold text-xl shadow-md shadow-[#116B50]/25 group-hover:scale-105 transition">
+          <a href="#" className="flex items-center gap-2 sm:gap-3 shrink-0 group">
+            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#116B50] to-[#22C55E] flex items-center justify-center text-white font-extrabold text-base sm:text-xl shadow-md shadow-[#116B50]/25 group-hover:scale-105 transition">
               Y
             </div>
             <div>
-              <div className="font-extrabold text-lg sm:text-xl tracking-tight text-[#172C28] dark:text-white flex items-center gap-1.5 leading-none">
+              <div className="font-extrabold text-base sm:text-xl tracking-tight text-[#172C28] dark:text-white flex items-center gap-1 leading-none">
                 <span>YaqinTop</span>
-                <span className="w-2 h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-pulse" />
+                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-pulse" />
               </div>
-              <p className="text-[10px] text-[#566A63] dark:text-[#8B9E95] font-medium tracking-tight mt-0.5 hidden xs:block">
+              <p className="text-[10px] text-[#566A63] dark:text-[#8B9E95] font-medium tracking-tight mt-0.5 hidden min-[480px]:block">
                 Mahalliy tovar va xizmatlar ekotizimi
               </p>
             </div>
@@ -297,15 +297,15 @@ export function LandingApp() {
           </nav>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             {/* Region Selector Button */}
             <button
               type="button"
               onClick={() => setIsRegionModalOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 sm:py-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] text-xs font-bold transition shadow-2xs cursor-pointer"
+              className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] text-[11px] sm:text-xs font-bold transition shadow-2xs cursor-pointer"
             >
               <MapPin className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
-              <span className="max-w-[85px] sm:max-w-[120px] truncate">{selectedRegion.replace(' viloyati', '').replace(' shahri', '')}</span>
+              <span className="max-w-[65px] min-[380px]:max-w-[85px] sm:max-w-[120px] truncate">{selectedRegion.replace(' viloyati', '').replace(' shahri', '')}</span>
               <ChevronDown className="w-3 h-3 text-[#566A63] dark:text-[#8B9E95] shrink-0" />
             </button>
 
@@ -313,7 +313,7 @@ export function LandingApp() {
             <button
               onClick={toggleDarkMode}
               title={isDarkMode ? "Yorug' tema" : "Qorong'i tema"}
-              className="w-8.5 h-8.5 sm:w-9 sm:h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] transition flex items-center justify-center shadow-2xs shrink-0 cursor-pointer"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] transition flex items-center justify-center shadow-2xs shrink-0 cursor-pointer"
             >
               {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
             </button>
@@ -321,7 +321,7 @@ export function LandingApp() {
             {/* Kirish / Portal Switcher Button */}
             <button
               onClick={() => setIsPortalModalOpen(true)}
-              className="px-4 py-1.5 sm:py-2 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold transition shadow-sm flex items-center gap-1.5 cursor-pointer"
+              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-[11px] sm:text-xs font-bold transition shadow-sm flex items-center gap-1 sm:gap-1.5 cursor-pointer"
             >
               <span>Kirish</span>
             </button>
@@ -329,7 +329,7 @@ export function LandingApp() {
             {/* Mobile Hamburger */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden w-8.5 h-8.5 p-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-white flex items-center justify-center shadow-2xs shrink-0"
+              className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 p-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-white flex items-center justify-center shadow-2xs shrink-0"
               aria-label="Menyuni ochish"
             >
               {isMobileMenuOpen ? <X className="w-4 h-4 text-rose-500" /> : <Menu className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />}
@@ -383,7 +383,7 @@ export function LandingApp() {
             </div>
 
             {/* Main Headline */}
-            <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-extrabold tracking-tight text-[#172C28] dark:text-white leading-[1.18] sm:leading-[1.15]">
+            <h1 className="text-2xl min-[380px]:text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-extrabold tracking-tight text-[#172C28] dark:text-white leading-[1.2] sm:leading-[1.15]">
               Kerakli tovar va xizmatni{' '}
               <span className="text-[#116B50] dark:text-[#4ADE80]">
                 1 soniyada
@@ -392,33 +392,33 @@ export function LandingApp() {
             </h1>
 
             {/* Subtitle */}
-            <p className="text-sm sm:text-base md:text-lg text-[#566A63] dark:text-[#9CB3A8] mt-4 sm:mt-5 max-w-xl leading-relaxed font-medium">
+            <p className="text-xs sm:text-base md:text-lg text-[#566A63] dark:text-[#9CB3A8] mt-3 sm:mt-5 max-w-xl leading-relaxed font-medium">
               YaqinTop — atrofingizdagi do‘konlar, narxlar va xizmatlarni bir xaritada. Tez, qulay va ishonchli.
             </p>
 
             {/* Big Interactive Search Form */}
-            <form onSubmit={handleHeroSearchSubmit} className="w-full mt-6 sm:mt-8 max-w-2xl">
-              <div className="p-2 sm:p-2.5 bg-white dark:bg-[#14201A] border-2 border-[#116B50]/30 dark:border-[#4ADE80]/30 hover:border-[#116B50] dark:hover:border-[#4ADE80] focus-within:border-[#116B50] rounded-2xl sm:rounded-3xl shadow-lg shadow-[#116B50]/10 flex items-center gap-2 transition duration-200">
-                <Search className="w-5 h-5 text-[#566A63] dark:text-[#8B9E95] ml-2.5 shrink-0" />
+            <form onSubmit={handleHeroSearchSubmit} className="w-full mt-5 sm:mt-8 max-w-2xl">
+              <div className="p-1.5 sm:p-2.5 bg-white dark:bg-[#14201A] border-2 border-[#116B50]/30 dark:border-[#4ADE80]/30 hover:border-[#116B50] dark:hover:border-[#4ADE80] focus-within:border-[#116B50] rounded-2xl sm:rounded-3xl shadow-lg shadow-[#116B50]/10 flex items-center gap-1.5 sm:gap-2 transition duration-200">
+                <Search className="w-4 h-4 sm:w-5 sm:h-5 text-[#566A63] dark:text-[#8B9E95] ml-2 shrink-0" />
                 <input
                   type="text"
                   value={heroSearch}
                   onChange={(e) => setHeroSearch(e.target.value)}
                   placeholder="Masalan: snikers, non, dorixona..."
-                  className="w-full bg-transparent text-sm sm:text-base text-[#172C28] dark:text-white placeholder-[#8B9E95] focus:outline-none px-2 font-medium"
+                  className="w-full min-w-0 bg-transparent text-xs sm:text-base text-[#172C28] dark:text-white placeholder-[#8B9E95] focus:outline-none px-1.5 sm:px-2 font-medium"
                 />
                 <button
                   type="submit"
-                  className="px-5 sm:px-7 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shrink-0 cursor-pointer shadow-md"
+                  className="px-4 sm:px-7 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow-md"
                 >
-                  <Search className="w-4 h-4 hidden sm:inline" />
+                  <Search className="w-3.5 h-3.5 hidden sm:inline" />
                   <span>Qidirish</span>
                 </button>
               </div>
             </form>
 
             {/* Quick Category Pills Row */}
-            <div className="mt-4 sm:mt-5 flex flex-wrap items-center gap-2 max-w-full w-full">
+            <div className="mt-3.5 sm:mt-5 flex flex-wrap items-center gap-1.5 sm:gap-2 max-w-full w-full">
               {[
                 { icon: '🛒', label: 'Oziq-ovqat', query: 'Oziq-ovqat' },
                 { icon: '💊', label: 'Dorixonalar', query: 'Dorixonalar' },
@@ -431,7 +431,7 @@ export function LandingApp() {
                   key={idx}
                   type="button"
                   onClick={() => handleQuickCategoryClick(item.query)}
-                  className="px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50] dark:hover:border-[#4ADE80] hover:bg-[#E0EFE7]/50 text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5 transition shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
+                  className="px-2.5 py-1 sm:px-3.5 sm:py-2 rounded-xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50] dark:hover:border-[#4ADE80] hover:bg-[#E0EFE7]/50 text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1 sm:gap-1.5 transition shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <span>{item.icon}</span>
                   <span>{item.label}</span>
@@ -441,7 +441,7 @@ export function LandingApp() {
           </div>
 
           {/* Right Column: Realistic 3D App Smartphone Mockup with Annotations */}
-          <div className="lg:col-span-5 relative flex items-center justify-center mt-4 lg:mt-0">
+          <div className="lg:col-span-5 relative flex items-center justify-center mt-6 lg:mt-0 px-2 sm:px-0">
             {/* Background Ambient Glow */}
             <div className="absolute inset-0 bg-gradient-to-tr from-[#116B50]/20 to-[#22C55E]/20 rounded-full blur-3xl pointer-events-none" />
 
@@ -465,7 +465,7 @@ export function LandingApp() {
             </div>
 
             {/* Smartphone Frame */}
-            <div className="relative w-[295px] sm:w-[325px] h-[580px] sm:h-[620px] rounded-[48px] bg-slate-900 border-[8px] border-slate-800 shadow-2xl overflow-hidden z-10 ring-1 ring-white/20 flex flex-col">
+            <div className="relative w-full max-w-[280px] min-[360px]:max-w-[295px] sm:max-w-[325px] h-[520px] sm:h-[620px] rounded-[38px] sm:rounded-[48px] bg-slate-900 border-[7px] sm:border-[8px] border-slate-800 shadow-2xl overflow-hidden z-10 ring-1 ring-white/20 flex flex-col mx-auto">
               {/* Dynamic Island / Speaker Notch */}
               <div className="absolute top-2.5 left-1/2 -translate-x-1/2 w-28 h-4 bg-black rounded-full z-40 flex items-center justify-center">
                 <div className="w-2.5 h-2.5 rounded-full bg-slate-800" />
@@ -585,51 +585,51 @@ export function LandingApp() {
       </section>
 
       {/* 2. STATS STRIP / KEY VALUE PROPS (4 Cards) */}
-      <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full my-6 sm:my-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
-          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-3.5 hover:border-[#116B50]/40 transition">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <MapPin className="w-5 h-5 sm:w-6 sm:h-6" />
+      <section className="px-3 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full my-4 sm:my-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-5">
+          <div className="p-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-2.5 sm:gap-3.5 hover:border-[#116B50]/40 transition min-w-0">
+            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <MapPin className="w-4 h-4 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <div className="text-lg sm:text-xl font-extrabold text-[#172C28] dark:text-white leading-tight">50m – 3km</div>
-              <div className="text-[11px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium">Qidiruv radiusi</div>
-            </div>
-          </div>
-
-          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-3.5 hover:border-[#116B50]/40 transition">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
-              <Zap className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
-            <div>
-              <div className="text-lg sm:text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-tight">&lt; 30 ms</div>
-              <div className="text-[11px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium">Tezkor javob</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm sm:text-lg md:text-xl font-extrabold text-[#172C28] dark:text-white leading-tight truncate">50m – 3km</div>
+              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">Qidiruv radiusi</div>
             </div>
           </div>
 
-          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-3.5 hover:border-[#116B50]/40 transition">
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-              <Store className="w-5 h-5 sm:w-6 sm:h-6" />
+          <div className="p-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-2.5 sm:gap-3.5 hover:border-[#116B50]/40 transition min-w-0">
+            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <div className="text-lg sm:text-xl font-extrabold text-[#172C28] dark:text-white leading-tight">100% Real-time</div>
-              <div className="text-[11px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium">Kassa qoldiqlari</div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm sm:text-lg md:text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-tight truncate">&lt; 30 ms</div>
+              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">Tezkor javob</div>
+            </div>
+          </div>
+
+          <div className="p-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-2.5 sm:gap-3.5 hover:border-[#116B50]/40 transition min-w-0">
+            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
+              <Store className="w-4 h-4 sm:w-6 sm:h-6" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm sm:text-lg md:text-xl font-extrabold text-[#172C28] dark:text-white leading-tight truncate">Real-time</div>
+              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">Kassa qoldiqlari</div>
             </div>
           </div>
 
           <a
             href="#portals"
-            className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-3.5 hover:border-[#116B50] dark:hover:border-[#4ADE80] transition group cursor-pointer"
+            className="p-3 sm:p-5 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex items-center gap-2.5 sm:gap-3.5 hover:border-[#116B50] dark:hover:border-[#4ADE80] transition group cursor-pointer min-w-0"
           >
-            <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
-              <Layers className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center shrink-0 group-hover:scale-110 transition">
+              <Layers className="w-4 h-4 sm:w-6 sm:h-6" />
             </div>
-            <div>
-              <div className="text-lg sm:text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-tight flex items-center gap-1.5">
-                <span>4 Ta Portal</span>
-                <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition" />
+            <div className="min-w-0 flex-1">
+              <div className="text-sm sm:text-lg md:text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-tight flex items-center gap-1">
+                <span className="truncate">4 Portal</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition shrink-0" />
               </div>
-              <div className="text-[11px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium">Barchasini ko‘rish</div>
+              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">Barchasi</div>
             </div>
           </a>
         </div>
@@ -906,12 +906,12 @@ export function LandingApp() {
               <img
                 src="https://images.unsplash.com/photo-1542838132-92c53300491e?w=800&auto=format&fit=crop&q=80"
                 alt="YaqinTop do‘konlar va xarid jarayoni"
-                className="w-full h-[360px] sm:h-[440px] object-cover"
+                className="w-full h-[280px] sm:h-[420px] object-cover"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/20 to-transparent" />
 
               {/* Floating Price Badge */}
-              <div className="absolute top-4 left-4 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-emerald-500/30 shadow-lg flex items-center gap-2">
+              <div className="absolute top-3 left-3 sm:top-4 sm:left-4 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-2xl border border-emerald-500/30 shadow-lg flex items-center gap-2">
                 <span className="p-1 rounded-lg bg-[#116B50] text-white text-[10px]">📍</span>
                 <div>
                   <span className="text-[11px] font-bold text-[#172C28] dark:text-white block">Snikers (50g)</span>
@@ -920,22 +920,22 @@ export function LandingApp() {
               </div>
 
               {/* Floating Benefits Card on Bottom */}
-              <div className="absolute bottom-4 left-4 right-4 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-3.5 rounded-2xl border border-white/20 shadow-xl grid grid-cols-2 gap-2.5 text-xs font-bold text-[#116B50] dark:text-[#4ADE80]">
+              <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-white/20 shadow-xl grid grid-cols-2 gap-2 sm:gap-2.5 text-[11px] sm:text-xs font-bold text-[#116B50] dark:text-[#4ADE80]">
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[#172C28] dark:text-white">Tezroq xarid</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[#172C28] dark:text-white truncate">Tezroq xarid</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[#172C28] dark:text-white">Kamroq vaqt</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[#172C28] dark:text-white truncate">Kamroq vaqt</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[#172C28] dark:text-white">Yaqin do‘konlar</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[#172C28] dark:text-white truncate">Yaqin do‘konlar</span>
                 </div>
                 <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[#172C28] dark:text-white">Eng yaxshi narx</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-[#172C28] dark:text-white truncate">Eng yaxshi narx</span>
                 </div>
               </div>
             </div>
@@ -991,27 +991,27 @@ export function LandingApp() {
       </section>
 
       {/* 7. "ATROFINGIZDAGI BARCHA DO'KONLAR BIR XARITADA" (Interaktiv xarita) */}
-      <section id="interactive-map" className="py-12 sm:py-16 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full">
-        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-5 sm:p-8 shadow-sm flex flex-col gap-6 sm:gap-8">
+      <section id="interactive-map" className="py-10 sm:py-16 px-3 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full">
+        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-3.5 sm:p-8 shadow-sm flex flex-col gap-5 sm:gap-8">
           {/* Header Row: Title, Description & CTA */}
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-6 pb-2 border-b border-[#DCE5DF]/60 dark:border-[#22332C]">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4 sm:gap-6 pb-2 border-b border-[#DCE5DF]/60 dark:border-[#22332C]">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-2 sm:mb-3">
                 <Compass className="w-3.5 h-3.5" />
                 <span>Interaktiv xarita</span>
               </div>
-              <h3 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight leading-tight">
+              <h3 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight leading-tight">
                 Atrofingizdagi barcha do‘konlar <span className="text-[#116B50] dark:text-[#4ADE80]">bir xaritada</span>
               </h3>
-              <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-2 leading-relaxed font-medium">
+              <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-1.5 sm:mt-2 leading-relaxed font-medium">
                 Real vaqt rejimida do‘konlar, narxlar, tovarlar va xizmatlar. Sizga eng yaqin va qulay variantlarni xaritada ko‘ring.
               </p>
             </div>
 
-            <div className="flex items-center gap-3 shrink-0">
+            <div className="flex items-center gap-3 shrink-0 w-full sm:w-auto">
               <a
                 href="/customer"
-                className="px-6 py-3 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shadow-md cursor-pointer"
+                className="w-full sm:w-auto justify-center px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shadow-md cursor-pointer"
               >
                 <span>Xaritani to‘liq ochish</span>
                 <ArrowRight className="w-4 h-4" />
@@ -1023,60 +1023,60 @@ export function LandingApp() {
           <MinimalCustomerMapWidget isDarkMode={isDarkMode} />
 
           {/* 4 Feature Badges Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
-            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 pt-2">
+            <div className="flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
               <Zap className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>Real vaqt ma’lumotlari</span>
+              <span className="truncate">Real vaqt ma’lumotlari</span>
             </div>
-            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+            <div className="flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
               <MapPin className="w-4 h-4 text-teal-500 shrink-0" />
-              <span>Aniq geolokatsiya</span>
+              <span className="truncate">Aniq geolokatsiya</span>
             </div>
-            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+            <div className="flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
               <Navigation className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>Qulay marshrut</span>
+              <span className="truncate">Qulay marshrut</span>
             </div>
-            <div className="flex items-center gap-2.5 p-3 rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+            <div className="flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
               <Store className="w-4 h-4 text-teal-500 shrink-0" />
-              <span>Do‘kon tafsilotlari</span>
+              <span className="truncate">Do‘kon tafsilotlari</span>
             </div>
           </div>
         </div>
       </section>
 
       {/* 8. BIZNESLAR UCHUN (Tadbirkorlar & Do'kon qo'shish) */}
-      <section id="for-business" className="py-12 sm:py-16 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full">
-        <div className="rounded-3xl bg-gradient-to-br from-[#116B50]/10 via-emerald-50/50 to-teal-50/30 dark:from-[#11241C] dark:via-[#0F1E17] dark:to-[#0A1611] border border-[#116B50]/30 p-6 sm:p-10 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-8">
-          <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#116B50]/15 text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3">
+      <section id="for-business" className="py-10 sm:py-16 px-3 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full">
+        <div className="rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#116B50]/10 via-emerald-50/50 to-teal-50/30 dark:from-[#11241C] dark:via-[#0F1E17] dark:to-[#0A1611] border border-[#116B50]/30 p-5 sm:p-10 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-6 sm:gap-8">
+          <div className="max-w-xl w-full text-left">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#116B50]/15 text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-2.5 sm:mb-3">
               <Store className="w-3.5 h-3.5" />
               <span>Bizneslar & Do‘kon egalari uchun</span>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
+            <h3 className="text-xl sm:text-3xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
               O‘z do‘koningizni YaqinTop tarmog‘iga bepul qo‘shing
             </h3>
             <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] mt-2 font-medium leading-relaxed">
               Kuniga minglab yaqin atrofdagi xaridorlar sizning mahsulotlaringizni xaritada ko‘rishadi. Excel orqali tovarlarni yuklang, narxlarni yangilang va savdoni oshiring.
             </p>
 
-            <div className="flex items-center gap-3 mt-6">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 mt-5 sm:mt-6 w-full sm:w-auto">
               <a
                 href="/owner"
-                className="px-5 py-2.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shadow-sm"
+                className="justify-center px-5 py-2.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shadow-sm"
               >
                 <Store className="w-4 h-4" />
                 <span>Do‘kon kabinetini ochish</span>
               </a>
               <a
                 href="/moderator"
-                className="px-4 py-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-xs font-bold text-[#172C28] dark:text-white hover:bg-[#F3F6F3] transition"
+                className="justify-center px-4 py-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-xs font-bold text-[#172C28] dark:text-white hover:bg-[#F3F6F3] transition flex items-center gap-2"
               >
                 <span>Moderatsiya arizasi</span>
               </a>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 w-full lg:w-auto">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full lg:w-auto">
             <div className="p-4 rounded-2xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] shadow-2xs text-center">
               <span className="text-2xl mb-1 block">⚡</span>
               <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">3 daqiqada</span>
@@ -1152,26 +1152,26 @@ export function LandingApp() {
       </section>
 
       {/* 10. FOYDALANISH JARAYONI (4 Bosqichli Timeline Karta) */}
-      <section className="px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full my-6 sm:my-10">
-        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-[32px] p-6 sm:p-10 lg:p-12 shadow-sm">
+      <section className="px-3 sm:px-6 lg:px-12 max-w-7xl mx-auto w-full my-6 sm:my-10">
+        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-[32px] p-5 sm:p-10 lg:p-12 shadow-sm">
           {/* 4 Process Columns */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 lg:gap-6">
             {/* Step 1 */}
             <div className="flex flex-col items-start text-left">
-              <div className="flex items-center gap-2.5 mb-3.5">
-                <div className="relative shrink-0 w-10 h-13 flex items-start justify-center">
-                  <svg viewBox="0 0 40 52" className="w-10 h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
+              <div className="flex items-center gap-2.5 mb-3 sm:mb-3.5">
+                <div className="relative shrink-0 w-9 sm:w-10 h-12 sm:h-13 flex items-start justify-center">
+                  <svg viewBox="0 0 40 52" className="w-9 sm:w-10 h-12 sm:h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
                     <path d="M20 0C8.95 0 0 8.95 0 20C0 32.5 17.8 49.6 18.9 50.8C19.5 51.4 20.5 51.4 21.1 50.8C22.2 49.6 40 32.5 40 20C40 8.95 31.05 0 20 0Z" />
                   </svg>
-                  <div className="absolute top-[6px] w-5.5 h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                  <div className="absolute top-[5px] sm:top-[6px] w-5 sm:w-5.5 h-5 sm:h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
                     <span className="font-black text-xs text-[#116B50]">1</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
-                  <Search className="w-5 h-5" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                  <Search className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
-              <h4 className="text-base sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-2">
+              <h4 className="text-sm sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-1.5 sm:mb-2">
                 Tovarni qidirish va lokatsiya
               </h4>
               <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
@@ -1181,20 +1181,20 @@ export function LandingApp() {
 
             {/* Step 2 */}
             <div className="flex flex-col items-start text-left">
-              <div className="flex items-center gap-2.5 mb-3.5">
-                <div className="relative shrink-0 w-10 h-13 flex items-start justify-center">
-                  <svg viewBox="0 0 40 52" className="w-10 h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
+              <div className="flex items-center gap-2.5 mb-3 sm:mb-3.5">
+                <div className="relative shrink-0 w-9 sm:w-10 h-12 sm:h-13 flex items-start justify-center">
+                  <svg viewBox="0 0 40 52" className="w-9 sm:w-10 h-12 sm:h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
                     <path d="M20 0C8.95 0 0 8.95 0 20C0 32.5 17.8 49.6 18.9 50.8C19.5 51.4 20.5 51.4 21.1 50.8C22.2 49.6 40 32.5 40 20C40 8.95 31.05 0 20 0Z" />
                   </svg>
-                  <div className="absolute top-[6px] w-5.5 h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                  <div className="absolute top-[5px] sm:top-[6px] w-5 sm:w-5.5 h-5 sm:h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
                     <span className="font-black text-xs text-[#116B50]">2</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
-              <h4 className="text-base sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-2">
+              <h4 className="text-sm sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-1.5 sm:mb-2">
                 Narx va qoldiqni solishtirish
               </h4>
               <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
@@ -1204,20 +1204,20 @@ export function LandingApp() {
 
             {/* Step 3 */}
             <div className="flex flex-col items-start text-left">
-              <div className="flex items-center gap-2.5 mb-3.5">
-                <div className="relative shrink-0 w-10 h-13 flex items-start justify-center">
+              <div className="flex items-center gap-2.5 mb-3 sm:mb-3.5">
+                <div className="relative shrink-0 w-9 sm:w-10 h-12 sm:h-13 flex items-start justify-center">
                   <svg viewBox="0 0 40 52" className="w-10 h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
                     <path d="M20 0C8.95 0 0 8.95 0 20C0 32.5 17.8 49.6 18.9 50.8C19.5 51.4 20.5 51.4 21.1 50.8C22.2 49.6 40 32.5 40 20C40 8.95 31.05 0 20 0Z" />
                   </svg>
-                  <div className="absolute top-[6px] w-5.5 h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                  <div className="absolute top-[5px] sm:top-[6px] w-5 sm:w-5.5 h-5 sm:h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
                     <span className="font-black text-xs text-[#116B50]">3</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
-                  <Navigation className="w-5 h-5" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                  <Navigation className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
-              <h4 className="text-base sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-2">
+              <h4 className="text-sm sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-1.5 sm:mb-2">
                 Xaritada qulay yo‘l olish
               </h4>
               <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
@@ -1227,20 +1227,20 @@ export function LandingApp() {
 
             {/* Step 4 */}
             <div className="flex flex-col items-start text-left">
-              <div className="flex items-center gap-2.5 mb-3.5">
-                <div className="relative shrink-0 w-10 h-13 flex items-start justify-center">
+              <div className="flex items-center gap-2.5 mb-3 sm:mb-3.5">
+                <div className="relative shrink-0 w-9 sm:w-10 h-12 sm:h-13 flex items-start justify-center">
                   <svg viewBox="0 0 40 52" className="w-10 h-13 text-[#116B50] dark:text-[#22C55E]" fill="currentColor">
                     <path d="M20 0C8.95 0 0 8.95 0 20C0 32.5 17.8 49.6 18.9 50.8C19.5 51.4 20.5 51.4 21.1 50.8C22.2 49.6 40 32.5 40 20C40 8.95 31.05 0 20 0Z" />
                   </svg>
-                  <div className="absolute top-[6px] w-5.5 h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
+                  <div className="absolute top-[5px] sm:top-[6px] w-5 sm:w-5.5 h-5 sm:h-5.5 rounded-full bg-white flex items-center justify-center shadow-xs">
                     <span className="font-black text-xs text-[#116B50]">4</span>
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
-                  <ShoppingBag className="w-5 h-5" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-emerald-50 dark:bg-[#1A2E24] border border-emerald-500/20 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                  <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
               </div>
-              <h4 className="text-base sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-2">
+              <h4 className="text-sm sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-1.5 sm:mb-2">
                 Xaridni yakunlash va baholash
               </h4>
               <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
@@ -1257,10 +1257,10 @@ export function LandingApp() {
           </div>
 
           {/* Bottom Interactive Pill (like in reference image) */}
-          <div className="flex justify-end mt-4">
+          <div className="flex justify-center sm:justify-end mt-5 sm:mt-4">
             <a
               href="/customer"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#E0EFE7] dark:bg-[#1A2E24] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold hover:bg-[#116B50] hover:text-white dark:hover:bg-[#22C55E] dark:hover:text-[#0E1713] transition shadow-2xs group cursor-pointer"
+              className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#E0EFE7] dark:bg-[#1A2E24] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold hover:bg-[#116B50] hover:text-white dark:hover:bg-[#22C55E] dark:hover:text-[#0E1713] transition shadow-2xs group cursor-pointer text-center"
             >
               <span>Sizga kerakli tovar yoki do‘kon</span>
               <span className="font-mono text-[#116B50] dark:text-[#4ADE80] group-hover:text-white animate-pulse font-bold">|</span>
@@ -1270,10 +1270,10 @@ export function LandingApp() {
       </section>
 
       {/* 11. FOOTER */}
-      <footer className="mt-auto bg-white dark:bg-[#0E1713] border-t border-[#DCE5DF] dark:border-[#22332C] pt-12 pb-8 px-4 sm:px-6 lg:px-12 transition-colors">
-        <div className="max-w-7xl mx-auto flex flex-col gap-10">
+      <footer className="mt-auto bg-white dark:bg-[#0E1713] border-t border-[#DCE5DF] dark:border-[#22332C] pt-10 sm:pt-12 pb-8 px-3 sm:px-6 lg:px-12 transition-colors">
+        <div className="max-w-7xl mx-auto flex flex-col gap-8 sm:gap-10">
           {/* Quick Portal Access Ribbon in Footer */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-[#F4F8F5] dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="p-3.5 sm:p-5 rounded-2xl bg-[#F4F8F5] dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-center md:text-left">
               <span className="text-xs sm:text-sm font-bold text-[#172C28] dark:text-white block">
                 Tizim Portallariga to‘g‘ridan-to‘g‘ri kirish:
@@ -1282,34 +1282,34 @@ export function LandingApp() {
                 O‘z rolingiz bo‘yicha kerakli portalni tanlang
               </span>
             </div>
-            <div className="flex flex-wrap items-center justify-center gap-2 w-full md:w-auto">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 w-full md:w-auto">
               <a
                 href="/customer"
-                className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer"
+                className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
               >
-                <Search className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-                <span>Xaridor Ilovasi</span>
+                <Search className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
+                <span className="truncate">Xaridor</span>
               </a>
               <a
                 href="/owner"
-                className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer"
+                className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
               >
-                <Store className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-                <span>Do‘kon Kabineti</span>
+                <Store className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
+                <span className="truncate">Do‘kon</span>
               </a>
               <a
                 href="/moderator"
-                className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer"
+                className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
               >
-                <ShieldCheck className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-                <span>Moderator Portali</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
+                <span className="truncate">Moderator</span>
               </a>
               <a
                 href="/admin"
-                className="px-3.5 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer"
+                className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
               >
-                <Shield className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-                <span>Admin Paneli</span>
+                <Shield className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
+                <span className="truncate">Admin</span>
               </a>
             </div>
           </div>

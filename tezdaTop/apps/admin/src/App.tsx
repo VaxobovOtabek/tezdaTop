@@ -271,6 +271,25 @@ export function AdminApp() {
     isVerified: true
   });
 
+  // Add Store to Existing Organization Modal
+  const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
+  const [selectedOrgForStore, setSelectedOrgForStore] = useState<any | null>(null);
+  const [newStoreForm, setNewStoreForm] = useState({
+    name: '',
+    region: 'Toshkent shahri',
+    city: 'Yunusobod',
+    district: '',
+    address: '',
+    phone: '+998 90 ',
+    lat: '41.311081',
+    lng: '69.240562',
+    type: 'RETAIL',
+    photoUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=60',
+    openTime: '08:00',
+    closeTime: '22:00',
+    isVerified: true
+  });
+
   // Edit Store Modal
   const [isEditStoreModalOpen, setIsEditStoreModalOpen] = useState(false);
   const [editStoreForm, setEditStoreForm] = useState<{
@@ -294,7 +313,7 @@ export function AdminApp() {
 
   // Leaflet Location Picker Modal
   const [isLocationPickerOpen, setIsLocationPickerOpen] = useState(false);
-  const [locationPickerTarget, setLocationPickerTarget] = useState<'NEW_ORG' | 'EDIT_STORE'>('NEW_ORG');
+  const [locationPickerTarget, setLocationPickerTarget] = useState<'NEW_ORG' | 'EDIT_STORE' | 'ADD_STORE'>('NEW_ORG');
 
   const handleOpenLocationPickerForNewOrg = () => {
     setLocationPickerTarget('NEW_ORG');
@@ -303,6 +322,11 @@ export function AdminApp() {
 
   const handleOpenLocationPickerForEditStore = () => {
     setLocationPickerTarget('EDIT_STORE');
+    setIsLocationPickerOpen(true);
+  };
+
+  const handleOpenLocationPickerForAddStore = () => {
+    setLocationPickerTarget('ADD_STORE');
     setIsLocationPickerOpen(true);
   };
 
@@ -321,6 +345,13 @@ export function AdminApp() {
         lng: String(coords.lng)
       }) : null);
       showToast(`📍 Do‘kon koordinatalari yangilandi: ${coords.lat}, ${coords.lng}`);
+    } else if (locationPickerTarget === 'ADD_STORE') {
+      setNewStoreForm(prev => ({
+        ...prev,
+        lat: String(coords.lat),
+        lng: String(coords.lng)
+      }));
+      showToast(`📍 Yangi filial koordinatalari kartadan belgilandi: ${coords.lat}, ${coords.lng}`);
     }
   };
 
@@ -711,6 +742,80 @@ export function AdminApp() {
       }
     } catch {
       showToast('Server bilan aloqa xatosi');
+    }
+  };
+
+  // Open Add Store for specific Organization Modal
+  const handleOpenAddStoreForOrg = (org: any) => {
+    setSelectedOrgForStore(org);
+    setNewStoreForm({
+      name: `${org.name} - Filial`,
+      region: org.region || 'Toshkent shahri',
+      city: org.city || 'Yunusobod',
+      district: org.district || '',
+      address: org.region && org.city ? `${org.region}, ${org.city}` : '',
+      phone: '+998 ',
+      lat: '41.311081',
+      lng: '69.240562',
+      type: org.type || 'RETAIL',
+      photoUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=60',
+      openTime: '08:00',
+      closeTime: '22:00',
+      isVerified: true
+    });
+    setIsAddStoreModalOpen(true);
+  };
+
+  const handleCreateStore = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedOrgForStore) return;
+    if (!newStoreForm.name.trim()) {
+      showToast('Filial nomini kiriting');
+      return;
+    }
+    if (!newStoreForm.address.trim()) {
+      showToast('Filial manzilini kiriting');
+      return;
+    }
+
+    try {
+      const hours = [1, 2, 3, 4, 5, 6, 0].map(day => ({
+        dayOfWeek: day,
+        openTime: newStoreForm.openTime,
+        closeTime: newStoreForm.closeTime,
+        isClosed: false
+      }));
+
+      const res = await fetch('/api/v1/admin/stores', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          organizationId: selectedOrgForStore.id,
+          name: newStoreForm.name,
+          inn: selectedOrgForStore.inn || '',
+          region: newStoreForm.region,
+          city: newStoreForm.city,
+          district: newStoreForm.district,
+          address: newStoreForm.address,
+          phone: newStoreForm.phone,
+          lat: newStoreForm.lat,
+          lng: newStoreForm.lng,
+          photoUrl: newStoreForm.photoUrl,
+          type: newStoreForm.type,
+          hours
+        })
+      });
+
+      if (res.ok) {
+        showToast('Yangi filial muvaffaqiyatli qo‘shildi va kartada paydo bo‘ldi!');
+        setIsAddStoreModalOpen(false);
+        loadData();
+      } else {
+        const err = await res.json();
+        showToast(err.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa uzildi');
     }
   };
 
@@ -1223,22 +1328,39 @@ export function AdminApp() {
                               {org.type}
                             </Tag>
                           </div>
-                          <div className="flex items-center gap-3 text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5">
-                            <span>🏪 {orgStores.length} ta do‘kon</span>
+                          <div className="flex items-center gap-3 text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5 flex-wrap">
+                            <span className={orgStores.length === 0 ? "text-amber-600 dark:text-amber-400 font-bold" : ""}>
+                              🏪 {orgStores.length} ta do‘kon
+                            </span>
                             <span>·</span>
                             <span className="font-medium text-[#116B50] dark:text-[#4ADE80]">
                               👥 {orgUsersCount || 1} ta xodim
                             </span>
                           </div>
+                          {orgStores.length === 0 && (
+                            <div className="mt-2">
+                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800">
+                                ⚠️ Filial yo‘q (kartada ko‘rinmaydi)
+                              </span>
+                            </div>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-1.5 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C]">
                           <button
-                            onClick={() => handleOpenOrgUsers(org)}
-                            className="flex-1 py-1.5 px-2.5 rounded-lg bg-[#116B50] text-white text-xs font-semibold hover:bg-[#0d533e] transition flex items-center justify-center gap-1 shadow-sm"
+                            onClick={() => handleOpenAddStoreForOrg(org)}
+                            className="py-1.5 px-2.5 rounded-lg border border-[#116B50] dark:border-[#4ADE80] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] text-xs font-semibold transition flex items-center justify-center gap-1 shadow-sm shrink-0"
+                            title="Yangi filial / do‘kon qo‘shish (kartada ko‘rinishi uchun)"
                           >
-                            <Users className="w-3.5 h-3.5" />
-                            <span>Xodimlar ({orgUsersCount || 1})</span>
+                            <Store className="w-3.5 h-3.5" />
+                            <span>+ Filial</span>
+                          </button>
+                          <button
+                            onClick={() => handleOpenOrgUsers(org)}
+                            className="flex-1 py-1.5 px-2.5 rounded-lg bg-[#116B50] text-white text-xs font-semibold hover:bg-[#0d533e] transition flex items-center justify-center gap-1 shadow-sm truncate"
+                          >
+                            <Users className="w-3.5 h-3.5 shrink-0" />
+                            <span className="truncate">Xodimlar ({orgUsersCount || 1})</span>
                           </button>
                           <button
                             onClick={() => {
@@ -1251,7 +1373,7 @@ export function AdminApp() {
                               setIsAddUserModalOpen(true);
                             }}
                             title="Yangi xodim / login qo‘shish"
-                            className="p-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
+                            className="p-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition shrink-0"
                           >
                             <Plus className="w-4 h-4" />
                           </button>
@@ -1341,16 +1463,30 @@ export function AdminApp() {
                     ))}
                   </div>
 
-                  <div className="flex items-center gap-2 text-xs">
+                  <div className="flex items-center gap-2 text-xs flex-wrap">
                     <span className="text-[#566A63] dark:text-[#8B9E95]">
                       Natija: <strong>{filteredStores.length} ta do‘kon</strong>
                     </span>
                     <button
                       onClick={() => setActiveTab('map-hub')}
-                      className="px-2.5 py-1 rounded-lg bg-[#116B50]/10 dark:bg-[#4ADE80]/10 text-[#116B50] dark:text-[#4ADE80] font-bold hover:bg-[#116B50]/20 flex items-center gap-1"
+                      className="px-2.5 py-1 rounded-lg bg-[#116B50]/10 dark:bg-[#4ADE80]/10 text-[#116B50] dark:text-[#4ADE80] font-bold hover:bg-[#116B50]/20 flex items-center gap-1 transition"
                     >
                       <MapPin className="w-3.5 h-3.5" />
                       <span>Xaritada ko‘rish</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        const targetOrg = organizations[0] || null;
+                        if (targetOrg) {
+                          handleOpenAddStoreForOrg(targetOrg);
+                        } else {
+                          setIsAddOrgModalOpen(true);
+                        }
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-[#116B50] text-white font-bold hover:bg-[#0d533e] flex items-center gap-1 shadow-sm transition"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>+ Filial qo‘shish</span>
                     </button>
                   </div>
                 </div>
@@ -1846,10 +1982,9 @@ export function AdminApp() {
               />
             </div>
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">STIR (INN - 9 raqam) *</label>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">STIR (INN - 9 raqam) (ixtiyoriy)</label>
               <input
                 type="text"
-                required
                 maxLength={9}
                 value={newOrgForm.inn}
                 onChange={(e) => setNewOrgForm({ ...newOrgForm, inn: e.target.value.replace(/\D/g, '').slice(0, 9) })}
@@ -2070,6 +2205,215 @@ export function AdminApp() {
             </Button>
             <Button variant="primary" type="submit">
               Kartaga qo‘shish
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ADD STORE TO ORGANIZATION MODAL */}
+      <Modal
+        isOpen={isAddStoreModalOpen}
+        onClose={() => setIsAddStoreModalOpen(false)}
+        title={selectedOrgForStore ? `"${selectedOrgForStore.name}" ga yangi filial / do‘kon qo‘shish` : 'Yangi filial qo‘shish'}
+      >
+        <form onSubmit={handleCreateStore} className="flex flex-col gap-4 text-xs">
+          <div className="bg-emerald-50 dark:bg-emerald-950/30 p-2.5 rounded-xl border border-emerald-200 dark:border-emerald-800 text-[#116B50] dark:text-[#4ADE80] flex flex-col gap-1.5">
+            <div className="flex items-center gap-2 font-semibold">
+              <Building2 className="w-4 h-4 shrink-0" />
+              <span>Biriktiriladigan Tashkilot:</span>
+            </div>
+            <select
+              value={selectedOrgForStore?.id || ''}
+              onChange={(e) => {
+                const found = organizations.find(o => o.id === e.target.value);
+                if (found) {
+                  setSelectedOrgForStore(found);
+                  setNewStoreForm(prev => ({
+                    ...prev,
+                    region: found.region || prev.region,
+                    city: found.city || prev.city,
+                    district: found.district || prev.district,
+                    type: found.type || prev.type
+                  }));
+                }
+              }}
+              className="w-full p-2 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#172C28] dark:text-[#E8F2EC] font-medium"
+            >
+              {organizations.map(org => (
+                <option key={org.id} value={org.id}>
+                  {org.name} ({org.type || 'RETAIL'}) — {org.region || 'Toshkent'}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Filial / Do‘kon nomi *</label>
+              <input
+                type="text"
+                required
+                value={newStoreForm.name}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, name: e.target.value })}
+                placeholder="Masalan: Trastbank Guliston filiali"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Filial turi</label>
+              <input
+                type="text"
+                value={newStoreForm.type}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, type: e.target.value })}
+                placeholder="Bank, Retail..."
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-2">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Viloyat *</label>
+              <select
+                value={newStoreForm.region}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, region: e.target.value })}
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              >
+                {REGION_OPTIONS.filter(r => r !== 'Barcha viloyatlar').map((reg) => (
+                  <option key={reg} value={reg}>
+                    {reg}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tuman / Shahar *</label>
+              <input
+                type="text"
+                required
+                value={newStoreForm.city}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, city: e.target.value })}
+                placeholder="Guliston"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Mahalla (MFY)</label>
+              <input
+                type="text"
+                value={newStoreForm.district}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, district: e.target.value })}
+                placeholder="Taraqqiyot MFY"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Aniq Manzil *</label>
+            <input
+              type="text"
+              required
+              value={newStoreForm.address}
+              onChange={(e) => setNewStoreForm({ ...newStoreForm, address: e.target.value })}
+              placeholder="Masalan: Sayxun ko‘chasi, 28-uy"
+              className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Telefon raqam *</label>
+              <input
+                type="text"
+                required
+                maxLength={17}
+                value={newStoreForm.phone}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, phone: formatUzPhone(e.target.value) })}
+                placeholder="+998 78 140 00 88"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs font-mono text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Do‘kon / Filial rasmi URL</label>
+              <input
+                type="url"
+                value={newStoreForm.photoUrl}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, photoUrl: e.target.value })}
+                placeholder="https://..."
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+          </div>
+
+          {/* Coordinates */}
+          <div className="p-3.5 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-2xl border border-[#DCE5DF] dark:border-[#22332C]">
+            <div className="flex items-center justify-between gap-2 mb-2.5">
+              <span className="font-bold flex items-center gap-1.5 text-xs text-[#172C28] dark:text-[#E8F2EC]">
+                <MapPin className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                Karta koordinatalari (Xaritada belgilanishi uchun)
+              </span>
+              <button
+                type="button"
+                onClick={handleOpenLocationPickerForAddStore}
+                className="px-3 py-1.5 bg-[#116B50] hover:bg-[#0d533e] active:scale-95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+              >
+                <Map className="w-3.5 h-3.5" />
+                <span>🗺️ Kartadan belgilash</span>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[11px] font-semibold block mb-1">Kenglik (Latitude)</label>
+                <input
+                  type="text"
+                  required
+                  value={newStoreForm.lat}
+                  onChange={(e) => setNewStoreForm({ ...newStoreForm, lat: e.target.value })}
+                  className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] font-mono text-xs"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] font-semibold block mb-1">Uzunlik (Longitude)</label>
+                <input
+                  type="text"
+                  required
+                  value={newStoreForm.lng}
+                  onChange={(e) => setNewStoreForm({ ...newStoreForm, lng: e.target.value })}
+                  className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] font-mono text-xs"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Ochilish vaqti</label>
+              <input
+                type="time"
+                value={newStoreForm.openTime}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, openTime: e.target.value })}
+                className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E]"
+              />
+            </div>
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Yopilish vaqti</label>
+              <input
+                type="time"
+                value={newStoreForm.closeTime}
+                onChange={(e) => setNewStoreForm({ ...newStoreForm, closeTime: e.target.value })}
+                className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E]"
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2 border-t border-[#DCE5DF] dark:border-[#22332C]">
+            <Button variant="secondary" type="button" onClick={() => setIsAddStoreModalOpen(false)}>
+              Bekor qilish
+            </Button>
+            <Button variant="primary" type="submit">
+              Filialni kartaga qo‘shish
             </Button>
           </div>
         </form>
@@ -2861,16 +3205,22 @@ export function AdminApp() {
             initialLat={
               locationPickerTarget === 'NEW_ORG'
                 ? parseFloat(newOrgForm.lat) || 41.311081
+                : locationPickerTarget === 'ADD_STORE'
+                ? parseFloat(newStoreForm.lat) || 41.311081
                 : parseFloat(editStoreForm?.lat || '41.311081') || 41.311081
             }
             initialLng={
               locationPickerTarget === 'NEW_ORG'
                 ? parseFloat(newOrgForm.lng) || 69.240562
+                : locationPickerTarget === 'ADD_STORE'
+                ? parseFloat(newStoreForm.lng) || 69.240562
                 : parseFloat(editStoreForm?.lng || '69.240562') || 69.240562
             }
             title={
               locationPickerTarget === 'NEW_ORG'
                 ? `${newOrgForm.name || 'Yangi tashkilot / filial'} lokatsiyasini kartada belgilash`
+                : locationPickerTarget === 'ADD_STORE'
+                ? `${selectedOrgForStore?.name || 'Tashkilot'} filiali lokatsiyasini kartada belgilash`
                 : `${editStoreForm?.name || 'Do‘kon'} lokatsiyasini kartada belgilash`
             }
             isDarkMode={isDarkMode}

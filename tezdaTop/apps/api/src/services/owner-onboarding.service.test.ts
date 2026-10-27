@@ -41,4 +41,10 @@ describe('owner tashkilot yaratishi', () => {
     expect(verifyOwnerPassword('wrong-password', hash)).toBe(false);
     expect(verifyOwnerPassword('legacy-password', 'legacy-password')).toBe(true);
   });
+  it('allows creating organization without INN (optional INN)', () => {
+    const database = fixture();
+    const resultNoInn = createOwnerOrganization(database, { ...input, email: 'no-inn@example.test', phone: '+998909999999', inn: '' });
+    expect(resultNoInn.organization.inn).toBe('');
+    expect(database.organizations.size).toBe(1);
+  });
 });

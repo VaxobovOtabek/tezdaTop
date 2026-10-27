@@ -310,7 +310,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
   return (
     <div className="w-full flex flex-col gap-4">
       {/* Top Controls Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 p-3.5 sm:p-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-white/10 rounded-2xl shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-3 p-3 sm:p-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-white/10 rounded-xl sm:rounded-2xl shadow-sm">
         {/* Radius Selector */}
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <span className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95] mr-1 flex items-center gap-1">
@@ -321,7 +321,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
             <button
               key={r}
               onClick={() => setSelectedRadius(r)}
-              className={`px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+              className={`px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 selectedRadius === r
                   ? 'bg-[#116B50] dark:bg-[#4ADE80] text-white dark:text-[#0E1713] shadow-sm'
                   : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
@@ -354,9 +354,9 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
       </div>
 
       {/* Main Interactive Map Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3.5 sm:gap-4 items-stretch">
         {/* Real Leaflet Map Viewport (Left 8 cols) */}
-        <div className="lg:col-span-8 min-h-[360px] sm:min-h-[460px] h-[360px] sm:h-[460px] rounded-3xl relative overflow-hidden border border-[#DCE5DF] dark:border-white/10 shadow-inner flex flex-col justify-between">
+        <div className="lg:col-span-8 min-h-[300px] sm:min-h-[440px] h-[300px] sm:h-[440px] rounded-2xl sm:rounded-3xl relative overflow-hidden border border-[#DCE5DF] dark:border-white/10 shadow-inner flex flex-col justify-between">
           <div ref={mapContainerRef} className="w-full h-full z-0" />
 
           {/* Floating Zoom & Center Map Controls */}
@@ -392,7 +392,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         </div>
 
         {/* Selected Store Inspector Card (Right 4 cols) */}
-        <div className="lg:col-span-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-white/10 rounded-3xl p-5 flex flex-col justify-between shadow-sm">
+        <div className="lg:col-span-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-5 flex flex-col justify-between shadow-sm">
           {selectedStore ? (
             <div className="flex flex-col gap-4">
               <div>

@@ -5,15 +5,23 @@ import type { InMemoryDatabase } from '../db/in-memory-db.js';
 
 const text = z.string().trim().min(1).max(160);
 export const OwnerOnboardingSchema = z.object({
-  name: text, inn: z.string().regex(/^\d{9}$/), region: text, city: text,
-  district: z.string().trim().max(160).default(''), type: text.max(80),
-  storeName: z.string().trim().max(160).default(''), address: text,
+  name: text,
+  inn: z.union([z.literal(''), z.string().trim().regex(/^\d{9}$/)]).optional().default(''),
+  region: text,
+  city: text,
+  district: z.string().trim().max(160).default(''),
+  type: text.max(80),
+  storeName: z.string().trim().max(160).default(''),
+  address: text,
   phone: z.string().regex(/^\+998\d{9}$/),
-  lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180),
+  lat: z.coerce.number().min(-90).max(90),
+  lng: z.coerce.number().min(-180).max(180),
   photoUrl: z.union([z.literal(''), z.string().url().max(2000)]).default(''),
   openTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   closeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  fullName: text, email: z.string().trim().email().max(160), password: z.string().min(8).max(128)
+  fullName: text,
+  email: z.string().trim().email().max(160),
+  password: z.string().min(8).max(128)
 });
 
 export function hashOwnerPassword(password: string) {
@@ -35,14 +43,14 @@ export function createOwnerOrganization(database: InMemoryDatabase, input: unkno
   if (Array.from(database.users.values()).some(user => user.email.toLowerCase() === email || user.phone?.replace(/\D/g, '') === data.phone.replace(/\D/g, ''))) {
     throw new Error('Bu email yoki telefon bilan hisob mavjud. Boshqa login kiriting yoki tizimga kiring.');
   }
-  if (Array.from(database.organizations.values()).some(org => org.inn === data.inn)) {
+  if (data.inn && data.inn.trim() !== '' && Array.from(database.organizations.values()).some(org => org.inn && org.inn === data.inn)) {
     throw new Error('Bu STIR bilan tashkilot allaqachon mavjud.');
   }
   const now = new Date().toISOString();
-  const organization = { id: uuidv4(), name: data.name, inn: data.inn, region: data.region, city: data.city, district: data.district, type: data.type, status: 'ACTIVE' as const, createdAt: now };
+  const organization = { id: uuidv4(), name: data.name, inn: data.inn || '', region: data.region, city: data.city, district: data.district, type: data.type, status: 'ACTIVE' as const, createdAt: now };
   const store = {
     id: uuidv4(), organizationId: organization.id, name: data.storeName || data.name,
-    inn: data.inn, region: data.region, city: data.city, district: data.district,
+    inn: data.inn || '', region: data.region, city: data.city, district: data.district,
     address: data.address, phone: data.phone, location: { lat: data.lat, lng: data.lng },
     type: data.type, status: 'ACTIVE' as const, isVerified: false, rating: 0, reviewCount: 0,
     photoUrl: data.photoUrl, hours: [0, 1, 2, 3, 4, 5, 6].map(dayOfWeek => ({ dayOfWeek, openTime: data.openTime, closeTime: data.closeTime, isClosed: false })), createdAt: now, updatedAt: now

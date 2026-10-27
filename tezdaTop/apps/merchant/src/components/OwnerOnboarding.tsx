@@ -271,7 +271,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
         value={form[key]}
         maxLength={key === 'password' ? 128 : key === 'inn' ? 9 : undefined}
         minLength={key === 'password' ? 8 : undefined}
-        pattern={key === 'inn' ? '\\d{9}' : undefined}
+        pattern={key === 'inn' ? (form.inn ? '\\d{9}' : undefined) : undefined}
         autoComplete={key === 'password' ? 'new-password' : key === 'email' ? 'email' : undefined}
         placeholder={key === 'phone' ? '+998 90 123 45 67' : key === 'inn' ? '123456789' : undefined}
         onChange={event => setForm(data => ({ ...data, [key]: event.target.value }))}
@@ -296,7 +296,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
       <form onSubmit={submit} className="space-y-6 mt-6">
         <fieldset disabled={busy} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {field('name', 'Tashkilot nomi')}
-          {field('inn', 'STIR (INN) — 9 ta raqam')}
+          {field('inn', 'STIR (INN) — 9 ta raqam (ixtiyoriy)', 'text', false)}
 
           <label className="text-sm font-medium text-[#172C28] dark:text-[#E8F2EC]">
             Viloyat / Hudud *

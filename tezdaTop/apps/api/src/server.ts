@@ -3033,43 +3033,44 @@ app.post('/api/v1/admin/organizations', (req, res) => {
   };
   db.organizations.set(orgId, newOrg);
 
-  let newStore: any = null;
-  if (storeName || address) {
-    const storeId = uuidv4();
-    newStore = {
-      id: storeId,
-      organizationId: orgId,
-      name: storeName || name,
-      inn: inn || '',
-      region: region || 'Toshkent shahri',
-      city: city || 'Yunusobod',
-      district: district || '',
-      address: address || 'Toshkent shahri',
-      phone: phone || '+998 90 123 45 67',
-      location: {
-        lat: parseFloat(lat || '41.311081'),
-        lng: parseFloat(lng || '69.240562')
-      },
-      rating: 5.0,
-      reviewCount: 0,
-      isVerified: true,
-      status: 'ACTIVE' as const,
-      type: type.trim(),
-      photoUrl: photoUrl || '',
-      hours: hours || [
-        { dayOfWeek: 1, openTime: '08:00', closeTime: '22:00', isClosed: false },
-        { dayOfWeek: 2, openTime: '08:00', closeTime: '22:00', isClosed: false },
-        { dayOfWeek: 3, openTime: '08:00', closeTime: '22:00', isClosed: false },
-        { dayOfWeek: 4, openTime: '08:00', closeTime: '22:00', isClosed: false },
-        { dayOfWeek: 5, openTime: '08:00', closeTime: '22:00', isClosed: false },
-        { dayOfWeek: 6, openTime: '08:00', closeTime: '22:00', isClosed: false },
-        { dayOfWeek: 0, openTime: '09:00', closeTime: '21:00', isClosed: false }
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    db.stores.set(storeId, newStore);
-  }
+  // Guarantee that every organization always has at least one store/branch on the map!
+  const finalStoreName = (storeName || name).trim();
+  const finalAddress = (address || [region || 'Toshkent shahri', city || 'Yunusobod', district].filter(Boolean).join(', ')).trim();
+
+  const storeId = uuidv4();
+  const newStore: any = {
+    id: storeId,
+    organizationId: orgId,
+    name: finalStoreName,
+    inn: inn || '',
+    region: region || 'Toshkent shahri',
+    city: city || 'Yunusobod',
+    district: district || '',
+    address: finalAddress || 'O‘zbekiston',
+    phone: phone || '+998 90 123 45 67',
+    location: {
+      lat: parseFloat(lat || '41.311081'),
+      lng: parseFloat(lng || '69.240562')
+    },
+    rating: 5.0,
+    reviewCount: 0,
+    isVerified: true,
+    status: 'ACTIVE' as const,
+    type: type.trim(),
+    photoUrl: photoUrl || '',
+    hours: hours || [
+      { dayOfWeek: 1, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 2, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 3, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 4, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 5, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 6, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 0, openTime: '09:00', closeTime: '21:00', isClosed: false }
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  db.stores.set(storeId, newStore);
 
   db.auditLogs.push({
     id: uuidv4(),
@@ -3081,6 +3082,8 @@ app.post('/api/v1/admin/organizations', (req, res) => {
     diff: { name, inn, region, type, storeId: newStore?.id },
     timestamp: new Date().toISOString()
   });
+
+  db.scheduleSave();
 
   res.status(201).json({ organization: newOrg, store: newStore });
 });
@@ -3111,6 +3114,8 @@ app.patch('/api/v1/admin/organizations/:id', (req, res) => {
     diff: req.body,
     timestamp: new Date().toISOString()
   });
+
+  db.scheduleSave();
 
   res.json({ organization: org });
 });
@@ -3212,6 +3217,8 @@ app.post('/api/v1/admin/stores', (req, res) => {
     timestamp: new Date().toISOString()
   });
 
+  db.scheduleSave();
+
   res.status(201).json({ store });
 });
 
@@ -3254,6 +3261,8 @@ app.patch('/api/v1/admin/stores/:id', (req, res) => {
     timestamp: new Date().toISOString()
   });
 
+  db.scheduleSave();
+
   res.json({ store });
 });
 
@@ -3276,6 +3285,8 @@ app.delete('/api/v1/admin/stores/:id', (req, res) => {
     entityId: store.id,
     timestamp: new Date().toISOString()
   });
+
+  db.scheduleSave();
 
   res.json({ success: true, store });
 });

@@ -195,6 +195,20 @@
         "district": "Taraqqiyot MFY",
         "createdAt": "2026-10-07T10:25:39.651+00:00"
       }
+    ],
+    [
+      "bf405a3e-aac2-48ed-85c3-613edd90d37e",
+      {
+        "id": "bf405a3e-aac2-48ed-85c3-613edd90d37e",
+        "name": "Trastbank",
+        "inn": "201055090",
+        "type": "Bank",
+        "status": "ACTIVE",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston",
+        "district": "Taraqqiyot MFY",
+        "createdAt": "2026-10-26T12:43:16.697+00:00"
+      }
     ]
   ],
   "memberships": [
@@ -407,13 +421,6 @@
       }
     ],
     [
-      "37bf6fb2-0f52-4b04-abab-62ebb25ef37e",
-      {
-        "userId": "cccc5555-5555-4ccc-cccc-555555555555",
-        "createdAt": "2026-10-22T12:17:45.252Z"
-      }
-    ],
-    [
       "cd4b1a1c-1323-453f-8ed6-302490f32f25",
       {
         "userId": "ec770f62-6d94-4dd4-b53a-903a26f37517",
@@ -428,10 +435,10 @@
       }
     ],
     [
-      "668d29d9-bb15-40f3-a970-58df8ca10e9e",
+      "yqt_cccc5555-5555-4ccc-cccc-555555555555.1793106251546.e5Q0mIWBIPa0wPzpKEiN6oC3dPNRcrrvwvdBM-BfveE",
       {
-        "userId": "ec770f62-6d94-4dd4-b53a-903a26f37517",
-        "createdAt": "2026-10-23T07:00:48.397Z"
+        "userId": "cccc5555-5555-4ccc-cccc-555555555555",
+        "createdAt": "2026-10-27T13:04:11.547Z"
       }
     ]
   ],
@@ -900,8 +907,8 @@
         "name": "Unicon Soft Sirdaryo filiali",
         "address": "Taraqqiyot MFY",
         "location": {
-          "lat": 40.490469,
-          "lng": 68.771356
+          "lat": 40.492727,
+          "lng": 68.773639
         },
         "phone": "+998 95 505 46 46",
         "hours": [
@@ -953,7 +960,79 @@
         "rating": 5,
         "reviewCount": 0,
         "createdAt": "2026-10-07T10:25:39.651+00:00",
-        "updatedAt": "2026-10-07T10:25:39.651+00:00"
+        "updatedAt": "2026-10-26T12:45:37.998+00:00"
+      }
+    ],
+    [
+      "30348d9c-6a62-446d-8b93-7373c594209b",
+      {
+        "id": "30348d9c-6a62-446d-8b93-7373c594209b",
+        "organizationId": "bf405a3e-aac2-48ed-85c3-613edd90d37e",
+        "type": "Bank",
+        "name": "Trastbank — Guliston filiali",
+        "address": "Guliston sh., Taraqqiyot MFY, Sayxun ko‘chasi, 28-uy",
+        "location": {
+          "lat": 40.492794,
+          "lng": 68.773738
+        },
+        "phone": "+998 78 140 00 88",
+        "hours": [
+          {
+            "dayOfWeek": 1,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 0,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          }
+        ],
+        "photos": [
+          "https://images.unsplash.com/photo-1541354329998-f4d9a9f9297f?w=600&auto=format&fit=crop&q=80"
+        ],
+        "status": "ACTIVE",
+        "rating": 5,
+        "reviewCount": 0,
+        "createdAt": "2026-10-27T12:53:40.417+00:00",
+        "updatedAt": "2026-10-27T13:05:56.738Z",
+        "inn": "201055090",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston",
+        "district": "Taraqqiyot MFY",
+        "photoUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUF_WWmGZ62mBVC1UMc4_hULWJlCHtuIRRXYJt7ZVx-A&s=10"
       }
     ]
   ],
@@ -1130,13 +1209,18 @@
       "63515447-8c09-476e-9276-56883c81f130",
       {
         "id": "63515447-8c09-476e-9276-56883c81f130",
-        "sku": "SKU-MVKMBNSH",
+        "organizationId": "11111111-1111-4111-a111-111111111111",
         "title": "edo.ijro.uz platformasiga ulanish",
+        "name": "edo.ijro.uz platformasiga ulanish",
+        "sku": "SKU-MVKMBNSH",
         "category": "IT dastur",
         "packUnit": "xizmat",
-        "unitSize": 1,
-        "createdAt": "2026-10-23T06:58:01.648Z",
-        "updatedAt": "2026-10-23T06:58:01.648Z"
+        "unit": "xizmat",
+        "brand": "",
+        "packSize": "1 dona",
+        "aliases": [],
+        "createdAt": "2026-10-23T06:58:01.648+00:00",
+        "updatedAt": "2026-10-23T06:58:01.648+00:00"
       }
     ]
   ],
@@ -1943,24 +2027,28 @@
         "id": "0c164e49-340a-4efa-877c-884cc276e95c",
         "storeId": "2666e002-c652-46cb-87c7-0684d00c53c2",
         "variantId": "63515447-8c09-476e-9276-56883c81f130",
-        "price": "55000",
-        "stockOnHand": 1,
-        "freshness": "FRESH",
-        "status": "ACTIVE",
-        "currency": "UZS",
-        "inStock": true,
         "variant": {
           "id": "63515447-8c09-476e-9276-56883c81f130",
-          "sku": "SKU-MVKMBNSH",
+          "organizationId": "11111111-1111-4111-a111-111111111111",
           "title": "edo.ijro.uz platformasiga ulanish",
+          "name": "edo.ijro.uz platformasiga ulanish",
+          "sku": "SKU-MVKMBNSH",
           "category": "IT dastur",
           "packUnit": "xizmat",
-          "unitSize": 1,
-          "createdAt": "2026-10-23T06:58:01.648Z",
-          "updatedAt": "2026-10-23T06:58:01.648Z"
+          "unit": "xizmat",
+          "brand": "",
+          "packSize": "1 dona",
+          "aliases": [],
+          "createdAt": "2026-10-23T06:58:01.648+00:00",
+          "updatedAt": "2026-10-23T06:58:01.648+00:00"
         },
-        "createdAt": "2026-10-23T06:58:01.648Z",
-        "updatedAt": "2026-10-23T06:58:01.648Z"
+        "price": "55000",
+        "currency": "UZS",
+        "stockOnHand": 1,
+        "stockVerifiedAt": "2026-10-23T06:58:01.648+00:00",
+        "freshness": "VERY_STALE",
+        "status": "ACTIVE",
+        "version": 1
       }
     ]
   ],
@@ -2451,6 +2539,7 @@
       }
     ]
   ],
+  "photoProposals": [],
   "auditLogs": [
     {
       "id": "1e586834-9531-4b80-8de1-a3415b404432",
@@ -2560,6 +2649,91 @@
         "isVerified": true
       },
       "timestamp": "2026-10-07T11:18:01.026Z"
+    },
+    {
+      "id": "cdca38b0-c730-4b29-902b-4e56d96707ed",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "CREATE_STORE",
+      "entityType": "STORE",
+      "entityId": "30348d9c-6a62-446d-8b93-7373c594209b",
+      "diff": {
+        "name": "Trastbank — Guliston filiali",
+        "address": "Guliston sh., Taraqqiyot MFY, Sayxun ko‘chasi, 28-uy",
+        "location": {
+          "lat": 40.4952,
+          "lng": 68.7815
+        }
+      },
+      "timestamp": "2026-10-27T12:53:40.417Z"
+    },
+    {
+      "id": "442382f2-f84c-4418-bdd1-8603cf08e080",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "UPDATE_STORE",
+      "entityType": "STORE",
+      "entityId": "30348d9c-6a62-446d-8b93-7373c594209b",
+      "diff": {
+        "name": "Trastbank — Guliston filiali",
+        "inn": "201055090",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston",
+        "district": "Taraqqiyot MFY",
+        "address": "Guliston sh., Taraqqiyot MFY, Sayxun ko‘chasi, 28-uy",
+        "phone": "+998 78 140 00 88",
+        "location": {
+          "lat": 40.492794,
+          "lng": 68.773738
+        },
+        "photoUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUF_WWmGZ62mBVC1UMc4_hULWJlCHtuIRRXYJt7ZVx-A&s=10",
+        "status": "ACTIVE",
+        "hours": [
+          {
+            "dayOfWeek": 1,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 0,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          }
+        ]
+      },
+      "timestamp": "2026-10-27T13:05:56.739Z"
     }
   ],
   "idempotencyRecords": []

@@ -26,7 +26,8 @@ import {
   ChevronDown,
   Building2,
   Package,
-  Sparkles
+  Sparkles,
+  Store as StoreIcon
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
@@ -1029,7 +1030,25 @@ export function CustomerApp() {
               }`}
             >
           {view === 'search' && (
-            <div className="p-5 flex flex-col gap-4">
+            <div className="p-4 sm:p-5 flex flex-col gap-4 pb-28 md:pb-8">
+              {/* Mobile Switch Back to Map Header Bar */}
+              <div className="md:hidden flex items-center justify-between p-2.5 bg-[#E0EFE7] dark:bg-[#1A3328] border border-[#116B50]/20 rounded-2xl">
+                <div className="flex items-center gap-2">
+                  <StoreIcon className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                  <span className="text-xs font-bold text-[#172C28] dark:text-white">
+                    {results.length > 0 ? `${results.length} ta natija` : `${nearbyStores.length} ta yaqin do‘kon`}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setMobileTab('xarita')}
+                  className="px-3 py-1.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
+                >
+                  <MapPin className="w-3.5 h-3.5" />
+                  <span>Xarita</span>
+                </button>
+              </div>
+
               {/* Search Mode Switcher Tabs */}
               <div className="flex p-1 bg-[#EAEFEA] dark:bg-[#1A2822] rounded-2xl gap-1 border border-[#DCE5DF] dark:border-[#263D33]">
                 <button
@@ -1678,6 +1697,31 @@ export function CustomerApp() {
             }}
             onToast={showToast}
           />
+
+          {/* Mobile Floating View Switcher Pills */}
+          {view === 'search' && (
+            <div className="md:hidden fixed bottom-20 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+              {mobileTab === 'xarita' ? (
+                <button
+                  type="button"
+                  onClick={() => setMobileTab('royxat')}
+                  className="px-4 py-2 bg-[#172C28] dark:bg-[#142A1F] hover:bg-black text-white rounded-full shadow-2xl flex items-center gap-2 text-xs font-bold border border-white/20 active:scale-95 transition backdrop-blur-md cursor-pointer"
+                >
+                  <Layers className="w-4 h-4 text-[#4ADE80]" />
+                  <span>Ro‘yxat ({results.length > 0 ? results.length : nearbyStores.length})</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setMobileTab('xarita')}
+                  className="px-4 py-2 bg-[#116B50] hover:bg-[#0D533E] text-white rounded-full shadow-2xl flex items-center gap-2 text-xs font-bold border border-white/20 active:scale-95 transition backdrop-blur-md cursor-pointer"
+                >
+                  <MapPin className="w-4 h-4 text-white" />
+                  <span>Xaritada ko‘rish</span>
+                </button>
+              )}
+            </div>
+          )}
         </section>
       </>
     )}
@@ -1689,19 +1733,30 @@ export function CustomerApp() {
           onClick={() => {
             if (view === 'route') {
               handleStopRoute();
-            } else {
+            } else if (view !== 'search') {
               navigateTo('/');
               setMobileTab('xarita');
+            } else {
+              setMobileTab(mobileTab === 'xarita' ? 'royxat' : 'xarita');
             }
           }}
           className={`flex flex-col items-center gap-1 text-[10px] font-semibold ${
-            (view === 'search' || view === 'route') && mobileTab === 'xarita'
+            view === 'search' || view === 'route'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
           }`}
         >
-          <Search className="w-4 h-4" />
-          <span>Izlash</span>
+          {view === 'search' && mobileTab === 'royxat' ? (
+            <>
+              <MapPin className="w-4 h-4" />
+              <span>Xarita</span>
+            </>
+          ) : (
+            <>
+              <Search className="w-4 h-4" />
+              <span>Izlash</span>
+            </>
+          )}
         </button>
 
         <button

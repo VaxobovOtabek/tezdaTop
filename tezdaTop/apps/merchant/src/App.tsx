@@ -2595,7 +2595,7 @@ export function MerchantApp() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">STIR (INN) *</label>
+                        <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">STIR (INN) (ixtiyoriy)</label>
                         <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">{orgInfo.tin.length}/9 raqam</span>
                       </div>
                       <input
