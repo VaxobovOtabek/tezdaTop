@@ -6,7 +6,7 @@ import { serviceCompletionFromDocument } from '../services/service-business.serv
 import type { User } from '@yaqintop/contracts';
 
 const supabaseUrl = process.env.SUPABASE_URL || 'https://yvxjqimfxlfifhomduox.supabase.co';
-const supabaseKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2eGpxaW1meGxmaWZob21kdW94Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEyNjQyOTAsImV4cCI6MjEwNjg0MDI5MH0.5IwdUmzpuvXvIuX6kENo4oNBWeMhrsAa5NNUIAzKRk4';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2eGpxaW1meGxmaWZob21kdW94Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MTI2NDI5MCwiZXhwIjoyMTA2ODQwMjkwfQ.oeCNZANTf-WVAjAqZuobpqBK8gq_n81uhTA-4g0xiNo';
 
 export let supabase: SupabaseClient | null = null;
 
