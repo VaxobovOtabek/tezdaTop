@@ -1,3 +1,9 @@
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env'), quiet: true } as any);
+dotenv.config({ path: path.resolve(process.cwd(), '../../.env'), quiet: true } as any);
+
 import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
@@ -2711,8 +2717,8 @@ app.patch('/api/v1/admin/users/:id/status', (req, res) => {
   user.status = status;
   user.updatedAt = new Date().toISOString();
 
-  // Invalidate user sessions immediately upon suspension
-  if (status === 'SUSPENDED') {
+  // Invalidate user sessions immediately upon suspension or deletion
+  if (status === 'SUSPENDED' || status === 'DELETED') {
     for (const [token, sess] of db.sessions.entries()) {
       if (sess.userId === user.id) {
         db.sessions.delete(token);
@@ -2721,6 +2727,61 @@ app.patch('/api/v1/admin/users/:id/status', (req, res) => {
   }
 
   res.json({ user });
+});
+
+app.delete('/api/v1/admin/users/:id', (req, res) => {
+  const user = db.users.get(req.params.id);
+  if (!user) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
+    return;
+  }
+
+  const isPermanent = req.query.permanent === 'true';
+
+  for (const [token, sess] of db.sessions.entries()) {
+    if (sess.userId === user.id) {
+      db.sessions.delete(token);
+    }
+  }
+
+  if (isPermanent) {
+    db.users.delete(user.id);
+    for (const [mId, m] of db.memberships.entries()) {
+      if (m.userId === user.id) {
+        db.memberships.delete(mId);
+      }
+    }
+    db.auditLogs.push({
+      id: uuidv4(),
+      actorId: SEED_IDS.adminUserId,
+      actorEmail: 'admin@yaqintop.uz',
+      action: 'PERMANENT_DELETE_USER',
+      entityType: 'USER',
+      entityId: user.id,
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    user.status = 'DELETED';
+    (user as any).deletedAt = new Date().toISOString();
+    user.updatedAt = new Date().toISOString();
+
+    db.auditLogs.push({
+      id: uuidv4(),
+      actorId: SEED_IDS.adminUserId,
+      actorEmail: 'admin@yaqintop.uz',
+      action: 'DELETE_USER',
+      entityType: 'USER',
+      entityId: user.id,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  db.scheduleSave();
+  res.json({
+    success: true,
+    message: isPermanent ? 'Foydalanuvchi butunlay o‘chirildi' : 'Foydalanuvchi muvaffaqiyatli o‘chirildi',
+    user
+  });
 });
 
 // Update credentials (login, password, phone, role)
@@ -2736,7 +2797,12 @@ app.patch('/api/v1/admin/users/:id/credentials', (req, res) => {
   if (email) user.email = email;
   if (phone) user.phone = phone;
   if (role) user.role = role;
-  if (status) user.status = status;
+  if (status) {
+    user.status = status;
+    if (status === 'ACTIVE') {
+      delete (user as any).deletedAt;
+    }
+  }
   if (password) {
     (user as any).plainPassword = password;
     user.passwordHash = password;
@@ -2864,7 +2930,7 @@ app.get('/api/v1/admin/organizations/:id/users', (req, res) => {
 
   const orgUsers = Array.from(userIds).map(id => {
     const u = db.users.get(id);
-    if (!u) return null;
+    if (!u || u.status === 'DELETED') return null;
     const { passwordHash, ...safeUser } = u;
     const memb = orgMemberships.find(m => m.userId === id);
     return {
@@ -3102,7 +3168,39 @@ app.patch('/api/v1/admin/organizations/:id', (req, res) => {
   if (city !== undefined) (org as any).city = city;
   if (district !== undefined) (org as any).district = district;
   if (type !== undefined) org.type = type;
-  if (status !== undefined) org.status = status;
+  if (status !== undefined) {
+    org.status = status;
+    if (status === 'SUSPENDED' || status === 'DELETED') {
+      for (const store of db.stores.values()) {
+        if (store.organizationId === org.id) {
+          store.status = status === 'DELETED' ? 'DELETED' : 'SUSPENDED';
+          store.updatedAt = new Date().toISOString();
+        }
+      }
+      const orgUserIds = new Set(
+        Array.from(db.memberships.values())
+          .filter(m => m.organizationId === org.id)
+          .map(m => m.userId)
+      );
+      for (const user of db.users.values()) {
+        if (user.organizationId === org.id) orgUserIds.add(user.id);
+      }
+      for (const [token, sess] of db.sessions.entries()) {
+        if (orgUserIds.has(sess.userId)) {
+          db.sessions.delete(token);
+        }
+      }
+    } else if (status === 'ACTIVE') {
+      delete (org as any).deletedAt;
+      for (const store of db.stores.values()) {
+        if (store.organizationId === org.id && (store.status === 'DELETED' || store.status === 'SUSPENDED')) {
+          store.status = 'ACTIVE';
+          delete (store as any).deletedAt;
+          store.updatedAt = new Date().toISOString();
+        }
+      }
+    }
+  }
 
   db.auditLogs.push({
     id: uuidv4(),
@@ -3118,6 +3216,83 @@ app.patch('/api/v1/admin/organizations/:id', (req, res) => {
   db.scheduleSave();
 
   res.json({ organization: org });
+});
+
+app.delete('/api/v1/admin/organizations/:id', (req, res) => {
+  const org = db.organizations.get(req.params.id);
+  if (!org) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tashkilot topilmadi' });
+    return;
+  }
+
+  const isPermanent = req.query.permanent === 'true';
+
+  // Invalidate sessions of users belonging to this organization
+  const orgUserIds = new Set(
+    Array.from(db.memberships.values())
+      .filter(m => m.organizationId === org.id)
+      .map(m => m.userId)
+  );
+  for (const user of db.users.values()) {
+    if (user.organizationId === org.id) orgUserIds.add(user.id);
+  }
+  for (const [token, sess] of db.sessions.entries()) {
+    if (orgUserIds.has(sess.userId)) {
+      db.sessions.delete(token);
+    }
+  }
+
+  if (isPermanent) {
+    db.organizations.delete(org.id);
+    for (const [storeId, store] of db.stores.entries()) {
+      if (store.organizationId === org.id) {
+        db.stores.delete(storeId);
+      }
+    }
+    for (const [membId, memb] of db.memberships.entries()) {
+      if (memb.organizationId === org.id) {
+        db.memberships.delete(membId);
+      }
+    }
+    db.auditLogs.push({
+      id: uuidv4(),
+      actorId: SEED_IDS.adminUserId,
+      actorEmail: 'admin@yaqintop.uz',
+      action: 'PERMANENT_DELETE_ORGANIZATION',
+      entityType: 'ORGANIZATION',
+      entityId: org.id,
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    org.status = 'DELETED';
+    (org as any).deletedAt = new Date().toISOString();
+
+    // Mark all its stores as DELETED
+    for (const store of db.stores.values()) {
+      if (store.organizationId === org.id) {
+        store.status = 'DELETED';
+        (store as any).deletedAt = new Date().toISOString();
+        store.updatedAt = new Date().toISOString();
+      }
+    }
+
+    db.auditLogs.push({
+      id: uuidv4(),
+      actorId: SEED_IDS.adminUserId,
+      actorEmail: 'admin@yaqintop.uz',
+      action: 'DELETE_ORGANIZATION',
+      entityType: 'ORGANIZATION',
+      entityId: org.id,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  db.scheduleSave();
+  res.json({
+    success: true,
+    message: isPermanent ? 'Tashkilot butunlay o‘chirildi' : 'Tashkilot muvaffaqiyatli o‘chirildi',
+    organization: org
+  });
 });
 
 app.get('/api/v1/admin/stores', (req, res) => {
@@ -3613,6 +3788,249 @@ app.get('/api/v1/admin/analytics/activity', (req, res) => {
   });
 });
 
+// Admin & Moderator Growth Dynamics: Users, Stores, Products and Services over time (week, month, year)
+app.get('/api/v1/admin/analytics/growth', (req, res) => {
+  const period = (req.query.period as string) || 'month';
+  const now = Date.now();
+
+  let durationMs = 30 * 24 * 60 * 60 * 1000;
+  if (period === 'week') {
+    durationMs = 7 * 24 * 60 * 60 * 1000;
+  } else if (period === 'year') {
+    durationMs = 365 * 24 * 60 * 60 * 1000;
+  } else if (period === 'all') {
+    durationMs = 10 * 365 * 24 * 60 * 60 * 1000;
+  }
+
+  const periodStart = period === 'all' ? 0 : now - durationMs;
+  const previousPeriodStart = period === 'all' ? 0 : periodStart - durationMs;
+
+  const usersList = Array.from(db.users.values()).map(u => {
+    const { passwordHash, ...clean } = u;
+    return clean;
+  });
+  const storesList = Array.from(db.stores.values());
+  const organizationsList = Array.from(db.organizations.values());
+  const variantsList = Array.from(db.variants.values());
+
+  const usersActive = usersList.filter(u => u.status === 'ACTIVE').length;
+  const usersSuspended = usersList.filter(u => u.status === 'SUSPENDED').length;
+  const usersDeleted = usersList.filter(u => u.status === 'DELETED').length;
+
+  const storesActive = storesList.filter(s => s.status === 'ACTIVE').length;
+  const storesSuspended = storesList.filter(s => s.status === 'SUSPENDED').length;
+  const storesDeleted = storesList.filter(s => s.status === 'DELETED').length;
+
+  const orgsActive = organizationsList.filter(o => o.status === 'ACTIVE').length;
+  const orgsSuspended = organizationsList.filter(o => o.status === 'SUSPENDED').length;
+  const orgsDeleted = organizationsList.filter(o => (o as any).status === 'DELETED').length;
+
+  const isService = (v: any) => {
+    return v.kind === 'SERVICE' || v.packUnit === 'xizmat' || v.unit === 'xizmat' || v.category === 'IT dastur';
+  };
+
+  const productsList = variantsList.filter(v => !isService(v));
+  const servicesList = variantsList.filter(v => isService(v));
+
+  const countInWindow = (items: any[], start: number, end: number) => {
+    return items.filter(item => {
+      const ts = new Date(item.createdAt || 0).getTime();
+      return ts >= start && ts <= end;
+    }).length;
+  };
+
+  const usersCurrent = countInWindow(usersList, periodStart, now);
+  const usersPrev = countInWindow(usersList, previousPeriodStart, periodStart);
+
+  const storesCurrent = countInWindow(storesList, periodStart, now);
+  const storesPrev = countInWindow(storesList, previousPeriodStart, periodStart);
+
+  const orgsCurrent = countInWindow(organizationsList, periodStart, now);
+  const orgsPrev = countInWindow(organizationsList, previousPeriodStart, periodStart);
+
+  const productsCurrent = countInWindow(productsList, periodStart, now);
+  const productsPrev = countInWindow(productsList, previousPeriodStart, periodStart);
+
+  const servicesCurrent = countInWindow(servicesList, periodStart, now);
+  const servicesPrev = countInWindow(servicesList, previousPeriodStart, periodStart);
+
+  const calcChange = (curr: number, prev: number) => {
+    if (prev === 0) return curr > 0 ? '+100%' : '0%';
+    const pct = Math.round(((curr - prev) / prev) * 100);
+    return pct >= 0 ? `+${pct}%` : `${pct}%`;
+  };
+
+  const timeline: Array<{
+    key: string;
+    label: string;
+    date: string;
+    users: number;
+    stores: number;
+    products: number;
+    services: number;
+    total: number;
+  }> = [];
+
+  if (period === 'week') {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now - i * 24 * 60 * 60 * 1000);
+      d.setHours(0, 0, 0, 0);
+      const startOfDay = d.getTime();
+      const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+
+      const dayNames = ['Yak', 'Dush', 'Sesh', 'Chor', 'Pay', 'Jum', 'Shan'];
+      const dayLabel = `${dayNames[d.getDay()]} (${d.getDate()}.${d.getMonth() + 1})`;
+      const uCount = countInWindow(usersList, startOfDay, endOfDay);
+      const sCount = countInWindow(storesList, startOfDay, endOfDay);
+      const pCount = countInWindow(productsList, startOfDay, endOfDay);
+      const srvCount = countInWindow(servicesList, startOfDay, endOfDay);
+
+      timeline.push({
+        key: d.toISOString().slice(0, 10),
+        label: dayLabel,
+        date: d.toISOString(),
+        users: uCount,
+        stores: sCount,
+        products: pCount,
+        services: srvCount,
+        total: uCount + sCount + pCount + srvCount
+      });
+    }
+  } else if (period === 'month') {
+    const bucketCount = 6;
+    const bucketDays = 5;
+    for (let i = bucketCount - 1; i >= 0; i--) {
+      const startD = new Date(now - (i + 1) * bucketDays * 24 * 60 * 60 * 1000);
+      const endD = new Date(now - i * bucketDays * 24 * 60 * 60 * 1000);
+      const startTs = startD.getTime();
+      const endTs = endD.getTime();
+
+      const label = `${startD.getDate()}/${startD.getMonth() + 1} - ${endD.getDate()}/${endD.getMonth() + 1}`;
+      const uCount = countInWindow(usersList, startTs, endTs);
+      const sCount = countInWindow(storesList, startTs, endTs);
+      const pCount = countInWindow(productsList, startTs, endTs);
+      const srvCount = countInWindow(servicesList, startTs, endTs);
+
+      timeline.push({
+        key: `bucket-${i}`,
+        label,
+        date: endD.toISOString(),
+        users: uCount,
+        stores: sCount,
+        products: pCount,
+        services: srvCount,
+        total: uCount + sCount + pCount + srvCount
+      });
+    }
+  } else {
+    // year or all
+    const monthNames = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun', 'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
+    for (let i = 11; i >= 0; i--) {
+      const targetDate = new Date(now);
+      targetDate.setMonth(targetDate.getMonth() - i);
+      const year = targetDate.getFullYear();
+      const month = targetDate.getMonth();
+
+      const startOfMonth = new Date(year, month, 1).getTime();
+      const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999).getTime();
+
+      const label = `${monthNames[month]} ${year}`;
+      const uCount = countInWindow(usersList, startOfMonth, endOfMonth);
+      const sCount = countInWindow(storesList, startOfMonth, endOfMonth);
+      const pCount = countInWindow(productsList, startOfMonth, endOfMonth);
+      const srvCount = countInWindow(servicesList, startOfMonth, endOfMonth);
+
+      timeline.push({
+        key: `${year}-${month + 1}`,
+        label,
+        date: targetDate.toISOString(),
+        users: uCount,
+        stores: sCount,
+        products: pCount,
+        services: srvCount,
+        total: uCount + sCount + pCount + srvCount
+      });
+    }
+  }
+
+  const filterByPeriod = (items: any[]) => {
+    return items
+      .filter(item => {
+        if (period === 'all') return true;
+        const ts = new Date(item.createdAt || 0).getTime();
+        return ts >= periodStart && ts <= now;
+      })
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  };
+
+  const periodUsers = filterByPeriod(usersList);
+  const periodStores = filterByPeriod(storesList);
+  const periodOrgs = filterByPeriod(organizationsList);
+  const periodProducts = filterByPeriod(productsList);
+  const periodServices = filterByPeriod(servicesList);
+
+  res.json({
+    period,
+    periodStart: new Date(periodStart).toISOString(),
+    periodEnd: new Date(now).toISOString(),
+    summary: {
+      users: {
+        totalAllTime: usersList.length,
+        inPeriod: usersCurrent,
+        previousPeriod: usersPrev,
+        change: calcChange(usersCurrent, usersPrev),
+        active: usersActive,
+        suspended: usersSuspended,
+        deleted: usersDeleted
+      },
+      stores: {
+        totalAllTime: storesList.length,
+        inPeriod: storesCurrent,
+        previousPeriod: storesPrev,
+        change: calcChange(storesCurrent, storesPrev),
+        active: storesActive,
+        suspended: storesSuspended,
+        deleted: storesDeleted
+      },
+      organizations: {
+        totalAllTime: organizationsList.length,
+        inPeriod: orgsCurrent,
+        previousPeriod: orgsPrev,
+        change: calcChange(orgsCurrent, orgsPrev),
+        active: orgsActive,
+        suspended: orgsSuspended,
+        deleted: orgsDeleted
+      },
+      statusOverview: {
+        activeTotal: usersActive + storesActive + orgsActive,
+        suspendedTotal: usersSuspended + storesSuspended + orgsSuspended,
+        deletedTotal: usersDeleted + storesDeleted + orgsDeleted
+      },
+      products: {
+        totalAllTime: productsList.length,
+        inPeriod: productsCurrent,
+        previousPeriod: productsPrev,
+        change: calcChange(productsCurrent, productsPrev)
+      },
+      services: {
+        totalAllTime: servicesList.length,
+        inPeriod: servicesCurrent,
+        previousPeriod: servicesPrev,
+        change: calcChange(servicesCurrent, servicesPrev)
+      },
+      totalAddedInPeriod: usersCurrent + storesCurrent + productsCurrent + servicesCurrent
+    },
+    timeline,
+    recent: {
+      users: (periodUsers.length > 0 ? periodUsers : usersList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      stores: (periodStores.length > 0 ? periodStores : storesList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      organizations: (periodOrgs.length > 0 ? periodOrgs : organizationsList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      products: (periodProducts.length > 0 ? periodProducts : productsList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      services: (periodServices.length > 0 ? periodServices : servicesList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30)
+    }
+  });
+});
+
 // Admin Database Schema & Live Tables Explorer
 app.get('/api/v1/admin/database/schema-and-tables', (req, res) => {
   const sanitizeUser = (u: any) => {
@@ -3727,7 +4145,7 @@ app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => 
   const user = getCurrentUser(req);
   const secretKey = req.headers['x-sync-secret'] || req.query.secret;
   const isAuthorizedAdmin = user && ['ADMIN', 'SUPERADMIN'].includes(user.role);
-  const isAuthorizedSecret = secretKey && (secretKey === process.env.SYNC_SECRET || secretKey === 'yaqintop_sync_2026');
+  const isAuthorizedSecret = Boolean(process.env.SYNC_SECRET && secretKey && secretKey === process.env.SYNC_SECRET);
 
   if (!isAuthorizedAdmin && !isAuthorizedSecret) {
     return res.status(403).json({ success: false, error: 'Ruxsat etilmagan: Faqat administrator uchun' });

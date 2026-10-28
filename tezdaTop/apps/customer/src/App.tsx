@@ -1008,7 +1008,7 @@ export function CustomerApp() {
         ) : view === 'detail' && (selectedResult || selectedNearbyStore || activeStoreDetail) ? (
           <StoreFullPageView
             store={selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail}
-            organization={activeStoreDetail?.organization || selectedNearbyStore?.organization}
+            organization={activeStoreDetail?.organization || selectedNearbyStore?.organization || (selectedResult?.store as any)?.organization}
             offers={activeStoreOffers}
             loadingOffers={storeOffersLoading}
             isDarkMode={isDarkMode}

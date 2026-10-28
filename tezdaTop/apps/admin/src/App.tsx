@@ -2,6 +2,7 @@ import { MaskedUserPassword } from '@yaqintop/ui';
 import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
+  TrendingUp,
   LayoutDashboard,
   Store,
   Building2,
@@ -10,6 +11,10 @@ import {
   MessageSquare,
   Users,
   ShieldCheck,
+  ShieldAlert,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle,
   XCircle,
   Clock,
@@ -55,6 +60,7 @@ import { AdminMapHub, EnrichedStore } from './components/AdminMapHub';
 import { RolesGuideMatrix } from './components/RolesGuideMatrix';
 import { RequestsInquiriesHub } from './components/RequestsInquiriesHub';
 import { AnalyticsActivityHub } from './components/AnalyticsActivityHub';
+import { GrowthDynamicsHub } from './components/GrowthDynamicsHub';
 import { ArchitectureAndDbViewer } from './components/ArchitectureAndDbViewer';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
@@ -93,7 +99,7 @@ interface OrganizationItem {
   city?: string;
   district?: string;
   type: string;
-  status: 'ACTIVE' | 'SUSPENDED';
+  status: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
   createdAt: string;
   stores?: StoreType[];
 }
@@ -145,7 +151,7 @@ export function AdminApp() {
   }, [isDarkMode]);
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'supabase-usage' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
+    'overview' | 'growth-dynamics' | 'supabase-usage' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
   >('overview');
 
   // Current User Session State (Loads from localStorage or null for guest)
@@ -162,6 +168,12 @@ export function AdminApp() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   // Search & Filter in Organizations tab
+  const [orgSearch, setOrgSearch] = useState('');
+  const [orgStatusFilter, setOrgStatusFilter] = useState<'ALL' | 'ACTIVE' | 'SUSPENDED' | 'DELETED'>('ALL');
+  const [orgPage, setOrgPage] = useState(1);
+  const [activeOrgSubTab, setActiveOrgSubTab] = useState<'organizations' | 'stores'>('organizations');
+  const ORG_PAGE_SIZE = 20;
+
   const [storeSearch, setStoreSearch] = useState('');
   const [orgRegionFilter, setOrgRegionFilter] = useState('Barcha viloyatlar');
   const [orgCityFilter, setOrgCityFilter] = useState('Barcha tumanlar');
@@ -171,6 +183,7 @@ export function AdminApp() {
   // Search in Users tab
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL');
+  const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'DELETED'>('ALL');
 
   // Auto-switch restricted tabs if Moderator logs in
   useEffect(() => {
@@ -227,7 +240,7 @@ export function AdminApp() {
     password: '',
     phone: '',
     role: 'OPERATOR' as any,
-    status: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'PENDING'
+    status: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'PENDING' | 'DELETED'
   });
 
   // Add Organization / Store Modal
@@ -305,7 +318,7 @@ export function AdminApp() {
     lat: string;
     lng: string;
     photoUrl: string;
-    status: 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'NEEDS_CHANGES' | 'REJECTED' | 'DRAFT';
+    status: 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'NEEDS_CHANGES' | 'REJECTED' | 'DRAFT' | 'DELETED';
     isVerified: boolean;
     openTime: string;
     closeTime: string;
@@ -474,6 +487,134 @@ export function AdminApp() {
       }
     } catch {
       showToast('Xatolik yuz berdi');
+    }
+  };
+
+  // Handle User deletion
+  const handleDeleteUser = async (user: User) => {
+    const isAlreadyDeleted = user.status === 'DELETED';
+    const confirmMessage = isAlreadyDeleted
+      ? `Haqiqatan ham "${user.fullName || user.email}" foydalanuvchisini bazadan BUTUNLAY (qaytarib bo‘lmaydigan qilib) o‘chirmoqchimisiz?`
+      : `Haqiqatan ham "${user.fullName || user.email}" foydalanuvchisini o‘chirmoqchimisiz?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    try {
+      const url = isAlreadyDeleted
+        ? `/api/v1/admin/users/${user.id}?permanent=true`
+        : `/api/v1/admin/users/${user.id}`;
+      const res = await fetch(url, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast(
+          isAlreadyDeleted
+            ? 'Foydalanuvchi bazadan butunlay o‘chirildi'
+            : 'Foydalanuvchi hisobi muvaffaqiyatli o‘chirildi'
+        );
+        loadData();
+        if (selectedOrgForUsers) loadOrgUsers(selectedOrgForUsers.id);
+      } else {
+        showToast('Foydalanuvchini o‘chirishda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa xatosi');
+    }
+  };
+
+  // Handle User restore
+  const handleRestoreUser = async (user: User) => {
+    try {
+      const res = await fetch(`/api/v1/admin/users/${user.id}/credentials`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'ACTIVE' })
+      });
+      if (res.ok) {
+        showToast(`"${user.fullName || user.email}" hisobi qayta tiklandi`);
+        loadData();
+        if (selectedOrgForUsers) loadOrgUsers(selectedOrgForUsers.id);
+      } else {
+        showToast('Foydalanuvchini qayta tiklashda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa xatosi');
+    }
+  };
+
+  // Handle Organization status toggle (ACTIVE <-> SUSPENDED)
+  const handleToggleOrgStatus = async (org: any) => {
+    const nextStatus = org.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    try {
+      const res = await fetch(`/api/v1/admin/organizations/${org.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: nextStatus })
+      });
+      if (res.ok) {
+        showToast(
+          nextStatus === 'SUSPENDED'
+            ? `"${org.name}" tashkiloti to‘xtatildi (bloklandi)`
+            : `"${org.name}" tashkiloti faollashtirildi`
+        );
+        loadData();
+      } else {
+        showToast('Tashkilot holatini o‘zgartirishda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Xatolik yuz berdi');
+    }
+  };
+
+  // Handle Organization deletion
+  const handleDeleteOrg = async (org: any) => {
+    const isAlreadyDeleted = org.status === 'DELETED';
+    const confirmMessage = isAlreadyDeleted
+      ? `Haqiqatan ham "${org.name}" tashkilotini bazadan BUTUNLAY (qaytarib bo‘lmaydigan qilib) o‘chirmoqchimisiz?`
+      : `Haqiqatan ham "${org.name}" tashkilotini o‘chirmoqchimisiz? Barcha biriktirilgan filiallar va xodimlar kirishi bekor qilinadi.`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    try {
+      const url = isAlreadyDeleted
+        ? `/api/v1/admin/organizations/${org.id}?permanent=true`
+        : `/api/v1/admin/organizations/${org.id}`;
+      const res = await fetch(url, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast(
+          isAlreadyDeleted
+            ? `"${org.name}" tashkiloti bazadan butunlay o‘chirildi`
+            : `"${org.name}" tashkiloti muvaffaqiyatli o‘chirildi`
+        );
+        loadData();
+      } else {
+        showToast('Tashkilotni o‘chirishda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa xatosi');
+    }
+  };
+
+  // Handle Organization restore
+  const handleRestoreOrg = async (org: any) => {
+    try {
+      const res = await fetch(`/api/v1/admin/organizations/${org.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'ACTIVE' })
+      });
+      if (res.ok) {
+        showToast(`"${org.name}" tashkiloti muvaffaqiyatli qayta tiklandi`);
+        loadData();
+      } else {
+        showToast('Tashkilotni qayta tiklashda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa xatosi');
     }
   };
 
@@ -910,6 +1051,32 @@ export function AdminApp() {
     }
   };
 
+  // Filtered organizations
+  const filteredOrgs = organizations.filter(org => {
+    const q = orgSearch.toLowerCase().trim();
+    const matchSearch =
+      !q ||
+      org.name.toLowerCase().includes(q) ||
+      (org.inn && org.inn.includes(q)) ||
+      (org.type && org.type.toLowerCase().includes(q)) ||
+      (org.region && org.region.toLowerCase().includes(q)) ||
+      (org.city && org.city.toLowerCase().includes(q));
+
+    const matchStatus =
+      orgStatusFilter === 'ALL'
+        ? org.status !== 'DELETED'
+        : orgStatusFilter === 'ACTIVE'
+        ? org.status === 'ACTIVE'
+        : orgStatusFilter === 'SUSPENDED'
+        ? org.status === 'SUSPENDED'
+        : org.status === 'DELETED';
+
+    return matchSearch && matchStatus;
+  });
+
+  const totalOrgPages = Math.max(1, Math.ceil(filteredOrgs.length / ORG_PAGE_SIZE));
+  const paginatedOrgs = filteredOrgs.slice((orgPage - 1) * ORG_PAGE_SIZE, orgPage * ORG_PAGE_SIZE);
+
   // Filtered stores
   const filteredStores = stores.filter(s => {
     const q = storeSearch.toLowerCase().trim();
@@ -1065,6 +1232,12 @@ export function AdminApp() {
           <nav className="flex flex-col gap-1">
             {[
               { id: 'overview', label: 'Umumiy holat', icon: LayoutDashboard },
+              {
+                id: 'growth-dynamics',
+                label: 'Tizimga Qo‘shilish Dinamikasi',
+                icon: TrendingUp,
+                isSpecial: true
+              },
               { id: 'supabase-usage', label: 'Supabase limitlari', icon: Database, adminOnly: true },
               {
                 id: 'map-hub',
@@ -1142,6 +1315,18 @@ export function AdminApp() {
 
         {/* Content Area */}
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+          {/* GROWTH DYNAMICS TAB */}
+          {activeTab === 'growth-dynamics' && (
+            <GrowthDynamicsHub
+              isDarkMode={isDarkMode}
+              onShowToast={(msg) => showToast(msg)}
+              onNavigateToStore={(storeId) => {
+                const store = stores.find(s => s.id === storeId);
+                if (store) handleOpenEditStore(store);
+              }}
+            />
+          )}
+
           {/* MAP HUB TAB */}
           {activeTab === 'supabase-usage' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && <SupabaseUsagePanel />}
           {activeTab === 'map-hub' && (
@@ -1258,6 +1443,7 @@ export function AdminApp() {
           {/* ORGANIZATIONS & STORES TAB */}
           {activeTab === 'organizations' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
+              {/* Header Title */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-[#172C28] dark:text-white">
@@ -1267,8 +1453,47 @@ export function AdminApp() {
                     Kartadagi barcha tashkilotlar, filiallar, foydalanuvchilar (login/parol) va xodimlar boshqaruvi
                   </p>
                 </div>
+              </div>
 
-                <div className="flex items-center gap-2 flex-wrap">
+              {/* TOP SEARCH & ACTIONS BAR (Izlash eng teppada, yonida qo'shishlar) */}
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                {/* Search input */}
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                  <input
+                    type="text"
+                    value={orgSearch}
+                    onChange={(e) => {
+                      setOrgSearch(e.target.value);
+                      setOrgPage(1);
+                    }}
+                    placeholder="Tashkilot nomi, STIR (INN), faoliyat turi bo‘yicha izlash..."
+                    className="w-full pl-10 pr-4 py-2.5 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50] focus:ring-1 focus:ring-[#116B50]"
+                  />
+                </div>
+
+                {/* Status Filter Buttons */}
+                <div className="flex items-center gap-1.5 overflow-x-auto shrink-0">
+                  {(['ALL', 'ACTIVE', 'SUSPENDED', 'DELETED'] as const).map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => {
+                        setOrgStatusFilter(st);
+                        setOrgPage(1);
+                      }}
+                      className={`px-3 py-2 rounded-xl text-xs font-semibold transition shrink-0 ${
+                        orgStatusFilter === st
+                          ? 'bg-[#116B50] text-white shadow-sm'
+                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                      }`}
+                    >
+                      {st === 'ALL' ? 'Barchasi' : st === 'ACTIVE' ? 'Faol' : st === 'SUSPENDED' ? 'To‘xtatilgan' : 'O‘chirilgan'}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Add Buttons right next to search */}
+                <div className="flex items-center gap-2 shrink-0">
                   <Button
                     variant="secondary"
                     size="sm"
@@ -1285,328 +1510,499 @@ export function AdminApp() {
                       });
                       setIsAddUserModalOpen(true);
                     }}
-                    className="flex items-center gap-1.5"
+                    className="flex items-center gap-1.5 text-xs py-2 whitespace-nowrap"
                   >
                     <Users className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
-                    <span>+ Xodim / Foydalanuvchi qo‘shish</span>
+                    <span>+ Xodim qo‘shish</span>
                   </Button>
-                  <Button variant="primary" size="sm" onClick={() => setIsAddOrgModalOpen(true)} className="flex items-center gap-1.5">
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => setIsAddOrgModalOpen(true)}
+                    className="flex items-center gap-1.5 text-xs py-2 whitespace-nowrap shadow-sm"
+                  >
                     <Plus className="w-4 h-4" />
-                    <span>Yangi tashkilot / Do‘kon</span>
+                    <span>+ Yangi tashkilot / Do‘kon</span>
                   </Button>
                 </div>
               </div>
 
-              {/* Organizations Overview & Users Section */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-3 border-b border-[#DCE5DF]/60 dark:border-[#22332C] pb-2.5">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80]" />
-                    <h2 className="text-sm font-bold text-[#172C28] dark:text-white">
-                      Ro‘yxatdan o‘tgan Tashkilotlar ({organizations.length})
-                    </h2>
-                  </div>
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95]">
-                    Har bir tashkilotga xodimlar, login/parollar va filiallar biriktiriladi
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-                  {organizations.map((org) => {
-                    const orgStores = stores.filter(s => s.organizationId === org.id);
-                    const orgUsersCount = users.filter(u => u.organizationId === org.id).length;
-
-                    return (
-                      <div
-                        key={org.id}
-                        className="p-4 rounded-xl border border-[#DCE5DF] dark:border-[#22332C] bg-[#F9FAF9] dark:bg-[#16241E] flex flex-col justify-between gap-3 hover:border-[#116B50]/40 transition"
-                      >
-                        <div>
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="font-bold text-sm text-[#172C28] dark:text-white truncate">{org.name}</h3>
-                            <Tag variant={org.status === 'ACTIVE' ? 'default' : 'error'} className="text-[10px]">
-                              {org.type}
-                            </Tag>
-                          </div>
-                          <div className="flex items-center gap-3 text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5 flex-wrap">
-                            <span className={orgStores.length === 0 ? "text-amber-600 dark:text-amber-400 font-bold" : ""}>
-                              🏪 {orgStores.length} ta do‘kon
-                            </span>
-                            <span>·</span>
-                            <span className="font-medium text-[#116B50] dark:text-[#4ADE80]">
-                              👥 {orgUsersCount || 1} ta xodim
-                            </span>
-                          </div>
-                          {orgStores.length === 0 && (
-                            <div className="mt-2">
-                              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800">
-                                ⚠️ Filial yo‘q (kartada ko‘rinmaydi)
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-1.5 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C]">
-                          <button
-                            onClick={() => handleOpenAddStoreForOrg(org)}
-                            className="py-1.5 px-2.5 rounded-lg border border-[#116B50] dark:border-[#4ADE80] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] text-xs font-semibold transition flex items-center justify-center gap-1 shadow-sm shrink-0"
-                            title="Yangi filial / do‘kon qo‘shish (kartada ko‘rinishi uchun)"
-                          >
-                            <Store className="w-3.5 h-3.5" />
-                            <span>+ Filial</span>
-                          </button>
-                          <button
-                            onClick={() => handleOpenOrgUsers(org)}
-                            className="flex-1 py-1.5 px-2.5 rounded-lg bg-[#116B50] text-white text-xs font-semibold hover:bg-[#0d533e] transition flex items-center justify-center gap-1 shadow-sm truncate"
-                          >
-                            <Users className="w-3.5 h-3.5 shrink-0" />
-                            <span className="truncate">Xodimlar ({orgUsersCount || 1})</span>
-                          </button>
-                          <button
-                            onClick={() => {
-                              setSelectedOrgForUsers(org);
-                              setNewUserForm(prev => ({
-                                ...prev,
-                                organizationId: org.id,
-                                password: 'Pass' + Math.floor(1000 + Math.random() * 9000) + '!'
-                              }));
-                              setIsAddUserModalOpen(true);
-                            }}
-                            title="Yangi xodim / login qo‘shish"
-                            className="p-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition shrink-0"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+              {/* SUB-TABS: Tashkilotlar vs Filiallar */}
+              <div className="flex items-center gap-2 border-b border-[#DCE5DF] dark:border-[#22332C] pb-2">
+                <button
+                  onClick={() => setActiveOrgSubTab('organizations')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition ${
+                    activeOrgSubTab === 'organizations'
+                      ? 'bg-[#116B50] text-white shadow-sm'
+                      : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                  }`}
+                >
+                  <Building2 className="w-4 h-4" />
+                  <span>Ro‘yxatdan o‘tgan Tashkilotlar ({filteredOrgs.length})</span>
+                </button>
+                <button
+                  onClick={() => setActiveOrgSubTab('stores')}
+                  className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition ${
+                    activeOrgSubTab === 'stores'
+                      ? 'bg-[#116B50] text-white shadow-sm'
+                      : 'text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                  }`}
+                >
+                  <Store className="w-4 h-4" />
+                  <span>Filiallar va Do‘konlar ({filteredStores.length})</span>
+                </button>
               </div>
 
-              {/* Multi-tier Filter and Search Bar */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col gap-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                  {/* Search by Name or INN */}
-                  <div className="relative">
-                    <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
-                    <input
-                      type="text"
-                      value={storeSearch}
-                      onChange={(e) => setStoreSearch(e.target.value)}
-                      placeholder="Nomi, STIR (INN), manzil..."
-                      className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
-                    />
-                  </div>
+              {/* TAB CONTENT: ORGANIZATIONS LIST (TABLE + PAGINATION 20) */}
+              {activeOrgSubTab === 'organizations' && (
+                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl shadow-sm overflow-hidden flex flex-col">
+                  {/* Table view */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#F9FAF9] dark:bg-[#16241E] border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] uppercase font-bold tracking-wider">
+                          <th className="py-3.5 px-4">Tashkilot nomi & STIR</th>
+                          <th className="py-3.5 px-4">Faoliyat turi</th>
+                          <th className="py-3.5 px-4">Filiallar (Do‘konlar)</th>
+                          <th className="py-3.5 px-4">Xodimlar</th>
+                          <th className="py-3.5 px-4">Holati</th>
+                          <th className="py-3.5 px-4 text-right">Amallar</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#DCE5DF]/60 dark:divide-[#22332C]">
+                        {paginatedOrgs.length > 0 ? (
+                          paginatedOrgs.map((org) => {
+                            const orgStores = stores.filter(s => s.organizationId === org.id);
+                            const orgUsersCount = users.filter(u => u.organizationId === org.id && u.status !== 'DELETED').length;
 
-                  {/* Viloyat Filter */}
-                  <div>
-                    <select
-                      value={orgRegionFilter}
-                      onChange={(e) => setOrgRegionFilter(e.target.value)}
-                      className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
-                    >
-                      {REGION_OPTIONS.map((reg) => (
-                        <option key={reg} value={reg}>
-                          {reg}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                            return (
+                              <tr
+                                key={org.id}
+                                className="hover:bg-[#F3F6F3]/60 dark:hover:bg-[#1A2822]/60 transition items-center"
+                              >
+                                <td className="py-3.5 px-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] flex items-center justify-center shrink-0 text-[#116B50] dark:text-[#4ADE80]">
+                                      <Building2 className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <div className="font-bold text-sm text-[#172C28] dark:text-[#E8F2EC]">
+                                        {org.name}
+                                      </div>
+                                      <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] font-mono mt-0.5">
+                                        STIR (INN): <strong className="text-[#116B50] dark:text-[#4ADE80]">{org.inn || '308123456'}</strong>
+                                        {org.region && <span className="ml-2 font-sans text-[#566A63]">· {org.region}</span>}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
 
-                  {/* Tuman/Shahar Filter */}
-                  <div>
-                    <select
-                      value={orgCityFilter}
-                      onChange={(e) => setOrgCityFilter(e.target.value)}
-                      className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
-                    >
-                      {['Barcha tumanlar', 'Yunusobod', 'Mirobod', 'Chilonzor', 'Shayxontohur', 'Yakkasaroy', 'Mirzo Ulug‘bek', 'Olmazor', 'Samarqand shahri'].map((c) => (
-                        <option key={c} value={c}>
-                          {c}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Mahalla Filter */}
-                  <div>
-                    <select
-                      value={orgDistrictFilter}
-                      onChange={(e) => setOrgDistrictFilter(e.target.value)}
-                      className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
-                    >
-                      {['Barcha mahallalar', 'Navbahor MFY', 'Oqtepa MFY', 'Do‘stlik MFY', 'Chorsu MFY', 'Bog‘iston MFY', 'Guliston MFY', 'Mustaqillik MFY'].map((d) => (
-                        <option key={d} value={d}>
-                          {d}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Status Pills and Quick Reset */}
-                <div className="flex items-center justify-between pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex-wrap gap-2">
-                  <div className="flex items-center gap-1.5 overflow-x-auto">
-                    {(['ALL', 'ACTIVE', 'PENDING', 'SUSPENDED'] as const).map((st) => (
-                      <button
-                        key={st}
-                        onClick={() => setStatusFilter(st)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
-                          statusFilter === st
-                            ? 'bg-[#116B50] text-white'
-                            : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
-                        }`}
-                      >
-                        {st === 'ALL' ? 'Barchasi' : st === 'ACTIVE' ? 'Faol' : st === 'PENDING' ? 'Kutilmoqda' : 'To‘xtatilgan'}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs flex-wrap">
-                    <span className="text-[#566A63] dark:text-[#8B9E95]">
-                      Natija: <strong>{filteredStores.length} ta do‘kon</strong>
-                    </span>
-                    <button
-                      onClick={() => setActiveTab('map-hub')}
-                      className="px-2.5 py-1 rounded-lg bg-[#116B50]/10 dark:bg-[#4ADE80]/10 text-[#116B50] dark:text-[#4ADE80] font-bold hover:bg-[#116B50]/20 flex items-center gap-1 transition"
-                    >
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span>Xaritada ko‘rish</span>
-                    </button>
-                    <button
-                      onClick={() => {
-                        const targetOrg = organizations[0] || null;
-                        if (targetOrg) {
-                          handleOpenAddStoreForOrg(targetOrg);
-                        } else {
-                          setIsAddOrgModalOpen(true);
-                        }
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-[#116B50] text-white font-bold hover:bg-[#0d533e] flex items-center gap-1 shadow-sm transition"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>+ Filial qo‘shish</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stores Grid / Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {filteredStores.length > 0 ? (
-                  filteredStores.map((st) => (
-                    <div
-                      key={st.id}
-                      className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-4 transition hover:border-[#116B50]/40"
-                    >
-                      <div>
-                        {/* Header & Status */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] shrink-0 flex items-center justify-center">
-                              {st.photoUrl ? (
-                                <img src={st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
-                              ) : (
-                                <Building2 className="w-6 h-6 text-[#566A63] dark:text-[#8B9E95]" />
-                              )}
-                            </div>
-                            <div>
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{st.name}</h3>
-                                {st.isVerified && (
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                                    <CheckCircle className="w-3 h-3" /> Tasdiqlangan
+                                <td className="py-3.5 px-4">
+                                  <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]">
+                                    {org.type || 'RETAIL'}
                                   </span>
-                                )}
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  {orgStores.length > 0 ? (
+                                    <button
+                                      onClick={() => {
+                                        setStoreSearch(org.name);
+                                        setActiveOrgSubTab('stores');
+                                      }}
+                                      className="inline-flex items-center gap-1 font-semibold text-[#172C28] dark:text-[#E8F2EC] hover:text-[#116B50] dark:hover:text-[#4ADE80] transition"
+                                      title="Filiallarni ko‘rish"
+                                    >
+                                      🏪 <span className="underline decoration-dotted">{orgStores.length} ta filial</span>
+                                    </button>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md border border-amber-300 dark:border-amber-800">
+                                      ⚠️ Filial yo‘q
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  <button
+                                    onClick={() => handleOpenOrgUsers(org)}
+                                    className="inline-flex items-center gap-1 font-semibold text-[#116B50] dark:text-[#4ADE80] hover:underline"
+                                    title="Xodimlarni ko‘rish"
+                                  >
+                                    👥 {orgUsersCount || 1} ta xodim
+                                  </button>
+                                </td>
+
+                                <td className="py-3.5 px-4">
+                                  {org.status === 'ACTIVE' ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-800 dark:bg-green-950/60 dark:text-green-300">
+                                      Faol
+                                    </span>
+                                  ) : org.status === 'SUSPENDED' ? (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300">
+                                      To‘xtatilgan
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300">
+                                      O‘chirilgan
+                                    </span>
+                                  )}
+                                </td>
+
+                                <td className="py-3.5 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-1.5 flex-wrap">
+                                    {/* Add Store */}
+                                    <button
+                                      onClick={() => handleOpenAddStoreForOrg(org)}
+                                      className="py-1 px-2 rounded-lg border border-[#116B50] dark:border-[#4ADE80] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] text-xs font-semibold transition flex items-center gap-1 shadow-sm"
+                                      title="Yangi filial / do‘kon qo‘shish"
+                                    >
+                                      <Store className="w-3.5 h-3.5" />
+                                      <span>+ Filial</span>
+                                    </button>
+
+                                    {/* View Org Users */}
+                                    <button
+                                      onClick={() => handleOpenOrgUsers(org)}
+                                      className="py-1 px-2.5 rounded-lg bg-[#116B50] text-white text-xs font-semibold hover:bg-[#0d533e] transition flex items-center gap-1 shadow-sm"
+                                      title="Xodimlarni boshqarish"
+                                    >
+                                      <Users className="w-3.5 h-3.5" />
+                                      <span>Xodimlar ({orgUsersCount || 1})</span>
+                                    </button>
+
+                                    {/* Add User to this Org */}
+                                    <button
+                                      onClick={() => {
+                                        setSelectedOrgForUsers(org);
+                                        setNewUserForm(prev => ({
+                                          ...prev,
+                                          organizationId: org.id,
+                                          password: 'Pass' + Math.floor(1000 + Math.random() * 9000) + '!'
+                                        }));
+                                        setIsAddUserModalOpen(true);
+                                      }}
+                                      title="Yangi xodim / login qo‘shish"
+                                      className="p-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
+                                    >
+                                      <Plus className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    {/* Block / Unblock */}
+                                    <button
+                                      onClick={() => handleToggleOrgStatus(org)}
+                                      title={org.status === 'ACTIVE' ? 'Tashkilotni to‘xtatish (bloklash)' : 'Tashkilotni faollashtirish'}
+                                      className={`py-1 px-2 rounded-lg text-xs font-semibold transition flex items-center gap-1 ${
+                                        org.status === 'ACTIVE'
+                                          ? 'border border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40'
+                                          : 'border border-green-300 dark:border-green-800 text-green-700 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-950/40'
+                                      }`}
+                                    >
+                                      <ShieldAlert className="w-3.5 h-3.5" />
+                                      <span>{org.status === 'ACTIVE' ? 'Bloklash' : 'Faol'}</span>
+                                    </button>
+
+                                    {/* Delete */}
+                                    <button
+                                      onClick={() => handleDeleteOrg(org)}
+                                      title="Tashkilotni o‘chirish"
+                                      className="py-1 px-2 rounded-lg border border-red-300 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 text-xs font-semibold transition flex items-center gap-1"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                      <span>O‘chirish</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="py-12 text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
+                              Mos keladigan tashkilot topilmadi
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination Bar (20 ta) */}
+                  <div className="p-4 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#566A63] dark:text-[#8B9E95]">
+                    <div>
+                      Ko‘rsatilmoqda:{' '}
+                      <strong className="text-[#172C28] dark:text-white">
+                        {filteredOrgs.length === 0 ? 0 : (orgPage - 1) * ORG_PAGE_SIZE + 1} -{' '}
+                        {Math.min(orgPage * ORG_PAGE_SIZE, filteredOrgs.length)}
+                      </strong>{' '}
+                      /{' '}
+                      <strong className="text-[#172C28] dark:text-white">{filteredOrgs.length}</strong> ta tashkilot (sahifada 20 ta)
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setOrgPage(p => Math.max(1, p - 1))}
+                        disabled={orgPage === 1}
+                        className="px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] font-semibold transition flex items-center gap-1"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Oldingi</span>
+                      </button>
+
+                      {Array.from({ length: totalOrgPages }, (_, i) => i + 1).map((num) => (
+                        <button
+                          key={num}
+                          onClick={() => setOrgPage(num)}
+                          className={`w-8 h-8 rounded-lg text-xs font-bold transition ${
+                            orgPage === num
+                              ? 'bg-[#116B50] text-white shadow-sm'
+                              : 'border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822]'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      ))}
+
+                      <button
+                        onClick={() => setOrgPage(p => Math.min(totalOrgPages, p + 1))}
+                        disabled={orgPage === totalOrgPages}
+                        className="px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] font-semibold transition flex items-center gap-1"
+                      >
+                        <span>Keyingi</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB CONTENT: STORES (FILIALLAR) */}
+              {activeOrgSubTab === 'stores' && (
+                <div className="flex flex-col gap-6">
+                  {/* Multi-tier Filter and Search Bar for Stores */}
+                  <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
+                      {/* Search by Name or INN */}
+                      <div className="relative">
+                        <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                        <input
+                          type="text"
+                          value={storeSearch}
+                          onChange={(e) => setStoreSearch(e.target.value)}
+                          placeholder="Nomi, STIR (INN), manzil..."
+                          className="w-full pl-9 pr-3 py-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                        />
+                      </div>
+
+                      {/* Viloyat Filter */}
+                      <div>
+                        <select
+                          value={orgRegionFilter}
+                          onChange={(e) => setOrgRegionFilter(e.target.value)}
+                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                        >
+                          {REGION_OPTIONS.map((reg) => (
+                            <option key={reg} value={reg}>
+                              {reg}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Tuman/Shahar Filter */}
+                      <div>
+                        <select
+                          value={orgCityFilter}
+                          onChange={(e) => setOrgCityFilter(e.target.value)}
+                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                        >
+                          {['Barcha tumanlar', 'Yunusobod', 'Mirobod', 'Chilonzor', 'Shayxontohur', 'Yakkasaroy', 'Mirzo Ulug‘bek', 'Olmazor', 'Samarqand shahri'].map((c) => (
+                            <option key={c} value={c}>
+                              {c}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Mahalla Filter */}
+                      <div>
+                        <select
+                          value={orgDistrictFilter}
+                          onChange={(e) => setOrgDistrictFilter(e.target.value)}
+                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                        >
+                          {['Barcha mahallalar', 'Navbahor MFY', 'Oqtepa MFY', 'Do‘stlik MFY', 'Chorsu MFY', 'Bog‘iston MFY', 'Guliston MFY', 'Mustaqillik MFY'].map((d) => (
+                            <option key={d} value={d}>
+                              {d}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Status Pills and Quick Reset */}
+                    <div className="flex items-center justify-between pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex-wrap gap-2">
+                      <div className="flex items-center gap-1.5 overflow-x-auto">
+                        {(['ALL', 'ACTIVE', 'PENDING', 'SUSPENDED'] as const).map((st) => (
+                          <button
+                            key={st}
+                            onClick={() => setStatusFilter(st)}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
+                              statusFilter === st
+                                ? 'bg-[#116B50] text-white'
+                                : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                            }`}
+                          >
+                            {st === 'ALL' ? 'Barchasi' : st === 'ACTIVE' ? 'Faol' : st === 'PENDING' ? 'Kutilmoqda' : 'To‘xtatilgan'}
+                          </button>
+                        ))}
+                      </div>
+
+                      <div className="flex items-center gap-2 text-xs flex-wrap">
+                        <span className="text-[#566A63] dark:text-[#8B9E95]">
+                          Natija: <strong>{filteredStores.length} ta do‘kon</strong>
+                        </span>
+                        <button
+                          onClick={() => setActiveTab('map-hub')}
+                          className="px-2.5 py-1 rounded-lg bg-[#116B50]/10 dark:bg-[#4ADE80]/10 text-[#116B50] dark:text-[#4ADE80] font-bold hover:bg-[#116B50]/20 flex items-center gap-1 transition"
+                        >
+                          <MapPin className="w-3.5 h-3.5" />
+                          <span>Xaritada ko‘rish</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            const targetOrg = organizations[0] || null;
+                            if (targetOrg) {
+                              handleOpenAddStoreForOrg(targetOrg);
+                            } else {
+                              setIsAddOrgModalOpen(true);
+                            }
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-[#116B50] text-white font-bold hover:bg-[#0d533e] flex items-center gap-1 shadow-sm transition"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>+ Filial qo‘shish</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stores Grid / Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    {filteredStores.length > 0 ? (
+                      filteredStores.map((st) => (
+                        <div
+                          key={st.id}
+                          className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-4 transition hover:border-[#116B50]/40"
+                        >
+                          <div>
+                            {/* Header & Status */}
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] shrink-0 flex items-center justify-center">
+                                  {st.photoUrl ? (
+                                    <img src={st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+                                  ) : (
+                                    <Building2 className="w-6 h-6 text-[#566A63] dark:text-[#8B9E95]" />
+                                  )}
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{st.name}</h3>
+                                    {st.isVerified && (
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                        <CheckCircle className="w-3 h-3" /> Tasdiqlangan
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                                    Tashkilot: <strong className="text-[#172C28] dark:text-white">{st.organizationName || 'Bosh tashkilot'}</strong>
+                                    <span className="ml-2 font-mono text-[#116B50] dark:text-[#4ADE80] font-bold">
+                                      STIR (INN): {st.inn || '308123456'}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                                Tashkilot: <strong className="text-[#172C28] dark:text-white">{st.organizationName || 'Bosh tashkilot'}</strong>
-                                <span className="ml-2 font-mono text-[#116B50] dark:text-[#4ADE80] font-bold">
-                                  STIR (INN): {st.inn || '308123456'}
+
+                              <Tag variant={st.status === 'ACTIVE' ? 'default' : st.status === 'PENDING' ? 'warn' : 'error'}>
+                                {st.status}
+                              </Tag>
+                            </div>
+
+                            {/* Store Details */}
+                            <div className="mt-4 flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95]">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
+                                <span className="truncate">{st.address} ({st.region || 'Toshkent sh.'}, {st.city || 'Yunusobod'})</span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Phone className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
+                                <span>{st.phone}</span>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Compass className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
+                                <span className="font-mono text-[11px] bg-[#F3F6F3] dark:bg-[#1A2822] px-2 py-0.5 rounded text-[#172C28] dark:text-[#E8F2EC]">
+                                  {st.location.lat.toFixed(6)}, {st.location.lng.toFixed(6)}
+                                </span>
+                                <a
+                                  href={`https://yaqintop.uz/customer/?lat=${st.location.lat}&lng=${st.location.lng}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold hover:underline flex items-center gap-1"
+                                >
+                                  Kartada ochish <ExternalLink className="w-3 h-3" />
+                                </a>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
+                                <span>
+                                  Ish vaqti:{' '}
+                                  {st.hours && st.hours.length > 0
+                                    ? `${st.hours[0].openTime} - ${st.hours[0].closeTime}`
+                                    : '08:00 - 22:00'}
                                 </span>
                               </div>
                             </div>
                           </div>
 
-                          <Tag variant={st.status === 'ACTIVE' ? 'default' : st.status === 'PENDING' ? 'warn' : 'error'}>
-                            {st.status}
-                          </Tag>
-                        </div>
+                          {/* Actions */}
+                          <div className="flex items-center justify-between pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] gap-2">
+                            <div className="flex gap-2">
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => handleOpenEditStore(st)}
+                                className="flex items-center gap-1 text-xs"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                                Tahrirlash
+                              </Button>
+                              <Button
+                                variant={st.status === 'ACTIVE' ? 'danger' : 'secondary'}
+                                size="sm"
+                                onClick={() => handleToggleStoreStatus(st)}
+                                className="text-xs"
+                              >
+                                {st.status === 'ACTIVE' ? 'To‘xtatish' : 'Faollashtirish'}
+                              </Button>
+                            </div>
 
-                        {/* Store Details */}
-                        <div className="mt-4 flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95]">
-                          <div className="flex items-center gap-2">
-                            <MapPin className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                            <span className="truncate">{st.address} ({st.region || 'Toshkent sh.'}, {st.city || 'Yunusobod'})</span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Phone className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                            <span>{st.phone}</span>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Compass className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                            <span className="font-mono text-[11px] bg-[#F3F6F3] dark:bg-[#1A2822] px-2 py-0.5 rounded text-[#172C28] dark:text-[#E8F2EC]">
-                              {st.location.lat.toFixed(6)}, {st.location.lng.toFixed(6)}
-                            </span>
-                            <a
-                              href={`${'https://yaqintop.uz/customer/'}?lat=${st.location.lat}&lng=${st.location.lng}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold hover:underline flex items-center gap-1"
-                            >
-                              Kartada ochish <ExternalLink className="w-3 h-3" />
-                            </a>
-                          </div>
-
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                            <span>
-                              Ish vaqti:{' '}
-                              {st.hours && st.hours.length > 0
-                                ? `${st.hours[0].openTime} - ${st.hours[0].closeTime}`
-                                : '08:00 - 22:00'}
+                            <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                              Reyting: ⭐ {st.rating || 5.0} ({st.reviewCount || 0})
                             </span>
                           </div>
                         </div>
+                      ))
+                    ) : (
+                      <div className="col-span-2 bg-white dark:bg-[#14201A] p-10 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
+                        Mos keladigan filial yoki do‘kon topilmadi
                       </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-between pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] gap-2">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => handleOpenEditStore(st)}
-                            className="flex items-center gap-1 text-xs"
-                          >
-                            <Edit2 className="w-3.5 h-3.5" />
-                            Tahrirlash
-                          </Button>
-                          <Button
-                            variant={st.status === 'ACTIVE' ? 'danger' : 'secondary'}
-                            size="sm"
-                            onClick={() => handleToggleStoreStatus(st)}
-                            className="text-xs"
-                          >
-                            {st.status === 'ACTIVE' ? 'To‘xtatish' : 'Faollashtirish'}
-                          </Button>
-                        </div>
-
-                        <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
-                          Reyting: ⭐ {st.rating || 5.0} ({st.reviewCount || 0})
-                        </span>
-                      </div>
-                    </div>
-                  ))
-                ) : (
-                  <div className="col-span-2 bg-white dark:bg-[#14201A] p-10 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
-                    Mos keladigan tashkilot yoki do‘kon topilmadi
+                    )}
                   </div>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1757,32 +2153,58 @@ export function AdminApp() {
               </div>
 
               {/* User search & filter */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full sm:w-80">
-                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
-                  <input
-                    type="text"
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                    placeholder="Ism, login, telefon yoki tashkilot..."
-                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
-                  />
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                {/* 1-Qator: Qidiruv va Status filtrlari */}
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      placeholder="Ism, login, telefon yoki tashkilot..."
+                      className="w-full pl-9 pr-3.5 py-2.5 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                    />
+                  </div>
+
+                  {/* Status Filters */}
+                  <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                    {(['ALL', 'ACTIVE', 'PENDING', 'SUSPENDED', 'DELETED'] as const).map((st) => (
+                      <button
+                        key={st}
+                        onClick={() => setUserStatusFilter(st)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                          userStatusFilter === st
+                            ? 'bg-[#116B50] text-white shadow-sm'
+                            : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                        }`}
+                      >
+                        {st === 'ALL' ? 'Barchasi' : st === 'ACTIVE' ? 'Faol' : st === 'PENDING' ? 'Kutilmoqda' : st === 'SUSPENDED' ? 'To‘xtatilgan' : 'O‘chirilgan'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-                  {['ALL', 'OWNER', 'MANAGER', 'OPERATOR', 'CUSTOMER', 'SUPERADMIN'].map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => setUserRoleFilter(r)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
-                        userRoleFilter === r
-                          ? 'bg-[#116B50] text-white'
-                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
-                      }`}
-                    >
-                      {r === 'ALL' ? 'Barcha rollar' : r}
-                    </button>
-                  ))}
+                {/* 2-Qator: Rollar (pastga tushirilgan va to'liq responsiv, scrollbarsiz) */}
+                <div className="flex items-center gap-2 pt-2.5 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex-wrap">
+                  <span className="text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] shrink-0">
+                    Rol bo‘yicha:
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {['ALL', 'OWNER', 'MANAGER', 'OPERATOR', 'CUSTOMER', 'SUPERADMIN'].map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setUserRoleFilter(r)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                          userRoleFilter === r
+                            ? 'bg-[#172C28] text-white dark:bg-[#E8F2EC] dark:text-[#172C28] shadow-sm'
+                            : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                        }`}
+                      >
+                        {r === 'ALL' ? 'Barcha rollar' : r}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1809,7 +2231,17 @@ export function AdminApp() {
                             (u.phone && u.phone.includes(userSearch)) ||
                             ((u as any).organizationName && (u as any).organizationName.toLowerCase().includes(userSearch.toLowerCase()));
                           const matchRole = userRoleFilter === 'ALL' || u.role === userRoleFilter;
-                          return matchSearch && matchRole;
+                          const matchStatus =
+                            userStatusFilter === 'ALL'
+                              ? u.status !== 'DELETED'
+                              : userStatusFilter === 'ACTIVE'
+                              ? u.status === 'ACTIVE'
+                              : userStatusFilter === 'PENDING'
+                              ? (u.status === 'PENDING' || (u as any).isVerified === false)
+                              : userStatusFilter === 'SUSPENDED'
+                              ? u.status === 'SUSPENDED'
+                              : u.status === 'DELETED';
+                          return matchSearch && matchRole && matchStatus;
                         })
                         .map((u) => {
                           const isPending = u.status === 'PENDING' || (u as any).isVerified === false;
@@ -1898,11 +2330,19 @@ export function AdminApp() {
                                     title={u.status === 'ACTIVE' ? 'Bloklash' : 'Faollashtirish'}
                                     className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition ${
                                       u.status === 'ACTIVE'
-                                        ? 'bg-red-50 dark:bg-red-950/40 text-red-600 hover:bg-red-100'
+                                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100'
                                         : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 hover:bg-emerald-100'
                                     }`}
                                   >
                                     {u.status === 'ACTIVE' ? 'Bloklash' : 'Faol qilish'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteUser(u)}
+                                    title="Foydalanuvchini butunlay o‘chirish"
+                                    className="px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition flex items-center gap-1 text-[11px] font-semibold"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>O‘chirish</span>
                                   </button>
                                 </div>
                               </td>
@@ -2733,7 +3173,7 @@ export function AdminApp() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
-                  {orgUsersList.map((u) => {
+                  {orgUsersList.filter(u => u.status !== 'DELETED').map((u) => {
                     const isPending = u.status === 'PENDING' || (u as any).isVerified === false;
                     const method = (u as any).verificationMethod || 'TELEGRAM';
 
@@ -3187,13 +3627,28 @@ export function AdminApp() {
             </select>
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-[#DCE5DF] dark:border-[#22332C]">
-            <Button variant="secondary" type="button" onClick={() => setIsEditCredentialsModalOpen(false)}>
-              Bekor qilish
-            </Button>
-            <Button variant="primary" type="submit">
-              O‘zgarishlarni saqlash
-            </Button>
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-[#DCE5DF] dark:border-[#22332C]">
+            {userToEdit && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsEditCredentialsModalOpen(false);
+                  handleDeleteUser(userToEdit);
+                }}
+                className="px-3 py-2 rounded-xl bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 font-bold text-xs flex items-center gap-1.5 transition"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Foydalanuvchini o‘chirish</span>
+              </button>
+            )}
+            <div className="flex items-center gap-2 ml-auto">
+              <Button variant="secondary" type="button" onClick={() => setIsEditCredentialsModalOpen(false)}>
+                Bekor qilish
+              </Button>
+              <Button variant="primary" type="submit">
+                O‘zgarishlarni saqlash
+              </Button>
+            </div>
           </div>
         </form>
       </Modal>

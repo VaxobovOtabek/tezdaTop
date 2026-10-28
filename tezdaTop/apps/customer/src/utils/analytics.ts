@@ -8,23 +8,22 @@ declare global {
   }
 }
 
-const DEFAULT_GA_ID = 'G-MHCRMDTCKM';
-
 export const getMeasurementId = (): string => {
   const envId = (import.meta as any).env?.VITE_GA_MEASUREMENT_ID;
-  if (envId && typeof envId === 'string' && !envId.startsWith('%')) {
-    return envId;
+  if (envId && typeof envId === 'string' && !envId.startsWith('%') && envId.trim()) {
+    return envId.trim();
   }
-  if (typeof window !== 'undefined' && window.VITE_GA_MEASUREMENT_ID) {
-    return window.VITE_GA_MEASUREMENT_ID;
+  if (typeof window !== 'undefined' && window.VITE_GA_MEASUREMENT_ID && typeof window.VITE_GA_MEASUREMENT_ID === 'string') {
+    return window.VITE_GA_MEASUREMENT_ID.trim();
   }
-  return DEFAULT_GA_ID;
+  return '';
 };
 
 export const initAnalytics = (): void => {
   if (typeof window === 'undefined') return;
 
   const gaId = getMeasurementId();
+  if (!gaId) return;
 
   // Initialize dataLayer and gtag if not yet initialized
   window.dataLayer = window.dataLayer || [];
@@ -54,6 +53,7 @@ export const initAnalytics = (): void => {
 export const trackPageView = (path?: string, title?: string): void => {
   if (typeof window === 'undefined' || !window.gtag) return;
   const gaId = getMeasurementId();
+  if (!gaId) return;
   window.gtag('config', gaId, {
     page_path: path || window.location.pathname + window.location.search,
     page_title: title || document.title

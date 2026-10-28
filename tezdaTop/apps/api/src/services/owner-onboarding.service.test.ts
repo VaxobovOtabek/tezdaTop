@@ -47,4 +47,10 @@ describe('owner tashkilot yaratishi', () => {
     expect(resultNoInn.organization.inn).toBe('');
     expect(database.organizations.size).toBe(1);
   });
+  it('allows creating owner with plain alphanumeric username / login instead of email', () => {
+    const database = fixture();
+    const resultLogin = createOwnerOrganization(database, { ...input, email: 'owner_samarkand', phone: '+998911234567' });
+    expect(resultLogin.user.email).toBe('owner_samarkand');
+    expect(database.users.size).toBe(1);
+  });
 });

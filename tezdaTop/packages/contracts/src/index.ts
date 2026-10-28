@@ -18,7 +18,7 @@ export const UserSchema = z.object({
   fullName: z.string().min(1),
   phone: z.string().optional(),
   role: UserRoleSchema,
-  status: z.enum(['ACTIVE', 'SUSPENDED', 'PENDING']),
+  status: z.enum(['ACTIVE', 'SUSPENDED', 'PENDING', 'DELETED']),
   organizationId: z.string().optional(),
   organizationName: z.string().optional(),
   verificationMethod: z.enum(['TELEGRAM', 'SMS', 'NONE']).optional(),
@@ -76,7 +76,8 @@ export const StoreStatusSchema = z.enum([
   'NEEDS_CHANGES',
   'ACTIVE',
   'SUSPENDED',
-  'REJECTED'
+  'REJECTED',
+  'DELETED'
 ]);
 export type StoreStatus = z.infer<typeof StoreStatusSchema>;
 
@@ -99,7 +100,7 @@ export const OrganizationSchema = z.object({
   name: z.string().min(1),
   inn: z.string().optional(),
   type: OrganizationTypeSchema,
-  status: z.enum(['ACTIVE', 'SUSPENDED']),
+  status: z.enum(['ACTIVE', 'SUSPENDED', 'DELETED']),
   region: z.string().optional(),
   city: z.string().optional(),
   district: z.string().optional(),

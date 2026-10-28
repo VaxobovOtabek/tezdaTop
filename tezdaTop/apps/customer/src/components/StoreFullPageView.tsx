@@ -563,11 +563,13 @@ export function StoreFullPageView({
   });
 
   const currentDayOfWeek = new Date().getDay();
+  const todayHours = store?.hours?.find((h: any) => h.dayOfWeek === currentDayOfWeek) || store?.hours?.[0];
+  const isCurrentlyOpen = todayHours ? !todayHours.isClosed : true;
 
   return (
     <div className="flex-1 bg-[#F3F6F3] dark:bg-[#0E1713] overflow-y-auto overflow-x-hidden h-full min-h-0 text-[#172C28] dark:text-[#E8F2EC] flex flex-col">
       {/* Top Sticky Header */}
-      <div className="sticky top-0 z-30 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur border-b border-[#DCE5DF] dark:border-[#22332C] px-3 sm:px-6 md:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 shadow-sm w-full">
+      <div className="sticky top-0 z-30 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur border-b border-[#DCE5DF] dark:border-[#22332C] px-3 sm:px-6 md:px-8 py-2.5 sm:py-3.5 flex items-center justify-between gap-2 shadow-sm w-full shrink-0">
         <button
           onClick={onBack}
           className="flex items-center gap-1.5 sm:gap-2 text-xs md:text-sm font-bold text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl transition shrink-0 cursor-pointer"
@@ -622,13 +624,13 @@ export function StoreFullPageView({
       </div>
 
       {/* Main Content Body */}
-      <div className="max-w-6xl mx-auto w-full px-3.5 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 flex flex-col gap-4 sm:gap-5 pb-24 md:pb-12 overflow-x-hidden">
+      <div className="max-w-6xl mx-auto w-full px-3.5 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 flex flex-col gap-4 sm:gap-5 pb-24 md:pb-12 overflow-x-hidden shrink-0">
         {/* HERO SECTION: Gallery & Summary Card */}
-        <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-sm overflow-hidden">
+        <div className="w-full shrink-0 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-sm">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 md:gap-6 items-start">
             {/* Gallery (Left: 7 cols) */}
             <div className="lg:col-span-7 flex flex-col gap-3 min-w-0">
-              <div className="relative w-full h-56 sm:h-72 md:h-84 rounded-2xl overflow-hidden bg-[#E2EEE4] dark:bg-[#182C22] border border-[#DCE5DF] dark:border-[#2A3F36] shadow-inner group">
+              <div className="relative w-full h-56 sm:h-72 md:h-80 lg:h-96 rounded-2xl overflow-hidden bg-[#E2EEE4] dark:bg-[#182C22] border border-[#DCE5DF] dark:border-[#2A3F36] shadow-inner group shrink-0">
                 <img
                   src={storeImages[activeImageIndex]}
                   alt={store?.name}
@@ -643,7 +645,7 @@ export function StoreFullPageView({
                       onClick={() =>
                         setActiveImageIndex((prev) => (prev > 0 ? prev - 1 : storeImages.length - 1))
                       }
-                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm text-[#172C28] dark:text-white flex items-center justify-center hover:bg-white dark:hover:bg-black transition shadow"
+                      className="absolute left-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm text-[#172C28] dark:text-white flex items-center justify-center hover:bg-white dark:hover:bg-black transition shadow cursor-pointer"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
@@ -651,7 +653,7 @@ export function StoreFullPageView({
                       onClick={() =>
                         setActiveImageIndex((prev) => (prev < storeImages.length - 1 ? prev + 1 : 0))
                       }
-                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm text-[#172C28] dark:text-white flex items-center justify-center hover:bg-white dark:hover:bg-black transition shadow"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white/80 dark:bg-black/60 backdrop-blur-sm text-[#172C28] dark:text-white flex items-center justify-center hover:bg-white dark:hover:bg-black transition shadow cursor-pointer"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
@@ -683,7 +685,7 @@ export function StoreFullPageView({
 
               {/* Thumbnails */}
               <div
-                className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar max-w-full"
+                className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar max-w-full shrink-0"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {storeImages.map((img, idx) => (
@@ -756,15 +758,27 @@ export function StoreFullPageView({
                 <div className="flex items-start gap-3">
                   <Clock className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] shrink-0 mt-0.5" />
                   <div>
-                    <div className="font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-pulse" />
-                      <span>Ochiq</span>
-                      <span className="text-[#566A63] dark:text-[#8B9E95] font-normal">
-                        · Bugun {store?.hours?.[0]?.openTime || '08:00'} – {store?.hours?.[0]?.closeTime || '23:00'}
-                      </span>
+                    <div className="font-bold flex items-center gap-1.5">
+                      {isCurrentlyOpen ? (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-pulse" />
+                          <span className="text-[#116B50] dark:text-[#4ADE80]">Ochiq</span>
+                          <span className="text-[#566A63] dark:text-[#8B9E95] font-normal">
+                            · Bugun {todayHours?.openTime || '08:00'} – {todayHours?.closeTime || '22:00'}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="w-2 h-2 rounded-full bg-rose-500" />
+                          <span className="text-rose-600 dark:text-rose-400">Yopiq</span>
+                          <span className="text-[#566A63] dark:text-[#8B9E95] font-normal">
+                            · Dam olish kuni
+                          </span>
+                        </>
+                      )}
                     </div>
                     <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">
-                      Har kuni tanaffussiz ishlaydi
+                      {store?.is24_7 ? 'Har kuni 24 soat ishlaydi' : 'Ish vaqti jadvali bo‘yicha xizmat ko‘rsatiladi'}
                     </span>
                   </div>
                 </div>
@@ -776,9 +790,11 @@ export function StoreFullPageView({
                     <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">
                       {store?.address || 'Toshkent shahri'}
                     </span>
-                    <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                      Mo‘ljal: Markaziy ko‘cha bo‘yida
-                    </p>
+                    {store?.landmark && (
+                      <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                        Mo‘ljal: {store.landmark}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -791,15 +807,15 @@ export function StoreFullPageView({
                         Aloqa raqami:
                       </span>
                       <a
-                        href={`tel:${store?.phone || '+998901234567'}`}
+                        href={`tel:${(store?.phone || '+998901234567').replace(/[^+\d]/g, '')}`}
                         className="font-bold text-[#116B50] dark:text-[#4ADE80] text-sm hover:underline"
                       >
                         {store?.phone || '+998 (90) 123-45-67'}
                       </a>
                     </div>
                     <a
-                      href={`tel:${store?.phone || '+998901234567'}`}
-                      className="px-3 py-1.5 rounded-lg bg-[#116B50] text-white font-bold text-xs hover:bg-[#0B563F] transition"
+                      href={`tel:${(store?.phone || '+998901234567').replace(/[^+\d]/g, '')}`}
+                      className="px-3 py-1.5 rounded-lg bg-[#116B50] text-white font-bold text-xs hover:bg-[#0B563F] transition shrink-0"
                     >
                       Qo‘ng‘iroq
                     </a>
@@ -852,7 +868,7 @@ export function StoreFullPageView({
 
         {/* Highlight Banner if coming from a specific searched product */}
         {matchedOffer && (
-          <div className="bg-[#E0EFE7] dark:bg-[#183324] border-2 border-[#116B50] dark:border-[#4ADE80] rounded-2xl p-4 flex items-center justify-between shadow-sm">
+          <div className="w-full shrink-0 bg-[#E0EFE7] dark:bg-[#183324] border-2 border-[#116B50] dark:border-[#4ADE80] rounded-2xl p-4 flex items-center justify-between shadow-sm">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-[#116B50] text-white flex items-center justify-center font-bold text-lg">
                 🎯
@@ -882,7 +898,7 @@ export function StoreFullPageView({
 
         {/* TABS NAVIGATION */}
         <div
-          className="flex items-center gap-1.5 sm:gap-2 border-b border-[#DCE5DF] dark:border-[#22332C] pb-px overflow-x-auto scrollbar-none no-scrollbar max-w-full"
+          className="w-full shrink-0 flex items-center gap-1.5 sm:gap-2 border-b border-[#DCE5DF] dark:border-[#22332C] pb-px overflow-x-auto scrollbar-none no-scrollbar min-h-[44px] sm:min-h-[48px]"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {[
@@ -894,9 +910,9 @@ export function StoreFullPageView({
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 sm:px-4 py-2.5 sm:py-3 font-bold text-xs md:text-sm border-b-2 transition whitespace-nowrap shrink-0 cursor-pointer ${
+              className={`px-3.5 sm:px-4 py-2.5 sm:py-3 font-bold text-xs md:text-sm border-b-2 transition whitespace-nowrap shrink-0 cursor-pointer flex items-center gap-1.5 ${
                 activeTab === tab.id
-                  ? 'border-[#116B50] dark:border-[#4ADE80] text-[#116B50] dark:text-[#4ADE80] bg-white dark:bg-[#14201A] rounded-t-xl'
+                  ? 'border-[#116B50] dark:border-[#4ADE80] text-[#116B50] dark:text-[#4ADE80] bg-white dark:bg-[#14201A] rounded-t-xl shadow-2xs'
                   : 'border-transparent text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
               }`}
             >
@@ -907,7 +923,7 @@ export function StoreFullPageView({
 
         {/* TAB 1: CATALOG OF GOODS & SERVICES */}
         {activeTab === 'catalog' && (
-          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 shadow-sm">
+          <div className="w-full shrink-0 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 shadow-sm">
             {/* Header with Search & Filter */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -922,18 +938,18 @@ export function StoreFullPageView({
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 {/* In-Store Search Bar */}
                 <div className="relative flex-1 sm:w-64 md:w-72">
-                  <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#566A63] dark:text-[#8B9E95]" />
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#566A63] dark:text-[#8B9E95]" />
                   <input
                     type="text"
                     value={productSearch}
                     onChange={(e) => setProductSearch(e.target.value)}
                     placeholder="Do‘kon tovarlaridan qidirish..."
-                    className="w-full h-9 sm:h-10 pl-8.5 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs md:text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none"
+                    className="w-full h-9 sm:h-10 pl-10 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs md:text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none"
                   />
                   {productSearch && (
                     <button
                       onClick={() => setProductSearch('')}
-                      className="absolute right-2.5 top-2.5 text-[#566A63] dark:text-[#8B9E95]"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] p-1 cursor-pointer"
                     >
                       <X className="w-4 h-4" />
                     </button>
@@ -1276,7 +1292,7 @@ export function StoreFullPageView({
 
         {/* TAB 2: REVIEWS & RATINGS */}
         {activeTab === 'reviews' && (
-          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 sm:gap-5 shadow-sm">
+          <div className="w-full shrink-0 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 sm:gap-5 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
                 <h3 className="text-xl font-bold text-[#172C28] dark:text-white">
@@ -1306,7 +1322,7 @@ export function StoreFullPageView({
                 </div>
                 <button
                   onClick={handleOpenWriteReview}
-                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shrink-0 transition"
+                  className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs shrink-0 transition cursor-pointer"
                 >
                   Tizimga kirish
                 </button>
@@ -1423,7 +1439,7 @@ export function StoreFullPageView({
 
         {/* TAB 3: ABOUT STORE & WORKING HOURS */}
         {activeTab === 'about' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          <div className="w-full shrink-0 grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
             {/* Working Hours Schedule */}
             <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 shadow-sm">
               <div className="flex items-center gap-2">
@@ -1436,6 +1452,11 @@ export function StoreFullPageView({
               <div className="flex flex-col divide-y divide-[#DCE5DF]/60 dark:divide-[#2A3F36] text-xs">
                 {DAYS_UZ.map((d) => {
                   const isToday = d.id === currentDayOfWeek;
+                  const dayHour = store?.hours?.find((h: any) => h.dayOfWeek === d.id);
+                  const isClosedDay = dayHour ? dayHour.isClosed : false;
+                  const timeText = dayHour
+                    ? `${dayHour.openTime || '09:00'} – ${dayHour.closeTime || '18:00'}`
+                    : '08:00 – 22:00';
                   return (
                     <div
                       key={d.id}
@@ -1453,8 +1474,14 @@ export function StoreFullPageView({
                           </Tag>
                         )}
                       </div>
-                      <span className={isToday ? 'text-[#116B50] dark:text-[#4ADE80]' : 'text-[#172C28] dark:text-[#E8F2EC]'}>
-                        08:00 – 23:00 (Ochiq)
+                      <span className={
+                        isClosedDay
+                          ? 'text-rose-500 font-semibold'
+                          : isToday
+                          ? 'text-[#116B50] dark:text-[#4ADE80]'
+                          : 'text-[#172C28] dark:text-[#E8F2EC]'
+                      }>
+                        {isClosedDay ? 'Yopiq (Dam olish)' : `${timeText}${isToday ? ' (Ochiq)' : ''}`}
                       </span>
                     </div>
                   );
@@ -1487,7 +1514,7 @@ export function StoreFullPageView({
                       STIR (INN):
                     </span>
                     <span className="font-bold font-mono text-[#172C28] dark:text-white">
-                      {organization?.inn || '308912847'}
+                      {organization?.inn || store?.inn || '308912847'}
                     </span>
                   </div>
 
@@ -1496,7 +1523,7 @@ export function StoreFullPageView({
                       Faoliyat turi:
                     </span>
                     <span className="font-bold text-[#172C28] dark:text-white">
-                      {store?.type === 'WHOLESALE' ? 'Ulgurji' : 'Chakana savdo'}
+                      {store?.type === 'WHOLESALE' ? 'Ulgurji savdo' : !isTradeOrganization(store?.type) ? 'Xizmat ko‘rsatish' : 'Chakana savdo'}
                     </span>
                   </div>
                 </div>
@@ -1529,7 +1556,7 @@ export function StoreFullPageView({
 
         {/* TAB 4: MAP & NAVIGATION */}
         {activeTab === 'map' && (
-          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 sm:gap-5 shadow-sm">
+          <div className="w-full shrink-0 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 sm:gap-5 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-xl font-bold text-[#172C28] dark:text-white">

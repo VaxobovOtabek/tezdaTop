@@ -2,6 +2,7 @@ import { MaskedUserPassword } from '@yaqintop/ui';
 import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
+  TrendingUp,
   LayoutDashboard,
   Store,
   Building2,
@@ -39,6 +40,7 @@ import {
   EyeOff,
   Shield,
   ShieldAlert,
+  RotateCcw,
   Activity
 } from 'lucide-react';
 import { Button, Tag, Modal } from '@yaqintop/ui';
@@ -47,6 +49,7 @@ import { AdminMapHub, EnrichedStore } from './components/AdminMapHub';
 import { RolesGuideMatrix } from './components/RolesGuideMatrix';
 import { RequestsInquiriesHub } from './components/RequestsInquiriesHub';
 import { AnalyticsActivityHub } from './components/AnalyticsActivityHub';
+import { GrowthDynamicsHub } from './components/GrowthDynamicsHub';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
@@ -127,7 +130,7 @@ export function ModeratorApp() {
   }, [isDarkMode]);
 
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'map-hub' | 'analytics' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
+    'overview' | 'growth-dynamics' | 'map-hub' | 'analytics' | 'roles-guide' | 'requests-inquiries' | 'organizations' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
   >('overview');
 
   // Current User Session State (Loads from localStorage or null for guest)
@@ -153,6 +156,7 @@ export function ModeratorApp() {
   // Search in Users tab
   const [userSearch, setUserSearch] = useState('');
   const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL');
+  const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'DELETED'>('ALL');
 
   // Modals
   const [selectedApp, setSelectedApp] = useState<StoreType | null>(null);
@@ -196,7 +200,7 @@ export function ModeratorApp() {
     password: '',
     phone: '',
     role: 'OPERATOR' as any,
-    status: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'PENDING'
+    status: 'ACTIVE' as 'ACTIVE' | 'SUSPENDED' | 'PENDING' | 'DELETED'
   });
 
   // Add Organization / Store Modal
@@ -598,6 +602,97 @@ export function ModeratorApp() {
     }
   };
 
+  const handleDeleteStore = async (store: StoreType) => {
+    if (!window.confirm(`Haqiqatan ham "${store.name}" do‘konini butunlay o‘chirmoqchimisiz?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/v1/admin/stores/${store.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast(`"${store.name}" do‘koni o‘chirildi`);
+        loadData();
+      } else {
+        showToast('Do‘konni o‘chirishda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa xatosi');
+    }
+  };
+
+  const handleToggleUserStatus = async (user: any) => {
+    const newStatus = user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    try {
+      const res = await fetch(`/api/v1/admin/users/${user.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        showToast(
+          newStatus === 'SUSPENDED'
+            ? 'Foydalanuvchi hisobi to‘xtatildi (bloklandi)'
+            : 'Foydalanuvchi hisobi faollashtirildi'
+        );
+        loadData();
+      } else {
+        showToast('Foydalanuvchi holatini o‘zgartirishda xatolik');
+      }
+    } catch {
+      showToast('Xatolik yuz berdi');
+    }
+  };
+
+  const handleDeleteUser = async (user: any) => {
+    const isAlreadyDeleted = user.status === 'DELETED';
+    const confirmMessage = isAlreadyDeleted
+      ? `Haqiqatan ham "${user.fullName || user.email}" foydalanuvchisini bazadan BUTUNLAY o‘chirmoqchimisiz?`
+      : `Haqiqatan ham "${user.fullName || user.email}" foydalanuvchisini o‘chirmoqchimisiz?`;
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+    try {
+      const url = isAlreadyDeleted
+        ? `/api/v1/admin/users/${user.id}?permanent=true`
+        : `/api/v1/admin/users/${user.id}`;
+      const res = await fetch(url, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast(
+          isAlreadyDeleted
+            ? 'Foydalanuvchi bazadan butunlay o‘chirildi'
+            : 'Foydalanuvchi hisobi muvaffaqiyatli o‘chirildi'
+        );
+        loadData();
+      } else {
+        showToast('Foydalanuvchini o‘chirishda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa xatosi');
+    }
+  };
+
+  const handleRestoreUser = async (user: any) => {
+    try {
+      const res = await fetch(`/api/v1/admin/users/${user.id}/credentials`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'ACTIVE' })
+      });
+      if (res.ok) {
+        showToast(`"${user.fullName || user.email}" hisobi qayta tiklandi`);
+        loadData();
+      } else {
+        showToast('Foydalanuvchini qayta tiklashda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa xatosi');
+    }
+  };
+
   return (
     <div className="h-screen w-screen flex flex-col font-sans antialiased overflow-hidden bg-[#F3F6F3] dark:bg-[#0E1713] text-[#172C28] dark:text-[#E8F2EC] transition-colors">
       {/* Toast */}
@@ -716,6 +811,12 @@ export function ModeratorApp() {
             {[
               { id: 'overview', label: 'Umumiy holat', icon: LayoutDashboard },
               {
+                id: 'growth-dynamics',
+                label: 'Tizimga Qo‘shilish Dinamikasi',
+                icon: TrendingUp,
+                isSpecial: true
+              },
+              {
                 id: 'map-hub',
                 label: 'Xarita & Moderatsiya markazi',
                 icon: MapPin,
@@ -781,6 +882,18 @@ export function ModeratorApp() {
 
         {/* Content Area */}
         <main className="flex-1 p-6 md:p-8 overflow-y-auto">
+          {/* GROWTH DYNAMICS TAB */}
+          {activeTab === 'growth-dynamics' && (
+            <GrowthDynamicsHub
+              isDarkMode={isDarkMode}
+              onShowToast={(msg) => showToast(msg)}
+              onNavigateToStore={(storeId) => {
+                const store = stores.find(s => s.id === storeId);
+                if (store) handleOpenEditStore(store);
+              }}
+            />
+          )}
+
           {/* MAP HUB TAB */}
           {activeTab === 'map-hub' && (
             <AdminMapHub
@@ -957,6 +1070,13 @@ export function ModeratorApp() {
                           >
                             {st.status === 'ACTIVE' ? <UserX className="w-3.5 h-3.5 text-red-500" /> : <UserCheck className="w-3.5 h-3.5 text-emerald-500" />}
                           </button>
+                          <button
+                            onClick={() => handleDeleteStore(st)}
+                            title="Do‘konni butunlay o‘chirish"
+                            className="p-1.5 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 transition"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
                         </div>
                       </div>
 
@@ -1127,32 +1247,58 @@ export function ModeratorApp() {
               </div>
 
               {/* User search & filter */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
-                <div className="relative w-full sm:w-80">
-                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
-                  <input
-                    type="text"
-                    value={userSearch}
-                    onChange={(e) => setUserSearch(e.target.value)}
-                    placeholder="Ism, login, telefon yoki tashkilot..."
-                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
-                  />
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col gap-3">
+                {/* 1-Qator: Qidiruv va Status filtrlari */}
+                <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                    <input
+                      type="text"
+                      value={userSearch}
+                      onChange={(e) => setUserSearch(e.target.value)}
+                      placeholder="Ism, login, telefon yoki tashkilot..."
+                      className="w-full pl-9 pr-3.5 py-2.5 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                    />
+                  </div>
+
+                  {/* Status Filters */}
+                  <div className="flex items-center gap-1.5 flex-wrap shrink-0">
+                    {(['ALL', 'ACTIVE', 'PENDING', 'SUSPENDED', 'DELETED'] as const).map((st) => (
+                      <button
+                        key={st}
+                        onClick={() => setUserStatusFilter(st)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition ${
+                          userStatusFilter === st
+                            ? 'bg-[#116B50] text-white shadow-sm'
+                            : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                        }`}
+                      >
+                        {st === 'ALL' ? 'Barchasi' : st === 'ACTIVE' ? 'Faol' : st === 'PENDING' ? 'Kutilmoqda' : st === 'SUSPENDED' ? 'To‘xtatilgan' : 'O‘chirilgan'}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
-                  {['ALL', 'OWNER', 'MANAGER', 'OPERATOR', 'CUSTOMER'].map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => setUserRoleFilter(r)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition shrink-0 ${
-                        userRoleFilter === r
-                          ? 'bg-[#116B50] text-white'
-                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
-                      }`}
-                    >
-                      {r === 'ALL' ? 'Barcha rollar' : r}
-                    </button>
-                  ))}
+                {/* 2-Qator: Rollar (pastga tushirilgan va to'liq responsiv, scrollbarsiz) */}
+                <div className="flex items-center gap-2 pt-2.5 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex-wrap">
+                  <span className="text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] shrink-0">
+                    Rol bo‘yicha:
+                  </span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {['ALL', 'OWNER', 'MANAGER', 'OPERATOR', 'CUSTOMER'].map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setUserRoleFilter(r)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition ${
+                          userRoleFilter === r
+                            ? 'bg-[#172C28] text-white dark:bg-[#E8F2EC] dark:text-[#172C28] shadow-sm'
+                            : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                        }`}
+                      >
+                        {r === 'ALL' ? 'Barcha rollar' : r}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1179,7 +1325,17 @@ export function ModeratorApp() {
                             (u.phone && u.phone.includes(userSearch)) ||
                             ((u as any).organizationName && (u as any).organizationName.toLowerCase().includes(userSearch.toLowerCase()));
                           const matchRole = userRoleFilter === 'ALL' || u.role === userRoleFilter;
-                          return matchSearch && matchRole;
+                          const matchStatus =
+                            userStatusFilter === 'ALL'
+                              ? u.status !== 'DELETED'
+                              : userStatusFilter === 'ACTIVE'
+                              ? u.status === 'ACTIVE'
+                              : userStatusFilter === 'PENDING'
+                              ? (u.status === 'PENDING' || (u as any).isVerified === false)
+                              : userStatusFilter === 'SUSPENDED'
+                              ? u.status === 'SUSPENDED'
+                              : u.status === 'DELETED';
+                          return matchSearch && matchRole && matchStatus;
                         })
                         .map((u) => {
                           const isPending = u.status === 'PENDING' || (u as any).isVerified === false;
@@ -1244,6 +1400,25 @@ export function ModeratorApp() {
                                     className="p-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white transition"
                                   >
                                     <Edit2 className="w-3.5 h-3.5" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleToggleUserStatus(u)}
+                                    title={u.status === 'ACTIVE' ? 'Bloklash' : 'Faollashtirish'}
+                                    className={`px-2 py-1 rounded-lg text-[11px] font-semibold transition ${
+                                      u.status === 'ACTIVE'
+                                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100'
+                                        : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 hover:bg-emerald-100'
+                                    }`}
+                                  >
+                                    {u.status === 'ACTIVE' ? 'Bloklash' : 'Faol qilish'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteUser(u)}
+                                    title="Foydalanuvchini butunlay o‘chirish"
+                                    className="px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 transition flex items-center gap-1 text-[11px] font-semibold"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                    <span>O‘chirish</span>
                                   </button>
                                 </div>
                               </td>

@@ -53,6 +53,30 @@ const DEFAULT_TYPES = [
   'MIXED'
 ];
 
+export const formatUzPhone = (value: string): string => {
+  let digits = value.replace(/\D/g, '');
+  if (digits.startsWith('998')) {
+    digits = digits.slice(3);
+  }
+  digits = digits.slice(0, 9);
+  if (!digits) return '+998 9';
+
+  let formatted = '+998 ';
+  if (digits.length > 0) {
+    formatted += digits.substring(0, 2);
+  }
+  if (digits.length >= 3) {
+    formatted += ' ' + digits.substring(2, 5);
+  }
+  if (digits.length >= 6) {
+    formatted += ' ' + digits.substring(5, 7);
+  }
+  if (digits.length >= 8) {
+    formatted += ' ' + digits.substring(7, 9);
+  }
+  return formatted;
+};
+
 export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any, password: string) => void; onLogin: () => void }) {
   const [form, setForm] = useState({
     name: '',
@@ -63,7 +87,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
     type: 'RETAIL',
     storeName: '',
     address: '',
-    phone: '',
+    phone: '+998 9',
     lat: '41.311081',
     lng: '69.240562',
     photoUrl: '',
@@ -234,6 +258,19 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
       return;
     }
 
+    const phoneDigits = form.phone.replace(/\D/g, '');
+    const cleanDigits = phoneDigits.startsWith('998') ? phoneDigits.slice(3) : phoneDigits;
+    if (cleanDigits.length !== 9) {
+      setError('Aloqa telefon raqamini to‘liq kiriting (+998 9X XXX XX XX).');
+      return;
+    }
+
+    const loginVal = form.email.trim();
+    if (loginVal.length < 2) {
+      setError('Login kamida 2 ta belgidan iborat bo‘lishi kerak.');
+      return;
+    }
+
     setBusy(true);
     setError('');
     try {
@@ -244,7 +281,8 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
         body: JSON.stringify({
           ...form,
           storeName: form.storeName.trim() || form.name.trim(),
-          phone: '+998' + form.phone.replace(/\D/g, '').replace(/^998/, '')
+          phone: '+998' + cleanDigits,
+          email: loginVal
         })
       });
       const data = await res.json();
@@ -269,12 +307,38 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
         type={type}
         required={required}
         value={form[key]}
-        maxLength={key === 'password' ? 128 : key === 'inn' ? 9 : undefined}
-        minLength={key === 'password' ? 8 : undefined}
+        maxLength={
+          key === 'password'
+            ? 128
+            : key === 'phone'
+            ? 17
+            : key === 'inn'
+            ? 9
+            : key === 'email'
+            ? 120
+            : undefined
+        }
+        minLength={key === 'password' ? 8 : key === 'email' ? 2 : undefined}
         pattern={key === 'inn' ? (form.inn ? '\\d{9}' : undefined) : undefined}
-        autoComplete={key === 'password' ? 'new-password' : key === 'email' ? 'email' : undefined}
-        placeholder={key === 'phone' ? '+998 90 123 45 67' : key === 'inn' ? '123456789' : undefined}
-        onChange={event => setForm(data => ({ ...data, [key]: event.target.value }))}
+        autoComplete={key === 'password' ? 'new-password' : key === 'email' ? 'username' : undefined}
+        placeholder={
+          key === 'phone'
+            ? '+998 90 123 45 67'
+            : key === 'email'
+            ? 'Masalan: login123 yoki admin_user'
+            : key === 'inn'
+            ? '123456789'
+            : undefined
+        }
+        onChange={event => {
+          let val = event.target.value;
+          if (key === 'phone') {
+            val = formatUzPhone(val);
+          } else if (key === 'email') {
+            val = val.replace(/\s+/g, '');
+          }
+          setForm(data => ({ ...data, [key]: val }));
+        }}
       />
     </label>
   );
@@ -452,7 +516,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
           </div>
 
           {field('fullName', 'Ism va familiyangiz')}
-          {field('email', 'Login — email pochtangiz', 'email')}
+          {field('email', 'Login', 'text')}
           <div className="sm:col-span-2">
             {field('password', 'Parol — kamida 8 ta belgi', 'text')}
           </div>

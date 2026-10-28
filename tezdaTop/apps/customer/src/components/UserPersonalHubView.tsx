@@ -312,7 +312,7 @@ export function UserPersonalHubView({
       </div>
 
       {/* Main Container */}
-      <div className="max-w-5xl mx-auto w-full px-3.5 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 flex flex-col gap-4 sm:gap-6 pb-24 md:pb-12 overflow-x-hidden">
+      <div className="max-w-5xl mx-auto w-full px-3.5 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 flex flex-col gap-4 sm:gap-6 pb-24 md:pb-12 overflow-x-hidden shrink-0">
         {/* Navigation Tabs */}
         <div
           className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-2 md:p-3 shadow-sm flex items-center gap-1.5 overflow-x-auto scrollbar-none no-scrollbar max-w-full"

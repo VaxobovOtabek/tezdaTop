@@ -1,12 +1,17 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env'), quiet: true } as any);
+dotenv.config({ path: path.resolve(process.cwd(), '../../.env'), quiet: true } as any);
 import Decimal from 'decimal.js';
 import type { InMemoryDatabase } from './in-memory-db.js';
 import { SEED_IDS } from './seed.js';
 import { serviceCompletionFromDocument } from '../services/service-business.service.js';
 import type { User } from '@yaqintop/contracts';
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://yvxjqimfxlfifhomduox.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl2eGpxaW1meGxmaWZob21kdW94Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc5MTI2NDI5MCwiZXhwIjoyMTA2ODQwMjkwfQ.oeCNZANTf-WVAjAqZuobpqBK8gq_n81uhTA-4g0xiNo';
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
 
 export let supabase: SupabaseClient | null = null;
 

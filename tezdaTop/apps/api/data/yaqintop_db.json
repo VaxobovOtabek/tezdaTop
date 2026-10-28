@@ -209,6 +209,20 @@
         "district": "Taraqqiyot MFY",
         "createdAt": "2026-10-26T12:43:16.697+00:00"
       }
+    ],
+    [
+      "0b08099f-56ed-4627-9a82-d52c2ed766b8",
+      {
+        "id": "0b08099f-56ed-4627-9a82-d52c2ed766b8",
+        "name": "test1",
+        "type": "PHARMACY",
+        "status": "DELETED",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston shahar",
+        "district": "qwe",
+        "createdAt": "2026-10-28T11:56:23.237+00:00",
+        "deletedAt": "2026-10-28T12:39:56.550Z"
+      }
     ]
   ],
   "memberships": [
@@ -241,6 +255,16 @@
         "role": "MANAGER",
         "status": "ACTIVE"
       }
+    ],
+    [
+      "422fd850-9355-4e77-8961-6afc76a4080c",
+      {
+        "id": "422fd850-9355-4e77-8961-6afc76a4080c",
+        "organizationId": "0b08099f-56ed-4627-9a82-d52c2ed766b8",
+        "userId": "bd36622f-6b3e-40fb-8aa9-2f1b17ee1a98",
+        "role": "OWNER",
+        "status": "ACTIVE"
+      }
     ]
   ],
   "users": [
@@ -255,7 +279,7 @@
         "status": "ACTIVE",
         "passwordHash": "DemoPass123!",
         "createdAt": "2026-10-06T06:17:20.821+00:00",
-        "updatedAt": "2026-10-06T06:17:20.821+00:00"
+        "updatedAt": "2026-10-28T12:23:24.148Z"
       }
     ],
     [
@@ -388,6 +412,21 @@
         "passwordHash": "scrypt:e7a9933f99302011391efdeee9743d2c:f8d93e20d76ee92408e1584eec5b1dbc5e63f7aa0ff90956f671c3f6be14562938cf428028723f037dbf9f44fc205f94bc83c9a17cb904b9774cb4a80b774e38",
         "createdAt": "2026-10-23T05:27:33.458+00:00",
         "updatedAt": "2026-10-23T05:27:33.458+00:00"
+      }
+    ],
+    [
+      "bd36622f-6b3e-40fb-8aa9-2f1b17ee1a98",
+      {
+        "id": "bd36622f-6b3e-40fb-8aa9-2f1b17ee1a98",
+        "email": "test1@qwe.uz",
+        "fullName": "tester",
+        "phone": "+998978001234",
+        "role": "OWNER",
+        "status": "DELETED",
+        "passwordHash": "scrypt:4df75eac750bcc901f231b9a6079a620:a441bf9b9b07fea29bd0c10c6b23184755d5ee47ad32c3e1b809e4aeeece4c643240ed4c29ba6f5500246caea8d974b5cc6e338c6d8334a83ad5e6156bcced98",
+        "createdAt": "2026-10-28T11:56:23.237Z",
+        "updatedAt": "2026-10-28T12:40:47.410Z",
+        "deletedAt": "2026-10-28T12:40:47.410Z"
       }
     ]
   ],
@@ -905,7 +944,7 @@
         "organizationId": "57b2d645-c396-4ab1-99de-d8229ad1adce",
         "type": "MIXED",
         "name": "Unicon Soft Sirdaryo filiali",
-        "address": "Taraqqiyot MFY",
+        "address": "Taraqqiyot MFY Ahmad Yassaviy",
         "location": {
           "lat": 40.492727,
           "lng": 68.773639
@@ -960,7 +999,7 @@
         "rating": 5,
         "reviewCount": 0,
         "createdAt": "2026-10-07T10:25:39.651+00:00",
-        "updatedAt": "2026-10-26T12:45:37.998+00:00"
+        "updatedAt": "2026-10-28T11:42:05.743+00:00"
       }
     ],
     [
@@ -970,7 +1009,7 @@
         "organizationId": "bf405a3e-aac2-48ed-85c3-613edd90d37e",
         "type": "Bank",
         "name": "Trastbank — Guliston filiali",
-        "address": "Guliston sh., Taraqqiyot MFY, Sayxun ko‘chasi, 28-uy",
+        "address": "Guliston sh., Taraqqiyot MFY, Ahmad Yassaviy ko‘chasi, 28-uy",
         "location": {
           "lat": 40.492794,
           "lng": 68.773738
@@ -978,46 +1017,46 @@
         "phone": "+998 78 140 00 88",
         "hours": [
           {
-            "dayOfWeek": 1,
+            "isClosed": false,
             "openTime": "09:00",
             "closeTime": "17:00",
-            "isClosed": false
+            "dayOfWeek": 1
           },
           {
-            "dayOfWeek": 2,
+            "isClosed": false,
             "openTime": "09:00",
             "closeTime": "17:00",
-            "isClosed": false
+            "dayOfWeek": 2
           },
           {
-            "dayOfWeek": 3,
+            "isClosed": false,
             "openTime": "09:00",
             "closeTime": "17:00",
-            "isClosed": false
+            "dayOfWeek": 3
           },
           {
-            "dayOfWeek": 4,
+            "isClosed": false,
             "openTime": "09:00",
             "closeTime": "17:00",
-            "isClosed": false
+            "dayOfWeek": 4
           },
           {
-            "dayOfWeek": 5,
+            "isClosed": false,
             "openTime": "09:00",
             "closeTime": "17:00",
-            "isClosed": false
+            "dayOfWeek": 5
           },
           {
-            "dayOfWeek": 6,
+            "isClosed": false,
             "openTime": "09:00",
             "closeTime": "17:00",
-            "isClosed": false
+            "dayOfWeek": 6
           },
           {
-            "dayOfWeek": 0,
+            "isClosed": false,
             "openTime": "09:00",
             "closeTime": "17:00",
-            "isClosed": false
+            "dayOfWeek": 0
           }
         ],
         "photos": [
@@ -1027,12 +1066,73 @@
         "rating": 5,
         "reviewCount": 0,
         "createdAt": "2026-10-27T12:53:40.417+00:00",
-        "updatedAt": "2026-10-27T13:05:56.738Z",
-        "inn": "201055090",
-        "region": "Sirdaryo viloyati",
-        "city": "Guliston",
-        "district": "Taraqqiyot MFY",
-        "photoUrl": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQUF_WWmGZ62mBVC1UMc4_hULWJlCHtuIRRXYJt7ZVx-A&s=10"
+        "updatedAt": "2026-10-28T11:41:36.854+00:00"
+      }
+    ],
+    [
+      "d21611bf-bfde-4a53-9727-fcb7e6209e15",
+      {
+        "id": "d21611bf-bfde-4a53-9727-fcb7e6209e15",
+        "organizationId": "0b08099f-56ed-4627-9a82-d52c2ed766b8",
+        "type": "PHARMACY",
+        "name": "test1",
+        "address": "qweqwe",
+        "location": {
+          "lat": 40.492768,
+          "lng": 68.774108
+        },
+        "phone": "+998978001234",
+        "hours": [
+          {
+            "isClosed": false,
+            "openTime": "08:00",
+            "closeTime": "22:00",
+            "dayOfWeek": 0
+          },
+          {
+            "isClosed": false,
+            "openTime": "08:00",
+            "closeTime": "22:00",
+            "dayOfWeek": 1
+          },
+          {
+            "isClosed": false,
+            "openTime": "08:00",
+            "closeTime": "22:00",
+            "dayOfWeek": 2
+          },
+          {
+            "isClosed": false,
+            "openTime": "08:00",
+            "closeTime": "22:00",
+            "dayOfWeek": 3
+          },
+          {
+            "isClosed": false,
+            "openTime": "08:00",
+            "closeTime": "22:00",
+            "dayOfWeek": 4
+          },
+          {
+            "isClosed": false,
+            "openTime": "08:00",
+            "closeTime": "22:00",
+            "dayOfWeek": 5
+          },
+          {
+            "isClosed": false,
+            "openTime": "08:00",
+            "closeTime": "22:00",
+            "dayOfWeek": 6
+          }
+        ],
+        "photos": [],
+        "status": "DELETED",
+        "rating": 5,
+        "reviewCount": 0,
+        "createdAt": "2026-10-28T11:56:23.237+00:00",
+        "updatedAt": "2026-10-28T12:39:56.550Z",
+        "deletedAt": "2026-10-28T12:39:56.550Z"
       }
     ]
   ],
@@ -2289,8 +2389,10 @@
         "storeId": "22222222-2222-4222-a222-222222222222",
         "reason": "WRONG_PRICE",
         "details": "Ilovada 8 000 so‘m, kassada esa 9 000 so‘m deyishdi.",
-        "status": "OPEN",
-        "createdAt": "2026-10-06T06:17:20.867Z"
+        "status": "RESOLVED",
+        "createdAt": "2026-10-06T06:17:20.867Z",
+        "resolutionNotes": "vse ok",
+        "resolvedAt": "2026-10-28T11:24:13.992Z"
       }
     ],
     [
@@ -2734,6 +2836,326 @@
         ]
       },
       "timestamp": "2026-10-27T13:05:56.739Z"
+    },
+    {
+      "id": "b55ab2b1-b368-4f16-90a8-ce8def41caea",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "UPDATE_STORE",
+      "entityType": "STORE",
+      "entityId": "2666e002-c652-46cb-87c7-0684d00c53c2",
+      "diff": {
+        "name": "Unicon Soft Sirdaryo filiali",
+        "inn": "305109680",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston shahar",
+        "district": "Taraqqiyot MFY",
+        "address": "Taraqqiyot MFY",
+        "phone": "+998 95 505 46 46",
+        "location": {
+          "lat": 40.492727,
+          "lng": 68.773639
+        },
+        "photoUrl": "https://avatars.mds.yandex.net/get-altay/21104443/2a000001a144b960d1fac51f373091b3d21e/XXXL",
+        "status": "ACTIVE",
+        "hours": [
+          {
+            "dayOfWeek": 1,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 0,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          }
+        ]
+      },
+      "timestamp": "2026-10-28T11:38:47.691Z"
+    },
+    {
+      "id": "7be09448-9d19-4600-8c90-a920c206e759",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "UPDATE_STORE",
+      "entityType": "STORE",
+      "entityId": "30348d9c-6a62-446d-8b93-7373c594209b",
+      "diff": {
+        "name": "Trastbank — Guliston filiali",
+        "inn": "201055090",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston",
+        "district": "Taraqqiyot MFY",
+        "address": "Guliston sh., Taraqqiyot MFY, Sayxun ko‘chasi, 28-uy",
+        "phone": "+998 78 140 00 88",
+        "location": {
+          "lat": 40.492794,
+          "lng": 68.773738
+        },
+        "photoUrl": "https://avatars.mds.yandex.net/get-altay/14329771/2a00000194c35e5893090fadc8132571be72/XXXL",
+        "status": "ACTIVE",
+        "hours": [
+          {
+            "dayOfWeek": 1,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 0,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          }
+        ]
+      },
+      "timestamp": "2026-10-28T11:41:12.033Z"
+    },
+    {
+      "id": "4a87f492-68ac-4434-a7e1-7f9590c6b20d",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "UPDATE_STORE",
+      "entityType": "STORE",
+      "entityId": "30348d9c-6a62-446d-8b93-7373c594209b",
+      "diff": {
+        "name": "Trastbank — Guliston filiali",
+        "inn": "201055090",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston",
+        "district": "Taraqqiyot MFY",
+        "address": "Guliston sh., Taraqqiyot MFY, Ahmad Yassaviy ko‘chasi, 28-uy",
+        "phone": "+998 78 140 00 88",
+        "location": {
+          "lat": 40.492794,
+          "lng": 68.773738
+        },
+        "photoUrl": "https://avatars.mds.yandex.net/get-altay/14329771/2a00000194c35e5893090fadc8132571be72/XXXL",
+        "status": "ACTIVE",
+        "hours": [
+          {
+            "dayOfWeek": 1,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 0,
+            "openTime": "09:00",
+            "closeTime": "17:00",
+            "isClosed": false
+          }
+        ]
+      },
+      "timestamp": "2026-10-28T11:41:36.854Z"
+    },
+    {
+      "id": "56eb70b3-1b2f-4d3b-ab18-0602c0760eaf",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "UPDATE_STORE",
+      "entityType": "STORE",
+      "entityId": "2666e002-c652-46cb-87c7-0684d00c53c2",
+      "diff": {
+        "name": "Unicon Soft Sirdaryo filiali",
+        "inn": "305109680",
+        "region": "Sirdaryo viloyati",
+        "city": "Guliston shahar",
+        "district": "Taraqqiyot MFY",
+        "address": "Taraqqiyot MFY Ahmad Yassaviy",
+        "phone": "+998 95 505 46 46",
+        "location": {
+          "lat": 40.492727,
+          "lng": 68.773639
+        },
+        "photoUrl": "https://avatars.mds.yandex.net/get-altay/21104443/2a000001a144b960d1fac51f373091b3d21e/XXXL",
+        "status": "ACTIVE",
+        "hours": [
+          {
+            "dayOfWeek": 1,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 2,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 3,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 4,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 5,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 6,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          },
+          {
+            "dayOfWeek": 0,
+            "openTime": "09:00",
+            "closeTime": "18:00",
+            "isClosed": false
+          }
+        ]
+      },
+      "timestamp": "2026-10-28T11:42:05.743Z"
+    },
+    {
+      "id": "bf480f53-d8dd-4dd3-a7ef-421a72d7b179",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "UPDATE_STORE",
+      "entityType": "STORE",
+      "entityId": "d21611bf-bfde-4a53-9727-fcb7e6209e15",
+      "diff": {
+        "status": "SUSPENDED"
+      },
+      "timestamp": "2026-10-28T11:57:55.106Z"
+    },
+    {
+      "id": "099f8e97-0801-41fb-b758-c24c713e3604",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "DELETE_ORGANIZATION",
+      "entityType": "ORGANIZATION",
+      "entityId": "0b08099f-56ed-4627-9a82-d52c2ed766b8",
+      "timestamp": "2026-10-28T12:39:25.926Z"
+    },
+    {
+      "id": "88463937-53f7-40b7-b9e0-e2021da1f291",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "DELETE_ORGANIZATION",
+      "entityType": "ORGANIZATION",
+      "entityId": "0b08099f-56ed-4627-9a82-d52c2ed766b8",
+      "timestamp": "2026-10-28T12:39:46.176Z"
+    },
+    {
+      "id": "6e39bd53-5f3d-4da0-8741-2db784408463",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "DELETE_ORGANIZATION",
+      "entityType": "ORGANIZATION",
+      "entityId": "0b08099f-56ed-4627-9a82-d52c2ed766b8",
+      "timestamp": "2026-10-28T12:39:56.550Z"
+    },
+    {
+      "id": "ac1aa73e-80b4-4996-b744-7e1a914e891a",
+      "actorId": "cccc5555-5555-4ccc-cccc-555555555555",
+      "actorEmail": "admin@yaqintop.uz",
+      "action": "DELETE_USER",
+      "entityType": "USER",
+      "entityId": "bd36622f-6b3e-40fb-8aa9-2f1b17ee1a98",
+      "timestamp": "2026-10-28T12:40:47.410Z"
     }
   ],
   "idempotencyRecords": []

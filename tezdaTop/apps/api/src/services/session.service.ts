@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 
 export const SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000;
-const SESSION_SECRET = process.env.SESSION_SECRET || 'yaqintop_secure_session_secret_2026_key';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'yaqintop_dev_session_secret';
 
 export function sessionExpiresAt(session: { createdAt: Date | string }) {
   return new Date(session.createdAt).getTime() + SESSION_TTL_MS;

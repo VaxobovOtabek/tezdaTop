@@ -20,7 +20,7 @@ export const OwnerOnboardingSchema = z.object({
   openTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   closeTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   fullName: text,
-  email: z.string().trim().email().max(160),
+  email: z.string().trim().min(2).max(160),
   password: z.string().min(8).max(128)
 });
 
@@ -41,7 +41,7 @@ export function createOwnerOrganization(database: InMemoryDatabase, input: unkno
   const data = OwnerOnboardingSchema.parse(input);
   const email = data.email.toLowerCase();
   if (Array.from(database.users.values()).some(user => user.email.toLowerCase() === email || user.phone?.replace(/\D/g, '') === data.phone.replace(/\D/g, ''))) {
-    throw new Error('Bu email yoki telefon bilan hisob mavjud. Boshqa login kiriting yoki tizimga kiring.');
+    throw new Error('Bu login yoki telefon bilan hisob mavjud. Boshqa login kiriting yoki tizimga kiring.');
   }
   if (data.inn && data.inn.trim() !== '' && Array.from(database.organizations.values()).some(org => org.inn && org.inn === data.inn)) {
     throw new Error('Bu STIR bilan tashkilot allaqachon mavjud.');
