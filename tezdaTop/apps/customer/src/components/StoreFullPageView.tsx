@@ -33,7 +33,10 @@ import {
   XCircle,
   Camera,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Plus,
+  List,
+  Edit3
 } from 'lucide-react';
 import { Button, Tag, StarRating, Modal, Input } from '@yaqintop/ui';
 import { Offer, Store, isTradeOrganization } from '@yaqintop/contracts';
@@ -70,6 +73,69 @@ const DAYS_UZ = [
   { id: 5, name: 'Juma' },
   { id: 6, name: 'Shanba' },
   { id: 0, name: 'Yakshanba' }
+];
+
+const POPULAR_PRODUCT_CATEGORIES = [
+  'Oziq-ovqat',
+  'Ichimliklar',
+  'Sut va sut mahsulotlari',
+  'Non va qandolat mahsulotlari',
+  'Go‘sht va parranda mahsulotlari',
+  'Sabzavot va mevalar',
+  'Shirinliklar va pishiriqlar',
+  'Muzlatilgan mahsulotlar',
+  'Maishiy kimyo va tozalash vositalari',
+  'Shaxsiy gigiyena va kosmetika',
+  'Dorixona va tibbiy vositalar',
+  'Bolalar tovarlari va ozuqasi',
+  'Kanselyariya va ofis tovarlari',
+  'Elektronika va maishiy texnika',
+  'Uy-ro‘zg‘or buyumlari va idishlar',
+  'Avtomobil ehtiyot qismlari va moylar',
+  'Qurilish va ta’mirlash mollari',
+  'Kiyim-kechak va poyabzal',
+  'Sport va dam olish tovarlari',
+  'Hayvonlar uchun tovarlar (Zoo)',
+  'Boshqa tovarlar'
+];
+
+const POPULAR_SERVICE_CATEGORIES = [
+  'Avtoservis va ustaxona',
+  'Avtoyuvish (Moyka)',
+  'Sartaroshxona va go‘zallik saloni',
+  'Ta’lim, kurslar va repetitorlik',
+  'Telefon va texnika ta’miri',
+  'Kiyim tikish va tozalash (Kimchistka)',
+  'Tibbiy xizmatlar va stomatologiya',
+  'Yetkazib berish (Dostavka)',
+  'Tozalash xizmatlari (Klining)',
+  'Qurilish, montaj va usta xizmatlari',
+  'Kompyuter va IT xizmatlari',
+  'Foto, video va dizayn xizmatlari',
+  'Tadbirlar va bayram xizmatlari',
+  'Boshqa xizmatlar'
+];
+
+const QUICK_PRODUCT_CATEGORIES = [
+  'Oziq-ovqat',
+  'Ichimliklar',
+  'Sut mahsulotlari',
+  'Non & Qandolat',
+  'Maishiy kimyo',
+  'Dorixona',
+  'Shirinliklar',
+  'Elektronika'
+];
+
+const QUICK_SERVICE_CATEGORIES = [
+  'Avtoservis',
+  'Avtoyuvish',
+  'Sartaroshxona',
+  'Texnika ta’miri',
+  'Ta’lim & Kurslar',
+  'Yetkazib berish',
+  'Usta xizmati',
+  'Tibbiyot'
 ];
 
 export function StoreFullPageView({
@@ -122,6 +188,10 @@ export function StoreFullPageView({
     photoUrl: '',
     description: ''
   });
+  // Category selection & custom creation state
+  const [customCategories, setCustomCategories] = useState<string[]>([]);
+  const [isCustomCategoryInput, setIsCustomCategoryInput] = useState(false);
+  const [newCategoryInputValue, setNewCategoryInputValue] = useState('');
 
   // Photo Change Request State
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -235,13 +305,31 @@ export function StoreFullPageView({
       return;
     }
     setProposalFeedback(null);
+    setIsCustomCategoryInput(false);
+    setNewCategoryInputValue('');
+
+    const defaultCategory =
+      uniqueCategories.length > 0
+        ? uniqueCategories[0]
+        : store?.type === 'PHARMACY'
+        ? 'Dorixona va tibbiy vositalar'
+        : store?.type === 'AUTO_SERVICE'
+        ? 'Avtoservis va ustaxona'
+        : 'Oziq-ovqat';
+
+    const isServiceStore =
+      store?.type === 'AUTO_SERVICE' ||
+      store?.type === 'BEAUTY_SALON' ||
+      store?.type === 'EDUCATION' ||
+      store?.type === 'SERVICES';
+
     setProposalForm({
       title: '',
-      type: 'PRODUCT',
-      category: '',
+      type: isServiceStore ? 'SERVICE' : 'PRODUCT',
+      category: isServiceStore ? 'Avtoservis va ustaxona' : defaultCategory,
       price: '',
-      stockOnHand: '10',
-      packUnit: 'dona',
+      stockOnHand: isServiceStore ? '1' : '10',
+      packUnit: isServiceStore ? 'xizmat' : 'dona',
       barcode: '',
       photoUrl: '',
       description: ''
@@ -258,6 +346,11 @@ export function StoreFullPageView({
     setIsSubmittingProposal(true);
     setProposalFeedback(null);
 
+    const trimmedCategory = proposalForm.category.trim() || (proposalForm.type === 'SERVICE' ? 'Xizmatlar' : 'Oziq-ovqat');
+    if (trimmedCategory && !customCategories.includes(trimmedCategory)) {
+      setCustomCategories(prev => [trimmedCategory, ...prev]);
+    }
+
     try {
       const res = await fetch(apiUrl(`/api/v1/stores/${store.id}/proposals`), {
         method: 'POST',
@@ -269,7 +362,7 @@ export function StoreFullPageView({
         body: JSON.stringify({
           title: proposalForm.title.trim(),
           type: proposalForm.type,
-          category: proposalForm.category.trim() || (proposalForm.type === 'SERVICE' ? 'Xizmatlar' : 'Oziq-ovqat'),
+          category: trimmedCategory,
           price: Number(proposalForm.price) || 0,
           stockOnHand: Number(proposalForm.stockOnHand) || 1,
           packUnit: proposalForm.packUnit,
@@ -1715,8 +1808,16 @@ export function StoreFullPageView({
             <div className="grid grid-cols-2 gap-2 p-1 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36]">
               <button
                 type="button"
-                onClick={() => setProposalForm(f => ({ ...f, type: 'PRODUCT', packUnit: f.packUnit === 'xizmat' ? 'dona' : f.packUnit }))}
-                className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                onClick={() => {
+                  setProposalForm(f => ({
+                    ...f,
+                    type: 'PRODUCT',
+                    packUnit: f.packUnit === 'xizmat' ? 'dona' : f.packUnit,
+                    category: uniqueCategories[0] || 'Oziq-ovqat'
+                  }));
+                  setIsCustomCategoryInput(false);
+                }}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   proposalForm.type === 'PRODUCT'
                     ? 'bg-white dark:bg-[#116B50] text-[#116B50] dark:text-white shadow-xs'
                     : 'text-[#566A63] dark:text-[#8B9E95]'
@@ -1726,8 +1827,17 @@ export function StoreFullPageView({
               </button>
               <button
                 type="button"
-                onClick={() => setProposalForm(f => ({ ...f, type: 'SERVICE', packUnit: 'xizmat', stockOnHand: '1' }))}
-                className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                onClick={() => {
+                  setProposalForm(f => ({
+                    ...f,
+                    type: 'SERVICE',
+                    packUnit: 'xizmat',
+                    stockOnHand: '1',
+                    category: 'Avtoservis va ustaxona'
+                  }));
+                  setIsCustomCategoryInput(false);
+                }}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   proposalForm.type === 'SERVICE'
                     ? 'bg-white dark:bg-[#116B50] text-[#116B50] dark:text-white shadow-xs'
                     : 'text-[#566A63] dark:text-[#8B9E95]'
@@ -1752,20 +1862,158 @@ export function StoreFullPageView({
             />
           </div>
 
-          {/* Category */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95]">Kategoriya</label>
-            <input
-              type="text"
-              value={proposalForm.category}
-              onChange={(e) => setProposalForm(f => ({ ...f, category: e.target.value }))}
-              placeholder="Masalan: Ichimliklar, Oziq-ovqat, Xizmatlar..."
-              list="store-categories-list"
-              className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs md:text-sm text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
-            />
-            <datalist id="store-categories-list">
-              {uniqueCategories.map(c => <option key={c} value={c} />)}
-            </datalist>
+          {/* Category Selection & Custom Addition */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95] flex items-center gap-1.5">
+                <span>Kategoriya (Toifa)</span>
+                <span className="text-red-500">*</span>
+                {proposalForm.category && (
+                  <span className="ml-1 px-2 py-0.5 rounded-md bg-[#116B50]/10 dark:bg-[#4ADE80]/20 text-[#116B50] dark:text-[#4ADE80] font-bold text-[11px] truncate max-w-[150px]">
+                    {proposalForm.category}
+                  </span>
+                )}
+              </label>
+
+              {/* Mode switch button */}
+              <button
+                type="button"
+                onClick={() => {
+                  if (isCustomCategoryInput) {
+                    setIsCustomCategoryInput(false);
+                  } else {
+                    setIsCustomCategoryInput(true);
+                    setNewCategoryInputValue(proposalForm.category || '');
+                  }
+                }}
+                className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                {isCustomCategoryInput ? (
+                  <>
+                    <List className="w-3.5 h-3.5" />
+                    <span>Ro‘yxatdan tanlash</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Yangi toifa yozish</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Quick selection chips */}
+            <div className="flex flex-wrap gap-1.5 pt-0.5">
+              {(proposalForm.type === 'SERVICE' ? QUICK_SERVICE_CATEGORIES : QUICK_PRODUCT_CATEGORIES).map(catName => {
+                const isSelected = proposalForm.category === catName && !isCustomCategoryInput;
+                return (
+                  <button
+                    key={catName}
+                    type="button"
+                    onClick={() => {
+                      setIsCustomCategoryInput(false);
+                      setProposalForm(f => ({ ...f, category: catName }));
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-[#116B50] text-white shadow-xs'
+                        : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                    }`}
+                  >
+                    {catName}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Custom Input or Dropdown Select */}
+            {isCustomCategoryInput ? (
+              <div className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={newCategoryInputValue}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewCategoryInputValue(val);
+                    setProposalForm(f => ({ ...f, category: val }));
+                  }}
+                  placeholder="Yangi toifa nomini yozing (masalan: Muzqaymoqlar, Sport mollari...)"
+                  autoFocus
+                  className="flex-1 h-10 px-3.5 rounded-xl border-2 border-[#116B50] dark:border-[#4ADE80] bg-white dark:bg-[#16241E] text-xs md:text-sm font-semibold text-[#172C28] dark:text-white focus:outline-none"
+                />
+                {newCategoryInputValue.trim() && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = newCategoryInputValue.trim();
+                      if (trimmed && !customCategories.includes(trimmed)) {
+                        setCustomCategories(prev => [trimmed, ...prev]);
+                      }
+                      setProposalForm(f => ({ ...f, category: trimmed }));
+                      setIsCustomCategoryInput(false);
+                      onShowToast(`"${trimmed}" toifasi tanlandi`);
+                    }}
+                    className="h-10 px-3.5 rounded-xl bg-[#116B50] hover:bg-[#0D523D] text-white text-xs font-bold transition flex items-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Tanlash</span>
+                  </button>
+                )}
+              </div>
+            ) : (
+              <div className="relative">
+                <select
+                  value={proposalForm.category}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === '__NEW__') {
+                      setIsCustomCategoryInput(true);
+                      setNewCategoryInputValue('');
+                    } else {
+                      setProposalForm(f => ({ ...f, category: val }));
+                    }
+                  }}
+                  className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs md:text-sm font-semibold text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50] cursor-pointer"
+                >
+                  <option value="" disabled>-- Toifani tanlang --</option>
+
+                  {/* User-added Custom Categories */}
+                  {customCategories.length > 0 && (
+                    <optgroup label="Siz qo‘shgan yangi toifalar">
+                      {customCategories.map(c => (
+                        <option key={`custom-${c}`} value={c}>✨ {c}</option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  {/* Current Store Categories */}
+                  {uniqueCategories.length > 0 && (
+                    <optgroup label="Ushbu do‘konda mavjud toifalar">
+                      {uniqueCategories.map(c => (
+                        <option key={`store-${c}`} value={c}>🏪 {c}</option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  {/* Standard Categories */}
+                  <optgroup label={proposalForm.type === 'SERVICE' ? 'Barcha xizmat toifalari' : 'Barcha mahsulot toifalari'}>
+                    {(proposalForm.type === 'SERVICE' ? POPULAR_SERVICE_CATEGORIES : POPULAR_PRODUCT_CATEGORIES).map(c => (
+                      <option key={`std-${c}`} value={c}>{c}</option>
+                    ))}
+                  </optgroup>
+
+                  <option value="__NEW__" className="font-bold text-[#116B50]">
+                    ➕ Boshqa / Yangi toifa yozish...
+                  </option>
+                </select>
+              </div>
+            )}
+
+            <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] leading-tight">
+              {isCustomCategoryInput
+                ? 'Yangi toifa nomini yozing va "Tanlash" tugmasini bosing yoki bevosita taklifni yuboring.'
+                : 'Tugmalardan birini bosing yoki toifalar ro‘yxatidan tanlang. Kerakli toifa bo‘lmasa, "+ Yangi toifa yozish" tugmasini bosing.'}
+            </p>
           </div>
 
           {/* Price & Stock */}
