@@ -1,5 +1,5 @@
 import { MaskedUserPassword } from '@yaqintop/ui';
-import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache, TokenQuickLoginModal } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
@@ -1309,7 +1309,7 @@ export function ModeratorApp() {
                       <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
                         <th className="py-3.5 px-4 font-semibold">Foydalanuvchi & Telefon</th>
                         <th className="py-3.5 px-4 font-semibold">Tashkilot</th>
-                        <th className="py-3.5 px-4 font-semibold">Login / Email</th>
+                        <th className="py-3.5 px-4 font-semibold">Login</th>
                         <th className="py-3.5 px-4 font-semibold">Parol</th>
                         <th className="py-3.5 px-4 font-semibold">Roli</th>
                         <th className="py-3.5 px-4 font-semibold">Tasdiqlash & Holat</th>
@@ -1771,11 +1771,14 @@ export function ModeratorApp() {
             </div>
 
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login / Email</label>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login (Foydalanuvchi nomi)</label>
               <input
-                type="email"
+                type="text"
+                name="username"
+                autoComplete="username"
                 value={editCredentialsForm.email}
                 onChange={(e) => setEditCredentialsForm({ ...editCredentialsForm, email: e.target.value })}
+                placeholder="Masalan: owner yoki sardor"
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
@@ -1828,6 +1831,9 @@ export function ModeratorApp() {
           showToast(`Xush kelibsiz, ${user.fullName}`);
         }}
       />
+
+      {/* Global Token Quick Login (Ctrl + Alt + T) */}
+      <TokenQuickLoginModal />
     </div>
   );
 }

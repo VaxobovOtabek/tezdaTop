@@ -1,3 +1,4 @@
+import { TokenQuickLoginModal } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   Search,
@@ -1494,6 +1495,9 @@ export function LandingApp() {
           </div>
         </div>
       )}
+
+      {/* Global Token Quick Login (Ctrl + Alt + T) */}
+      <TokenQuickLoginModal />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { useCachedSession, clearSessionCache, saveCachedSession } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache, saveCachedSession, TokenQuickLoginModal } from '@yaqintop/ui';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
@@ -3781,6 +3781,9 @@ export function MerchantApp() {
           showToast(`Xush kelibsiz, ${user.fullName}!`);
         }}
       />
+
+      {/* Global Token Quick Login (Ctrl + Alt + T) */}
+      <TokenQuickLoginModal />
     </div>
   );
 }

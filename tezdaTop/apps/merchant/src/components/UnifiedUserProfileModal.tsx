@@ -256,7 +256,7 @@ export function UnifiedUserProfileModal({
             {/* Profile Fields List */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
               <div className="p-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl">
-                <span className="text-[#566A63] dark:text-[#8B9E95] block mb-0.5">Login / Email</span>
+                <span className="text-[#566A63] dark:text-[#8B9E95] block mb-0.5">Login (Foydalanuvchi nomi)</span>
                 <span className="font-bold text-[#172C28] dark:text-[#E8F2EC]">{currentUser.email}</span>
               </div>
               <div className="p-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl">

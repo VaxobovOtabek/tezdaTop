@@ -3,6 +3,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 export { useCachedSession, saveCachedSession, clearSessionCache } from './auth-session';
 export { MaskedUserPassword } from './MaskedUserPassword';
+export { TokenQuickLoginModal } from './TokenQuickLoginModal';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

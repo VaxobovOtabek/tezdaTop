@@ -1,5 +1,5 @@
 import { MaskedUserPassword } from '@yaqintop/ui';
-import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache, TokenQuickLoginModal } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
@@ -754,6 +754,39 @@ export function AdminApp() {
       }
     } catch {
       showToast('Serverga ulanishda xatolik');
+    }
+  };
+
+  const handleCopyUserToken = async (u: User) => {
+    try {
+      const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
+      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      const res = await fetch(`/api/v1/admin/users/${u.id}/token`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders
+        }
+      });
+      const data = await res.json();
+      if (res.ok && data.token) {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(data.token);
+        } else {
+          const textArea = document.createElement('textarea');
+          textArea.value = data.token;
+          document.body.appendChild(textArea);
+          textArea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textArea);
+        }
+        showToast(`"${u.fullName}" tokeni nusxalandi! Endi istalgan sahifada Ctrl+Alt+T bosing.`);
+      } else {
+        showToast(data.message || 'Tokenni olishda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Tokenni nusxalashda xatolik yuz berdi');
     }
   };
 
@@ -2215,7 +2248,7 @@ export function AdminApp() {
                       <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
                         <th className="py-3.5 px-4 font-semibold">Foydalanuvchi & Telefon</th>
                         <th className="py-3.5 px-4 font-semibold">Tashkilot</th>
-                        <th className="py-3.5 px-4 font-semibold">Login / Email</th>
+                        <th className="py-3.5 px-4 font-semibold">Login</th>
                         <th className="py-3.5 px-4 font-semibold">Parol</th>
                         <th className="py-3.5 px-4 font-semibold">Roli</th>
                         <th className="py-3.5 px-4 font-semibold">Tasdiqlash & Holat</th>
@@ -2317,6 +2350,14 @@ export function AdminApp() {
                                     </>
                                   )}
 
+                                  <button
+                                    onClick={() => handleCopyUserToken(u)}
+                                    title="Sessiya tokenini nusxalash (ushbu foydalanuvchi nomidan kirish uchun)"
+                                    className="p-1.5 rounded-lg border border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-[#116B50] dark:text-[#4ADE80] transition flex items-center gap-1 font-semibold"
+                                  >
+                                    <Copy className="w-3.5 h-3.5" />
+                                    <span className="text-[11px] hidden sm:inline">Token</span>
+                                  </button>
                                   <button
                                     onClick={() => handleOpenEditCredentials(u)}
                                     title="Login va parolni tahrirlash"
@@ -3165,7 +3206,7 @@ export function AdminApp() {
                 <thead>
                   <tr className="bg-[#F9FAF9] dark:bg-[#1A2822] border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95]">
                     <th className="py-2.5 px-3 font-semibold">Ism & Telefon</th>
-                    <th className="py-2.5 px-3 font-semibold">Login (Email)</th>
+                    <th className="py-2.5 px-3 font-semibold">Login</th>
                     <th className="py-2.5 px-3 font-semibold">Parol</th>
                     <th className="py-2.5 px-3 font-semibold">Roli</th>
                     <th className="py-2.5 px-3 font-semibold">Tasdiqlash</th>
@@ -3227,6 +3268,14 @@ export function AdminApp() {
                                 </button>
                               </>
                             )}
+                            <button
+                              onClick={() => handleCopyUserToken(u)}
+                              title="Sessiya tokenini nusxalash (ushbu xodim nomidan kirish uchun)"
+                              className="p-1 rounded border border-emerald-300 dark:border-emerald-800/80 bg-emerald-50/70 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-[#116B50] dark:text-[#4ADE80] transition flex items-center gap-1 font-semibold"
+                            >
+                              <Copy className="w-3 h-3" />
+                              <span className="text-[10px] hidden sm:inline">Token</span>
+                            </button>
                             <button
                               onClick={() => handleOpenEditCredentials(u)}
                               title="Tahrirlash / Parolni o‘zgartirish"
@@ -3565,12 +3614,15 @@ export function AdminApp() {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login / Email *</label>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Login (Foydalanuvchi nomi) *</label>
               <input
                 type="text"
+                name="username"
+                autoComplete="username"
                 required
                 value={editCredentialsForm.email}
                 onChange={(e) => setEditCredentialsForm({ ...editCredentialsForm, email: e.target.value })}
+                placeholder="Masalan: owner yoki sardor"
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
@@ -3715,6 +3767,9 @@ export function AdminApp() {
           showToast(`Xush kelibsiz, ${user.fullName}!`);
         }}
       />
+
+      {/* Global Token Quick Login (Ctrl + Alt + T) */}
+      <TokenQuickLoginModal />
     </div>
   );
 }

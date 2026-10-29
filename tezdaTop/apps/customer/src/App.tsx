@@ -1,4 +1,4 @@
-import { useCachedSession, clearSessionCache } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache, TokenQuickLoginModal } from '@yaqintop/ui';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
@@ -2058,6 +2058,9 @@ export function CustomerApp() {
         selectedLocation={userLocation}
         onSelectLocation={handleSelectLocation}
       />
+
+      {/* Global Token Quick Login (Ctrl + Alt + T) */}
+      <TokenQuickLoginModal apiBaseUrl={apiUrl('')} />
     </div>
   );
 }
