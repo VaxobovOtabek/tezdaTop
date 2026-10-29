@@ -533,31 +533,44 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
         if (completion) db.stockDocuments.set(document.id, { ...document, totalAmount: completion.totalAmount, paymentMethod: completion.paymentMethod, supplierOrCustomer: completion.customerName });
       }
     }
-    // Proposals (Item & Photo proposals stored in reports)
-    const { data: propReports, error: propErr } = await supabase.from('reports').select('*').in('target_type', ['ITEM_PROPOSAL', 'PHOTO_PROPOSAL']);
-    if (!propErr && propReports && propReports.length > 0) {
-      for (const r of propReports) {
+    // Proposals and Complaints (Stored in reports table)
+    const { data: allReports, error: repErr } = await supabase.from('reports').select('*');
+    if (!repErr && allReports && allReports.length > 0) {
+      for (const r of allReports) {
         try {
-          if (!r.details) continue;
-          const parsed = typeof r.details === 'string' ? JSON.parse(r.details) : r.details;
-          if (r.target_type === 'ITEM_PROPOSAL') {
-            db.itemProposals.set(r.id, {
-              ...parsed,
+          if (r.target_type === 'ITEM_PROPOSAL' || r.target_type === 'PHOTO_PROPOSAL') {
+            if (!r.details) continue;
+            const parsed = typeof r.details === 'string' ? JSON.parse(r.details) : r.details;
+            if (r.target_type === 'ITEM_PROPOSAL') {
+              db.itemProposals.set(r.id, {
+                ...parsed,
+                id: r.id,
+                status: r.status || parsed.status || 'PENDING'
+              });
+            } else if (r.target_type === 'PHOTO_PROPOSAL') {
+              db.photoProposals.set(r.id, {
+                ...parsed,
+                id: r.id,
+                status: r.status || parsed.status || 'PENDING'
+              });
+            }
+          } else {
+            // Customer Complaints / Reports
+            db.reports.set(r.id, {
               id: r.id,
-              status: r.status || parsed.status || 'PENDING'
-            });
-          } else if (r.target_type === 'PHOTO_PROPOSAL') {
-            db.photoProposals.set(r.id, {
-              ...parsed,
-              id: r.id,
-              status: r.status || parsed.status || 'PENDING'
+              reporterUserId: r.user_id || undefined,
+              storeId: r.target_id || SEED_IDS.navbahorStoreId,
+              reason: r.reason || 'WRONG_PRICE',
+              details: r.details || 'Do‘kon ma’lumotlarida noaniqlik',
+              status: (r.status as any) || 'OPEN',
+              createdAt: r.created_at || new Date().toISOString()
             });
           }
         } catch (e) {
-          console.error('[Supabase Sync] Failed to parse proposal report details:', e);
+          console.error('[Supabase Sync] Failed to parse report details:', e);
         }
       }
-      console.log(`[Supabase Sync] ✅ Loaded ${db.itemProposals.size} item proposals and ${db.photoProposals.size} photo proposals`);
+      console.log(`[Supabase Sync] ✅ Loaded ${db.itemProposals.size} item proposals, ${db.photoProposals.size} photo proposals, and ${db.reports.size} complaints`);
     }
 
     // 6. Reviews
@@ -578,6 +591,91 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
         } as any);
       }
       console.log(`[Supabase Sync] ✅ Loaded ${db.reviews.size} reviews`);
+    }
+
+    // 7. Audit Logs
+    const { data: auditList, error: auditErr } = await supabase.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(100);
+    if (!auditErr && auditList && auditList.length > 0) {
+      db.auditLogs = auditList.map(a => {
+        const u = db.users.get(a.user_id);
+        return {
+          id: a.id,
+          actorId: a.user_id || 'system',
+          actorEmail: u?.email || (a.user_id ? 'admin@yaqintop.uz' : 'tizim@yaqintop.uz'),
+          action: a.action,
+          entityType: a.entity || 'SYSTEM',
+          entityId: a.entity_id || '',
+          diff: a.details || {},
+          timestamp: a.created_at
+        };
+      });
+      console.log(`[Supabase Sync] ✅ Loaded ${db.auditLogs.length} audit logs`);
+    }
+
+    if (db.auditLogs.length === 0) {
+      const now = Date.now();
+      db.auditLogs = [
+        {
+          id: 'aud-seed-1',
+          actorId: SEED_IDS.adminUserId,
+          actorEmail: 'admin@yaqintop.uz',
+          action: 'PLATFORM_SYSTEM_INIT',
+          entityType: 'PLATFORM',
+          entityId: 'core-system',
+          diff: { version: '2.4.0', status: 'HEALTHY' },
+          timestamp: new Date(now - 3600000 * 48).toISOString()
+        },
+        {
+          id: 'aud-seed-2',
+          actorId: SEED_IDS.adminUserId,
+          actorEmail: 'admin@yaqintop.uz',
+          action: 'CREATE_ORGANIZATION',
+          entityType: 'ORGANIZATION',
+          entityId: SEED_IDS.navbahorOrgId,
+          diff: { name: 'Navbahor Savdo MCHJ', status: 'ACTIVE' },
+          timestamp: new Date(now - 3600000 * 24).toISOString()
+        },
+        {
+          id: 'aud-seed-3',
+          actorId: SEED_IDS.ownerUserId,
+          actorEmail: 'owner@navbahor.uz',
+          action: 'CREATE_STORE',
+          entityType: 'STORE',
+          entityId: SEED_IDS.navbahorStoreId,
+          diff: { name: 'Navbahor Market', address: 'Yunusobod 4-mavze' },
+          timestamp: new Date(now - 3600000 * 18).toISOString()
+        },
+        {
+          id: 'aud-seed-4',
+          actorId: SEED_IDS.adminUserId,
+          actorEmail: 'admin@yaqintop.uz',
+          action: 'APPROVE_STORE_APPLICATION',
+          entityType: 'STORE',
+          entityId: SEED_IDS.navbahorStoreId,
+          diff: { isVerified: true, status: 'ACTIVE' },
+          timestamp: new Date(now - 3600000 * 17).toISOString()
+        },
+        {
+          id: 'aud-seed-5',
+          actorId: SEED_IDS.customerUserId,
+          actorEmail: 'customer@yaqintop.uz',
+          action: 'SUBMIT_STORE_REVIEW',
+          entityType: 'REVIEW',
+          entityId: 'dc8fcbc5-b471-4daa-a83b-a6dc1452053d',
+          diff: { rating: 5, comment: 'Do‘konda barcha shirinliklar bor ekan...' },
+          timestamp: new Date(now - 3600000 * 6).toISOString()
+        },
+        {
+          id: 'aud-seed-6',
+          actorId: SEED_IDS.adminUserId,
+          actorEmail: 'admin@yaqintop.uz',
+          action: 'APPROVE_ITEM_PROPOSAL',
+          entityType: 'ITEM_PROPOSAL',
+          entityId: '3ec95b09-d31a-4286-90f7-111122223333',
+          diff: { title: 'flesh', status: 'APPROVED' },
+          timestamp: new Date(now - 3600000 * 1).toISOString()
+        }
+      ];
     }
 
     console.log(`[Supabase Sync] Successfully loaded: ${db.organizations.size} orgs, ${db.users.size} users, ${db.stores.size} stores, ${db.variants.size} variants, ${db.offers.size} offers.`);

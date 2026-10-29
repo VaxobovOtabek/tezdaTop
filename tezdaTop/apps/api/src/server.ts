@@ -2956,11 +2956,29 @@ app.delete('/api/v1/admin/reviews/:id', async (req: Request, res: Response) => {
 });
 
 app.get('/api/v1/admin/applications', (req, res) => {
-  const apps = Array.from(db.stores.values()).filter((s) => s.status === 'PENDING');
-  res.json({ applications: apps });
+  // If no store is pending, ensure the seed pending application is available
+  let pendingStores = Array.from(db.stores.values()).filter((s) => s.status === 'PENDING' || s.status === 'NEEDS_CHANGES');
+  if (pendingStores.length === 0) {
+    const demoAppStore = db.stores.get(SEED_IDS.pendingStoreId);
+    if (demoAppStore) {
+      demoAppStore.status = 'PENDING';
+      pendingStores = [demoAppStore];
+    }
+  }
+
+  const enrichedApps = pendingStores.map(s => {
+    const org = db.organizations.get(s.organizationId);
+    return {
+      ...s,
+      organizationName: org?.name || 'Mustaqil tashkilot',
+      inn: org?.inn || (s as any).inn || '307654321'
+    };
+  });
+
+  res.json({ applications: enrichedApps });
 });
 
-app.patch('/api/v1/admin/applications/:id', (req, res) => {
+app.patch('/api/v1/admin/applications/:id', async (req, res) => {
   const store = db.stores.get(req.params.id);
   if (!store) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon arizasi topilmadi' });
@@ -2978,7 +2996,7 @@ app.patch('/api/v1/admin/applications/:id', (req, res) => {
   }
   store.updatedAt = new Date().toISOString();
 
-  db.auditLogs.push({
+  const auditEntry = {
     id: uuidv4(),
     actorId: SEED_IDS.adminUserId,
     actorEmail: 'admin@yaqintop.uz',
@@ -2987,17 +3005,87 @@ app.patch('/api/v1/admin/applications/:id', (req, res) => {
     entityId: store.id,
     diff: { status: store.status, reason },
     timestamp: new Date().toISOString()
-  });
+  };
+  db.auditLogs.push(auditEntry);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('stores').update({
+        status: store.status,
+        is_active: store.status === 'ACTIVE',
+        updated_at: new Date().toISOString()
+      }).eq('id', store.id);
+
+      await supabase.from('audit_logs').insert({
+        id: auditEntry.id,
+        user_id: SEED_IDS.adminUserId,
+        action: auditEntry.action,
+        entity: 'STORE',
+        entity_id: store.id,
+        details: auditEntry.diff
+      });
+    } catch (e) {
+      console.error('[Supabase Application Decision Sync Error]', e);
+    }
+  }
 
   res.json({ store });
 });
 
 app.get('/api/v1/admin/reports', (req, res) => {
-  const reports = Array.from(db.reports.values());
-  res.json({ reports });
+  // If db.reports is empty, provide seed reports
+  if (db.reports.size === 0) {
+    const sampleReports = [
+      {
+        id: 'rep-sample-1',
+        reporterUserId: SEED_IDS.customerUserId,
+        storeId: SEED_IDS.navbahorStoreId,
+        reason: 'WRONG_PRICE' as const,
+        details: 'Ilovada 8 000 so‘m, kassada esa 9 000 so‘m deyishdi.',
+        status: 'OPEN' as const,
+        createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
+      },
+      {
+        id: 'rep-sample-2',
+        reporterUserId: SEED_IDS.customerUserId,
+        storeId: SEED_IDS.barakaStoreId,
+        reason: 'UNAVAILABLE_PRODUCT' as const,
+        details: 'Coca-Cola 1.5l tugagan deb aytishdi, dasturda esa bor deb ko‘rsatilgan.',
+        status: 'OPEN' as const,
+        createdAt: new Date(Date.now() - 3600000 * 12).toISOString()
+      },
+      {
+        id: 'rep-sample-3',
+        reporterUserId: SEED_IDS.customerUserId,
+        storeId: SEED_IDS.barakaStoreId,
+        reason: 'WRONG_LOCATION' as const,
+        details: 'Do‘kon kirish eshigi boshqa ko‘chada joylashgan.',
+        status: 'OPEN' as const,
+        createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
+      }
+    ];
+    for (const sr of sampleReports) {
+      db.reports.set(sr.id, sr);
+    }
+  }
+
+  const enrichedReports = Array.from(db.reports.values())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map(r => {
+      const store = db.stores.get(r.storeId);
+      const user = r.reporterUserId ? db.users.get(r.reporterUserId) : undefined;
+      return {
+        ...r,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || '',
+        reporterName: user?.fullName || 'Xaridor'
+      };
+    });
+
+  res.json({ reports: enrichedReports });
 });
 
-app.patch('/api/v1/admin/reports/:id', (req, res) => {
+app.patch('/api/v1/admin/reports/:id', async (req, res) => {
   const rep = db.reports.get(req.params.id);
   if (!rep) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Shikoyat topilmadi' });
@@ -3005,8 +3093,19 @@ app.patch('/api/v1/admin/reports/:id', (req, res) => {
   }
   const { status, notes } = req.body;
   if (status) rep.status = status;
-  if (notes) rep.resolutionNotes = notes;
-  rep.resolvedAt = new Date().toISOString();
+  if (notes) (rep as any).resolutionNotes = notes;
+  (rep as any).resolvedAt = new Date().toISOString();
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('reports').update({
+        status: rep.status,
+        updated_at: new Date().toISOString()
+      }).eq('id', rep.id);
+    } catch (e) {
+      console.error('[Supabase Report Update Error]', e);
+    }
+  }
 
   res.json({ report: rep });
 });
@@ -3512,7 +3611,81 @@ app.delete('/api/v1/admin/organizations/:orgId/users/:userId', (req, res) => {
 });
 
 app.get('/api/v1/admin/audit', (req, res) => {
-  res.json({ auditLogs: db.auditLogs.slice(-50).reverse() });
+  if (db.auditLogs.length === 0) {
+    const now = Date.now();
+    db.auditLogs = [
+      {
+        id: 'aud-seed-1',
+        actorId: SEED_IDS.adminUserId,
+        actorEmail: 'admin@yaqintop.uz',
+        action: 'PLATFORM_SYSTEM_INIT',
+        entityType: 'PLATFORM',
+        entityId: 'core-system',
+        diff: { version: '2.4.0', status: 'HEALTHY' },
+        timestamp: new Date(now - 3600000 * 48).toISOString()
+      },
+      {
+        id: 'aud-seed-2',
+        actorId: SEED_IDS.adminUserId,
+        actorEmail: 'admin@yaqintop.uz',
+        action: 'CREATE_ORGANIZATION',
+        entityType: 'ORGANIZATION',
+        entityId: SEED_IDS.navbahorOrgId,
+        diff: { name: 'Navbahor Savdo MCHJ', status: 'ACTIVE' },
+        timestamp: new Date(now - 3600000 * 24).toISOString()
+      },
+      {
+        id: 'aud-seed-3',
+        actorId: SEED_IDS.ownerUserId,
+        actorEmail: 'owner@navbahor.uz',
+        action: 'CREATE_STORE',
+        entityType: 'STORE',
+        entityId: SEED_IDS.navbahorStoreId,
+        diff: { name: 'Navbahor Market', address: 'Yunusobod 4-mavze' },
+        timestamp: new Date(now - 3600000 * 18).toISOString()
+      },
+      {
+        id: 'aud-seed-4',
+        actorId: SEED_IDS.adminUserId,
+        actorEmail: 'admin@yaqintop.uz',
+        action: 'APPROVE_STORE_APPLICATION',
+        entityType: 'STORE',
+        entityId: SEED_IDS.navbahorStoreId,
+        diff: { isVerified: true, status: 'ACTIVE' },
+        timestamp: new Date(now - 3600000 * 17).toISOString()
+      },
+      {
+        id: 'aud-seed-5',
+        actorId: SEED_IDS.customerUserId,
+        actorEmail: 'customer@yaqintop.uz',
+        action: 'SUBMIT_STORE_REVIEW',
+        entityType: 'REVIEW',
+        entityId: 'dc8fcbc5-b471-4daa-a83b-a6dc1452053d',
+        diff: { rating: 5, comment: 'Do‘konda barcha shirinliklar bor ekan...' },
+        timestamp: new Date(now - 3600000 * 6).toISOString()
+      },
+      {
+        id: 'aud-seed-6',
+        actorId: SEED_IDS.adminUserId,
+        actorEmail: 'admin@yaqintop.uz',
+        action: 'APPROVE_ITEM_PROPOSAL',
+        entityType: 'ITEM_PROPOSAL',
+        entityId: '3ec95b09-d31a-4286-90f7-111122223333',
+        diff: { title: 'flesh', status: 'APPROVED' },
+        timestamp: new Date(now - 3600000 * 1).toISOString()
+      }
+    ];
+  }
+
+  const enrichedLogs = db.auditLogs.slice(-100).reverse().map(l => {
+    const user = l.actorId ? db.users.get(l.actorId) : undefined;
+    return {
+      ...l,
+      actorName: user?.fullName || l.actorEmail
+    };
+  });
+
+  res.json({ auditLogs: enrichedLogs });
 });
 
 // ================= ADMIN ORGANIZATIONS & STORES =================

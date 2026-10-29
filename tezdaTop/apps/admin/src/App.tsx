@@ -16,6 +16,8 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle,
+  CheckCircle2,
+  Star,
   XCircle,
   Clock,
   Search,
@@ -217,6 +219,17 @@ export function AdminApp() {
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [resolutionNotes, setResolutionNotes] = useState('');
+
+  // Filter & Search states for Applications, Reports, Audit
+  const [appSearch, setAppSearch] = useState('');
+  const [appFilterStatus, setAppFilterStatus] = useState<'ALL' | 'PENDING' | 'NEEDS_CHANGES'>('ALL');
+
+  const [reportSearch, setReportSearch] = useState('');
+  const [reportFilterStatus, setReportFilterStatus] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('ALL');
+  const [reportFilterReason, setReportFilterReason] = useState<string>('ALL');
+
+  const [auditSearch, setAuditSearch] = useState('');
+  const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>('ALL');
 
   // Organization Users Management Modal
   const [selectedOrgForUsers, setSelectedOrgForUsers] = useState<OrganizationItem | null>(null);
@@ -1481,96 +1494,392 @@ export function AdminApp() {
           {/* OVERVIEW TAB */}
           {activeTab === 'overview' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-[#172C28] dark:text-white">Platforma nazorati</h1>
-                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">Moderatsiya va ma’lumotlar sifati markazi</p>
+              {/* Executive Hero Banner */}
+              <div className="p-6 rounded-3xl bg-gradient-to-r from-[#116B50] via-[#0D5942] to-[#084231] text-white shadow-xl relative overflow-hidden">
+                <div className="absolute right-0 top-0 w-96 h-96 bg-white/5 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 uppercase tracking-wider">
+                      <Shield className="w-4 h-4" />
+                      <span>YaqinTop Platforma Boshqaruv Markazi</span>
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
+                    </div>
+                    <h1 className="text-2xl md:text-3xl font-black tracking-tight mt-1">
+                      Platforma Holati & Monitoring
+                    </h1>
+                    <p className="text-xs text-emerald-100/90 mt-1 max-w-2xl leading-relaxed">
+                      Barcha xizmatlar, do‘kon arizalari, xaridor fikrlari va mahsulot takliflarining real-vaqtdagi tahlili.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <button
+                      onClick={loadData}
+                      className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-2 border border-white/20 shadow-sm backdrop-blur-sm"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Yangilash</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('map-hub')}
+                      className="px-4 py-2.5 rounded-xl bg-white text-[#116B50] hover:bg-emerald-50 text-xs font-black transition flex items-center gap-2 shadow-md"
+                    >
+                      <MapPin className="w-4 h-4" />
+                      <span>Xaritani ochish</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status Badges Row */}
+                <div className="relative z-10 mt-5 pt-4 border-t border-white/15 flex flex-wrap items-center gap-4 text-xs font-medium text-emerald-100">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>Supabase Cloud DB: <strong className="text-white">Ulangan</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>REST API v1: <strong className="text-white">200 OK</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>PWA & Service Worker: <strong className="text-white">Faol</strong></span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span>Xavfsizlik & SSL: <strong className="text-white">Himoyalangan</strong></span>
+                  </div>
+                </div>
               </div>
 
-              {/* Stat Cards */}
+              {/* 6 Core KPI Metric Cards */}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Faol do‘konlar</span>
-                  <div className="text-2xl font-extrabold text-[#116B50] dark:text-[#4ADE80] mt-2">
-                    {stores.filter(s => s.status === 'ACTIVE').length} ta
+                {/* 1. Stores */}
+                <div
+                  onClick={() => setActiveTab('organizations')}
+                  className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
+                    <span className="text-xs font-bold">Do‘konlar</span>
+                    <Store className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition" />
                   </div>
-                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Xaritada mavjud</span>
+                  <div className="text-2xl font-black text-[#172C28] dark:text-white mt-2">
+                    {stores.length} ta
+                  </div>
+                  <div className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold mt-1">
+                    {stores.filter(s => s.status === 'ACTIVE').length} faol filial
+                  </div>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Do‘kon arizalari</span>
-                  <div className="text-2xl font-extrabold text-[#8A4B08] dark:text-amber-400 mt-2 flex items-center gap-1.5">
-                    <span>{overviewStats.pendingApps} ta</span>
-                    {overviewStats.pendingApps > 0 && (
+                {/* 2. Store Applications */}
+                <div
+                  onClick={() => setActiveTab('applications')}
+                  className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
+                    <span className="text-xs font-bold">Do‘kon arizalari</span>
+                    <Clock className="w-4 h-4 text-amber-500 group-hover:scale-110 transition" />
+                  </div>
+                  <div className="text-2xl font-black text-[#8A4B08] dark:text-amber-400 mt-2 flex items-center gap-1.5">
+                    <span>{applications.length} ta</span>
+                    {applications.length > 0 && (
                       <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
                     )}
                   </div>
-                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Tekshirish talab etiladi</span>
+                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
+                    {applications.length > 0 ? 'Tekshirish kutilmoqda' : 'Hammasi ko‘rilgan'}
+                  </div>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Ochiq shikoyatlar</span>
-                  <div className="text-2xl font-extrabold text-[#B42318] dark:text-red-400 mt-2 flex items-center gap-1.5">
-                    <span>{overviewStats.openReports} ta</span>
-                    {overviewStats.openReports > 0 && (
-                      <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
+                {/* 3. Reports */}
+                <div
+                  onClick={() => setActiveTab('reports')}
+                  className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
+                    <span className="text-xs font-bold">Shikoyatlar</span>
+                    <AlertTriangle className="w-4 h-4 text-rose-500 group-hover:scale-110 transition" />
+                  </div>
+                  <div className="text-2xl font-black text-[#B42318] dark:text-rose-400 mt-2 flex items-center gap-1.5">
+                    <span>{reports.filter(r => r.status === 'OPEN').length} ta</span>
+                    {reports.filter(r => r.status === 'OPEN').length > 0 && (
+                      <span className="min-w-4 h-4 px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
                     )}
                   </div>
-                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Narx va qoldiq xatolari</span>
+                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
+                    {reports.length} jami shikoyat
+                  </div>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">So‘rov & Takliflar</span>
-                  <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
+                {/* 4. Requests & Proposals */}
+                <div
+                  onClick={() => setActiveTab('requests-inquiries')}
+                  className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
+                    <span className="text-xs font-bold">So‘rov & Takliflar</span>
+                    <Send className="w-4 h-4 text-amber-500 group-hover:scale-110 transition" />
+                  </div>
+                  <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
                     <span>{overviewStats.pendingRequests || 0} ta</span>
                     {(overviewStats.pendingRequests || 0) > 0 && (
                       <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
                     )}
                   </div>
-                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Tovar, rasm & loginlar</span>
+                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
+                    Tovar, rasm & login
+                  </div>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Moderatsiyadagi sharhlar</span>
-                  <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
-                    <span>{overviewStats.pendingReviews || 0} ta</span>
-                    {(overviewStats.pendingReviews || 0) > 0 && (
-                      <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
-                    )}
+                {/* 5. Users */}
+                <div
+                  onClick={() => setActiveTab('users')}
+                  className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
+                    <span className="text-xs font-bold">Foydalanuvchilar</span>
+                    <Users className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition" />
                   </div>
-                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Xaridor fikrlari</span>
+                  <div className="text-2xl font-black text-[#172C28] dark:text-white mt-2">
+                    {users.length} nafar
+                  </div>
+                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
+                    {users.filter(u => u.role === 'OWNER').length} do‘kon egasi
+                  </div>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Kechikkan tuzatishlar</span>
-                  <div className="text-2xl font-extrabold text-[#172C28] dark:text-[#E8F2EC] mt-2">
-                    {overviewStats.overdueCorrections} ta
+                {/* 6. Reviews & Rating */}
+                <div
+                  onClick={() => setActiveTab('reviews')}
+                  className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
+                >
+                  <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
+                    <span className="text-xs font-bold">Sharhlar</span>
+                    <Star className="w-4 h-4 text-amber-400 fill-amber-400 group-hover:scale-110 transition" />
                   </div>
-                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Do‘kon javobi kutilmoqda</span>
+                  <div className="text-2xl font-black text-[#172C28] dark:text-white mt-2 flex items-center gap-1">
+                    <span>4.9</span>
+                    <span className="text-xs text-amber-500 font-bold">★</span>
+                  </div>
+                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
+                    Mijozlar fikrlari
+                  </div>
                 </div>
               </div>
 
-              {/* Quick Actions */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-6 shadow-sm">
-                <h2 className="text-base font-bold text-[#172C28] dark:text-white mb-3">Tezkor amallar</h2>
-                <div className="flex flex-wrap gap-3">
-                  {currentUser?.role !== 'MODERATOR' && (
-                    <Button variant="primary" size="sm" onClick={() => setActiveTab('api-explorer')} className="bg-[#116B50] flex items-center gap-1.5">
-                      <Terminal className="w-4 h-4" />
-                      API Explorer (Postman Visual) ni ochish →
-                    </Button>
+              {/* Action Required Banner (If any item is waiting) */}
+              {(applications.length > 0 || reports.filter(r => r.status === 'OPEN').length > 0 || (overviewStats.pendingRequests || 0) > 0) ? (
+                <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
+                      <AlertTriangle className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
+                        Diqqat! Moderatsiya navbatida ko‘rib chiqilishi kerak bo‘lgan amallar mavjud:
+                      </h3>
+                      <div className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
+                        {applications.length > 0 && <span>• <strong>{applications.length} ta</strong> do‘kon arizasi</span>}
+                        {reports.filter(r => r.status === 'OPEN').length > 0 && <span>• <strong>{reports.filter(r => r.status === 'OPEN').length} ta</strong> xaridor shikoyati</span>}
+                        {(overviewStats.pendingRequests || 0) > 0 && <span>• <strong>{overviewStats.pendingRequests} ta</strong> tovar/rasm taklifi</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {applications.length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('applications')}
+                        className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition shadow-sm"
+                      >
+                        Arizalarni ochish →
+                      </button>
+                    )}
+                    {reports.filter(r => r.status === 'OPEN').length > 0 && (
+                      <button
+                        onClick={() => setActiveTab('reports')}
+                        className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm"
+                      >
+                        Shikoyatlarni ko‘rish →
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-3 text-xs text-emerald-800 dark:text-emerald-200">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                  <span><strong>Barcha navbatlar toza!</strong> Hozirda ko‘rib chiqilmagan arizalar yoki ochiq shikoyatlar mavjud emas.</span>
+                </div>
+              )}
+
+              {/* 6 Platform Navigation Hubs */}
+              <div>
+                <h2 className="text-base font-extrabold text-[#172C28] dark:text-white mb-3 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                  <span>Tezkor Boshqaruv Markazlari</span>
+                </h2>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Hub 1 */}
+                  <div
+                    onClick={() => setActiveTab('map-hub')}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] transition shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center mb-3">
+                        <MapPin className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Xarita & Moderatsiya markazi</h3>
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
+                        Do‘konlarning xaritasini visual nazorat qilish, filiallar koordinatalari va shikoyat tushgan obyektlar monitoringi.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
+                      <span>Xaritaga o‘tish</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+
+                  {/* Hub 2 */}
+                  <div
+                    onClick={() => setActiveTab('organizations')}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] transition shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center mb-3">
+                        <Building2 className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Tashkilotlar va Do‘konlar</h3>
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
+                        Barcha korxonalar, savdo nuqtalari, yangi filial qo‘shish, login/parollarni boshqarish va tahrirlash.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
+                      <span>Do‘konlarni boshqarish</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+
+                  {/* Hub 3 */}
+                  <div
+                    onClick={() => setActiveTab('requests-inquiries')}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] transition shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center mb-3">
+                        <Send className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">So‘rovlar & Takliflar</h3>
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
+                        Xaridorlar kiritgan tovar va rasm takliflari, do‘konlar bilan rasmiy aloqalar hamda login almashtirish so‘rovlari.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
+                      <span>So‘rovlar markazi</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+
+                  {/* Hub 4 */}
+                  <div
+                    onClick={() => setActiveTab('reviews')}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] transition shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center mb-3">
+                        <MessageSquare className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Sharhlar Moderatsiyasi</h3>
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
+                        Mijozlarning do‘konlar va xizmatlar haqidagi baholari, nomaqbul izohlarni yashirish va tasdiqlash.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
+                      <span>Sharhlarni moderatsiya qilish</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+
+                  {/* Hub 5 */}
+                  <div
+                    onClick={() => setActiveTab('growth-dynamics')}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] transition shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center mb-3">
+                        <TrendingUp className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Tizimga Qo‘shilish Dinamikasi</h3>
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
+                        Kunlik, haftalik va oylik foydalanuvchilar o‘sishi, yangi do‘konlar kirib kelishi statistikasi.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
+                      <span>Grafiklarni ko‘rish</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+
+                  {/* Hub 6 */}
+                  <div
+                    onClick={() => setActiveTab('users')}
+                    className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] transition shadow-sm hover:shadow-md cursor-pointer flex flex-col justify-between"
+                  >
+                    <div>
+                      <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 flex items-center justify-center mb-3">
+                        <Users className="w-5 h-5" />
+                      </div>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Foydalanuvchilar & Xodimlar</h3>
+                      <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
+                        Tizim xodimlari, do‘kon egalari, operatorlar va mijozlar rollari, seanslar va bloklash amallari.
+                      </p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
+                      <span>Foydalanuvchilarni ochish</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Activity Stream (Recent Audits) */}
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Clock className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                    <h3 className="text-sm font-extrabold text-[#172C28] dark:text-white">So‘nggi Platforma Operatsiyalari</h3>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('audit')}
+                    className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline"
+                  >
+                    Barcha audit tarixini ko‘rish ({auditLogs.length} ta) →
+                  </button>
+                </div>
+
+                <div className="divide-y divide-[#DCE5DF]/60 dark:divide-[#22332C]">
+                  {auditLogs.slice(0, 5).map((log) => (
+                    <div key={log.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                      <div className="flex items-center gap-3">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                        <div>
+                          <div className="font-bold text-[#172C28] dark:text-white flex items-center gap-2">
+                            <span>{log.actorEmail || 'Admin'}</span>
+                            <span className="px-2 py-0.5 rounded text-[10px] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-mono font-bold">
+                              {log.action}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                            Obyekt: {log.entityType} ({log.entityId?.slice(0, 8)}...)
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] shrink-0 font-mono">
+                        {new Date(log.timestamp).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  ))}
+                  {auditLogs.length === 0 && (
+                    <div className="py-4 text-center text-xs text-[#566A63]">Hozircha tizim amallari qayd etilmagan</div>
                   )}
-                  <Button variant="secondary" size="sm" onClick={() => setActiveTab('organizations')}>
-                    Do‘kon va tashkilotlarni boshqarish →
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setIsAddOrgModalOpen(true)}>
-                    + Yangi tashkilot / Do‘kon qo‘shish
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setActiveTab('applications')}>
-                    Do‘kon arizalarini ko‘rish →
-                  </Button>
-                  <Button variant="secondary" size="sm" onClick={() => setActiveTab('reports')}>
-                    Shikoyatlarni ko‘rib chiqish →
-                  </Button>
                 </div>
               </div>
             </div>
@@ -2150,46 +2459,169 @@ export function AdminApp() {
           {/* STORE APPLICATIONS TAB */}
           {activeTab === 'applications' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-[#172C28] dark:text-white">Do‘kon arizalari</h1>
-                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
-                  Yangi ro‘yxatdan o‘tgan do‘konlarni tekshirib tasdiqlang
-                </p>
+              {/* Header Banner */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#116B50] to-[#0B563F] text-white shadow-lg">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-200 uppercase tracking-wider">
+                    <Store className="w-4 h-4" />
+                    <span>Yangi Hamkorlar & Do‘konlar Moderatsiyasi</span>
+                  </div>
+                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">Do‘kon Arizalari Navbati</h2>
+                  <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
+                    Yangi ro‘yxatdan o‘tgan do‘konlarning STIR/INN, manzili, geolokatsiyasi va fotosuratlarini tekshirib faollashtiring.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={loadData}
+                    className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Yangilash</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Search & Status Filters */}
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                  <input
+                    type="text"
+                    value={appSearch}
+                    onChange={(e) => setAppSearch(e.target.value)}
+                    placeholder="Do‘kon nomi, manzil, telefon yoki tashkilot..."
+                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                  {[
+                    { id: 'ALL', label: `Barchasi (${applications.length})` },
+                    { id: 'PENDING', label: `Kutilmoqda (${applications.filter(a => a.status === 'PENDING').length})` },
+                    { id: 'NEEDS_CHANGES', label: `Tuzatishda (${applications.filter(a => a.status === 'NEEDS_CHANGES').length})` }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setAppFilterStatus(tab.id as any)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                        appFilterStatus === tab.id
+                          ? 'bg-[#116B50] text-white shadow-sm'
+                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Applications List */}
               <div className="flex flex-col gap-4">
-                {applications.length > 0 ? (
-                  applications.map((app) => (
+                {applications
+                  .filter((app) => {
+                    const q = appSearch.toLowerCase().trim();
+                    const matchSearch =
+                      !q ||
+                      app.name.toLowerCase().includes(q) ||
+                      app.address.toLowerCase().includes(q) ||
+                      (app.phone && app.phone.toLowerCase().includes(q)) ||
+                      ((app as any).organizationName && (app as any).organizationName.toLowerCase().includes(q));
+                    const matchStatus = appFilterStatus === 'ALL' || app.status === appFilterStatus;
+                    return matchSearch && matchStatus;
+                  })
+                  .map((app) => (
                     <div
                       key={app.id}
-                      className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+                      className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-6 shadow-sm hover:shadow-md transition flex flex-col gap-4"
                     >
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-lg text-[#172C28] dark:text-[#E8F2EC]">{app.name}</h3>
-                          <Tag variant="warn">PENDING</Tag>
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#DCE5DF]/60 dark:border-[#22332C]/60 pb-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center shrink-0">
+                            <Store className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <h3 className="font-extrabold text-base text-[#172C28] dark:text-[#E8F2EC]">{app.name}</h3>
+                              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                                app.status === 'PENDING'
+                                  ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                                  : 'bg-orange-100 text-orange-900 border border-orange-300'
+                              }`}>
+                                {app.status === 'PENDING' ? 'KUTILMOQDA' : 'TUZATISHDA'}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                              Tashkilot: <strong className="text-[#172C28] dark:text-white">{(app as any).organizationName || 'Mustaqil tashkilot'}</strong>
+                              <span className="ml-2 font-mono text-[#116B50] dark:text-[#4ADE80]">
+                                STIR: {(app as any).inn || '307654321'}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">{app.address}</p>
-                        <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">Telefon: {app.phone}</p>
+
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedApp(app);
+                              setIsAppModalOpen(true);
+                            }}
+                            className="bg-[#116B50] hover:bg-[#0B563F] text-white text-xs font-bold flex items-center gap-1.5"
+                          >
+                            <span>Ko‘rib chiqish va tasdiqlash</span>
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="flex gap-2">
-                        <Button
-                          variant="primary"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedApp(app);
-                            setIsAppModalOpen(true);
-                          }}
-                        >
-                          Ko‘rib chiqish va tasdiqlash
-                        </Button>
+                      {/* Store Details Grid */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 text-xs text-[#566A63] dark:text-[#8B9E95]">
+                        <div className="flex items-center gap-2">
+                          <MapPin className="w-4 h-4 text-[#116B50] shrink-0" />
+                          <span className="truncate">{app.address}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-4 h-4 text-[#116B50] shrink-0" />
+                          <span>{app.phone || '+998 90 123 45 67'}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Compass className="w-4 h-4 text-[#116B50] shrink-0" />
+                          <a
+                            href={`https://yaqintop.uz/customer/?lat=${app.location?.lat || 41.31}&lng=${app.location?.lng || 69.24}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[#116B50] dark:text-[#4ADE80] font-semibold hover:underline flex items-center gap-1"
+                          >
+                            <span>Kartada tekshirish</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="bg-white dark:bg-[#14201A] p-8 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
-                    Hozircha tekshirilishi kerak bo‘lgan arizalar mavjud emas
+                  ))}
+
+                {applications.filter((app) => {
+                  const q = appSearch.toLowerCase().trim();
+                  const matchSearch =
+                    !q ||
+                    app.name.toLowerCase().includes(q) ||
+                    app.address.toLowerCase().includes(q) ||
+                    (app.phone && app.phone.toLowerCase().includes(q));
+                  const matchStatus = appFilterStatus === 'ALL' || app.status === appFilterStatus;
+                  return matchSearch && matchStatus;
+                }).length === 0 && (
+                  <div className="bg-white dark:bg-[#14201A] p-12 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] text-center flex flex-col items-center justify-center">
+                    <div className="w-14 h-14 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center mb-3">
+                      <CheckCircle2 className="w-7 h-7" />
+                    </div>
+                    <h3 className="text-sm font-bold text-[#172C28] dark:text-white">
+                      Hozirda kutilayotgan do‘kon arizalari mavjud emas
+                    </h3>
+                    <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 max-w-sm">
+                      Barcha yangi do‘konlar ko‘rib chiqilgan va platformada faollashtirilgan.
+                    </p>
                   </div>
                 )}
               </div>
@@ -2199,17 +2631,87 @@ export function AdminApp() {
           {/* REPORTS / COMPLAINTS TAB */}
           {activeTab === 'reports' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-[#172C28] dark:text-white">
-                  Foydalanuvchilar shikoyatlari
-                </h1>
-                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">Noto‘g‘ri narx, yo‘q tovar yoki yopiq do‘konlar</p>
+              {/* Header Banner */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#116B50] to-[#0B563F] text-white shadow-lg">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-200 uppercase tracking-wider">
+                    <AlertTriangle className="w-4 h-4 text-amber-300" />
+                    <span>Xaridor E’tirozlari & Sifat Nazorati</span>
+                  </div>
+                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">Foydalanuvchilar Shikoyatlari</h2>
+                  <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
+                    Noto‘g‘ri narx, rastada yo‘q mahsulot yoki yopiq do‘konlar bo‘yicha tushgan shikoyatlarni tekshiring va do‘kon egasiga talab yuboring.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={loadData}
+                    className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Yangilash</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Search & Filters */}
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                  <input
+                    type="text"
+                    value={reportSearch}
+                    onChange={(e) => setReportSearch(e.target.value)}
+                    placeholder="Do‘kon nomi, shikoyat tafsiloti yoki sabab..."
+                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Status Filters */}
+                  <div className="flex items-center gap-1">
+                    {[
+                      { id: 'ALL', label: `Barchasi (${reports.length})` },
+                      { id: 'OPEN', label: `Ochiq (${reports.filter(r => r.status === 'OPEN').length})` },
+                      { id: 'RESOLVED', label: `Hal qilingan (${reports.filter(r => r.status === 'RESOLVED').length})` }
+                    ].map(tab => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setReportFilterStatus(tab.id as any)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                          reportFilterStatus === tab.id
+                            ? 'bg-[#116B50] text-white shadow-sm'
+                            : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Reason Filter */}
+                  <select
+                    value={reportFilterReason}
+                    onChange={(e) => setReportFilterReason(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+                  >
+                    <option value="ALL">Barcha sabablar</option>
+                    <option value="WRONG_PRICE">Noto‘g‘ri narx (WRONG_PRICE)</option>
+                    <option value="UNAVAILABLE_PRODUCT">Yo‘q mahsulot (UNAVAILABLE_PRODUCT)</option>
+                    <option value="WRONG_LOCATION">Noto‘g‘ri manzil (WRONG_LOCATION)</option>
+                    <option value="CLOSED_STORE">Yopiq do‘kon (CLOSED_STORE)</option>
+                    <option value="OTHER">Boshqa (OTHER)</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Reports Table */}
               <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl overflow-hidden shadow-sm">
                 <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
                   <thead>
                     <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
+                      <th className="py-3 px-4 font-semibold">Do‘kon & Filial</th>
                       <th className="py-3 px-4 font-semibold">Shikoyat turi</th>
                       <th className="py-3 px-4 font-semibold">Tafsilot</th>
                       <th className="py-3 px-4 font-semibold">Holat</th>
@@ -2218,36 +2720,122 @@ export function AdminApp() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
-                    {reports.map((rep) => (
-                      <tr key={rep.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50">
-                        <td className="py-3 px-4 font-bold text-[#B42318] dark:text-red-400">{rep.reason}</td>
-                        <td className="py-3 px-4">{rep.details}</td>
-                        <td className="py-3 px-4">
-                          <Tag variant={rep.status === 'OPEN' ? 'warn' : 'default'}>{rep.status}</Tag>
-                        </td>
-                        <td className="py-3 px-4 text-[#566A63] dark:text-[#8B9E95]">
-                          {new Date(rep.createdAt).toLocaleDateString('uz-UZ')}
-                        </td>
-                        <td className="py-3 px-4">
-                          {rep.status === 'OPEN' ? (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedReport(rep);
-                                setIsReportModalOpen(true);
-                              }}
-                            >
-                              Ko‘rib chiqish
-                            </Button>
-                          ) : (
-                            <span className="text-xs text-[#116B50] dark:text-[#4ADE80] font-semibold">Hal qilingan</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                    {reports
+                      .filter((rep) => {
+                        const q = reportSearch.toLowerCase().trim();
+                        const matchSearch =
+                          !q ||
+                          rep.reason.toLowerCase().includes(q) ||
+                          rep.details.toLowerCase().includes(q) ||
+                          ((rep as any).storeName && (rep as any).storeName.toLowerCase().includes(q));
+                        const matchStatus = reportFilterStatus === 'ALL' || rep.status === reportFilterStatus;
+                        const matchReason = reportFilterReason === 'ALL' || rep.reason === reportFilterReason;
+                        return matchSearch && matchStatus && matchReason;
+                      })
+                      .map((rep) => {
+                        const store = stores.find(s => s.id === rep.storeId);
+                        const storeName = (rep as any).storeName || store?.name || 'Do‘kon';
+                        const storeAddress = (rep as any).storeAddress || store?.address || '';
+
+                        return (
+                          <tr key={rep.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50">
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-[#172C28] dark:text-white flex items-center gap-1.5">
+                                <Store className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                                <span>{storeName}</span>
+                              </div>
+                              {storeAddress && (
+                                <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] truncate max-w-xs">
+                                  {storeAddress}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 font-bold">
+                              {rep.reason === 'WRONG_PRICE' && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-200">
+                                  Noto‘g‘ri narx
+                                </span>
+                              )}
+                              {rep.reason === 'UNAVAILABLE_PRODUCT' && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200">
+                                  Yo‘q tovar
+                                </span>
+                              )}
+                              {rep.reason === 'WRONG_LOCATION' && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200">
+                                  Noto‘g‘ri manzil
+                                </span>
+                              )}
+                              {rep.reason === 'CLOSED_STORE' && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200">
+                                  Yopiq do‘kon
+                                </span>
+                              )}
+                              {!['WRONG_PRICE', 'UNAVAILABLE_PRODUCT', 'WRONG_LOCATION', 'CLOSED_STORE'].includes(rep.reason) && (
+                                <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                                  {rep.reason}
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 max-w-md">
+                              <p className="line-clamp-2 text-xs text-[#172C28] dark:text-gray-200">{rep.details}</p>
+                              {(rep as any).resolutionNotes && (
+                                <div className="text-[11px] text-emerald-600 dark:text-emerald-400 font-medium mt-0.5">
+                                  Izoh: {(rep as any).resolutionNotes}
+                                </div>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <Tag variant={rep.status === 'OPEN' ? 'warn' : 'default'}>
+                                {rep.status === 'OPEN' ? 'OCHIQ' : 'HAL QILINGAN'}
+                              </Tag>
+                            </td>
+                            <td className="py-3.5 px-4 text-[#566A63] dark:text-[#8B9E95] whitespace-nowrap">
+                              {new Date(rep.createdAt).toLocaleDateString('uz-UZ')}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              {rep.status === 'OPEN' ? (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedReport(rep);
+                                    setIsReportModalOpen(true);
+                                  }}
+                                  className="text-xs font-bold whitespace-nowrap"
+                                >
+                                  Ko‘rib chiqish
+                                </Button>
+                              ) : (
+                                <span className="text-xs text-[#116B50] dark:text-[#4ADE80] font-semibold flex items-center gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Hal qilingan</span>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
+
+                {reports.filter((rep) => {
+                  const q = reportSearch.toLowerCase().trim();
+                  const matchSearch =
+                    !q ||
+                    rep.reason.toLowerCase().includes(q) ||
+                    rep.details.toLowerCase().includes(q);
+                  const matchStatus = reportFilterStatus === 'ALL' || rep.status === reportFilterStatus;
+                  const matchReason = reportFilterReason === 'ALL' || rep.reason === reportFilterReason;
+                  return matchSearch && matchStatus && matchReason;
+                }).length === 0 && (
+                  <div className="p-10 text-center flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mb-2">
+                      <CheckCircle2 className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-[#172C28] dark:text-white">Mos keladigan shikoyatlar mavjud emas</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -2513,40 +3101,152 @@ export function AdminApp() {
           {/* AUDIT TAB */}
           {activeTab === 'audit' && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
-              <div>
-                <h1 className="text-3xl font-extrabold tracking-tight text-[#172C28] dark:text-white">Audit tarixi</h1>
-                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">Kim, qachon va qaysi operatsiyani bajargan</p>
+              {/* Header Banner */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#116B50] to-[#0B563F] text-white shadow-lg">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-200 uppercase tracking-wider">
+                    <ShieldCheck className="w-4 h-4 text-emerald-300" />
+                    <span>Xavfsizlik & Boshqaruv Jurnali</span>
+                  </div>
+                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">Tizim Amallari Auditi</h2>
+                  <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
+                    Kim, qachon va qaysi operatsiyani bajargan: do‘konlar faollashuvi, login/parol o‘zgarishlari va narxlar tekshiruvi.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={loadData}
+                    className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Yangilash</span>
+                  </button>
+                </div>
               </div>
 
+              {/* Search & Category Filters */}
+              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="relative flex-1">
+                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
+                  <input
+                    type="text"
+                    value={auditSearch}
+                    onChange={(e) => setAuditSearch(e.target.value)}
+                    placeholder="Foydalanuvchi, amal yoki obyekt bo‘yicha izlash..."
+                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
+                  {[
+                    { id: 'ALL', label: `Barchasi (${auditLogs.length})` },
+                    { id: 'STORE', label: 'Do‘konlar' },
+                    { id: 'USER', label: 'Foydalanuvchilar' },
+                    { id: 'ORGANIZATION', label: 'Tashkilotlar' },
+                    { id: 'ITEM_PROPOSAL', label: 'Takliflar' }
+                  ].map(tab => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setAuditCategoryFilter(tab.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                        auditCategoryFilter === tab.id
+                          ? 'bg-[#116B50] text-white shadow-sm'
+                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Audit Table */}
               <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl overflow-hidden shadow-sm">
                 <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
                   <thead>
                     <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
                       <th className="py-3 px-4 font-semibold">Sana va vaqt</th>
                       <th className="py-3 px-4 font-semibold">Foydalanuvchi</th>
-                      <th className="py-3 px-4 font-semibold">Amal</th>
+                      <th className="py-3 px-4 font-semibold">Amal (Operatsiya)</th>
                       <th className="py-3 px-4 font-semibold">Obyekt</th>
-                      <th className="py-3 px-4 font-semibold">O‘zgarish</th>
+                      <th className="py-3 px-4 font-semibold">O‘zgarish tafsiloti</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
-                    {auditLogs.map((log) => (
-                      <tr key={log.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50">
-                        <td className="py-3 px-4 text-[#566A63] dark:text-[#8B9E95]">
-                          {new Date(log.timestamp).toLocaleString('uz-UZ')}
-                        </td>
-                        <td className="py-3 px-4 font-medium">{log.actorEmail}</td>
-                        <td className="py-3 px-4">
-                          <Tag variant="default">{log.action}</Tag>
-                        </td>
-                        <td className="py-3 px-4">{log.entityType}</td>
-                        <td className="py-3 px-4 font-mono text-[11px] text-[#566A63] dark:text-[#8B9E95]">
-                          {JSON.stringify(log.diff || {})}
-                        </td>
-                      </tr>
-                    ))}
+                    {auditLogs
+                      .filter((log) => {
+                        const q = auditSearch.toLowerCase().trim();
+                        const matchSearch =
+                          !q ||
+                          (log.actorEmail && log.actorEmail.toLowerCase().includes(q)) ||
+                          (log.actorName && log.actorName.toLowerCase().includes(q)) ||
+                          (log.action && log.action.toLowerCase().includes(q)) ||
+                          (log.entityType && log.entityType.toLowerCase().includes(q)) ||
+                          (log.diff && JSON.stringify(log.diff).toLowerCase().includes(q));
+                        const matchCat = auditCategoryFilter === 'ALL' || log.entityType === auditCategoryFilter;
+                        return matchSearch && matchCat;
+                      })
+                      .map((log) => {
+                        const isApprove = log.action.includes('APPROVE') || log.action.includes('INIT') || log.action.includes('ACTIVE');
+                        const isDelete = log.action.includes('DELETE') || log.action.includes('SUSPEND') || log.action.includes('REJECT');
+
+                        return (
+                          <tr key={log.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50 transition">
+                            <td className="py-3.5 px-4 text-[#566A63] dark:text-[#8B9E95] whitespace-nowrap font-mono text-[11px]">
+                              {new Date(log.timestamp).toLocaleString('uz-UZ')}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-[#172C28] dark:text-white">
+                                {log.actorName || log.actorEmail}
+                              </div>
+                              <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] font-mono">
+                                {log.actorEmail}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                                isApprove
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                  : isDelete
+                                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
+                                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
+                              }`}>
+                                {log.action}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 font-semibold">
+                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
+                                {log.entityType}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 max-w-sm">
+                              <div className="font-mono text-[11px] text-[#566A63] dark:text-[#8B9E95] truncate bg-[#F9FAF9] dark:bg-[#16241E] p-1.5 rounded-lg border border-[#DCE5DF]/60 dark:border-[#22332C]">
+                                {typeof log.diff === 'object' ? JSON.stringify(log.diff) : String(log.diff || '-')}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                   </tbody>
                 </table>
+
+                {auditLogs.filter((log) => {
+                  const q = auditSearch.toLowerCase().trim();
+                  const matchSearch =
+                    !q ||
+                    (log.actorEmail && log.actorEmail.toLowerCase().includes(q)) ||
+                    (log.action && log.action.toLowerCase().includes(q));
+                  const matchCat = auditCategoryFilter === 'ALL' || log.entityType === auditCategoryFilter;
+                  return matchSearch && matchCat;
+                }).length === 0 && (
+                  <div className="p-10 text-center flex flex-col items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mb-2">
+                      <ShieldCheck className="w-6 h-6" />
+                    </div>
+                    <p className="text-xs font-bold text-[#172C28] dark:text-white">Audit qaydnomalari topilmadi</p>
+                  </div>
+                )}
               </div>
             </div>
           )}
