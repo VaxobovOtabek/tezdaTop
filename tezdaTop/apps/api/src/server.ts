@@ -3366,7 +3366,7 @@ app.delete('/api/v1/admin/organizations/:id', (req, res) => {
       timestamp: new Date().toISOString()
     });
   } else {
-    org.status = 'DELETED';
+    (org as any).status = 'DELETED';
     (org as any).deletedAt = new Date().toISOString();
 
     // Mark all its stores as DELETED
@@ -4127,8 +4127,8 @@ app.get('/api/v1/admin/analytics/growth', (req, res) => {
       users: (periodUsers.length > 0 ? periodUsers : usersList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
       stores: (periodStores.length > 0 ? periodStores : storesList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
       organizations: (periodOrgs.length > 0 ? periodOrgs : organizationsList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
-      products: (periodProducts.length > 0 ? periodProducts : productsList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
-      services: (periodServices.length > 0 ? periodServices : servicesList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30)
+      products: (periodProducts.length > 0 ? periodProducts : productsList.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      services: (periodServices.length > 0 ? periodServices : servicesList.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30)
     }
   });
 });
