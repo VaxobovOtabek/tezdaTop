@@ -1,4 +1,4 @@
-import { TokenQuickLoginModal } from '@yaqintop/ui';
+import { TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   Search,
@@ -223,6 +223,7 @@ const PORTALS = [
 ];
 
 export function LandingApp() {
+  const { t } = useTranslation();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('yaqintop_theme') === 'dark';
   });
@@ -310,6 +311,9 @@ export function LandingApp() {
               <ChevronDown className="w-3 h-3 text-[#566A63] dark:text-[#8B9E95] shrink-0" />
             </button>
 
+            {/* Language Switcher */}
+            <LanguageSwitcher />
+
             {/* Dark / Light Mode Toggle */}
             <button
               onClick={toggleDarkMode}
@@ -324,7 +328,7 @@ export function LandingApp() {
               onClick={() => setIsPortalModalOpen(true)}
               className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-[11px] sm:text-xs font-bold transition shadow-sm flex items-center gap-1 sm:gap-1.5 cursor-pointer"
             >
-              <span>Kirish</span>
+              <span>{t('login')}</span>
             </button>
 
             {/* Mobile Hamburger */}
@@ -380,21 +384,17 @@ export function LandingApp() {
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] border border-[#116B50]/30 dark:border-[#4ADE80]/30 text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-4 sm:mb-6 shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 shrink-0" />
-              <span>O‘zbekistondagi eng tezkor lokal qidiruv</span>
+              <span>{t('landing_badge')}</span>
             </div>
 
             {/* Main Headline */}
             <h1 className="text-2xl min-[380px]:text-3xl sm:text-4xl md:text-5xl lg:text-[54px] font-extrabold tracking-tight text-[#172C28] dark:text-white leading-[1.2] sm:leading-[1.15]">
-              Kerakli tovar va xizmatni{' '}
-              <span className="text-[#116B50] dark:text-[#4ADE80]">
-                1 soniyada
-              </span>{' '}
-              eng yaqin do‘kondan toping
+              {t('landing_hero_title')}
             </h1>
 
             {/* Subtitle */}
             <p className="text-xs sm:text-base md:text-lg text-[#566A63] dark:text-[#9CB3A8] mt-3 sm:mt-5 max-w-xl leading-relaxed font-medium">
-              YaqinTop — atrofingizdagi do‘konlar, narxlar va xizmatlarni bir xaritada. Tez, qulay va ishonchli.
+              {t('landing_hero_subtitle')}
             </p>
 
             {/* Big Interactive Search Form */}
@@ -413,7 +413,7 @@ export function LandingApp() {
                   className="px-4 sm:px-7 py-2.5 sm:py-3.5 rounded-xl sm:rounded-2xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-1.5 transition shrink-0 cursor-pointer shadow-md"
                 >
                   <Search className="w-3.5 h-3.5 hidden sm:inline" />
-                  <span>Qidirish</span>
+                  <span>{t('search')}</span>
                 </button>
               </div>
             </form>

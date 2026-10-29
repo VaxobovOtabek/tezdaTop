@@ -1,5 +1,5 @@
 import { MaskedUserPassword } from '@yaqintop/ui';
-import { useCachedSession, clearSessionCache, TokenQuickLoginModal } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache, TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
@@ -135,6 +135,7 @@ const DISTRICT_PRESETS = [
 ];
 
 export function AdminApp() {
+  const { t } = useTranslation();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('yaqintop_theme') === 'dark';
   });
@@ -1339,6 +1340,9 @@ export function AdminApp() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+
           {/* Dark / Light Mode Toggle */}
           <button
             onClick={toggleDarkMode}
@@ -1413,49 +1417,49 @@ export function AdminApp() {
         <aside className="w-64 bg-white dark:bg-[#14201A] border-r border-[#DCE5DF] dark:border-[#22332C] flex flex-col p-4 shrink-0 overflow-y-auto">
           <nav className="flex flex-col gap-1">
             {[
-              { id: 'overview', label: 'Umumiy holat', icon: LayoutDashboard },
+              { id: 'overview', label: t('nav_overview', 'Umumiy holat'), icon: LayoutDashboard },
               {
                 id: 'growth-dynamics',
-                label: 'Tizimga Qo‘shilish Dinamikasi',
+                label: t('nav_growth_dynamics', 'Tizimga Qo‘shilish Dinamikasi'),
                 icon: TrendingUp,
                 isSpecial: true
               },
-              { id: 'supabase-usage', label: 'Supabase limitlari', icon: Database, adminOnly: true },
+              { id: 'supabase-usage', label: t('nav_supabase_limits', 'Supabase limitlari'), icon: Database, adminOnly: true },
               {
                 id: 'map-hub',
-                label: 'Xarita & Moderatsiya markazi',
+                label: t('nav_map_hub', 'Xarita & Moderatsiya markazi'),
                 icon: MapPin,
                 isSpecial: true,
                 badge: stores.filter(s => (s.openReportsCount || 0) > 0 || s.status === 'PENDING').length || undefined
               },
               {
                 id: 'requests-inquiries',
-                label: 'So‘rovlar & Murojaatlar',
+                label: t('nav_inquiries', 'So‘rovlar & Murojaatlar'),
                 icon: Send,
                 isSpecial: true,
                 badge: overviewStats.pendingRequests || undefined
               },
               {
                 id: 'analytics',
-                label: 'Qidiruv & Faoliyat Analitikasi',
+                label: t('nav_analytics', 'Qidiruv & Faoliyat Analitikasi'),
                 icon: Activity,
                 isSpecial: true
               },
               {
                 id: 'architecture-db',
-                label: 'Arxitektura & DB Explorer',
+                label: t('nav_architecture_db', 'Arxitektura & DB Explorer'),
                 icon: Cpu,
                 isSpecial: true,
                 adminOnly: true
               },
-              { id: 'roles-guide', label: 'Rollar & Yo‘riqnoma', icon: Shield },
-              { id: 'organizations', label: 'Tashkilotlar va Do‘konlar', icon: Building2, count: stores.length },
-              { id: 'api-explorer', label: 'API Explorer (Postman)', icon: Terminal, adminOnly: true },
-              { id: 'applications', label: 'Do‘kon arizalari', icon: Store, badge: overviewStats.pendingApps || undefined },
-              { id: 'reports', label: 'Shikoyatlar navbati', icon: AlertTriangle, badge: overviewStats.openReports || undefined },
-              { id: 'reviews', label: 'Sharhlar moderatsiyasi', icon: MessageSquare, badge: overviewStats.pendingReviews || undefined },
-              { id: 'users', label: 'Foydalanuvchilar', icon: Users },
-              { id: 'audit', label: 'Tizim auditi', icon: ShieldCheck }
+              { id: 'roles-guide', label: t('nav_roles_guide', 'Rollar & Yo‘riqnoma'), icon: Shield },
+              { id: 'organizations', label: t('nav_organizations', 'Tashkilotlar va Do‘konlar'), icon: Building2, count: stores.length },
+              { id: 'api-explorer', label: t('nav_api_explorer', 'API Explorer (Postman)'), icon: Terminal, adminOnly: true },
+              { id: 'applications', label: t('nav_applications', 'Do‘kon arizalari'), icon: Store, badge: overviewStats.pendingApps || undefined },
+              { id: 'reports', label: t('nav_reports', 'Shikoyatlar navbati'), icon: AlertTriangle, badge: overviewStats.openReports || undefined },
+              { id: 'reviews', label: t('nav_reviews', 'Sharhlar moderatsiyasi'), icon: MessageSquare, badge: overviewStats.pendingReviews || undefined },
+              { id: 'users', label: t('nav_users', 'Foydalanuvchilar'), icon: Users },
+              { id: 'audit', label: t('nav_audit', 'Tizim auditi'), icon: ShieldCheck }
             ]
               .filter(item => !item.adminOnly || currentUser?.role !== 'MODERATOR')
               .map((item) => {

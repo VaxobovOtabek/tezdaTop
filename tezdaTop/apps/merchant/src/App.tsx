@@ -1,4 +1,4 @@
-import { useCachedSession, clearSessionCache, saveCachedSession, TokenQuickLoginModal } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache, saveCachedSession, TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
 import { merchantFetch } from './lib/api';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
@@ -185,6 +185,7 @@ export const getMerchantTabFromUrl = (): MerchantTab => {
 };
 
 export function MerchantApp() {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<MerchantTab>(() => getMerchantTabFromUrl());
   const [isRefreshingStock, setIsRefreshingStock] = useState(false);
 
@@ -1316,7 +1317,7 @@ export function MerchantApp() {
                 title="Yangi sotuv kiritish"
               >
                 <ShoppingCart className="w-3.5 h-3.5" />
-                <span>+ Sotuv</span>
+                <span>{t('merch_quick_sale', '+ Sotuv')}</span>
               </button>
 
               <button
@@ -1325,10 +1326,13 @@ export function MerchantApp() {
                 title="Yangi kirim qilish"
               >
                 <PlusCircle className="w-3.5 h-3.5" />
-                <span>+ Kirim</span>
+                <span>{t('merch_quick_income', '+ Kirim')}</span>
               </button>
             </>
           )}
+
+          {/* Language Switcher */}
+          <LanguageSwitcher />
 
           {/* Theme Toggle */}
           <button

@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { LanguageProvider } from '@yaqintop/ui';
 import { LandingApp } from './App';
 import { initAnalytics } from './utils/analytics';
 import './index.css';
@@ -9,6 +10,8 @@ initAnalytics();
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <LandingApp />
+    <LanguageProvider>
+      <LandingApp />
+    </LanguageProvider>
   </React.StrictMode>
 );

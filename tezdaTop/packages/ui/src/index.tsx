@@ -4,6 +4,14 @@ import { twMerge } from 'tailwind-merge';
 export { useCachedSession, saveCachedSession, clearSessionCache } from './auth-session';
 export { MaskedUserPassword } from './MaskedUserPassword';
 export { TokenQuickLoginModal } from './TokenQuickLoginModal';
+export {
+  LanguageProvider,
+  useTranslation,
+  LanguageSwitcher,
+  DICTIONARY,
+  type Language,
+  type LanguageSwitcherProps
+} from './i18n';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import ReactDOM from 'react-dom/client';
+import { LanguageProvider } from '@yaqintop/ui';
 import { CustomerApp } from './App';
 import { initAnalytics } from './utils/analytics';
 import './index.css';
@@ -64,8 +65,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    <ErrorBoundary>
-      <CustomerApp />
-    </ErrorBoundary>
+    <LanguageProvider>
+      <ErrorBoundary>
+        <CustomerApp />
+      </ErrorBoundary>
+    </LanguageProvider>
   </React.StrictMode>
 );

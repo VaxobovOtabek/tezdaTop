@@ -1,4 +1,4 @@
-import { useCachedSession, clearSessionCache, TokenQuickLoginModal } from '@yaqintop/ui';
+import { useCachedSession, clearSessionCache, TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Search,
@@ -43,6 +43,7 @@ import { UzbekistanRegionPickerModal, detectNearestUzbekistanLocation } from './
 import { apiUrl } from './config/api.js';
 
 export function CustomerApp() {
+  const { t } = useTranslation();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('yaqintop_theme') === 'dark';
   });
@@ -983,6 +984,9 @@ export function CustomerApp() {
             </button>
           )}
 
+          {/* Language Switcher */}
+          <LanguageSwitcher />
+
           {/* Dark / Light Mode Toggle */}
           <button
             onClick={toggleDarkMode}
@@ -1145,7 +1149,7 @@ export function CustomerApp() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-                      placeholder={searchCategory === 'products' ? "Mahsulot nomi, masalan: snikers" : "Tashkilot nomi, masalan: paynet"}
+                      placeholder={searchCategory === 'products' ? t('cust_search_input') : `${t('name')}...`}
                       className="w-full h-11 pl-3.5 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E]"
                     />
                     {searchQuery && (
@@ -1612,7 +1616,7 @@ export function CustomerApp() {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-                      placeholder="Mahsulot nomi (masalan: snikers)..."
+                      placeholder={t('cust_search_input')}
                       className="w-full h-10 pl-8 pr-7 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-1 focus:ring-[#116B50]"
                     />
                     {searchQuery && (
