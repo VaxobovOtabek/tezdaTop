@@ -1186,7 +1186,7 @@ export function StoreFullPageView({
                         <span>{new Date(prop.createdAt).toLocaleDateString('uz-UZ')}</span>
                         {prop.status === 'PENDING' && (
                           <span className="font-semibold text-amber-700 dark:text-amber-400">
-                            Konsensus: {prop.consensusCount || 1}/3
+                            Kutilmoqda: {prop.consensusCount || 1}/3
                           </span>
                         )}
                         {(prop.status === 'APPROVED' || prop.status === 'AUTO_APPROVED') && (
