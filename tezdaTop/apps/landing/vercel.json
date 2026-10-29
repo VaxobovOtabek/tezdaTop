@@ -21,16 +21,48 @@
       "destination": "https://tez-api.vercel.app/api/:path*"
     },
     {
+      "source": "/customer",
+      "destination": "https://tezda-customer.vercel.app/"
+    },
+    {
+      "source": "/customer/(.*)",
+      "destination": "https://tezda-customer.vercel.app/$1"
+    },
+    {
       "source": "/customer/:path*",
       "destination": "https://tezda-customer.vercel.app/:path*"
+    },
+    {
+      "source": "/admin",
+      "destination": "https://tezda-admin.vercel.app/"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "https://tezda-admin.vercel.app/$1"
     },
     {
       "source": "/admin/:path*",
       "destination": "https://tezda-admin.vercel.app/:path*"
     },
     {
+      "source": "/moderator",
+      "destination": "https://tezda-moderator.vercel.app/"
+    },
+    {
+      "source": "/moderator/(.*)",
+      "destination": "https://tezda-moderator.vercel.app/$1"
+    },
+    {
       "source": "/moderator/:path*",
       "destination": "https://tezda-moderator.vercel.app/:path*"
+    },
+    {
+      "source": "/owner",
+      "destination": "https://tezda-merchant.vercel.app/"
+    },
+    {
+      "source": "/owner/(.*)",
+      "destination": "https://tezda-merchant.vercel.app/$1"
     },
     {
       "source": "/owner/:path*",
