@@ -1,3 +1,4 @@
+import { merchantFetch } from '../lib/api';
 import React, { useEffect, useState } from 'react';
 import { Button, Modal } from '@yaqintop/ui';
 import type { Offer } from '@yaqintop/contracts';
@@ -26,9 +27,9 @@ export function ServiceWorkspace({ storeId, view }: { storeId: string; view: 'da
     setLoading(true);
     try {
       const responses = await Promise.all([
-        fetch(`/api/v1/merchant/services${query}`),
-        fetch(`/api/v1/merchant/services/completions${query}`),
-        fetch(`/api/v1/merchant/expenses${query}`)
+        merchantFetch(`/api/v1/merchant/services${query}`),
+        merchantFetch(`/api/v1/merchant/services/completions${query}`),
+        merchantFetch(`/api/v1/merchant/expenses${query}`)
       ]);
       if (responses.some(res => !res.ok)) throw new Error('Xizmatlar ma’lumotlarini yuklab bo‘lmadi.');
       const [catalog, history, costs] = await Promise.all(responses.map(res => res.json()));
@@ -51,7 +52,7 @@ export function ServiceWorkspace({ storeId, view }: { storeId: string; view: 'da
     try {
       const body = kind === 'service' ? { ...serviceForm, category: serviceForm.category || 'Xizmat', storeId }
         : { ...completionForm, paidAmount: completionForm.paidAmount.trim() ? Number(completionForm.paidAmount) : total, storeId };
-      const res = await fetch(`/api/v1/merchant/services${kind === 'completion' ? '/completions' : ''}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const res = await merchantFetch(`/api/v1/merchant/services${kind === 'completion' ? '/completions' : ''}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Saqlashda xatolik');
       if (kind === 'service') {

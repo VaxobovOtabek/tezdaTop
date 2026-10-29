@@ -1,3 +1,4 @@
+import { merchantFetch } from '../lib/api';
 import React, { useState, useEffect } from 'react';
 import {
   User,
@@ -57,8 +58,8 @@ export function UnifiedUserProfileModal({
     setIsLoadingFeed(true);
     try {
       const [reqRes, notifRes] = await Promise.all([
-        fetch('/api/v1/auth/my-requests', { credentials: 'include' }),
-        fetch('/api/v1/auth/notifications', { credentials: 'include' })
+        merchantFetch('/api/v1/auth/my-requests', { credentials: 'include' }),
+        merchantFetch('/api/v1/auth/notifications', { credentials: 'include' })
       ]);
 
       if (reqRes.ok) {
@@ -99,7 +100,7 @@ export function UnifiedUserProfileModal({
     setStatusMsg(null);
 
     try {
-      const res = await fetch('/api/v1/auth/request-credential-change', {
+      const res = await merchantFetch('/api/v1/auth/request-credential-change', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -139,7 +140,7 @@ export function UnifiedUserProfileModal({
 
   const markNotificationRead = async (id: string) => {
     try {
-      await fetch(`/api/v1/auth/notifications/${id}/read`, {
+      await merchantFetch(`/api/v1/auth/notifications/${id}/read`, {
         method: 'PATCH',
         credentials: 'include'
       });

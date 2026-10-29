@@ -1,3 +1,4 @@
+import { merchantFetch } from '../lib/api';
 import React, { useState, useEffect } from 'react';
 import {
   MessageSquare,
@@ -31,7 +32,7 @@ export function MerchantInquiriesInbox({ storeId, isDarkMode, onShowToast }: Mer
   const loadInquiries = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`/api/v1/merchant/inquiries${storeId ? `?storeId=${storeId}` : ''}`, {
+      const res = await merchantFetch(`/api/v1/merchant/inquiries${storeId ? `?storeId=${storeId}` : ''}`, {
         credentials: 'include'
       });
       if (res.ok) {
@@ -65,7 +66,7 @@ export function MerchantInquiriesInbox({ storeId, isDarkMode, onShowToast }: Mer
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/v1/merchant/inquiries/${selectedInquiry.id}/reply`, {
+      const res = await merchantFetch(`/api/v1/merchant/inquiries/${selectedInquiry.id}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

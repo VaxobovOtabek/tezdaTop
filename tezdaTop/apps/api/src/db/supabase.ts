@@ -369,6 +369,40 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
       }
     }
 
+    // 2.5 Memberships
+    const { data: memberships, error: memErr } = await supabase.from('memberships').select('*');
+    if (!memErr && memberships && memberships.length > 0) {
+      for (const m of memberships) {
+        db.memberships.set(m.id, {
+          id: m.id,
+          organizationId: m.organization_id,
+          userId: m.user_id,
+          role: m.role as any,
+          status: m.status || 'ACTIVE'
+        });
+      }
+    }
+    const seedOwnerMem = Array.from(db.memberships.values()).find(m => m.userId === SEED_IDS.ownerUserId);
+    if (!seedOwnerMem) {
+      db.memberships.set('seed-owner-membership', {
+        id: 'seed-owner-membership',
+        organizationId: SEED_IDS.navbahorOrgId,
+        userId: SEED_IDS.ownerUserId,
+        role: 'OWNER',
+        status: 'ACTIVE'
+      });
+    }
+    const seedOpMem = Array.from(db.memberships.values()).find(m => m.userId === SEED_IDS.operatorUserId);
+    if (!seedOpMem) {
+      db.memberships.set('seed-operator-membership', {
+        id: 'seed-operator-membership',
+        organizationId: SEED_IDS.navbahorOrgId,
+        userId: SEED_IDS.operatorUserId,
+        role: 'OPERATOR',
+        status: 'ACTIVE'
+      });
+    }
+
     // 3. Stores
     const { data: stores, error: storeErr } = await supabase.from('stores').select('*');
     if (!storeErr && stores && stores.length > 0) {

@@ -1,4 +1,5 @@
 import { useCachedSession, clearSessionCache, saveCachedSession, TokenQuickLoginModal } from '@yaqintop/ui';
+import { merchantFetch } from './lib/api';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   LayoutDashboard,
@@ -407,11 +408,11 @@ export function MerchantApp() {
     if (!currentUser) return;
     try {
       const [dashRes, offersRes, docsRes, expensesRes, inboxRes] = await Promise.all([
-        fetch('/api/v1/merchant/dashboard'),
-        fetch('/api/v1/merchant/offers'),
-        fetch(serviceMode ? '/api/v1/merchant/services/completions' : '/api/v1/merchant/stock-documents'),
-        fetch('/api/v1/merchant/expenses'),
-        fetch('/api/v1/merchant/inbox')
+        merchantFetch('/api/v1/merchant/dashboard'),
+        merchantFetch('/api/v1/merchant/offers'),
+        merchantFetch(serviceMode ? '/api/v1/merchant/services/completions' : '/api/v1/merchant/stock-documents'),
+        merchantFetch('/api/v1/merchant/expenses'),
+        merchantFetch('/api/v1/merchant/inbox')
       ]);
 
       if (dashRes.ok) {
@@ -498,7 +499,7 @@ export function MerchantApp() {
     setExpenses([]);
     setCorrections([]);
     setBranches([]);
-    fetch('/api/v1/merchant/context', { credentials: 'include' }).then(async res => {
+    merchantFetch('/api/v1/merchant/context', { credentials: 'include' }).then(async res => {
       if (!res.ok) throw new Error('Hisobingizga tashkilot biriktirilmagan yoki sessiya tugagan.');
       return res.json();
     }).then(data => {
@@ -715,7 +716,7 @@ export function MerchantApp() {
       }
 
       const total = (qty * parseFloat(formPrice)).toFixed(2);
-      const res = await fetch('/api/v1/merchant/stock-documents', {
+      const res = await merchantFetch('/api/v1/merchant/stock-documents', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -774,7 +775,7 @@ export function MerchantApp() {
       }
       const total = (qty * parseFloat(formPrice)).toFixed(2);
 
-      const res = await fetch('/api/v1/merchant/stock-documents', {
+      const res = await merchantFetch('/api/v1/merchant/stock-documents', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -842,7 +843,7 @@ export function MerchantApp() {
         }
       }
 
-      const res = await fetch('/api/v1/merchant/stock-documents', {
+      const res = await merchantFetch('/api/v1/merchant/stock-documents', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -898,7 +899,7 @@ export function MerchantApp() {
         return;
       }
 
-      const res = await fetch('/api/v1/merchant/expenses', {
+      const res = await merchantFetch('/api/v1/merchant/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -938,7 +939,7 @@ export function MerchantApp() {
         return;
       }
 
-      const res = await fetch('/api/v1/merchant/stock-documents', {
+      const res = await merchantFetch('/api/v1/merchant/stock-documents', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1033,7 +1034,7 @@ export function MerchantApp() {
       return;
     }
     try {
-      const res = await fetch('/api/v1/merchant/offers', {
+      const res = await merchantFetch('/api/v1/merchant/offers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
