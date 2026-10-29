@@ -5,6 +5,18 @@
       "destination": "/assets/:path*"
     },
     {
+      "source": "/customer/manifest.json",
+      "destination": "/manifest.json"
+    },
+    {
+      "source": "/customer/sw.js",
+      "destination": "/sw.js"
+    },
+    {
+      "source": "/customer/icons/:path*",
+      "destination": "/icons/:path*"
+    },
+    {
       "source": "/customer/api/:path*",
       "destination": "https://tez-api.vercel.app/api/:path*"
     },

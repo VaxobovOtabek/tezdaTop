@@ -46,8 +46,15 @@
     <meta name="application-name" content="YaqinTop" />
     <meta name="apple-mobile-web-app-title" content="YaqinTop" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="format-detection" content="telephone=no" />
+
+    <!-- Web App Manifest for PWA (Installable App on Android / iOS / Desktop) -->
+    <link rel="manifest" href="/customer/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/customer/icons/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/customer/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/customer/icons/icon-192.png" />
 
     <!-- Schema.org JSON-LD Structured Data for Google Rich Snippets -->
     <script type="application/ld+json">
@@ -84,6 +91,17 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
       gtag('config', 'G-MHCRMDTCKM');
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/customer/sw.js', { scope: '/customer/' })
+            .then((reg) => console.log('[PWA] Service Worker registered:', reg.scope))
+            .catch((err) => console.log('[PWA] Service Worker registration failed:', err));
+        });
+      }
     </script>
   </head>
   <body class="bg-[#F3F6F3] text-[#172C28] antialiased">

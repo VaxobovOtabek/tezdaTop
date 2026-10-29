@@ -27,6 +27,7 @@ import {
   Building2,
   Package,
   Sparkles,
+  Smartphone,
   Store as StoreIcon
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
@@ -62,6 +63,40 @@ export function CustomerApp() {
 
   // Current User Session State (Null by default for Guest)
   const [currentUser, setCurrentUser] = useCachedSession();
+
+  // PWA Install Prompt State
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState(false);
+
+  useEffect(() => {
+    const handleBeforeInstall = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall);
+    window.addEventListener('appinstalled', handleAppInstalled);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall);
+      window.removeEventListener('appinstalled', handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      setDeferredPrompt(null);
+      showToast("YaqinTop ilovasi telefoningizga o‘rnatildi!");
+    }
+  };
 
   const [authErrorBanner, setAuthErrorBanner] = useState<string | null>(null);
 
@@ -936,6 +971,18 @@ export function CustomerApp() {
         </div>
 
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0 ml-1.5">
+          {/* PWA Install Button (Appears when mobile browser allows install) */}
+          {deferredPrompt && !isAppInstalled && (
+            <button
+              onClick={handleInstallClick}
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-[#116B50] hover:bg-[#0E5842] text-white text-xs font-bold transition shadow-sm shrink-0 cursor-pointer animate-pulse"
+              title="YaqinTop ilovasini telefoningizga o‘rnatish"
+            >
+              <Smartphone className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden min-[380px]:inline">O‘rnatish</span>
+            </button>
+          )}
+
           {/* Dark / Light Mode Toggle */}
           <button
             onClick={toggleDarkMode}

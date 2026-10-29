@@ -43,11 +43,18 @@
     <!-- Local & Mobile Meta Tags -->
     <meta name="geo.region" content="UZ" />
     <meta name="geo.placename" content="Tashkent, Uzbekistan" />
-    <meta name="theme-color" content="#0B1310" />
+    <meta name="theme-color" content="#116B50" />
     <meta name="application-name" content="YaqinTop" />
     <meta name="apple-mobile-web-app-title" content="YaqinTop" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- Web App Manifest for PWA -->
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/icons/icon-192.png" />
 
     <!-- Schema.org JSON-LD Structured Data for Google Rich Snippets -->
     <script type="application/ld+json">
@@ -104,6 +111,16 @@
       gtag('js', new Date());
 
       gtag('config', 'G-MHCRMDTCKM');
+    </script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js', { scope: '/' })
+            .catch(() => {});
+        });
+      }
     </script>
   </head>
   <body class="bg-[#0B1310] text-[#E8F2EC] font-sans antialiased selection:bg-[#116B50] selection:text-white">
