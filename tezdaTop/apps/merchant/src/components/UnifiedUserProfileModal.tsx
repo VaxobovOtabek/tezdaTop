@@ -27,6 +27,7 @@ export interface UnifiedUserProfileModalProps {
   onLogout: () => void;
   onLoginPrompt?: () => void;
   onUserUpdated?: (user: any) => void;
+  onNotificationsUpdated?: () => void;
 }
 
 export function UnifiedUserProfileModal({
@@ -35,7 +36,8 @@ export function UnifiedUserProfileModal({
   currentUser,
   onLogout,
   onLoginPrompt,
-  onUserUpdated
+  onUserUpdated,
+  onNotificationsUpdated
 }: UnifiedUserProfileModalProps) {
   const [activeSubTab, setActiveSubTab] = useState<'profile' | 'change-credentials' | 'notifications'>('profile');
 
@@ -145,6 +147,7 @@ export function UnifiedUserProfileModal({
         credentials: 'include'
       });
       setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+      onNotificationsUpdated?.();
     } catch (e) {
       console.error(e);
     }

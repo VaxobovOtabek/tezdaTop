@@ -209,6 +209,8 @@ export function MerchantApp() {
   const [offers, setOffers] = useState<Offer[]>([]);
   const [expenses, setExpenses] = useState<ExpenseItem[]>([]);
   const [corrections, setCorrections] = useState<any[]>([]);
+  const [inquiries, setInquiries] = useState<any[]>([]);
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   // Search & filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -407,12 +409,14 @@ export function MerchantApp() {
   const loadData = async (serviceMode = isServiceOrganization) => {
     if (!currentUser) return;
     try {
-      const [dashRes, offersRes, docsRes, expensesRes, inboxRes] = await Promise.all([
+      const [dashRes, offersRes, docsRes, expensesRes, inboxRes, inqRes, notifRes] = await Promise.all([
         merchantFetch('/api/v1/merchant/dashboard'),
         merchantFetch('/api/v1/merchant/offers'),
         merchantFetch(serviceMode ? '/api/v1/merchant/services/completions' : '/api/v1/merchant/stock-documents'),
         merchantFetch('/api/v1/merchant/expenses'),
-        merchantFetch('/api/v1/merchant/inbox')
+        merchantFetch('/api/v1/merchant/inbox'),
+        merchantFetch('/api/v1/merchant/inquiries'),
+        merchantFetch('/api/v1/auth/notifications')
       ]);
 
       if (dashRes.ok) {
@@ -450,6 +454,14 @@ export function MerchantApp() {
       if (inboxRes.ok) {
         const c = await inboxRes.json();
         setCorrections(c.corrections || []);
+      }
+      if (inqRes && inqRes.ok) {
+        const i = await inqRes.json();
+        setInquiries(i.inquiries || []);
+      }
+      if (notifRes && notifRes.ok) {
+        const n = await notifRes.json();
+        setNotifications(n.notifications || []);
       }
     } catch (err) {
       console.error('Error loading merchant data', err);
@@ -521,6 +533,22 @@ export function MerchantApp() {
   useEffect(() => {
     if (contextReady && isServiceOrganization && ['stock', 'receipt', 'returns'].includes(activeTab)) navigateTab('dashboard', true);
   }, [contextReady, isServiceOrganization, activeTab]);
+
+
+  const pendingInquiriesCount = useMemo(() => {
+    return inquiries.filter((i: any) => !i.merchantReply && i.status !== 'RESOLVED' && i.status !== 'CLOSED').length;
+  }, [inquiries]);
+
+  const pendingCorrectionsCount = useMemo(() => {
+    return corrections.filter((c: any) => c.status === 'PENDING' || c.status === 'OPEN').length;
+  }, [corrections]);
+
+  const unreadNotifCount = useMemo(() => {
+    return notifications.filter((n: any) => !n.isRead).length;
+  }, [notifications]);
+
+  const inboxBadgeCount = pendingInquiriesCount + pendingCorrectionsCount;
+  const bellBadgeCount = unreadNotifCount + inboxBadgeCount;
 
   // Filtered lists
   const salesDocs = useMemo(() => {
@@ -1314,13 +1342,22 @@ export function MerchantApp() {
           {/* Notifications (Only when authenticated) */}
           {currentUser && (
             <button
-              onClick={() => navigateTab('inbox')}
+              onClick={() => {
+                if (unreadNotifCount > 0) {
+                  setIsProfileModalOpen(true);
+                } else {
+                  navigateTab('inbox');
+                }
+              }}
               className="relative w-10 h-10 rounded-xl border border-[#DCE5DF] dark:border-[#2D453E] flex items-center justify-center text-[#172C28] dark:text-[#E1ECE7] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2E28]"
+              title="Bildirishnomalar"
             >
               <Bell className="w-4 h-4" />
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#B42318] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                3
-              </span>
+              {bellBadgeCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#B42318] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {bellBadgeCount}
+                </span>
+              )}
             </button>
           )}
 
@@ -1381,7 +1418,7 @@ export function MerchantApp() {
               { id: 'returns', label: 'Qaytarishlar (Vozvrat)', icon: RotateCcw },
               { id: 'expenses', label: 'Xarajatlar', icon: Receipt },
               { id: 'reports', label: 'Moliyaviy hisobotlar', icon: FileSpreadsheet },
-              { id: 'inbox', label: 'Xabarlar & Murojaatlar', icon: Mail, badge: 3 },
+              { id: 'inbox', label: 'Xabarlar & Murojaatlar', icon: Mail, badge: inboxBadgeCount > 0 ? inboxBadgeCount : undefined },
               { id: 'settings', label: 'Sozlamalar', icon: Settings }
             ].filter(item => !isServiceOrganization || !['stock', 'receipt', 'returns'].includes(item.id)).map((item) => {
               const Icon = item.icon;
@@ -2763,6 +2800,7 @@ export function MerchantApp() {
                 storeId={branches[0]?.id || ''}
                 isDarkMode={theme === 'dark'}
                 onShowToast={(msg) => showToast(msg)}
+                onInquiriesUpdated={() => loadData()}
               />
             </div>
           )}

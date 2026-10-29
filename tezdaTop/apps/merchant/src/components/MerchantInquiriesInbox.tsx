@@ -19,9 +19,10 @@ export interface MerchantInquiriesInboxProps {
   storeId?: string;
   isDarkMode?: boolean;
   onShowToast: (msg: string) => void;
+  onInquiriesUpdated?: () => void;
 }
 
-export function MerchantInquiriesInbox({ storeId, isDarkMode, onShowToast }: MerchantInquiriesInboxProps) {
+export function MerchantInquiriesInbox({ storeId, isDarkMode, onShowToast, onInquiriesUpdated }: MerchantInquiriesInboxProps) {
   const [inquiries, setInquiries] = useState<AdminInquiry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [selectedInquiry, setSelectedInquiry] = useState<AdminInquiry | null>(null);
@@ -48,6 +49,7 @@ export function MerchantInquiriesInbox({ storeId, isDarkMode, onShowToast }: Mer
 
   useEffect(() => {
     loadInquiries();
+        onInquiriesUpdated?.();
   }, [storeId]);
 
   const handleOpenReply = (inq: AdminInquiry) => {

@@ -2533,30 +2533,6 @@
   ],
   "notifications": [
     [
-      "4c394527-8528-490a-8c36-c21c9f9b1325",
-      {
-        "id": "4c394527-8528-490a-8c36-c21c9f9b1325",
-        "userId": "cccc2222-2222-4ccc-cccc-222222222222",
-        "title": "Administrator xabari",
-        "message": "Do‘koningizga administrator tomonidan yangi rasmiy so‘rov yuborildi. Iltimos, xabarlar bo‘limida ko‘rib chiqing.",
-        "type": "INFO",
-        "isRead": true,
-        "createdAt": "2026-10-06T06:17:20.867Z"
-      }
-    ],
-    [
-      "2036fe93-f02e-4395-8371-dea4e037ad4a",
-      {
-        "id": "2036fe93-f02e-4395-8371-dea4e037ad4a",
-        "userId": "cccc1111-1111-4ccc-cccc-111111111111",
-        "title": "Xush kelibsiz!",
-        "message": "YaqinTop tizimiga muvaffaqiyatli ulandingiz. Yaqin atrofdagi tovarlarni izlashingiz mumkin.",
-        "type": "SUCCESS",
-        "isRead": false,
-        "createdAt": "2026-10-06T06:17:20.867Z"
-      }
-    ],
-    [
       "c6b1c756-ac0b-4e0c-8d40-9a581295e0ad",
       {
         "id": "d87569d4-712b-494b-b54b-fa55aa9b0f5d",
@@ -2578,18 +2554,6 @@
         "type": "WARNING",
         "isRead": false,
         "createdAt": "2026-10-07T11:16:27.152Z"
-      }
-    ],
-    [
-      "0241bbf9-9720-4df3-87fc-6360dcf78960",
-      {
-        "id": "f415421d-9239-402f-be52-90b826d22b26",
-        "userId": "cccc2222-2222-4ccc-cccc-222222222222",
-        "title": "So‘rovingiz tasdiqlandi!",
-        "message": "Sizning login va parol ma‘lumotlarini o‘zgartirish haqidagi so‘rovingiz administrator tomonidan tasdiqlandi.",
-        "type": "SUCCESS",
-        "isRead": false,
-        "createdAt": "2026-10-07T11:16:30.280Z"
       }
     ]
   ],

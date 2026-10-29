@@ -792,28 +792,5 @@ export async function seedDatabase() {
     createdAt: new Date(Date.now() - 3 * 3600 * 1000).toISOString()
   });
 
-  // 13. Seed Sample Notifications
-  const notif1 = uuidv4();
-  db.notifications.set(notif1, {
-    id: notif1,
-    userId: SEED_IDS.ownerUserId,
-    title: 'Administrator xabari',
-    message: 'Do‘koningizga administrator tomonidan yangi rasmiy so‘rov yuborildi. Iltimos, xabarlar bo‘limida ko‘rib chiqing.',
-    type: 'INFO',
-    isRead: false,
-    createdAt: new Date().toISOString()
-  });
-
-  const notif2 = uuidv4();
-  db.notifications.set(notif2, {
-    id: notif2,
-    userId: SEED_IDS.customerUserId,
-    title: 'Xush kelibsiz!',
-    message: 'YaqinTop tizimiga muvaffaqiyatli ulandingiz. Yaqin atrofdagi tovarlarni izlashingiz mumkin.',
-    type: 'SUCCESS',
-    isRead: false,
-    createdAt: new Date().toISOString()
-  });
-
   console.log('Database seeded successfully!');
 }
