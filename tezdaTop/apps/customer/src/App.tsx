@@ -891,7 +891,7 @@ export function CustomerApp() {
               }`}
             >
               <Search className="w-3.5 h-3.5" />
-              <span>Mahsulot izlash</span>
+              <span>{t('cust_search_products', 'Mahsulot izlash')}</span>
             </button>
 
             <button
@@ -906,7 +906,7 @@ export function CustomerApp() {
               }`}
             >
               <Building2 className="w-3.5 h-3.5" />
-              <span>Tashkilot izlash</span>
+              <span>{t('cust_search_organizations', 'Tashkilot izlash')}</span>
             </button>
 
             <button
@@ -918,7 +918,7 @@ export function CustomerApp() {
               }`}
             >
               <Heart className="w-3.5 h-3.5" />
-              <span>Sevimlilar</span>
+              <span>{t('favorites', 'Sevimlilar')}</span>
             </button>
 
             <button
@@ -930,7 +930,7 @@ export function CustomerApp() {
               }`}
             >
               <MessageSquare className="w-3.5 h-3.5" />
-              <span>Sharhlarim</span>
+              <span>{t('reviews', 'Sharhlarim')}</span>
             </button>
 
             <button
@@ -942,7 +942,7 @@ export function CustomerApp() {
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Takliflarim</span>
+              <span>{t('proposals', 'Takliflarim')}</span>
             </button>
 
             <button
@@ -954,7 +954,7 @@ export function CustomerApp() {
               }`}
             >
               <AlertTriangle className="w-3.5 h-3.5" />
-              <span>Arizalar & Murojaatlar</span>
+              <span>{t('inquiries_nav', 'Arizalar & Murojaatlar')}</span>
             </button>
 
             <button
@@ -966,7 +966,7 @@ export function CustomerApp() {
               }`}
             >
               <Clock className="w-3.5 h-3.5" />
-              <span>Tarix</span>
+              <span>{t('history', 'Tarix')}</span>
             </button>
           </nav>
         </div>
@@ -980,7 +980,7 @@ export function CustomerApp() {
               title="YaqinTop ilovasini telefoningizga o‘rnatish"
             >
               <Smartphone className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden min-[380px]:inline">O‘rnatish</span>
+              <span className="hidden min-[380px]:inline">{t('install', 'O‘rnatish')}</span>
             </button>
           )}
 
@@ -1017,7 +1017,7 @@ export function CustomerApp() {
               title="Tizimga kirish"
             >
               <LogIn className="w-3.5 h-3.5 shrink-0" />
-              <span>Kirish</span>
+              <span>{t('login', 'Kirish')}</span>
             </button>
           )}
         </div>
@@ -1087,7 +1087,7 @@ export function CustomerApp() {
                 <div className="flex items-center gap-2">
                   <StoreIcon className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
                   <span className="text-xs font-bold text-[#172C28] dark:text-white">
-                    {results.length > 0 ? `${results.length} ta natija` : `${nearbyStores.length} ta yaqin do‘kon`}
+                    {results.length > 0 ? `${results.length} ${t('results_count', 'ta natija')}` : `${nearbyStores.length} ${t('nearby_count', 'ta yaqin do‘kon')}`}
                   </span>
                 </div>
                 <button
@@ -1096,7 +1096,7 @@ export function CustomerApp() {
                   className="px-3 py-1.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition cursor-pointer"
                 >
                   <MapPin className="w-3.5 h-3.5" />
-                  <span>Xarita</span>
+                  <span>{t('map', 'Xarita')}</span>
                 </button>
               </div>
 
@@ -1115,7 +1115,7 @@ export function CustomerApp() {
                   }`}
                 >
                   <Search className="w-3.5 h-3.5" />
-                  <span>Mahsulot izlash</span>
+                  <span>{t('cust_search_products', 'Mahsulot izlash')}</span>
                 </button>
                 <button
                   type="button"
@@ -1130,17 +1130,17 @@ export function CustomerApp() {
                   }`}
                 >
                   <Building2 className="w-3.5 h-3.5" />
-                  <span>Tashkilot izlash</span>
+                  <span>{t('cust_search_organizations', 'Tashkilot izlash')}</span>
                 </button>
               </div>
 
               {/* Search Box */}
               <div>
                 <span className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] uppercase tracking-wider">
-                  Yaqiningizdan toping
+                  {t('cust_find_near', 'Yaqiningizdan toping')}
                 </span>
                 <h1 className="text-2xl font-bold tracking-tight text-[#172C28] dark:text-white mt-1 mb-3">
-                  {searchCategory === 'products' ? 'Kerakli tovar. Yaqin do‘kon.' : 'Tashkilot va xizmatlar qidiruvi.'}
+                  {searchCategory === 'products' ? t('cust_hero_prod', 'Kerakli tovar. Yaqin do‘kon.') : t('cust_hero_org', 'Tashkilot va xizmatlar qidiruvi.')}
                 </h1>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
@@ -1166,7 +1166,7 @@ export function CustomerApp() {
                   </div>
                   <Button variant="primary" onClick={() => doSearch()} aria-label="Qidirish" className="px-4 flex items-center gap-1.5 font-bold">
                     <Search className="w-4 h-4" />
-                    <span>Izlash</span>
+                    <span>{t('search_btn', 'Izlash')}</span>
                   </Button>
                 </div>
               </div>
@@ -1174,7 +1174,7 @@ export function CustomerApp() {
               {/* Radius Control */}
               <div className="bg-[#F9FAF9] dark:bg-[#1A2822] p-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36]">
                 <div className="flex items-center justify-between text-xs mb-1.5">
-                  <span className="text-[#566A63] dark:text-[#8B9E95] font-medium">Qidiruv radiusi:</span>
+                  <span className="text-[#566A63] dark:text-[#8B9E95] font-medium">{t('radius', 'Qidiruv radiusi')}:</span>
                   <strong className="text-sm text-[#116B50] dark:text-[#4ADE80] font-bold">
                     {radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`}
                   </strong>
@@ -1218,7 +1218,7 @@ export function CustomerApp() {
                       : 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] border-[#DCE5DF] dark:border-[#2A3F36]'
                   }`}
                 >
-                  Hozir ochiq
+                  {t('open_now', 'Hozir ochiq')}
                 </button>
                 <button
                   onClick={() => setInStock(!inStock)}
@@ -1228,7 +1228,7 @@ export function CustomerApp() {
                       : 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] border-[#DCE5DF] dark:border-[#2A3F36]'
                   }`}
                 >
-                  Mavjud
+                  {t('in_stock', 'Mavjud')}
                 </button>
                 <button
                   onClick={() => setFreshOnly(!freshOnly)}
@@ -1238,13 +1238,13 @@ export function CustomerApp() {
                       : 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] border-[#DCE5DF] dark:border-[#2A3F36]'
                   }`}
                 >
-                  Faqat yangi
+                  {t('fresh_only', 'Faqat yangi')}
                 </button>
                 <button
                   onClick={() => setIsFilterModalOpen(true)}
                   className="text-xs px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1 hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328]"
                 >
-                  <Filter className="w-3 h-3" /> Filtrlar
+                  <Filter className="w-3 h-3" /> {t('filters', 'Filtrlar')}
                 </button>
               </div>
 
@@ -1668,7 +1668,7 @@ export function CustomerApp() {
                         : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
                     }`}
                   >
-                    ● Ochiq
+                    {t('open_dot', '● Ochiq')}
                   </button>
 
                   <button
@@ -1679,7 +1679,7 @@ export function CustomerApp() {
                         : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
                     }`}
                   >
-                    Mavjud
+                    {t('in_stock', 'Mavjud')}
                   </button>
 
                   <button
@@ -1690,7 +1690,7 @@ export function CustomerApp() {
                         : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
                     }`}
                   >
-                    Yangi
+                    {t('new', 'Yangi')}
                   </button>
 
                   <select
@@ -1698,9 +1698,9 @@ export function CustomerApp() {
                     onChange={(e: any) => setSelectedSort(e.target.value)}
                     className="px-2 py-1 bg-[#F9FAF9] dark:bg-[#1A2822] text-[#116B50] dark:text-[#4ADE80] font-bold text-[11px] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-lg outline-none shrink-0"
                   >
-                    <option value="relevance">Eng mos</option>
-                    <option value="distance">Eng yaqin</option>
-                    <option value="price">Eng arzon</option>
+                    <option value="relevance">{t('sort_relevance', 'Eng mos')}</option>
+                    <option value="distance">{t('sort_distance', 'Eng yaqin')}</option>
+                    <option value="price">{t('sort_price', 'Eng arzon')}</option>
                   </select>
                 </div>
               </div>
@@ -1909,14 +1909,14 @@ export function CustomerApp() {
       <Modal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
-        title="Xato haqida xabar"
+        title={t('cust_error_report_title', 'Xato haqida xabar')}
         footer={
           <>
             <Button variant="secondary" onClick={() => setIsReportModalOpen(false)}>
-              Bekor qilish
+              {t('cancel', 'Bekor qilish')}
             </Button>
             <Button variant="primary" onClick={handleSubmitReport}>
-              Xabar yuborish
+              {t('cust_send_report', 'Xabar yuborish')}
             </Button>
           </>
         }

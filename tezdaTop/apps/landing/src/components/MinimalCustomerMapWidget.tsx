@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useTranslation } from '@yaqintop/ui';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -110,6 +111,7 @@ const PRESET_STORES: LandingStoreItem[] = [
 ];
 
 export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }) {
+  const { t } = useTranslation();
   const [selectedRadius, setSelectedRadius] = useState<number>(1000);
   const [selectedStore, setSelectedStore] = useState<LandingStoreItem | null>(PRESET_STORES[0]);
   const [activeSearchFilter, setActiveSearchFilter] = useState<string>('Hammasi');
@@ -163,7 +165,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         icon: userIcon,
         zIndexOffset: 1000
       }).addTo(map);
-      userMarker.bindTooltip('📍 Sizning joylashuvingiz', { permanent: false, direction: 'top' });
+      userMarker.bindTooltip('📍 ' + t('Sizning joylashuvingiz', 'Sizning joylashuvingiz'), { permanent: false, direction: 'top' });
       userMarkerRef.current = userMarker;
 
       mapInstanceRef.current = map;
@@ -258,7 +260,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
                 }; color: ${
                   isDarkMode ? '#0E1713' : '#ffffff'
                 }; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 9999px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); white-space: nowrap; animation: bounce 1s infinite;">
-                  ${store.sampleProduct?.price.toLocaleString('uz-UZ')} so‘m
+                  ${store.sampleProduct?.price.toLocaleString('uz-UZ')} ${t('currency', 'so‘m')}
                 </div>`
               : ''
           }
@@ -299,7 +301,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         setSelectedStore(store);
       });
     });
-  }, [selectedStore, activeSearchFilter, isDarkMode]);
+  }, [selectedStore, activeSearchFilter, isDarkMode, t]);
 
   const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
@@ -315,7 +317,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <span className="text-xs font-bold text-[#566A63] dark:text-[#8B9E95] mr-1 flex items-center gap-1">
             <Compass className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-            <span>Radius:</span>
+            <span>{t('Radius:', 'Radius:')}</span>
           </span>
           {[500, 1000, 2000].map((r) => (
             <button
@@ -335,7 +337,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
         {/* Demo Search Pills */}
         <div className="flex flex-wrap items-center gap-1.5 w-full md:w-auto">
           <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold mr-1 shrink-0">
-            Qidiruv:
+            {t('Qidiruv:', 'Qidiruv:')}
           </span>
           {['Hammasi', 'Snikers', 'Coca-Cola', 'Non', 'Sut'].map((pill) => (
             <button
@@ -347,7 +349,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
                   : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-transparent hover:border-[#DCE5DF] dark:hover:border-white/10'
               }`}
             >
-              {pill === 'Hammasi' ? 'Barcha do‘konlar' : `🔍 ${pill}`}
+              {pill === 'Hammasi' ? t('Barcha do‘konlar', 'Barcha do‘konlar') : `🔍 ${t(pill, pill)}`}
             </button>
           ))}
         </div>
@@ -363,31 +365,25 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
           <div className="absolute right-3 bottom-3 z-20 flex flex-col gap-1.5 bg-white/90 dark:bg-[#14201A]/90 backdrop-blur-md p-1 rounded-xl border border-[#DCE5DF] dark:border-white/10 shadow-lg">
             <button
               onClick={handleZoomIn}
-              title="Yaqinlashtirish"
+              title={t('Yaqinlashtirish', 'Yaqinlashtirish')}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#172C28] dark:text-white hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
             >
               <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={handleZoomOut}
-              title="Uzoqlashtirish"
+              title={t('Uzoqlashtirish', 'Uzoqlashtirish')}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#172C28] dark:text-white hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
             >
               <Minus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
             <button
               onClick={handleCenter}
-              title="Markazga qaytish"
+              title={t('Markazga qaytish', 'Markazga qaytish')}
               className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition"
             >
               <Crosshair className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
             </button>
-          </div>
-
-          {/* Leaflet Status Badge Overlay */}
-          <div className="absolute top-3 left-3 z-20 bg-white/90 dark:bg-[#14201A]/90 backdrop-blur-md px-2.5 py-1 rounded-xl border border-[#DCE5DF] dark:border-white/10 text-[10px] sm:text-[11px] font-bold text-[#172C28] dark:text-white shadow-md flex items-center gap-1.5 max-w-[calc(100%-80px)] truncate">
-            <span className="w-2 h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-ping shrink-0" />
-            <span className="truncate">Leaflet Xaritasi ({selectedRadius} m radius)</span>
           </div>
         </div>
 
@@ -398,7 +394,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]">
-                    {selectedStore.type === 'WHOLESALE' ? 'Ulgurji savdo' : 'Chakana do‘kon'}
+                    {selectedStore.type === 'WHOLESALE' ? t('Ulgurji savdo', 'Ulgurji savdo') : t('Chakana do‘kon', 'Chakana do‘kon')}
                   </span>
                   <span className="text-xs font-bold text-amber-500 flex items-center gap-1">
                     <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -417,22 +413,22 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
               {/* Store Details Strip */}
               <div className="bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl p-3 flex flex-col gap-2 text-xs border border-[#DCE5DF] dark:border-white/5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[#566A63] dark:text-[#8B9E95]">Masofa:</span>
+                  <span className="text-[#566A63] dark:text-[#8B9E95]">{t('Masofa:', 'Masofa:')}</span>
                   <strong className="text-[#116B50] dark:text-[#4ADE80] font-bold">
-                    📍 {selectedStore.distanceM} metr uzoqlikda
+                    📍 {selectedStore.distanceM} {t('metr uzoqlikda', 'metr uzoqlikda')}
                   </strong>
                 </div>
                 <div className="flex items-center justify-between pt-1.5 border-t border-[#DCE5DF]/60 dark:border-white/5">
-                  <span className="text-[#566A63] dark:text-[#8B9E95]">Ish vaqti:</span>
+                  <span className="text-[#566A63] dark:text-[#8B9E95]">{t('Ish vaqti:', 'Ish vaqti:')}</span>
                   <span className="text-[#116B50] dark:text-[#4ADE80] font-bold flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-[#116B50] dark:bg-[#4ADE80]" />
-                    <span>Ochiq (08:00–23:00)</span>
+                    <span>{t('Ochiq (08:00–23:00)', 'Ochiq (08:00–23:00)')}</span>
                   </span>
                 </div>
                 <div className="flex items-center justify-between pt-1.5 border-t border-[#DCE5DF]/60 dark:border-white/5">
-                  <span className="text-[#566A63] dark:text-[#8B9E95]">Assortiment:</span>
+                  <span className="text-[#566A63] dark:text-[#8B9E95]">{t('Assortiment:', 'Assortiment:')}</span>
                   <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">
-                    🛍️ {selectedStore.offersCount} ta tovar va xizmat
+                    🛍️ {selectedStore.offersCount} {t('ta tovar va xizmat', 'ta tovar va xizmat')}
                   </span>
                 </div>
               </div>
@@ -441,14 +437,14 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
               {selectedStore.sampleProduct && (
                 <div className="p-3 bg-[#E0EFE7]/40 dark:bg-[#183324]/40 border border-[#116B50]/20 dark:border-[#4ADE80]/20 rounded-xl">
                   <span className="text-[10px] font-bold text-[#116B50] dark:text-[#4ADE80] block uppercase">
-                    Misol tovar narxi:
+                    {t('Misol tovar narxi:', 'Misol tovar narxi:')}
                   </span>
                   <div className="flex items-center justify-between mt-1">
                     <span className="text-xs font-bold text-[#172C28] dark:text-white">
                       {selectedStore.sampleProduct.name}
                     </span>
                     <span className="text-xs font-extrabold text-[#116B50] dark:text-[#4ADE80]">
-                      {selectedStore.sampleProduct.price.toLocaleString('uz-UZ')} so‘m
+                      {selectedStore.sampleProduct.price.toLocaleString('uz-UZ')} {t('currency', 'so‘m')}
                     </span>
                   </div>
                 </div>
@@ -456,7 +452,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
             </div>
           ) : (
             <div className="my-auto text-center text-xs text-[#566A63] dark:text-[#8B9E95] p-6">
-              Xaritadagi istalgan do‘kon piniga bosing
+              {t('Xaritadagi istalgan do‘kon piniga bosing', 'Xaritadagi istalgan do‘kon piniga bosing')}
             </div>
           )}
 
@@ -468,7 +464,7 @@ export function MinimalCustomerMapWidget({ isDarkMode }: { isDarkMode: boolean }
               rel="noreferrer"
               className="w-full py-2.5 px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md"
             >
-              <span>Xaridor ilovasida ko‘rish</span>
+              <span>{t("Xaridor ilovasida ko'rish", "Xaridor ilovasida ko‘rish")}</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           </div>

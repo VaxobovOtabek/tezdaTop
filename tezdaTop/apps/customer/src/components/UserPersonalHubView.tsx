@@ -22,7 +22,7 @@ import {
   Sparkles,
   Camera
 } from 'lucide-react';
-import { Button, Tag, Modal, Input } from '@yaqintop/ui';
+import { Button, Tag, Modal, Input, useTranslation } from '@yaqintop/ui';
 import { apiUrl } from '../config/api.js';
 
 interface UserPersonalHubProps {
@@ -48,6 +48,7 @@ export function UserPersonalHubView({
   currentUser,
   onShowToast
 }: UserPersonalHubProps) {
+  const { t } = useTranslation();
   // Reviews State
   const [reviews, setReviews] = useState<any[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -301,7 +302,7 @@ export function UserPersonalHubView({
           className="flex items-center gap-2 text-xs md:text-sm font-bold text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] px-3 py-2 rounded-xl transition"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>Xaritaga qaytish</span>
+          <span>{t('Xaritaga qaytish', 'Xaritaga qaytish')}</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -319,11 +320,11 @@ export function UserPersonalHubView({
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {[
-            { id: 'favorites', label: `Sevimlilar (${favorites.length})`, icon: Heart },
-            { id: 'reviews', label: `Sharhlarim (${reviews.length})`, icon: MessageSquare },
-            { id: 'proposals', label: `Takliflarim (${proposals.length + photoProposals.length})`, icon: Sparkles },
-            { id: 'inquiries', label: `Murojaatlar & Arizalar (${reports.length + inquiries.length})`, icon: AlertTriangle },
-            { id: 'history', label: `Tanlov & Qidiruv Tarixi (${searchHistory.length})`, icon: Clock }
+            { id: 'favorites', label: `${t('favorites', 'Sevimlilar')} (${favorites.length})`, icon: Heart },
+            { id: 'reviews', label: `${t('reviews', 'Sharhlarim')} (${reviews.length})`, icon: MessageSquare },
+            { id: 'proposals', label: `${t('proposals', 'Takliflarim')} (${proposals.length + photoProposals.length})`, icon: Sparkles },
+            { id: 'inquiries', label: `${t('inquiries_nav', 'Murojaatlar & Arizalar')} (${reports.length + inquiries.length})`, icon: AlertTriangle },
+            { id: 'history', label: `${t('history', 'Qidiruv Tarixi')} (${searchHistory.length})`, icon: Clock }
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSection === tab.id;

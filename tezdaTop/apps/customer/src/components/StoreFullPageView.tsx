@@ -38,7 +38,7 @@ import {
   List,
   Edit3
 } from 'lucide-react';
-import { Button, Tag, StarRating, Modal, Input } from '@yaqintop/ui';
+import { Button, Tag, StarRating, Modal, Input, useTranslation } from '@yaqintop/ui';
 import { Offer, Store, isTradeOrganization } from '@yaqintop/contracts';
 import { apiUrl } from '../config/api.js';
 
@@ -153,6 +153,7 @@ export function StoreFullPageView({
   onReportError,
   onShowToast
 }: StoreFullPageViewProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'catalog' | 'reviews' | 'about' | 'map'>('catalog');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [productSearch, setProductSearch] = useState('');
@@ -995,10 +996,10 @@ export function StoreFullPageView({
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {[
-            { id: 'catalog', label: `📦 Tovar va xizmatlar (${offers.length})` },
-            { id: 'reviews', label: `⭐ Izohlar & Baholar (${reviews.length})` },
-            { id: 'about', label: 'ℹ️ Do‘kon & Ish vaqti' },
-            { id: 'map', label: '📍 Xaritadagi o‘rni' }
+            { id: 'catalog', label: `${t('📦 Tovar va xizmatlar')} (${offers.length})` },
+            { id: 'reviews', label: `${t('⭐ Izohlar & Baholar')} (${reviews.length})` },
+            { id: 'about', label: t('ℹ️ Do‘kon & Ish vaqti') },
+            { id: 'map', label: t('📍 Xaritadagi o‘rni') }
           ].map(tab => (
             <button
               key={tab.id}
@@ -1021,10 +1022,10 @@ export function StoreFullPageView({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg sm:text-xl font-bold text-[#172C28] dark:text-white">
-                  Tovar va xizmatlar assortimenti
+                  {t('Tovar va xizmatlar assortimenti')}
                 </h3>
                 <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                  Do‘konda mavjud barcha mahsulotlar, joriy narxlar va qoldiqlar
+                  {t('Do‘konda mavjud barcha mahsulotlar, joriy narxlar va qoldiqlar')}
                 </p>
               </div>
 

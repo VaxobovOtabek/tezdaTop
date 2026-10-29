@@ -1244,20 +1244,20 @@ export function MerchantApp() {
         <div className="bg-red-600 text-white px-6 py-2.5 text-xs font-bold flex items-center justify-between shadow-md z-40 shrink-0">
           <div className="flex items-center gap-2">
             <Store className="w-4 h-4 shrink-0 animate-bounce text-yellow-300" />
-            <span>Yangi tashkilotingizni yarating yoki mavjud owner hisobingiz bilan tizimga kiring.</span>
+            <span>{t('Yangi tashkilotingizni yarating yoki mavjud owner hisobingiz bilan tizimga kiring.')}</span>
           </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsLoginModalOpen(true)}
               className="px-3 py-1 bg-white text-red-700 rounded-lg text-xs font-extrabold hover:bg-red-50 transition shadow"
             >
-              Do‘kon kabinetiga kirish
+              {t('Do‘kon kabinetiga kirish')}
             </button>
             <a
               href={"https://yaqintop.uz/customer"}
               className="px-3 py-1 bg-red-800 text-white rounded-lg text-xs font-bold hover:bg-red-900 transition"
             >
-              Xaridor tizimiga o‘tish →
+              {t('Xaridor tizimiga o‘tish →')}
             </a>
           </div>
         </div>
@@ -1275,7 +1275,7 @@ export function MerchantApp() {
                 YaqinTop
               </span>
               <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] font-medium leading-none block mt-0.5">
-                {isServiceOrganization ? 'Xizmatlar boshqaruvi' : 'Do‘kon boshqaruvi'}
+                {isServiceOrganization ? t('Xizmatlar boshqaruvi') : t('Do‘kon boshqaruvi')}
               </span>
             </div>
           </div>
@@ -1370,7 +1370,7 @@ export function MerchantApp() {
             <div
               onClick={() => setIsProfileModalOpen(true)}
               className="flex items-center gap-2.5 pl-2 border-l border-[#DCE5DF] dark:border-[#22332C] cursor-pointer hover:opacity-80 transition select-none"
-              title="Shaxsiy profilni ochish"
+              title={t('Shaxsiy profilni ochish')}
             >
               <div className="w-9 h-9 rounded-full bg-[#116B50] text-white text-xs font-bold flex items-center justify-center shadow-sm">
                 {currentUser.fullName ? currentUser.fullName.slice(0, 2).toUpperCase() : 'OT'}
@@ -1380,7 +1380,7 @@ export function MerchantApp() {
                   {currentUser.fullName}
                 </span>
                 <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] block">
-                  {currentUser.role || 'Do‘kon egasi'}
+                  {currentUser.role ? t(currentUser.role) : t('Do‘kon egasi')}
                 </span>
               </div>
             </div>
@@ -1389,7 +1389,7 @@ export function MerchantApp() {
               onClick={() => setIsLoginModalOpen(true)}
               className="text-xs font-bold px-3.5 py-2 rounded-xl bg-[#116B50] text-white hover:bg-[#0B563F] transition shadow-sm"
             >
-              Kirish
+              {t('Kirish')}
             </button>
           )}
         </div>
@@ -1406,7 +1406,7 @@ export function MerchantApp() {
           }} />
         </div>
       ) : !contextReady ? (
-        <div className="p-8" role="status">Tashkilotingiz kabineti yuklanmoqda…</div>
+        <div className="p-8" role="status">{t('Tashkilotingiz kabineti yuklanmoqda…')}</div>
       ) : (
         <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
@@ -1439,7 +1439,7 @@ export function MerchantApp() {
                 >
                   <div className="flex items-center gap-3">
                     <Icon className="w-4 h-4" />
-                    <span>{isServiceOrganization && item.id === 'catalog' ? 'Xizmatlar katalogi' : isServiceOrganization && item.id === 'sales' ? 'Ko‘rsatilgan xizmatlar' : item.label}</span>
+                    <span>{isServiceOrganization && item.id === 'catalog' ? t('Xizmatlar katalogi') : isServiceOrganization && item.id === 'sales' ? t('Ko‘rsatilgan xizmatlar') : t(item.label)}</span>
                   </div>
                   {item.badge && (
                     <span className="w-4 h-4 bg-[#B42318] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -1456,10 +1456,10 @@ export function MerchantApp() {
             <div
               onClick={() => navigateTab('stock')}
               className="p-3 bg-[#F9FAF9] dark:bg-[#1A2822] hover:bg-[#E0EFE7]/40 dark:hover:bg-[#1E362A]/40 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] flex flex-col gap-2 cursor-pointer transition"
-              title="Qoldiq nazorati sahifasiga o‘tish"
+              title={t('Qoldiq nazorati sahifasiga o‘tish')}
             >
               <div className="flex items-center justify-between text-xs font-bold">
-                <span className="text-[#566A63] dark:text-[#8B9E95]">Ombor holati:</span>
+                <span className="text-[#566A63] dark:text-[#8B9E95]">{t('Ombor holati:')}</span>
                 <span className="text-[#116B50] dark:text-[#4ADE80]">{totalStockOnHand} dona</span>
               </div>
               <div className="w-full bg-[#E0EFE7] dark:bg-[#2A3F36] h-1.5 rounded-full overflow-hidden">
@@ -1469,8 +1469,8 @@ export function MerchantApp() {
                 />
               </div>
               <div className="flex items-center justify-between text-[10px] text-[#566A63] dark:text-[#8B9E95]">
-                <span>Kam qolgan: <strong className="text-amber-600 dark:text-amber-400">{lowStockCount}</strong></span>
-                <span>Tugagan: <strong className="text-rose-600 dark:text-rose-400">{outOfStockCount}</strong></span>
+                <span>{t('Kam qolgan:')} <strong className="text-amber-600 dark:text-amber-400">{lowStockCount}</strong></span>
+                <span>{t('Tugagan:')} <strong className="text-rose-600 dark:text-rose-400">{outOfStockCount}</strong></span>
               </div>
             </div>
           </div>}

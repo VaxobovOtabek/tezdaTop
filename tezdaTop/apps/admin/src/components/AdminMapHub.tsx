@@ -23,7 +23,7 @@ import {
   Layers,
   Sparkles
 } from 'lucide-react';
-import { Tag, Button } from '@yaqintop/ui';
+import { Tag, Button, useTranslation } from '@yaqintop/ui';
 import { Store as StoreType } from '@yaqintop/contracts';
 
 export interface EnrichedStore extends StoreType {
@@ -80,6 +80,7 @@ export function AdminMapHub({
   onManageUsers,
   onResolveStoreIssues
 }: AdminMapHubProps) {
+  const { t } = useTranslation();
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
@@ -265,7 +266,7 @@ export function AdminMapHub({
           <div className="flex items-center gap-2">
             <MapPin className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80]" />
             <h1 className="text-xl font-extrabold text-[#172C28] dark:text-white">
-              Tashkilotlar va Do‘konlar Geo-Moderatsiya Haritasi
+              {t('Tashkilotlar va Do‘konlar Geo-Moderatsiya Haritasi')}
             </h1>
           </div>
           <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
@@ -352,7 +353,7 @@ export function AdminMapHub({
                 : 'bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400'
             }`}
           >
-            <span>🔴 Muammoli</span>
+            <span>{t('🔴 Muammoli')}</span>
             {storesWithIssuesCount > 0 && (
               <span className="bg-red-700 text-white text-[10px] px-1.5 py-0.2 rounded-full">
                 {storesWithIssuesCount}
@@ -480,7 +481,7 @@ export function AdminMapHub({
                       ) : (
                         <>
                           <Trash2 className="w-3.5 h-3.5" />
-                          <span>Muammoni o‘chirish (Bartaraf etish)</span>
+                          <span>{t('Muammoni o‘chirish (Bartaraf etish)')}</span>
                         </>
                       )}
                     </button>
@@ -583,7 +584,7 @@ export function AdminMapHub({
                   className="flex items-center justify-center gap-1.5 text-xs font-semibold"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
-                  <span>Tahrirlash</span>
+                  <span>{t('edit', 'Tahrirlash')}</span>
                 </Button>
                 <Button
                   variant="primary"
@@ -592,7 +593,7 @@ export function AdminMapHub({
                   className="flex items-center justify-center gap-1.5 text-xs font-semibold"
                 >
                   <Users className="w-3.5 h-3.5" />
-                  <span>Xodimlar</span>
+                  <span>{t('Xodimlar', 'Xodimlar')}</span>
                 </Button>
               </div>
 
@@ -602,7 +603,7 @@ export function AdminMapHub({
                 rel="noreferrer"
                 className="w-full py-1.5 px-3 rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-center text-xs font-bold transition flex items-center justify-center gap-1.5"
               >
-                <span>Xaridor ilovasida ko‘rish</span>
+                <span>{t('Xaridor ilovasida ko‘rish')}</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
             </div>
@@ -616,7 +617,7 @@ export function AdminMapHub({
           <div className="flex-1 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-3 shadow-sm overflow-y-auto flex flex-col gap-2">
             <div className="flex items-center justify-between pb-2 border-b border-[#DCE5DF]/60 dark:border-[#22332C]">
               <span className="font-extrabold text-xs text-[#172C28] dark:text-white">
-                Do‘konlar ro‘yxati ({filteredStores.length})
+                {t('Do‘konlar ro‘yxati')} ({filteredStores.length})
               </span>
               <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
                 {selectedRegion !== 'Barcha viloyatlar' ? selectedRegion : 'Barcha hududlar'}

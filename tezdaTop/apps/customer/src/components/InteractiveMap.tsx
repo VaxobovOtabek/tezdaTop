@@ -807,15 +807,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       )}
 
-      {/* Floating Top Left Location Status (Desktop) */}
-      {view !== 'route' && (
-        <div className="absolute top-3 md:top-4 left-3 md:left-4 hidden md:flex items-center pointer-events-none z-10">
-          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] px-3.5 py-2 rounded-xl text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC] shadow-md pointer-events-auto flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></div>
-            <span>Siz turgan joy · {locationName || 'Mening joylashuvim'} ({radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`})</span>
-          </div>
-        </div>
-      )}
 
       {/* Floating Map Controls (Top Right: Recenter, Radius, Fit & Zoom) */}
       <div className="absolute right-3 md:right-4 top-32 md:top-4 flex flex-col gap-2 z-20">

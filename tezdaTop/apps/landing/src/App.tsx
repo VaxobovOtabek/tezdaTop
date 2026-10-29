@@ -62,6 +62,7 @@ const CATEGORIES = [
     id: 'food',
     name: 'Oziq-ovqat',
     count: '1 200+ do‘kon',
+    countNumber: '1 200+',
     icon: '🛒',
     query: 'oziq-ovqat',
     img: 'https://images.unsplash.com/photo-1610348725531-843dff563e2c?w=400&auto=format&fit=crop&q=80'
@@ -70,6 +71,7 @@ const CATEGORIES = [
     id: 'pharmacy',
     name: 'Dorixonalar',
     count: '300+ do‘kon',
+    countNumber: '300+',
     icon: '💊',
     query: 'dorixona',
     img: 'https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400&auto=format&fit=crop&q=80'
@@ -78,6 +80,7 @@ const CATEGORIES = [
     id: 'cafe',
     name: 'Kafe va restoran',
     count: '500+ do‘kon',
+    countNumber: '500+',
     icon: '🍽️',
     query: 'kafe',
     img: 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=400&auto=format&fit=crop&q=80'
@@ -86,6 +89,7 @@ const CATEGORIES = [
     id: 'clothes',
     name: 'Kiyim-kechak',
     count: '400+ do‘kon',
+    countNumber: '400+',
     icon: '👕',
     query: 'kiyim',
     img: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=400&auto=format&fit=crop&q=80'
@@ -94,6 +98,7 @@ const CATEGORIES = [
     id: 'tech',
     name: 'Maishiy texnika',
     count: '250+ do‘kon',
+    countNumber: '250+',
     icon: '💻',
     query: 'texnika',
     img: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400&auto=format&fit=crop&q=80'
@@ -102,6 +107,7 @@ const CATEGORIES = [
     id: 'auto',
     name: 'Avto va ehtiyot qismlar',
     count: '200+ do‘kon',
+    countNumber: '200+',
     icon: '🚗',
     query: 'avto',
     img: 'https://images.unsplash.com/photo-1578844251758-2f71da64c96f?w=400&auto=format&fit=crop&q=80'
@@ -110,6 +116,7 @@ const CATEGORIES = [
     id: 'build',
     name: 'Qurilish va ta’mirlash',
     count: '300+ do‘kon',
+    countNumber: '300+',
     icon: '🔨',
     query: 'qurilish',
     img: 'https://images.unsplash.com/photo-1581783342308-f792dbdd27c5?w=400&auto=format&fit=crop&q=80'
@@ -118,6 +125,7 @@ const CATEGORIES = [
     id: 'other',
     name: 'Boshqa xizmatlar',
     count: '600+ do‘kon',
+    countNumber: '600+',
     icon: '•••',
     query: '',
     img: 'https://images.unsplash.com/photo-1521791136064-7986c2920216?w=400&auto=format&fit=crop&q=80'
@@ -223,7 +231,7 @@ const PORTALS = [
 ];
 
 export function LandingApp() {
-  const { t } = useTranslation();
+  const { t, lang } = useTranslation();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('yaqintop_theme') === 'dark';
   });
@@ -249,6 +257,38 @@ export function LandingApp() {
     }
   }, [isDarkMode]);
 
+  // Dynamic SEO meta tags and titles based on chosen language
+  useEffect(() => {
+    document.documentElement.lang = lang;
+    const metaDesc = document.querySelector('meta[name="description"]');
+    const ogTitle = document.querySelector('meta[property="og:title"]');
+    const ogDesc = document.querySelector('meta[property="og:description"]');
+    const ogLocale = document.querySelector('meta[property="og:locale"]');
+
+    if (lang === 'ru') {
+      document.title = 'YaqinTop — Экосистема поиска местных товаров и магазинов | Узбекистан';
+      const descRu = 'YaqinTop — Быстрый и точный поиск местных товаров, услуг и магазинов в Узбекистане. Сравнение цен на полках, остатки на складе и удобный маршрут.';
+      if (metaDesc) metaDesc.setAttribute('content', descRu);
+      if (ogTitle) ogTitle.setAttribute('content', 'YaqinTop — Поиск товаров и магазинов в Узбекистане');
+      if (ogDesc) ogDesc.setAttribute('content', descRu);
+      if (ogLocale) ogLocale.setAttribute('content', 'ru_RU');
+    } else if (lang === 'en') {
+      document.title = 'YaqinTop — Local Store & Product Search Ecosystem | Uzbekistan';
+      const descEn = 'YaqinTop — Fast and accurate local product, service, and store discovery ecosystem in Uzbekistan. Shelf price comparison, live inventory, and directions.';
+      if (metaDesc) metaDesc.setAttribute('content', descEn);
+      if (ogTitle) ogTitle.setAttribute('content', 'YaqinTop — Local Product & Store Ecosystem');
+      if (ogDesc) ogDesc.setAttribute('content', descEn);
+      if (ogLocale) ogLocale.setAttribute('content', 'en_US');
+    } else {
+      document.title = 'YaqinTop — Mahalliy Tovar va Xizmatlar Qidiruv Ekotizimi | O‘zbekiston';
+      const descUz = 'YaqinTop — O‘zbekistondagi eng tezkor va aniq mahalliy tovar, xizmat va do‘konlarni qidirish ekotizimi. Do‘konlar, narxlar va qulay marshrut.';
+      if (metaDesc) metaDesc.setAttribute('content', descUz);
+      if (ogTitle) ogTitle.setAttribute('content', 'YaqinTop — Mahalliy Tovar va Xizmatlar Qidiruv Ekotizimi');
+      if (ogDesc) ogDesc.setAttribute('content', descUz);
+      if (ogLocale) ogLocale.setAttribute('content', 'uz_UZ');
+    }
+  }, [lang]);
+
   const handleHeroSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const query = heroSearch.trim();
@@ -262,6 +302,13 @@ export function LandingApp() {
   const handleQuickCategoryClick = (categoryName: string) => {
     window.location.href = `/customer?category=${encodeURIComponent(categoryName)}`;
   };
+
+  const displayRegion = t(selectedRegion)
+    .replace(' viloyati', '')
+    .replace(' shahri', '')
+    .replace(' область', '')
+    .replace(' region', '')
+    .replace(' city', '');
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 overflow-x-hidden w-full max-w-full ${isDarkMode ? 'dark bg-[#0A120E] text-[#E8F2EC]' : 'bg-[#FAFCFA] text-[#172C28]'}`}>
@@ -282,20 +329,20 @@ export function LandingApp() {
                 <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-pulse" />
               </div>
               <p className="text-[10px] text-[#566A63] dark:text-[#8B9E95] font-medium tracking-tight mt-0.5 hidden min-[480px]:block">
-                Mahalliy tovar va xizmatlar ekotizimi
+                {t('Mahalliy tovar va xizmatlar ekotizimi')}
               </p>
             </div>
           </a>
 
           {/* Nav Links (Desktop) */}
           <nav className="hidden lg:flex items-center gap-7 text-xs font-semibold text-[#566A63] dark:text-[#9CB3A8]">
-            <a href="#portals" className="text-[#116B50] dark:text-[#4ADE80] font-bold hover:underline transition">Portallar</a>
-            <a href="#features" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Platforma</a>
-            <a href="#interactive-map" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Xarita</a>
-            <a href="#categories" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Do‘konlar</a>
-            <a href="#for-business" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Bizneslar uchun</a>
-            <a href="#how-it-works" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Foydali</a>
-            <a href="#testimonials" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">Biz haqimizda</a>
+            <a href="#portals" className="text-[#116B50] dark:text-[#4ADE80] font-bold hover:underline transition">{t('Portallar')}</a>
+            <a href="#features" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">{t('Platforma')}</a>
+            <a href="#interactive-map" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">{t('map', 'Xarita')}</a>
+            <a href="#categories" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">{t('stores', 'Do‘konlar')}</a>
+            <a href="#for-business" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">{t('Bizneslar uchun')}</a>
+            <a href="#how-it-works" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">{t('Foydali')}</a>
+            <a href="#testimonials" className="hover:text-[#116B50] dark:hover:text-[#4ADE80] transition">{t('Biz haqimizda')}</a>
           </nav>
 
           {/* Right Action Controls */}
@@ -307,7 +354,7 @@ export function LandingApp() {
               className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] text-[11px] sm:text-xs font-bold transition shadow-2xs cursor-pointer"
             >
               <MapPin className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
-              <span className="max-w-[65px] min-[380px]:max-w-[85px] sm:max-w-[120px] truncate">{selectedRegion.replace(' viloyati', '').replace(' shahri', '')}</span>
+              <span className="max-w-[65px] min-[380px]:max-w-[85px] sm:max-w-[120px] truncate">{displayRegion}</span>
               <ChevronDown className="w-3 h-3 text-[#566A63] dark:text-[#8B9E95] shrink-0" />
             </button>
 
@@ -317,7 +364,7 @@ export function LandingApp() {
             {/* Dark / Light Mode Toggle */}
             <button
               onClick={toggleDarkMode}
-              title={isDarkMode ? "Yorug' tema" : "Qorong'i tema"}
+              title={isDarkMode ? t('light_theme', "Yorug' tema") : t('dark_theme', "Qorong'i tema")}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] transition flex items-center justify-center shadow-2xs shrink-0 cursor-pointer"
             >
               {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
@@ -335,7 +382,7 @@ export function LandingApp() {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 p-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-white flex items-center justify-center shadow-2xs shrink-0"
-              aria-label="Menyuni ochish"
+              aria-label={t('Menyuni ochish', 'Menyuni ochish')}
             >
               {isMobileMenuOpen ? <X className="w-4 h-4 text-rose-500" /> : <Menu className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />}
             </button>
@@ -346,18 +393,18 @@ export function LandingApp() {
         {isMobileMenuOpen && (
           <div className="lg:hidden max-w-7xl mx-auto mt-3 pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
             <div className="flex flex-col gap-1 text-xs font-semibold text-[#172C28] dark:text-[#E8F2EC]">
-              <a href="#portals" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg bg-[#E0EFE7]/50 dark:bg-[#1B2F25] text-[#116B50] dark:text-[#4ADE80] font-bold">Tizim Portallari (Kirish)</a>
-              <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Platforma haqida</a>
-              <a href="#interactive-map" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Xarita ko‘rinishi</a>
-              <a href="#categories" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Asosiy toifalar</a>
-              <a href="#for-business" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Biznes va do‘konlar</a>
-              <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Qanday ishlaydi?</a>
-              <a href="#testimonials" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">Foydalanuvchilar fikri</a>
+              <a href="#portals" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg bg-[#E0EFE7]/50 dark:bg-[#1B2F25] text-[#116B50] dark:text-[#4ADE80] font-bold">{t('Tizim Portallari (Kirish)')}</a>
+              <a href="#features" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">{t('Platforma haqida')}</a>
+              <a href="#interactive-map" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">{t('map', 'Xarita')}</a>
+              <a href="#categories" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">{t('stores', 'Do‘konlar')}</a>
+              <a href="#for-business" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">{t('Bizneslar uchun')}</a>
+              <a href="#how-it-works" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">{t('Foydali')}</a>
+              <a href="#testimonials" onClick={() => setIsMobileMenuOpen(false)} className="p-2 rounded-lg hover:bg-[#E0EFE7] dark:hover:bg-[#1B2F25]">{t('Biz haqimizda')}</a>
             </div>
 
             <div className="pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C]">
               <div className="text-[11px] font-bold uppercase tracking-wider text-[#566A63] dark:text-[#8B9E95] mb-2">
-                Ilovalar & Portallar
+                {t('Ilovalar & Portallar', 'Ilovalar & Portallar')}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {PORTALS.map((p) => (
@@ -367,7 +414,7 @@ export function LandingApp() {
                     className="p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] flex items-center gap-2 text-xs font-bold text-[#172C28] dark:text-white"
                   >
                     <p.icon className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-                    <span className="truncate">{p.title}</span>
+                    <span className="truncate">{t(p.title)}</span>
                   </a>
                 ))}
               </div>
@@ -405,7 +452,7 @@ export function LandingApp() {
                   type="text"
                   value={heroSearch}
                   onChange={(e) => setHeroSearch(e.target.value)}
-                  placeholder="Masalan: snikers, non, dorixona..."
+                  placeholder={t('Masalan: snikers, non, dorixona...')}
                   className="w-full min-w-0 bg-transparent text-xs sm:text-base text-[#172C28] dark:text-white placeholder-[#8B9E95] focus:outline-none px-1.5 sm:px-2 font-medium"
                 />
                 <button
@@ -435,7 +482,7 @@ export function LandingApp() {
                   className="px-2.5 py-1 sm:px-3.5 sm:py-2 rounded-xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50] dark:hover:border-[#4ADE80] hover:bg-[#E0EFE7]/50 text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1 sm:gap-1.5 transition shadow-2xs whitespace-nowrap shrink-0 cursor-pointer"
                 >
                   <span>{item.icon}</span>
-                  <span>{item.label}</span>
+                  <span>{t(item.label)}</span>
                 </button>
               ))}
             </div>
@@ -450,19 +497,19 @@ export function LandingApp() {
             <div className="hidden sm:block absolute -right-4 -bottom-6 w-36 h-36 bg-gradient-to-br from-amber-100 to-amber-200 dark:from-amber-950/40 dark:to-[#1C2620] rounded-3xl border border-amber-300/50 dark:border-amber-800/40 p-3 shadow-xl transform rotate-6 z-0">
               <div className="w-full h-full bg-[#116B50] rounded-2xl flex flex-col items-center justify-center text-white text-center p-2 shadow-inner">
                 <Store className="w-8 h-8 mb-1" />
-                <span className="text-[11px] font-black uppercase tracking-wider">DO‘KON</span>
-                <span className="text-[9px] text-emerald-200">280 m yaqin</span>
+                <span className="text-[11px] font-black uppercase tracking-wider">{t('DO‘KON')}</span>
+                <span className="text-[9px] text-emerald-200">{t('280 m yaqin')}</span>
               </div>
             </div>
 
             {/* Hand-drawn Playful Annotation 1: Top Right */}
             <div className="hidden md:flex absolute -top-3 -right-6 items-center gap-2 text-xs font-extrabold text-[#116B50] dark:text-[#4ADE80] bg-white/90 dark:bg-[#14201A]/90 backdrop-blur-sm px-3 py-1.5 rounded-full border border-[#116B50]/20 shadow-md z-30 animate-bounce duration-1000">
-              <span>Do‘konlarni xaritada ko‘ring 📍</span>
+              <span>{t('Do‘konlarni xaritada ko‘ring 📍')}</span>
             </div>
 
             {/* Hand-drawn Playful Annotation 2: Middle Right */}
             <div className="hidden lg:flex absolute top-1/2 -right-8 items-center gap-1.5 text-xs font-extrabold text-emerald-700 dark:text-emerald-300 bg-white/90 dark:bg-[#14201A]/90 backdrop-blur-sm px-3 py-1 rounded-full border border-emerald-500/20 shadow-md z-30">
-              <span>Narxlarni taqqoslang 🏷️</span>
+              <span>{t('Narxlarni taqqoslang 🏷️')}</span>
             </div>
 
             {/* Smartphone Frame */}
@@ -482,7 +529,7 @@ export function LandingApp() {
                       <span>YaqinTop</span>
                     </div>
                     <div className="flex items-center gap-1 text-[10px] text-[#566A63] dark:text-[#8B9E95] font-semibold">
-                      <span>📍 Sirdaryo</span>
+                      <span>📍 {displayRegion}</span>
                     </div>
                   </div>
 
@@ -494,9 +541,9 @@ export function LandingApp() {
 
                   {/* Filter chips inside mockup */}
                   <div className="flex flex-wrap items-center gap-1.5 mt-2 pb-0.5 no-scrollbar text-[10px]">
-                    <span className="px-2 py-0.5 rounded-md bg-[#116B50] text-white font-bold">📍 Sirdaryo v</span>
-                    <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold">⚡ 1 km v</span>
-                    <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#566A63] font-semibold">⭐ Reyting</span>
+                    <span className="px-2 py-0.5 rounded-md bg-[#116B50] text-white font-bold">📍 {displayRegion}</span>
+                    <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold">⚡ 1 km</span>
+                    <span className="px-2 py-0.5 rounded-md bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#566A63] font-semibold">⭐ {t('ratings_filter', 'Reyting')}</span>
                   </div>
                 </div>
 
@@ -539,10 +586,10 @@ export function LandingApp() {
                           </span>
                         </div>
                         <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] block">
-                          📍 280 m · Ochiq
+                          📍 {t('280 m yaqin')} · {t('Ochiq')}
                         </span>
                         <div className="text-xs font-extrabold text-[#116B50] dark:text-[#4ADE80] mt-0.5">
-                          12 000 so‘m <span className="text-[9px] text-[#6E827B] font-normal">/ dona</span>
+                          12 000 {t('currency', 'so‘m')} <span className="text-[9px] text-[#6E827B] font-normal">/ {t('dona')}</span>
                         </div>
                       </div>
                     </div>
@@ -552,29 +599,29 @@ export function LandingApp() {
                       className="w-full py-1.5 rounded-xl bg-[#116B50] text-white font-bold text-center text-[10px] hover:bg-[#0D533E] transition shadow-xs flex items-center justify-center gap-1"
                     >
                       <Navigation className="w-3 h-3" />
-                      <span>Yo‘l-yo‘riq (Marshrut)</span>
+                      <span>{t('Yo‘l-yo‘riq (Marshrut)')}</span>
                     </a>
                   </div>
 
                   {/* FLOATING PRICE COMPARISON DRAWER AT BOTTOM */}
                   <div className="absolute bottom-2 left-2 right-2 bg-white/95 dark:bg-[#16241E]/95 backdrop-blur-md rounded-2xl p-2.5 border border-[#DCE5DF] dark:border-[#273B32] shadow-lg flex flex-col gap-1.5 z-20">
                     <div className="flex items-center justify-between text-[10px] font-bold text-[#566A63] dark:text-[#8B9E95]">
-                      <span>Yaqin narxlar taqqosi:</span>
-                      <span className="text-[#116B50] dark:text-[#4ADE80]">3 ta do‘kon</span>
+                      <span>{t('Yaqin narxlar taqqosi:')}</span>
+                      <span className="text-[#116B50] dark:text-[#4ADE80]">{t('3 ta do‘kon')}</span>
                     </div>
 
                     <div className="flex flex-col divide-y divide-[#DCE5DF]/60 dark:divide-[#273B32] text-[10px]">
                       <div className="py-1 flex items-center justify-between">
                         <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC] truncate">1. Iftixor Savdo</span>
-                        <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80] shrink-0">11 500 so‘m · 150m</span>
+                        <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80] shrink-0">11 500 {t('currency', 'so‘m')} · 150m</span>
                       </div>
                       <div className="py-1 flex items-center justify-between">
                         <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC] truncate">2. Olmazor Market</span>
-                        <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80] shrink-0">12 500 so‘m · 420m</span>
+                        <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80] shrink-0">12 500 {t('currency', 'so‘m')} · 420m</span>
                       </div>
                       <div className="py-1 flex items-center justify-between">
                         <span className="font-semibold text-[#172C28] dark:text-[#E8F2EC] truncate">3. Mini Market 24/7</span>
-                        <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80] shrink-0">12 500 so‘m · 680m</span>
+                        <span className="font-extrabold text-[#116B50] dark:text-[#4ADE80] shrink-0">12 500 {t('currency', 'so‘m')} · 680m</span>
                       </div>
                     </div>
                   </div>
@@ -594,7 +641,7 @@ export function LandingApp() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm sm:text-lg md:text-xl font-extrabold text-[#172C28] dark:text-white leading-tight truncate">50m – 3km</div>
-              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">Qidiruv radiusi</div>
+              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">{t('Qidiruv radiusi')}</div>
             </div>
           </div>
 
@@ -604,7 +651,7 @@ export function LandingApp() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm sm:text-lg md:text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-tight truncate">&lt; 30 ms</div>
-              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">Tezkor javob</div>
+              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">{t('Tezkor javob')}</div>
             </div>
           </div>
 
@@ -614,7 +661,7 @@ export function LandingApp() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm sm:text-lg md:text-xl font-extrabold text-[#172C28] dark:text-white leading-tight truncate">Real-time</div>
-              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">Kassa qoldiqlari</div>
+              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">{t('Kassa qoldiqlari')}</div>
             </div>
           </div>
 
@@ -627,10 +674,10 @@ export function LandingApp() {
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-sm sm:text-lg md:text-xl font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-tight flex items-center gap-1">
-                <span className="truncate">4 Portal</span>
+                <span className="truncate">{t('4 Portal')}</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition shrink-0" />
               </div>
-              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">Barchasi</div>
+              <div className="text-[10px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 font-medium truncate">{t('Barchasi')}</div>
             </div>
           </a>
         </div>
@@ -641,13 +688,13 @@ export function LandingApp() {
         <div className="flex flex-col items-center text-center max-w-2xl mx-auto mb-8 sm:mb-10">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3 shadow-2xs">
             <Layers className="w-3.5 h-3.5" />
-            <span>Tizim Portallari & Ilovalar</span>
+            <span>{t('Tizim Portallari & Ilovalar')}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
-            Qaysi rolda <span className="text-[#116B50] dark:text-[#4ADE80]">kirmoqchisiz?</span>
+            {t('Qaysi rolda kirmoqchisiz?')}
           </h2>
           <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-2.5 font-medium max-w-lg">
-            Xaridorlar, do‘kon egalari, moderatorlar va tizim ma’murlari uchun 4 ta alohida moslashtirilgan portal:
+            {t('Xaridorlar, do‘kon egalari, moderatorlar va tizim ma’murlari uchun 4 ta alohida moslashtirilgan portal:')}
           </p>
         </div>
 
@@ -661,14 +708,14 @@ export function LandingApp() {
                   <Search className="w-6 h-6" />
                 </div>
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                  Xaridor
+                  {t('role_customer', 'Xaridor')}
                 </span>
               </div>
               <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
-                Xaridor Ilovasi
+                {t('Xaridor Ilovasi')}
               </h3>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
-                Kerakli tovar va xizmatlarni 1 soniyada qidirish, yaqin do‘konlar, kassa narxlarini taqqoslash va xaritada marshrut olish.
+                {t('Kerakli tovar va xizmatlarni 1 soniyada qidirish, yaqin do‘konlar, kassa narxlarini taqqoslash va xaritada marshrut olish.')}
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
@@ -676,7 +723,7 @@ export function LandingApp() {
                 href="/customer"
                 className="w-full py-2.5 px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
-                <span>Xaridor sifatida kirish</span>
+                <span>{t('Xaridor sifatida kirish')}</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
               </a>
             </div>
@@ -690,14 +737,14 @@ export function LandingApp() {
                   <Store className="w-6 h-6" />
                 </div>
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-500/20">
-                  Tadbirkor
+                  {t('role_merchant', 'Tadbirkor')}
                 </span>
               </div>
               <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
-                Do‘kon & Tadbirkor
+                {t('Do‘kon & Tadbirkor')}
               </h3>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
-                Do‘kon va filiallar ma’lumotlari, tovar va xizmatlar narxi, kassa qoldiqlari, Excel import va yangi mijozlar oqimi.
+                {t('Do‘kon va filiallar ma’lumotlari, tovar va xizmatlar narxi, kassa qoldiqlari, Excel import va yangi mijozlar oqimi.')}
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
@@ -705,7 +752,7 @@ export function LandingApp() {
                 href="/owner"
                 className="w-full py-2.5 px-4 rounded-xl bg-[#0F5A44] hover:bg-[#0B4534] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
-                <span>Do‘kon egasi sifatida kirish</span>
+                <span>{t('Do‘kon egasi sifatida kirish')}</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
               </a>
             </div>
@@ -719,14 +766,14 @@ export function LandingApp() {
                   <ShieldCheck className="w-6 h-6" />
                 </div>
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
-                  Moderator
+                  {t('role_moderator', 'Moderator')}
                 </span>
               </div>
               <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
-                Moderator Portali
+                {t('Moderator Portali')}
               </h3>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
-                Yangi ochilgan do‘konlar arizalarini tekshirish, xaridorlar e’tirozlari, sharhlar nazorati va ma’lumotlar to‘g‘riligi.
+                {t('Yangi ochilgan do‘konlar arizalarini tekshirish, xaridorlar e’tirozlari, sharhlar nazorati va ma’lumotlar to‘g‘riligi.')}
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
@@ -734,7 +781,7 @@ export function LandingApp() {
                 href="/moderator"
                 className="w-full py-2.5 px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
-                <span>Moderator sifatida kirish</span>
+                <span>{t('Moderator sifatida kirish')}</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
               </a>
             </div>
@@ -748,14 +795,14 @@ export function LandingApp() {
                   <Shield className="w-6 h-6" />
                 </div>
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-500/20">
-                  Administrator
+                  {t('role_admin', 'Administrator')}
                 </span>
               </div>
               <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
-                Boshqaruv Admin
+                {t('Boshqaruv Admin')}
               </h3>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
-                Tizim umumiy nazorati, butun shahar bo‘yicha qidiruv analitikasi, ma’lumotlar bazasi, rollar va xavfsizlik arxitekturasi.
+                {t('Tizim umumiy nazorati, butun shahar bo‘yicha qidiruv analitikasi, ma’lumotlar bazasi, rollar va xavfsizlik arxitekturasi.')}
               </p>
             </div>
             <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
@@ -763,7 +810,7 @@ export function LandingApp() {
                 href="/admin"
                 className="w-full py-2.5 px-4 rounded-xl bg-[#0A3D2E] hover:bg-[#06291F] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
-                <span>Admin sifatida kirish</span>
+                <span>{t('Admin sifatida kirish')}</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
               </a>
             </div>
@@ -776,13 +823,13 @@ export function LandingApp() {
         <div className="flex flex-col items-center text-center max-w-2xl mx-auto mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Nima uchun YaqinTop?</span>
+            <span>{t('Nima uchun YaqinTop?')}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
-            Har kuni kerakli narsalar endi <span className="text-[#116B50] dark:text-[#4ADE80]">yanada yaqin!</span>
+            {t('Har kuni kerakli narsalar endi yanada yaqin!')}
           </h2>
           <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-3 font-medium">
-            Vaqtingizni tejang, eng yaxshi narxlarni toping va atrofingizdagi ishonchli do‘konlarni kashf eting.
+            {t('Vaqtingizni tejang, eng yaxshi narxlarni toping va atrofingizdagi ishonchli do‘konlarni kashf eting.')}
           </p>
         </div>
 
@@ -799,10 +846,10 @@ export function LandingApp() {
                   <Icon className="w-5 h-5" />
                 </div>
                 <h3 className="font-extrabold text-base sm:text-lg text-[#172C28] dark:text-white">
-                  {item.title}
+                  {t(item.title)}
                 </h3>
                 <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] leading-relaxed font-medium">
-                  {item.desc}
+                  {t(item.desc)}
                 </p>
               </div>
             );
@@ -818,27 +865,27 @@ export function LandingApp() {
               🛡️
             </div>
             <div>
-              <h3 className="text-lg sm:text-xl font-extrabold tracking-tight">YaqinTop raqamlarda</h3>
-              <p className="text-xs text-emerald-200 mt-0.5">O‘zbekiston bo‘ylab real ko‘rsatkichlar</p>
+              <h3 className="text-lg sm:text-xl font-extrabold tracking-tight">{t('YaqinTop raqamlarda')}</h3>
+              <p className="text-xs text-emerald-200 mt-0.5">{t('O‘zbekiston bo‘ylab real ko‘rsatkichlar')}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8 w-full md:w-auto text-center md:text-left">
             <div>
               <div className="text-2xl sm:text-3xl font-black text-white">10 000+</div>
-              <div className="text-xs text-emerald-200 mt-0.5 font-medium">Foydalanuvchilar</div>
+              <div className="text-xs text-emerald-200 mt-0.5 font-medium">{t('Foydalanuvchilar')}</div>
             </div>
             <div>
               <div className="text-2xl sm:text-3xl font-black text-white">500+</div>
-              <div className="text-xs text-emerald-200 mt-0.5 font-medium">Do‘konlar</div>
+              <div className="text-xs text-emerald-200 mt-0.5 font-medium">{t('Do‘konlar')}</div>
             </div>
             <div>
               <div className="text-2xl sm:text-3xl font-black text-white">50 000+</div>
-              <div className="text-xs text-emerald-200 mt-0.5 font-medium">Tovarlar</div>
+              <div className="text-xs text-emerald-200 mt-0.5 font-medium">{t('Tovarlar')}</div>
             </div>
             <div>
               <div className="text-2xl sm:text-3xl font-black text-emerald-300">4.8 / 5</div>
-              <div className="text-xs text-emerald-200 mt-0.5 font-medium">O‘rtacha reyting</div>
+              <div className="text-xs text-emerald-200 mt-0.5 font-medium">{t('O‘rtacha reyting')}</div>
             </div>
           </div>
         </div>
@@ -851,13 +898,13 @@ export function LandingApp() {
           <div className="lg:col-span-6 flex flex-col items-start">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3">
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Qanday ishlaydi?</span>
+              <span>{t('Qanday ishlaydi?')}</span>
             </div>
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
-              Juda oson — <span className="text-[#116B50] dark:text-[#4ADE80]">3 qadamda</span>
+              {t('Juda oson — 3 qadamda')}
             </h2>
             <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-2 font-medium">
-              Kerakli tovarni topish endi bir necha soniya masala.
+              {t('Kerakli tovarni topish endi bir necha soniya masala.')}
             </p>
 
             <div className="flex flex-col gap-3.5 sm:gap-4 mt-6 sm:mt-8 w-full">
@@ -890,10 +937,10 @@ export function LandingApp() {
                   </div>
                   <div>
                     <h3 className="font-extrabold text-base text-[#172C28] dark:text-white flex items-center gap-2">
-                      <span>{s.title}</span>
+                      <span>{t(s.title)}</span>
                     </h3>
                     <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] mt-1 font-medium leading-relaxed">
-                      {s.desc}
+                      {t(s.desc)}
                     </p>
                   </div>
                 </div>
@@ -916,7 +963,7 @@ export function LandingApp() {
                 <span className="p-1 rounded-lg bg-[#116B50] text-white text-[10px]">📍</span>
                 <div>
                   <span className="text-[11px] font-bold text-[#172C28] dark:text-white block">Snikers (50g)</span>
-                  <span className="text-xs font-black text-[#116B50] dark:text-[#4ADE80]">12 000 so‘m · 280 m</span>
+                  <span className="text-xs font-black text-[#116B50] dark:text-[#4ADE80]">12 000 {t('currency', 'so‘m')} · 280 m</span>
                 </div>
               </div>
 
@@ -924,19 +971,19 @@ export function LandingApp() {
               <div className="absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-3 sm:p-3.5 rounded-2xl border border-white/20 shadow-xl grid grid-cols-2 gap-2 sm:gap-2.5 text-[11px] sm:text-xs font-bold text-[#116B50] dark:text-[#4ADE80]">
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[#172C28] dark:text-white truncate">Tezroq xarid</span>
+                  <span className="text-[#172C28] dark:text-white truncate">{t('Tezroq xarid')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[#172C28] dark:text-white truncate">Kamroq vaqt</span>
+                  <span className="text-[#172C28] dark:text-white truncate">{t('Kamroq vaqt')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[#172C28] dark:text-white truncate">Yaqin do‘konlar</span>
+                  <span className="text-[#172C28] dark:text-white truncate">{t('Yaqin do‘konlar')}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-[#172C28] dark:text-white truncate">Eng yaxshi narx</span>
+                  <span className="text-[#172C28] dark:text-white truncate">{t('Eng yaxshi narx')}</span>
                 </div>
               </div>
             </div>
@@ -949,13 +996,13 @@ export function LandingApp() {
         <div className="flex flex-col items-center text-center max-w-2xl mx-auto mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Asosiy kategoriyalar</span>
+            <span>{t('Asosiy kategoriyalar')}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
-            Barcha kerakli tovar va xizmatlar
+            {t('Barcha kerakli tovar va xizmatlar')}
           </h2>
           <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-2 font-medium">
-            Oziq-ovqatdan tortib ta’mirlash va maishiy texnikagacha
+            {t('Oziq-ovqatdan tortib ta’mirlash va maishiy texnikagacha')}
           </p>
         </div>
 
@@ -980,10 +1027,10 @@ export function LandingApp() {
 
               <div>
                 <h4 className="font-extrabold text-xs sm:text-sm text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition truncate">
-                  {cat.name}
+                  {t(cat.name)}
                 </h4>
                 <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] block mt-0.5">
-                  {cat.count}
+                  {cat.countNumber} {t('dokon_count', 'do‘kon')}
                 </span>
               </div>
             </a>
@@ -999,13 +1046,13 @@ export function LandingApp() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-2 sm:mb-3">
                 <Compass className="w-3.5 h-3.5" />
-                <span>Interaktiv xarita</span>
+                <span>{t('Interaktiv xarita')}</span>
               </div>
               <h3 className="text-xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight leading-tight">
-                Atrofingizdagi barcha do‘konlar <span className="text-[#116B50] dark:text-[#4ADE80]">bir xaritada</span>
+                {t('Atrofingizdagi barcha do‘konlar bir xaritada')}
               </h3>
               <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-1.5 sm:mt-2 leading-relaxed font-medium">
-                Real vaqt rejimida do‘konlar, narxlar, tovarlar va xizmatlar. Sizga eng yaqin va qulay variantlarni xaritada ko‘ring.
+                {t('Real vaqt rejimida do‘konlar, narxlar, tovarlar va xizmatlar. Sizga eng yaqin va qulay variantlarni xaritada ko‘ring.')}
               </p>
             </div>
 
@@ -1014,7 +1061,7 @@ export function LandingApp() {
                 href="/customer"
                 className="w-full sm:w-auto justify-center px-5 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shadow-md cursor-pointer"
               >
-                <span>Xaritani to‘liq ochish</span>
+                <span>{t('Xaritani to‘liq ochish')}</span>
                 <ArrowRight className="w-4 h-4" />
               </a>
             </div>
@@ -1027,19 +1074,19 @@ export function LandingApp() {
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 pt-2">
             <div className="flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
               <Zap className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span className="truncate">Real vaqt ma’lumotlari</span>
+              <span className="truncate">{t('Real vaqt ma’lumotlari')}</span>
             </div>
             <div className="flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
               <MapPin className="w-4 h-4 text-teal-500 shrink-0" />
-              <span className="truncate">Aniq geolokatsiya</span>
+              <span className="truncate">{t('Aniq geolokatsiya')}</span>
             </div>
             <div className="flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
               <Navigation className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span className="truncate">Qulay marshrut</span>
+              <span className="truncate">{t('Qulay marshrut')}</span>
             </div>
             <div className="flex items-center gap-2 sm:gap-2.5 p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-[#F9FAF9] dark:bg-[#18261F] border border-[#DCE5DF]/60 dark:border-[#263D31] text-[11px] sm:text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
               <Store className="w-4 h-4 text-teal-500 shrink-0" />
-              <span className="truncate">Do‘kon tafsilotlari</span>
+              <span className="truncate">{t('Do‘kon tafsilotlari')}</span>
             </div>
           </div>
         </div>
@@ -1051,13 +1098,13 @@ export function LandingApp() {
           <div className="max-w-xl w-full text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#116B50]/15 text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-2.5 sm:mb-3">
               <Store className="w-3.5 h-3.5" />
-              <span>Bizneslar & Do‘kon egalari uchun</span>
+              <span>{t('Bizneslar & Do‘kon egalari uchun')}</span>
             </div>
             <h3 className="text-xl sm:text-3xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
-              O‘z do‘koningizni YaqinTop tarmog‘iga bepul qo‘shing
+              {t('O‘z do‘koningizni YaqinTop tarmog‘iga bepul qo‘shing')}
             </h3>
             <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] mt-2 font-medium leading-relaxed">
-              Kuniga minglab yaqin atrofdagi xaridorlar sizning mahsulotlaringizni xaritada ko‘rishadi. Excel orqali tovarlarni yuklang, narxlarni yangilang va savdoni oshiring.
+              {t('Kuniga minglab yaqin atrofdagi xaridorlar sizning mahsulotlaringizni xaritada ko‘rishadi. Excel orqali tovarlarni yuklang, narxlarni yangilang va savdoni oshiring.')}
             </p>
 
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 mt-5 sm:mt-6 w-full sm:w-auto">
@@ -1066,13 +1113,13 @@ export function LandingApp() {
                 className="justify-center px-5 py-2.5 rounded-xl bg-[#116B50] hover:bg-[#0D533E] text-white text-xs sm:text-sm font-bold flex items-center gap-2 transition shadow-sm"
               >
                 <Store className="w-4 h-4" />
-                <span>Do‘kon kabinetini ochish</span>
+                <span>{t('Do‘kon kabinetini ochish')}</span>
               </a>
               <a
                 href="/moderator"
                 className="justify-center px-4 py-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-xs font-bold text-[#172C28] dark:text-white hover:bg-[#F3F6F3] transition flex items-center gap-2"
               >
-                <span>Moderatsiya arizasi</span>
+                <span>{t('Moderatsiya arizasi')}</span>
               </a>
             </div>
           </div>
@@ -1080,23 +1127,23 @@ export function LandingApp() {
           <div className="grid grid-cols-2 gap-2.5 sm:gap-3 w-full lg:w-auto">
             <div className="p-4 rounded-2xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] shadow-2xs text-center">
               <span className="text-2xl mb-1 block">⚡</span>
-              <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">3 daqiqada</span>
-              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">Onboarding</span>
+              <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">{t('3 daqiqada')}</span>
+              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">{t('Onboarding')}</span>
             </div>
             <div className="p-4 rounded-2xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] shadow-2xs text-center">
               <span className="text-2xl mb-1 block">📊</span>
-              <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">Excel Import</span>
-              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">Ommaviy yuklash</span>
+              <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">{t('Excel Import')}</span>
+              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">{t('Ommaviy yuklash')}</span>
             </div>
             <div className="p-4 rounded-2xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] shadow-2xs text-center">
               <span className="text-2xl mb-1 block">💬</span>
-              <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">SMS Tasdiq</span>
-              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">Telegram Bot</span>
+              <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">{t('SMS Tasdiq')}</span>
+              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">{t('Telegram Bot')}</span>
             </div>
             <div className="p-4 rounded-2xl bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#273B32] shadow-2xs text-center">
               <span className="text-2xl mb-1 block">🎯</span>
-              <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">100% Aniq</span>
-              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">Lokal mijozlar</span>
+              <span className="font-extrabold text-xs text-[#172C28] dark:text-white block">{t('100% Aniq')}</span>
+              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">{t('Lokal mijozlar')}</span>
             </div>
           </div>
         </div>
@@ -1107,19 +1154,19 @@ export function LandingApp() {
         <div className="flex flex-col items-center text-center max-w-2xl mx-auto mb-10 sm:mb-12">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#E0EFE7] dark:bg-[#162A20] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold mb-3">
             <Sparkles className="w-3.5 h-3.5" />
-            <span>Foydalanuvchilar fikri</span>
+            <span>{t('Foydalanuvchilar fikri')}</span>
           </div>
           <h2 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#172C28] dark:text-white tracking-tight">
-            Mijozlarimiz biz haqimizda
+            {t('Mijozlarimiz biz haqimizda')}
           </h2>
           <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-2 font-medium">
-            Aholi va do‘kon egalarining samimiy baholari
+            {t('Aholi va do‘kon egalarining samimiy baholari')}
           </p>
         </div>
 
         {/* 3 Testimonial Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {TESTIMONIALS.map((t, idx) => (
+          {TESTIMONIALS.map((tItem, idx) => (
             <div
               key={idx}
               className="p-5 sm:p-6 rounded-2xl sm:rounded-3xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm flex flex-col justify-between gap-4"
@@ -1127,24 +1174,24 @@ export function LandingApp() {
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   <img
-                    src={t.avatar}
-                    alt={t.name}
+                    src={tItem.avatar}
+                    alt={tItem.name}
                     className="w-11 h-11 rounded-full object-cover border-2 border-[#116B50]/30 shrink-0"
                   />
                   <div>
-                    <h4 className="font-extrabold text-sm text-[#172C28] dark:text-white">{t.name}</h4>
-                    <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] block">{t.role}</span>
+                    <h4 className="font-extrabold text-sm text-[#172C28] dark:text-white">{tItem.name}</h4>
+                    <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] block">{t(tItem.role)}</span>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-1 mb-2.5">
-                  {[...Array(t.stars)].map((_, i) => (
+                  {[...Array(tItem.stars)].map((_, i) => (
                     <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
                   ))}
                 </div>
 
                 <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] leading-relaxed italic">
-                  «{t.text}»
+                  «{t(tItem.text)}»
                 </p>
               </div>
             </div>
@@ -1173,10 +1220,10 @@ export function LandingApp() {
                 </div>
               </div>
               <h4 className="text-sm sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-1.5 sm:mb-2">
-                Tovarni qidirish va lokatsiya
+                {t('Tovarni qidirish va lokatsiya')}
               </h4>
               <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
-                Qidiruv maydoniga kerakli tovar yoki xizmat nomini yozing. Tizim geolokatsiya asosida 50 metrdan 3 km gacha radiusdagi eng yaqin do‘konlarni bir zumda aniqlaydi.
+                {t('Qidiruv maydoniga kerakli tovar yoki xizmat nomini yozing. Tizim geolokatsiya asosida 50 metrdan 3 km gacha radiusdagi eng yaqin do‘konlarni bir zumda aniqlaydi.')}
               </p>
             </div>
 
@@ -1196,10 +1243,10 @@ export function LandingApp() {
                 </div>
               </div>
               <h4 className="text-sm sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-1.5 sm:mb-2">
-                Narx va qoldiqni solishtirish
+                {t('Narx va qoldiqni solishtirish')}
               </h4>
               <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
-                Bir nechta do‘konlardagi kassa narxlarini, tovar mavjudligi (qoldiqlari) va xaridorlar sharhlarini taqqoslab, eng arzon va maqbul variantni tanlang.
+                {t('Bir nechta do‘konlardagi kassa narxlarini, tovar mavjudligi (qoldiqlari) va xaridorlar sharhlarini taqqoslab, eng arzon va maqbul variantni tanlang.')}
               </p>
             </div>
 
@@ -1219,10 +1266,10 @@ export function LandingApp() {
                 </div>
               </div>
               <h4 className="text-sm sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-1.5 sm:mb-2">
-                Xaritada qulay yo‘l olish
+                {t('Xaritada qulay yo‘l olish')}
               </h4>
               <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
-                Tanlangan do‘konga piyoda yoki avtomobilda eng qisqa marshrutni oling, do‘konning ochiq/yopiq holati va ish vaqtini bir qadamda tekshiring.
+                {t('Tanlangan do‘konga piyoda yoki avtomobilda eng qisqa marshrutni oling, do‘konning ochiq/yopiq holati va ish vaqtini bir qadamda tekshiring.')}
               </p>
             </div>
 
@@ -1242,10 +1289,10 @@ export function LandingApp() {
                 </div>
               </div>
               <h4 className="text-sm sm:text-lg font-extrabold text-[#116B50] dark:text-[#4ADE80] leading-snug mb-1.5 sm:mb-2">
-                Xaridni yakunlash va baholash
+                {t('Xaridni yakunlash va baholash')}
               </h4>
               <p className="text-xs sm:text-[13px] text-[#566A63] dark:text-[#9CB3A8] leading-relaxed font-medium">
-                Do‘konga tashrif buyurib to‘g‘ridan-to‘g‘ri kassa narxida xaridni amalga oshiring. Xarid yakunida xizmat sifatini baholab, sharh qoldiring.
+                {t('Do‘konga tashrif buyurib to‘g‘ridan-to‘g‘ri kassa narxida xaridni amalga oshiring. Xarid yakunida xizmat sifatini baholab, sharh qoldiring.')}
               </p>
             </div>
           </div>
@@ -1253,17 +1300,17 @@ export function LandingApp() {
           {/* Dashed Timeline Track at Bottom */}
           <div className="hidden lg:flex items-center w-full mt-10 pt-4">
             <div className="w-3.5 h-3.5 rounded-full bg-[#116B50] dark:bg-[#22C55E] shrink-0 ring-4 ring-emerald-100 dark:ring-emerald-950/60" />
-            <div className="flex-1 border-b-2 border-dashed border-[#116B50] dark:border-[#22C55E]/60 mx-1" />
+            <div className="flex-1 border-b-2 border-dashed border-[#116B50] dark:border-[#22332C]/60 mx-1" />
             <div className="w-3.5 h-3.5 rounded-full bg-[#116B50] dark:bg-[#22C55E] shrink-0 ring-4 ring-emerald-100 dark:ring-emerald-950/60" />
           </div>
 
-          {/* Bottom Interactive Pill (like in reference image) */}
+          {/* Bottom Interactive Pill */}
           <div className="flex justify-center sm:justify-end mt-5 sm:mt-4">
             <a
               href="/customer"
               className="w-full sm:w-auto justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#E0EFE7] dark:bg-[#1A2E24] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold hover:bg-[#116B50] hover:text-white dark:hover:bg-[#22C55E] dark:hover:text-[#0E1713] transition shadow-2xs group cursor-pointer text-center"
             >
-              <span>Sizga kerakli tovar yoki do‘kon</span>
+              <span>{t('Sizga kerakli tovar yoki do‘kon')}</span>
               <span className="font-mono text-[#116B50] dark:text-[#4ADE80] group-hover:text-white animate-pulse font-bold">|</span>
             </a>
           </div>
@@ -1277,10 +1324,10 @@ export function LandingApp() {
           <div className="p-3.5 sm:p-5 rounded-2xl bg-[#F4F8F5] dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-center md:text-left">
               <span className="text-xs sm:text-sm font-bold text-[#172C28] dark:text-white block">
-                Tizim Portallariga to‘g‘ridan-to‘g‘ri kirish:
+                {t('Tizim Portallariga to‘g‘ridan-to‘g‘ri kirish:')}
               </span>
               <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5 block">
-                O‘z rolingiz bo‘yicha kerakli portalni tanlang
+                {t('O‘z rolingiz bo‘yicha kerakli portalni tanlang')}
               </span>
             </div>
             <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center justify-center gap-2 w-full md:w-auto">
@@ -1289,28 +1336,28 @@ export function LandingApp() {
                 className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
               >
                 <Search className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
-                <span className="truncate">Xaridor</span>
+                <span className="truncate">{t('role_customer', 'Xaridor')}</span>
               </a>
               <a
                 href="/owner"
                 className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
               >
                 <Store className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
-                <span className="truncate">Do‘kon</span>
+                <span className="truncate">{t('stores', 'Do‘kon')}</span>
               </a>
               <a
                 href="/moderator"
                 className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
               >
                 <ShieldCheck className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
-                <span className="truncate">Moderator</span>
+                <span className="truncate">{t('role_moderator', 'Moderator')}</span>
               </a>
               <a
                 href="/admin"
                 className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
               >
                 <Shield className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
-                <span className="truncate">Admin</span>
+                <span className="truncate">{t('role_admin', 'Admin')}</span>
               </a>
             </div>
           </div>
@@ -1324,7 +1371,7 @@ export function LandingApp() {
                 <span className="font-extrabold text-lg text-[#172C28] dark:text-white">YaqinTop</span>
               </div>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2 font-medium">
-                Mahalliy tovar va xizmatlar ekotizimi.
+                {t('Mahalliy tovar va xizmatlar ekotizimi.')}
               </p>
               <div className="flex items-center gap-3 mt-4 text-[#566A63] dark:text-[#8B9E95]">
                 <a href="https://t.me/yaqintop" target="_blank" rel="noreferrer" className="hover:text-[#116B50] dark:hover:text-white">
@@ -1342,52 +1389,52 @@ export function LandingApp() {
             {/* Col 2: Platforma */}
             <div>
               <h4 className="font-extrabold text-xs uppercase tracking-wider text-[#172C28] dark:text-white mb-3">
-                Platforma
+                {t('Platforma')}
               </h4>
               <ul className="flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] font-medium">
-                <li><a href="#" className="hover:text-[#116B50] dark:hover:text-white">Bosh sahifa</a></li>
-                <li><a href="/customer" className="hover:text-[#116B50] dark:hover:text-white">Xarita</a></li>
-                <li><a href="/customer" className="hover:text-[#116B50] dark:hover:text-white">Do‘konlar</a></li>
-                <li><a href="/customer" className="hover:text-[#116B50] dark:hover:text-white">Tovarlar</a></li>
-                <li><a href="#features" className="hover:text-[#116B50] dark:hover:text-white">Biz haqimizda</a></li>
+                <li><a href="#" className="hover:text-[#116B50] dark:hover:text-white">{t('Bosh sahifa')}</a></li>
+                <li><a href="/customer" className="hover:text-[#116B50] dark:hover:text-white">{t('map', 'Xarita')}</a></li>
+                <li><a href="/customer" className="hover:text-[#116B50] dark:hover:text-white">{t('stores', 'Do‘konlar')}</a></li>
+                <li><a href="/customer" className="hover:text-[#116B50] dark:hover:text-white">{t('Tovarlar')}</a></li>
+                <li><a href="#features" className="hover:text-[#116B50] dark:hover:text-white">{t('Biz haqimizda')}</a></li>
               </ul>
             </div>
 
             {/* Col 3: Foydali */}
             <div>
               <h4 className="font-extrabold text-xs uppercase tracking-wider text-[#172C28] dark:text-white mb-3">
-                Foydali
+                {t('Foydali')}
               </h4>
               <ul className="flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] font-medium">
-                <li><a href="#how-it-works" className="hover:text-[#116B50] dark:hover:text-white">Qanday ishlaydi?</a></li>
-                <li><a href="/customer" className="hover:text-[#116B50] dark:hover:text-white">Yo‘l-yo‘riq</a></li>
-                <li><a href="#" className="hover:text-[#116B50] dark:hover:text-white">Savol-Javoblar</a></li>
-                <li><a href="#" className="hover:text-[#116B50] dark:hover:text-white">Yangiliklar</a></li>
+                <li><a href="#how-it-works" className="hover:text-[#116B50] dark:hover:text-white">{t('Qanday ishlaydi?')}</a></li>
+                <li><a href="/customer" className="hover:text-[#116B50] dark:hover:text-white">{t('Yo‘l-yo‘riq')}</a></li>
+                <li><a href="#" className="hover:text-[#116B50] dark:hover:text-white">{t('Savol-Javoblar')}</a></li>
+                <li><a href="#" className="hover:text-[#116B50] dark:hover:text-white">{t('Yangiliklar')}</a></li>
               </ul>
             </div>
 
             {/* Col 4: Bizneslar uchun */}
             <div>
               <h4 className="font-extrabold text-xs uppercase tracking-wider text-[#172C28] dark:text-white mb-3">
-                Bizneslar uchun
+                {t('Bizneslar uchun')}
               </h4>
               <ul className="flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] font-medium">
-                <li><a href="/owner" className="hover:text-[#116B50] dark:hover:text-white">Do‘kon qo‘shish</a></li>
-                <li><a href="/moderator" className="hover:text-[#116B50] dark:hover:text-white">Moderatsiya</a></li>
-                <li><a href="/admin" className="hover:text-[#116B50] dark:hover:text-white">Admin paneli</a></li>
-                <li><a href="#" className="hover:text-[#116B50] dark:hover:text-white">Hamkorlik</a></li>
+                <li><a href="/owner" className="hover:text-[#116B50] dark:hover:text-white">{t('Do‘kon qo‘shish')}</a></li>
+                <li><a href="/moderator" className="hover:text-[#116B50] dark:hover:text-white">{t('Moderatsiya')}</a></li>
+                <li><a href="/admin" className="hover:text-[#116B50] dark:hover:text-white">{t('Admin paneli')}</a></li>
+                <li><a href="#" className="hover:text-[#116B50] dark:hover:text-white">{t('Hamkorlik')}</a></li>
               </ul>
             </div>
 
             {/* Col 5: Aloqa */}
             <div>
               <h4 className="font-extrabold text-xs uppercase tracking-wider text-[#172C28] dark:text-white mb-3">
-                Aloqa
+                {t('contact', 'Aloqa')}
               </h4>
               <ul className="flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95] font-medium">
                 <li className="flex items-center gap-1.5">
                   <MapPin className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
-                  <span>Sirdaryo, O‘zbekiston</span>
+                  <span>{t('Sirdaryo, O‘zbekiston')}</span>
                 </li>
                 <li className="flex items-center gap-1.5">
                   <Mail className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
@@ -1402,11 +1449,11 @@ export function LandingApp() {
           </div>
 
           <div className="pt-6 border-t border-[#DCE5DF] dark:border-[#22332C] flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-[#566A63] dark:text-[#8B9E95]">
-            <p>© 2026 YaqinTop. Barcha huquqlar himoyalangan.</p>
+            <p>{t('© 2026 YaqinTop. Barcha huquqlar himoyalangan.')}</p>
             <div className="flex items-center gap-4">
-              <a href="#" className="hover:text-[#116B50] dark:hover:text-white">Maxfiylik siyosati</a>
+              <a href="#" className="hover:text-[#116B50] dark:hover:text-white">{t('Maxfiylik siyosati')}</a>
               <span>·</span>
-              <a href="#" className="hover:text-[#116B50] dark:hover:text-white">Foydalanish shartlari</a>
+              <a href="#" className="hover:text-[#116B50] dark:hover:text-white">{t('Foydalanish shartlari')}</a>
             </div>
           </div>
         </div>
@@ -1419,7 +1466,7 @@ export function LandingApp() {
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80]" />
-                <h3 className="font-extrabold text-base text-[#172C28] dark:text-white">Hududni tanlang</h3>
+                <h3 className="font-extrabold text-base text-[#172C28] dark:text-white">{t('Hududni tanlang')}</h3>
               </div>
               <button
                 onClick={() => setIsRegionModalOpen(false)}
@@ -1444,7 +1491,7 @@ export function LandingApp() {
                       : 'bg-[#F9FAF9] dark:bg-[#18261F] text-[#172C28] dark:text-[#E8F2EC] border-[#DCE5DF] dark:border-[#273B32] hover:bg-[#E0EFE7]'
                   }`}
                 >
-                  {reg}
+                  {t(reg)}
                 </button>
               ))}
             </div>
@@ -1458,8 +1505,8 @@ export function LandingApp() {
           <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-6 max-w-md w-full shadow-2xl animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between mb-5">
               <div>
-                <h3 className="font-extrabold text-lg text-[#172C28] dark:text-white">Tizimga kirish</h3>
-                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">Kerakli portal yoki rolni tanlang</p>
+                <h3 className="font-extrabold text-lg text-[#172C28] dark:text-white">{t('Tizimga kirish')}</h3>
+                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">{t('Kerakli portal yoki rolni tanlang')}</p>
               </div>
               <button
                 onClick={() => setIsPortalModalOpen(false)}
@@ -1483,8 +1530,8 @@ export function LandingApp() {
                         <Icon className="w-5 h-5" />
                       </div>
                       <div>
-                        <h4 className="font-bold text-sm text-[#172C28] dark:text-white">{p.title}</h4>
-                        <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">{p.sub}</span>
+                        <h4 className="font-bold text-sm text-[#172C28] dark:text-white">{t(p.title)}</h4>
+                        <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">{t(p.sub)}</span>
                       </div>
                     </div>
                     <ArrowRight className="w-4 h-4 text-[#566A63] group-hover:text-[#116B50] group-hover:translate-x-1 transition" />

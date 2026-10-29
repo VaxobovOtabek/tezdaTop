@@ -22,7 +22,7 @@ import {
   EyeOff,
   Camera
 } from 'lucide-react';
-import { Button, Tag, Modal } from '@yaqintop/ui';
+import { Button, Tag, Modal, useTranslation } from '@yaqintop/ui';
 import { CredentialChangeRequest, AdminInquiry } from '@yaqintop/contracts';
 import { EnrichedStore } from './AdminMapHub';
 
@@ -40,6 +40,7 @@ const getHubAuthHeaders = (): Record<string, string> => {
 };
 
 export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsUpdate }: RequestsInquiriesHubProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'credentials' | 'inquiries' | 'proposals'>('credentials');
 
   // Credential Requests State
@@ -453,7 +454,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
           }`}
         >
           <Key className="w-4 h-4" />
-          <span>Login & Parol O‘zgartirish So‘rovlari</span>
+          <span>{t('Login & Parol O‘zgartirish So‘rovlari')}</span>
           {pendingCredCount > 0 && (
             <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
               {pendingCredCount}
@@ -470,7 +471,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>Do‘konlar bilan Rasmiy Murojaatlar</span>
+          <span>{t('Do‘konlar bilan Rasmiy Murojaatlar')}</span>
           {pendingInqRepliesCount > 0 && (
             <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
               {pendingInqRepliesCount}
@@ -487,7 +488,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>Tovar, Xizmat & Rasm Takliflari</span>
+          <span>{t('Tovar, Xizmat & Rasm Takliflari')}</span>
           {(pendingProposalsCount + pendingPhotoProposalsCount) > 0 && (
             <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
               {pendingProposalsCount + pendingPhotoProposalsCount}
@@ -885,7 +886,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Tovar & Xizmat Takliflari</span>
+              <span>{t('Tovar & Xizmat Takliflari')}</span>
               {pendingProposalsCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
                   {pendingProposalsCount}
@@ -901,7 +902,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
               }`}
             >
               <Camera className="w-3.5 h-3.5" />
-              <span>Rasm O‘zgartirish So‘rovlari</span>
+              <span>{t('Rasm O‘zgartirish So‘rovlari')}</span>
               {pendingPhotoProposalsCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
                   {pendingPhotoProposalsCount}
@@ -934,10 +935,10 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
                       : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#22362E]'
                   }`}
                 >
-                  {st === 'ALL' && `Barchasi (${proposalSubTab === 'items' ? proposals.length : photoProposals.length})`}
-                  {st === 'PENDING' && `Kutilayotgan (${proposalSubTab === 'items' ? pendingProposalsCount : pendingPhotoProposalsCount})`}
-                  {st === 'APPROVED' && 'Tasdiqlangan'}
-                  {st === 'REJECTED' && 'Rad etilgan'}
+                  {st === 'ALL' && `${t('all', 'Barchasi')} (${proposalSubTab === 'items' ? proposals.length : photoProposals.length})`}
+                  {st === 'PENDING' && `${t('Kutilayotgan', 'Kutilayotgan')} (${proposalSubTab === 'items' ? pendingProposalsCount : pendingPhotoProposalsCount})`}
+                  {st === 'APPROVED' && t('Tasdiqlangan', 'Tasdiqlangan')}
+                  {st === 'REJECTED' && t('Rad etilgan', 'Rad etilgan')}
                 </button>
               ))}
             </div>
@@ -1028,7 +1029,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
                           onClick={() => handleRejectProposal(prop.id, prop.title)}
                           className="flex-1 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                         >
-                          Rad etish
+                          {t('Rad etish', 'Rad etish')}
                         </Button>
                         <Button
                           variant="primary"
@@ -1037,7 +1038,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
                           onClick={() => handleApproveProposal(prop.id, prop.title)}
                           className="flex-1 text-xs font-bold bg-[#116B50] text-white hover:bg-[#0D523D]"
                         >
-                          Tasdiqlash
+                          {t('Tasdiqlash', 'Tasdiqlash')}
                         </Button>
                       </div>
                     ) : (

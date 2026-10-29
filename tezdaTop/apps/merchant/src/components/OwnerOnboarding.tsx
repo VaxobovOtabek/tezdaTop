@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { Button } from '@yaqintop/ui';
+import { Button, useTranslation } from '@yaqintop/ui';
 import { isTradeOrganization } from '@yaqintop/contracts';
 import { MapPin, Navigation, GitBranch, Building2, Store, Plus, Check, AlertCircle } from 'lucide-react';
 
@@ -78,6 +78,7 @@ export const formatUzPhone = (value: string): string => {
 };
 
 export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any, password: string) => void; onLogin: () => void }) {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     name: '',
     inn: '',
@@ -205,7 +206,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
 
   const handleGpsLocation = () => {
     if (typeof window === 'undefined' || !('geolocation' in navigator)) {
-      setError('Qurilma geolokatsiyani qo‘llab-quvvatlamaydi.');
+      setError(t('Qurilma geolokatsiyani qo‘llab-quvvatlamaydi.'));
       return;
     }
     setLocatingGps(true);
@@ -228,7 +229,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
       (err) => {
         setLocatingGps(false);
         console.warn('GPS error:', err);
-        setError('Geolokatsiyani aniqlab bo‘lmadi. Kartadan kerakli nuqtani bosing.');
+        setError(t('Geolokatsiyani aniqlab bo‘lmadi. Kartadan kerakli nuqtani bosing.'));
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -236,7 +237,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
 
   const addType = () => {
     const name = typeName.trim().replace(/\s+/g, ' ');
-    if (!name) { setError('Yangi tur nomini kiriting.'); return; }
+    if (!name) { setError(t('Yangi tur nomini kiriting.')); return; }
     const existing = types.find(type => type.toLocaleLowerCase() === name.toLocaleLowerCase());
     const type = existing || name;
     if (!existing) setTypes(items => [...items, type]);
@@ -249,25 +250,25 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (busy) return;
-    if (addingType) { setError('Yangi turni avval qo‘shing yoki bekor qiling.'); return; }
+    if (addingType) { setError(t('Yangi turni avval qo‘shing yoki bekor qiling.')); return; }
 
     const numLat = parseFloat(form.lat);
     const numLng = parseFloat(form.lng);
     if (isNaN(numLat) || isNaN(numLng) || numLat < 35 || numLat > 46 || numLng < 55 || numLng > 75) {
-      setError('Iltimos, tashkilot lokatsiyasini kartadan to‘g‘ri belgilang.');
+      setError(t('Iltimos, tashkilot lokatsiyasini kartadan to‘g‘ri belgilang.'));
       return;
     }
 
     const phoneDigits = form.phone.replace(/\D/g, '');
     const cleanDigits = phoneDigits.startsWith('998') ? phoneDigits.slice(3) : phoneDigits;
     if (cleanDigits.length !== 9) {
-      setError('Aloqa telefon raqamini to‘liq kiriting (+998 9X XXX XX XX).');
+      setError(t('Aloqa telefon raqamini to‘liq kiriting (+998 9X XXX XX XX).'));
       return;
     }
 
     const loginVal = form.email.trim();
     if (loginVal.length < 2) {
-      setError('Login kamida 2 ta belgidan iborat bo‘lishi kerak.');
+      setError(t('Login kamida 2 ta belgidan iborat bo‘lishi kerak.'));
       return;
     }
 
@@ -301,7 +302,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
 
   const field = (key: keyof typeof form, label: string, type = 'text', required = true) => (
     <label className="block text-sm font-medium text-[#172C28] dark:text-[#E8F2EC]" key={key}>
-      {label}{required ? ' *' : ''}
+      {t(label)}{required ? ' *' : ''}
       <input
         className={inputClass}
         type={type}
@@ -352,8 +353,8 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
           <Building2 className="w-5 h-5" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-[#172C28] dark:text-[#E8F2EC]">Yangi tashkilotingizni qo‘shing</h1>
-          <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">Tashkilot faoliyati turi va ma’lumotlarini kiriting hamda boshqaruv hisobini oching.</p>
+          <h1 className="text-2xl font-bold text-[#172C28] dark:text-[#E8F2EC]">{t('Yangi tashkilotingizni qo‘shing')}</h1>
+          <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">{t('Tashkilot faoliyati turi va ma’lumotlarini kiriting hamda boshqaruv hisobini oching.')}</p>
         </div>
       </div>
 
@@ -363,13 +364,13 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
           {field('inn', 'STIR (INN) — 9 ta raqam (ixtiyoriy)', 'text', false)}
 
           <label className="text-sm font-medium text-[#172C28] dark:text-[#E8F2EC]">
-            Viloyat / Hudud *
+            {t('Viloyat / Hudud')} *
             <select
               className={inputClass}
               value={form.region}
               onChange={event => setForm(data => ({ ...data, region: event.target.value }))}
             >
-              {regions.map(region => <option key={region} value={region}>{region}</option>)}
+              {regions.map(region => <option key={region} value={region}>{t(region)}</option>)}
             </select>
           </label>
 
@@ -379,13 +380,13 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
 
           <div className="sm:col-span-2">
             <label className="text-sm font-medium text-[#172C28] dark:text-[#E8F2EC]">
-              Tashkilot faoliyati yo‘nalishi (Turi) *
+              {t('Tashkilot faoliyati yo‘nalishi (Turi)')} *
               <select
                 className={inputClass}
                 value={form.type}
                 onChange={event => setForm(data => ({ ...data, type: event.target.value }))}
               >
-                {types.map(type => <option key={type} value={type}>{typeLabel(type)}</option>)}
+                {types.map(type => <option key={type} value={type}>{t(typeLabel(type))}</option>)}
               </select>
             </label>
 
@@ -395,29 +396,29 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
                 className="inline-flex items-center gap-1 text-xs font-semibold text-[#116B50] dark:text-[#4ADE80] hover:underline"
                 onClick={() => setAddingType(true)}
               >
-                <Plus className="w-3.5 h-3.5" /> Yangi yo‘nalish qo‘shish
+                <Plus className="w-3.5 h-3.5" /> {t('Yangi yo‘nalish qo‘shish')}
               </button>
 
               <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${isTrade ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300'}`}>
-                {isTrade ? '📦 Savdo kabineti: tovarlar, ombor va sotuvlar' : '⚙️ Xizmat kabineti: xizmatlar, tariflar va buyurtmalar'}
+                {isTrade ? t('Savdo kabineti: tovarlar, ombor va sotuvlar') : t('Xizmat kabineti: xizmatlar, tariflar va buyurtmalar')}
               </span>
             </div>
 
             {addingType && (
               <div className="mt-3 p-3 rounded-2xl bg-[#F4F8F5] dark:bg-[#182B22] border border-[#DCE5DF] dark:border-[#273B32] space-y-2">
                 <input
-                  aria-label="Yangi tashkilot turi"
+                  aria-label={t('Yangi tashkilot turi')}
                   autoFocus
                   maxLength={80}
                   className={inputClass}
                   value={typeName}
-                  placeholder="Masalan: Sport zal, Avtomoyka, Qandolatchilik..."
+                  placeholder={t('Masalan: Sport zal, Avtomoyka, Qandolatchilik...')}
                   onChange={event => setTypeName(event.target.value)}
                   onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); addType(); } }}
                 />
                 <div className="flex gap-2 text-xs">
-                  <Button type="button" size="sm" onClick={addType}>Qo‘shish</Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => { setAddingType(false); setTypeName(''); }}>Bekor qilish</Button>
+                  <Button type="button" size="sm" onClick={addType}>{t('Qo‘shish')}</Button>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { setAddingType(false); setTypeName(''); }}>{t('cancel', 'Bekor qilish')}</Button>
                 </div>
               </div>
             )}
@@ -432,13 +433,13 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
                 className="inline-flex items-center gap-2 text-xs font-semibold text-[#116B50] dark:text-[#4ADE80] hover:underline p-2 rounded-xl bg-[#EBF5F0] dark:bg-[#1A3328] border border-[#116B50]/20"
               >
                 <GitBranch className="w-4 h-4" />
-                <span>+ Filial nomini alohida belgilash (ixtiyoriy)</span>
+                <span>+ {t('Filial nomini alohida belgilash (ixtiyoriy)')}</span>
               </button>
             ) : (
               <div className="p-3 rounded-2xl bg-[#F4F8F5] dark:bg-[#182B22] border border-[#DCE5DF] dark:border-[#273B32]">
                 <div className="flex items-center justify-between mb-1">
                   <span className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
-                    <Store className="w-3.5 h-3.5 text-[#116B50]" /> Filial nomi
+                    <Store className="w-3.5 h-3.5 text-[#116B50]" /> {t('Filial nomi')}
                   </span>
                   <button
                     type="button"
@@ -448,7 +449,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
                     }}
                     className="text-xs text-red-500 hover:underline"
                   >
-                    Bekor qilish
+                    {t('cancel', 'Bekor qilish')}
                   </button>
                 </div>
                 <input
@@ -458,7 +459,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
                   placeholder="Masalan: Bosh filial, Chilonzor filiali..."
                   onChange={event => setForm(data => ({ ...data, storeName: event.target.value }))}
                 />
-                <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">Agar bo‘sh qoldirilsa, tashkilot nomi bosh filial sifatida ishlatiladi.</p>
+                <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">{t('Agar bo‘sh qoldirilsa, tashkilot nomi bosh filial sifatida ishlatiladi.')}</p>
               </div>
             )}
           </div>
@@ -468,8 +469,8 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
             <div className="flex items-center justify-between">
               <label className="text-sm font-semibold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
                 <MapPin className="w-4 h-4 text-red-500" />
-                Tashkilotning xaritadagi aniq joylashuvi *
-                <span className="text-xs font-normal text-red-500">(Majburiy)</span>
+                {t('Tashkilotning xaritadagi aniq joylashuvi')} *
+                <span className="text-xs font-normal text-red-500">({t('Majburiy')})</span>
               </label>
               <button
                 type="button"
@@ -478,12 +479,12 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
                 className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-lg bg-[#116B50] text-white hover:bg-[#0E543F] transition shadow-sm"
               >
                 <Navigation className={`w-3.5 h-3.5 ${locatingGps ? 'animate-spin' : ''}`} />
-                {locatingGps ? 'Aniqlanmoqda…' : 'GPS lokatsiyam'}
+                {locatingGps ? t('Aniqlanmoqda…') : t('GPS lokatsiyam')}
               </button>
             </div>
 
             <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
-              Xaridorlar ilovasida tashkilotingiz ko‘rinishi uchun kartadan obyektingiz ustiga bosing yoki belgini kerakli joyga suring.
+              {t('Xaridorlar ilovasida tashkilotingiz ko‘rinishi uchun kartadan obyektingiz ustiga bosing yoki belgini kerakli joyga suring.')}
             </p>
 
             <div
@@ -494,9 +495,9 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
 
             <div className="flex items-center justify-between text-xs font-mono p-2.5 rounded-xl bg-[#EBF5F0] dark:bg-[#1A3328] text-[#116B50] dark:text-[#4ADE80]">
               <span className="font-semibold flex items-center gap-1">
-                <Check className="w-3.5 h-3.5" /> Tanlangan koordinatalar:
+                <Check className="w-3.5 h-3.5" /> {t('Tanlangan koordinatalar:')}
               </span>
-              <span>Kenglik: {form.lat} | Uzunlik: {form.lng}</span>
+              <span>{t('Kenglik:')} {form.lat} | {t('Uzunlik:')} {form.lng}</span>
             </div>
           </div>
 
@@ -508,10 +509,10 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
           {/* Owner Account Creation Header */}
           <div className="sm:col-span-2 pt-4 border-t border-[#DCE5DF] dark:border-[#273B32]">
             <h2 className="text-base font-bold text-[#172C28] dark:text-[#E8F2EC]">
-              Tashkilot egasi uchun login va parol yarating
+              {t('Tashkilot egasi uchun login va parol yarating')}
             </h2>
             <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-              Ushbu login va parol orqali egasi kabinetiga kirib tizimni boshqarasiz.
+              {t('Ushbu login va parol orqali egasi kabinetiga kirib tizimni boshqarasiz.')}
             </p>
           </div>
 
@@ -530,7 +531,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
         )}
 
         <Button type="submit" disabled={busy} className="w-full py-3 text-sm font-bold shadow-md">
-          {busy ? 'Yaratilmoqda…' : 'Tashkilot va hisobimni yaratish'}
+          {busy ? t('Yaratilmoqda…') : t('Tashkilot va hisobimni yaratish')}
         </Button>
       </form>
 
@@ -540,7 +541,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
           onClick={onLogin}
           className="text-sm font-semibold text-[#116B50] dark:text-[#4ADE80] hover:underline"
         >
-          Hisobingiz bormi? Tizimga kirish
+          {t('Hisobingiz bormi? Tizimga kirish')}
         </button>
       </div>
     </section>

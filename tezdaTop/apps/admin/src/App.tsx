@@ -1334,7 +1334,7 @@ export function AdminApp() {
               YaqinTop
             </span>
             <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] font-medium leading-none block mt-0.5">
-              Platforma administratsiyasi
+              {t('Platforma administratsiyasi')}
             </span>
           </div>
         </div>
@@ -1576,14 +1576,14 @@ export function AdminApp() {
                   <div>
                     <div className="flex items-center gap-2 text-xs font-bold text-emerald-300 uppercase tracking-wider">
                       <Shield className="w-4 h-4" />
-                      <span>YaqinTop Platforma Boshqaruv Markazi</span>
+                      <span>{t('YaqinTop Platforma Boshqaruv Markazi')}</span>
                       <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping inline-block" />
                     </div>
                     <h1 className="text-2xl md:text-3xl font-black tracking-tight mt-1">
-                      Platforma Holati & Monitoring
+                      {t('admin_platform_status', 'Platforma Holati & Monitoring')}
                     </h1>
                     <p className="text-xs text-emerald-100/90 mt-1 max-w-2xl leading-relaxed">
-                      Barcha xizmatlar, do‘kon arizalari, xaridor fikrlari va mahsulot takliflarining real-vaqtdagi tahlili.
+                      {t('admin_platform_subtitle', 'Barcha xizmatlar, do‘kon arizalari, xaridor fikrlari va mahsulot takliflarining real-vaqtdagi tahlili.')}
                     </p>
                   </div>
 
@@ -1593,14 +1593,14 @@ export function AdminApp() {
                       className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-2 border border-white/20 shadow-sm backdrop-blur-sm"
                     >
                       <RefreshCw className="w-4 h-4" />
-                      <span>Yangilash</span>
+                      <span>{t('refresh', 'Yangilash')}</span>
                     </button>
                     <button
                       onClick={() => setActiveTab('map-hub')}
                       className="px-4 py-2.5 rounded-xl bg-white text-[#116B50] hover:bg-emerald-50 text-xs font-black transition flex items-center gap-2 shadow-md"
                     >
                       <MapPin className="w-4 h-4" />
-                      <span>Xaritani ochish</span>
+                      <span>{t('open_map', 'Xaritani ochish')}</span>
                     </button>
                   </div>
                 </div>
@@ -1609,7 +1609,7 @@ export function AdminApp() {
                 <div className="relative z-10 mt-5 pt-4 border-t border-white/15 flex flex-wrap items-center gap-4 text-xs font-medium text-emerald-100">
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span>Supabase Cloud DB: <strong className="text-white">Ulangan</strong></span>
+                    <span>Supabase Cloud DB: <strong className="text-white">{t('Ulangan')}</strong></span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
@@ -1617,11 +1617,11 @@ export function AdminApp() {
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span>PWA & Service Worker: <strong className="text-white">Faol</strong></span>
+                    <span>PWA & Service Worker: <strong className="text-white">{t('Faol')}</strong></span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span>Xavfsizlik & SSL: <strong className="text-white">Himoyalangan</strong></span>
+                    <span>{t('Xavfsizlik & SSL')}: <strong className="text-white">{t('Himoyalangan')}</strong></span>
                   </div>
                 </div>
               </div>
@@ -1634,14 +1634,14 @@ export function AdminApp() {
                   className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
                 >
                   <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
-                    <span className="text-xs font-bold">Do‘konlar</span>
+                    <span className="text-xs font-bold">{t('stores', 'Do‘konlar')}</span>
                     <Store className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#172C28] dark:text-white mt-2">
-                    {stores.length} ta
+                    {stores.length} {t('ta', 'ta')}
                   </div>
                   <div className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold mt-1">
-                    {stores.filter(s => s.status === 'ACTIVE').length} faol filial
+                    {stores.filter(s => s.status === 'ACTIVE').length} {t('admin_active_branches', 'faol filial')}
                   </div>
                 </div>
 
@@ -1651,17 +1651,17 @@ export function AdminApp() {
                   className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
                 >
                   <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
-                    <span className="text-xs font-bold">Do‘kon arizalari</span>
+                    <span className="text-xs font-bold">{t('nav_applications', 'Do‘kon arizalari')}</span>
                     <Clock className="w-4 h-4 text-amber-500 group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#8A4B08] dark:text-amber-400 mt-2 flex items-center gap-1.5">
-                    <span>{applications.length} ta</span>
+                    <span>{applications.length} {t('ta', 'ta')}</span>
                     {applications.length > 0 && (
                       <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
                     )}
                   </div>
                   <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    {applications.length > 0 ? 'Tekshirish kutilmoqda' : 'Hammasi ko‘rilgan'}
+                    {applications.length > 0 ? t('admin_pending_check', 'Tekshirish kutilmoqda') : t('admin_all_reviewed', 'Hammasi ko‘rilgan')}
                   </div>
                 </div>
 
@@ -1671,17 +1671,17 @@ export function AdminApp() {
                   className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
                 >
                   <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
-                    <span className="text-xs font-bold">Shikoyatlar</span>
+                    <span className="text-xs font-bold">{t('complaints', 'Shikoyatlar')}</span>
                     <AlertTriangle className="w-4 h-4 text-rose-500 group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#B42318] dark:text-rose-400 mt-2 flex items-center gap-1.5">
-                    <span>{reports.filter(r => r.status === 'OPEN').length} ta</span>
+                    <span>{reports.filter(r => r.status === 'OPEN').length} {t('ta', 'ta')}</span>
                     {reports.filter(r => r.status === 'OPEN').length > 0 && (
                       <span className="min-w-4 h-4 px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
                     )}
                   </div>
                   <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    {reports.length} jami shikoyat
+                    {reports.length} {t('admin_total_complaints', 'jami shikoyat')}
                   </div>
                 </div>
 
@@ -1691,17 +1691,17 @@ export function AdminApp() {
                   className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
                 >
                   <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
-                    <span className="text-xs font-bold">So‘rov & Takliflar</span>
+                    <span className="text-xs font-bold">{t('admin_requests_proposals', 'So‘rov & Takliflar')}</span>
                     <Send className="w-4 h-4 text-amber-500 group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
-                    <span>{overviewStats.pendingRequests || 0} ta</span>
+                    <span>{overviewStats.pendingRequests || 0} {t('ta', 'ta')}</span>
                     {(overviewStats.pendingRequests || 0) > 0 && (
                       <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
                     )}
                   </div>
                   <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    Tovar, rasm & login
+                    {t('admin_items_photos', 'Tovar, rasm & login')}
                   </div>
                 </div>
 
@@ -1711,14 +1711,14 @@ export function AdminApp() {
                   className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
                 >
                   <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
-                    <span className="text-xs font-bold">Foydalanuvchilar</span>
+                    <span className="text-xs font-bold">{t('users', 'Foydalanuvchilar')}</span>
                     <Users className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#172C28] dark:text-white mt-2">
-                    {users.length} nafar
+                    {users.length} {t('nafar', 'nafar')}
                   </div>
                   <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    {users.filter(u => u.role === 'OWNER').length} do‘kon egasi
+                    {users.filter(u => u.role === 'OWNER').length} {t('admin_store_owners', 'do‘kon egasi')}
                   </div>
                 </div>
 
@@ -1728,7 +1728,7 @@ export function AdminApp() {
                   className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm hover:shadow-md transition cursor-pointer group"
                 >
                   <div className="flex items-center justify-between text-[#566A63] dark:text-[#8B9E95]">
-                    <span className="text-xs font-bold">Sharhlar</span>
+                    <span className="text-xs font-bold">{t('reviews', 'Sharhlar')}</span>
                     <Star className="w-4 h-4 text-amber-400 fill-amber-400 group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#172C28] dark:text-white mt-2 flex items-center gap-1">
@@ -1736,7 +1736,7 @@ export function AdminApp() {
                     <span className="text-xs text-amber-500 font-bold">★</span>
                   </div>
                   <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    Mijozlar fikrlari
+                    {t('details', 'Tafsilotlar')}
                   </div>
                 </div>
               </div>
@@ -1750,12 +1750,12 @@ export function AdminApp() {
                     </div>
                     <div>
                       <h3 className="text-sm font-extrabold text-amber-900 dark:text-amber-200">
-                        Diqqat! Moderatsiya navbatida ko‘rib chiqilishi kerak bo‘lgan amallar mavjud:
+                        {t('Diqqat! Moderatsiya navbatida ko‘rib chiqilishi kerak bo‘lgan amallar mavjud:')}
                       </h3>
                       <div className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
-                        {applications.length > 0 && <span>• <strong>{applications.length} ta</strong> do‘kon arizasi</span>}
-                        {reports.filter(r => r.status === 'OPEN').length > 0 && <span>• <strong>{reports.filter(r => r.status === 'OPEN').length} ta</strong> xaridor shikoyati</span>}
-                        {(overviewStats.pendingRequests || 0) > 0 && <span>• <strong>{overviewStats.pendingRequests} ta</strong> tovar/rasm taklifi</span>}
+                        {applications.length > 0 && <span>• <strong>{applications.length} ta</strong> {t('do‘kon arizasi')}</span>}
+                        {reports.filter(r => r.status === 'OPEN').length > 0 && <span>• <strong>{reports.filter(r => r.status === 'OPEN').length} ta</strong> {t('xaridor shikoyati')}</span>}
+                        {(overviewStats.pendingRequests || 0) > 0 && <span>• <strong>{overviewStats.pendingRequests} ta</strong> {t('tovar/rasm taklifi')}</span>}
                       </div>
                     </div>
                   </div>
@@ -1766,7 +1766,7 @@ export function AdminApp() {
                         onClick={() => setActiveTab('applications')}
                         className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition shadow-sm"
                       >
-                        Arizalarni ochish →
+                        {t('Arizalarni ochish →')}
                       </button>
                     )}
                     {reports.filter(r => r.status === 'OPEN').length > 0 && (
@@ -1774,7 +1774,7 @@ export function AdminApp() {
                         onClick={() => setActiveTab('reports')}
                         className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm"
                       >
-                        Shikoyatlarni ko‘rish →
+                        {t('Shikoyatlarni ko‘rish →')}
                       </button>
                     )}
                   </div>
@@ -1782,7 +1782,7 @@ export function AdminApp() {
               ) : (
                 <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/60 flex items-center gap-3 text-xs text-emerald-800 dark:text-emerald-200">
                   <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                  <span><strong>Barcha navbatlar toza!</strong> Hozirda ko‘rib chiqilmagan arizalar yoki ochiq shikoyatlar mavjud emas.</span>
+                  <span><strong>{t('Barcha navbatlar toza!')}</strong> {t('Hozirda ko‘rib chiqilmagan arizalar yoki ochiq shikoyatlar mavjud emas.')}</span>
                 </div>
               )}
 
@@ -1790,7 +1790,7 @@ export function AdminApp() {
               <div>
                 <h2 className="text-base font-extrabold text-[#172C28] dark:text-white mb-3 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
-                  <span>Tezkor Boshqaruv Markazlari</span>
+                  <span>{t('Tezkor Boshqaruv Markazlari')}</span>
                 </h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Hub 1 */}
@@ -1802,13 +1802,13 @@ export function AdminApp() {
                       <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center mb-3">
                         <MapPin className="w-5 h-5" />
                       </div>
-                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Xarita & Moderatsiya markazi</h3>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">{t('Xarita & Moderatsiya markazi')}</h3>
                       <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
-                        Do‘konlarning xaritasini visual nazorat qilish, filiallar koordinatalari va shikoyat tushgan obyektlar monitoringi.
+                        {t('Do‘konlarning xaritasini visual nazorat qilish, filiallar koordinatalari va shikoyat tushgan obyektlar monitoringi.')}
                       </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
-                      <span>Xaritaga o‘tish</span>
+                      <span>{t('Xaritaga o‘tish')}</span>
                       <ChevronRight className="w-4 h-4" />
                     </div>
                   </div>
@@ -1822,13 +1822,13 @@ export function AdminApp() {
                       <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center mb-3">
                         <Building2 className="w-5 h-5" />
                       </div>
-                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Tashkilotlar va Do‘konlar</h3>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">{t('Tashkilotlar va Do‘konlar')}</h3>
                       <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
-                        Barcha korxonalar, savdo nuqtalari, yangi filial qo‘shish, login/parollarni boshqarish va tahrirlash.
+                        {t('Barcha korxonalar, savdo nuqtalari, yangi filial qo‘shish, login/parollarni boshqarish va tahrirlash.')}
                       </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
-                      <span>Do‘konlarni boshqarish</span>
+                      <span>{t('Do‘konlarni boshqarish')}</span>
                       <ChevronRight className="w-4 h-4" />
                     </div>
                   </div>
@@ -1842,13 +1842,13 @@ export function AdminApp() {
                       <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-600 flex items-center justify-center mb-3">
                         <Send className="w-5 h-5" />
                       </div>
-                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">So‘rovlar & Takliflar</h3>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">{t('So‘rovlar & Takliflar')}</h3>
                       <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
-                        Xaridorlar kiritgan tovar va rasm takliflari, do‘konlar bilan rasmiy aloqalar hamda login almashtirish so‘rovlari.
+                        {t('Xaridorlar kiritgan tovar va rasm takliflari, do‘konlar bilan rasmiy aloqalar hamda login almashtirish so‘rovlari.')}
                       </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
-                      <span>So‘rovlar markazi</span>
+                      <span>{t('So‘rovlar markazi')}</span>
                       <ChevronRight className="w-4 h-4" />
                     </div>
                   </div>
@@ -1862,13 +1862,13 @@ export function AdminApp() {
                       <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/40 text-amber-500 flex items-center justify-center mb-3">
                         <MessageSquare className="w-5 h-5" />
                       </div>
-                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Sharhlar Moderatsiyasi</h3>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">{t('Sharhlar Moderatsiyasi')}</h3>
                       <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
-                        Mijozlarning do‘konlar va xizmatlar haqidagi baholari, nomaqbul izohlarni yashirish va tasdiqlash.
+                        {t('Mijozlarning do‘konlar va xizmatlar haqidagi baholari, nomaqbul izohlarni yashirish va tasdiqlash.')}
                       </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
-                      <span>Sharhlarni moderatsiya qilish</span>
+                      <span>{t('Sharhlarni moderatsiya qilish')}</span>
                       <ChevronRight className="w-4 h-4" />
                     </div>
                   </div>
@@ -1882,13 +1882,13 @@ export function AdminApp() {
                       <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/40 text-purple-600 flex items-center justify-center mb-3">
                         <TrendingUp className="w-5 h-5" />
                       </div>
-                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Tizimga Qo‘shilish Dinamikasi</h3>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">{t('Tizimga Qo‘shilish Dinamikasi')}</h3>
                       <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
-                        Kunlik, haftalik va oylik foydalanuvchilar o‘sishi, yangi do‘konlar kirib kelishi statistikasi.
+                        {t('Kunlik, haftalik va oylik foydalanuvchilar o‘sishi, yangi do‘konlar kirib kelishi statistikasi.')}
                       </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
-                      <span>Grafiklarni ko‘rish</span>
+                      <span>{t('Grafiklarni ko‘rish')}</span>
                       <ChevronRight className="w-4 h-4" />
                     </div>
                   </div>
@@ -1902,13 +1902,13 @@ export function AdminApp() {
                       <div className="w-10 h-10 rounded-xl bg-teal-50 dark:bg-teal-950/40 text-teal-600 flex items-center justify-center mb-3">
                         <Users className="w-5 h-5" />
                       </div>
-                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">Foydalanuvchilar & Xodimlar</h3>
+                      <h3 className="text-sm font-bold text-[#172C28] dark:text-white">{t('Foydalanuvchilar & Xodimlar')}</h3>
                       <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 leading-relaxed">
-                        Tizim xodimlari, do‘kon egalari, operatorlar va mijozlar rollari, seanslar va bloklash amallari.
+                        {t('Tizim xodimlari, do‘kon egalari, operatorlar va mijozlar rollari, seanslar va bloklash amallari.')}
                       </p>
                     </div>
                     <div className="mt-4 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] text-xs font-bold text-[#116B50] dark:text-[#4ADE80] flex items-center justify-between">
-                      <span>Foydalanuvchilarni ochish</span>
+                      <span>{t('Foydalanuvchilarni ochish')}</span>
                       <ChevronRight className="w-4 h-4" />
                     </div>
                   </div>
@@ -2228,7 +2228,7 @@ export function AdminApp() {
                                       className="py-1 px-2 rounded-lg border border-red-300 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 text-xs font-semibold transition flex items-center gap-1"
                                     >
                                       <Trash2 className="w-3.5 h-3.5" />
-                                      <span>O‘chirish</span>
+                                      <span>{t('O‘chirish')}</span>
                                     </button>
                                   </div>
                                 </td>
@@ -2539,11 +2539,11 @@ export function AdminApp() {
                 <div>
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-200 uppercase tracking-wider">
                     <Store className="w-4 h-4" />
-                    <span>Yangi Hamkorlar & Do‘konlar Moderatsiyasi</span>
+                    <span>{t('Yangi Hamkorlar & Do‘konlar Moderatsiyasi')}</span>
                   </div>
-                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">Do‘kon Arizalari Navbati</h2>
+                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">{t('Do‘kon Arizalari Navbati')}</h2>
                   <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
-                    Yangi ro‘yxatdan o‘tgan do‘konlarning STIR/INN, manzili, geolokatsiyasi va fotosuratlarini tekshirib faollashtiring.
+                    {t('Yangi ro‘yxatdan o‘tgan do‘konlarning STIR/INN, manzili, geolokatsiyasi va fotosuratlarini tekshirib faollashtiring.')}
                   </p>
                 </div>
 
@@ -2553,7 +2553,7 @@ export function AdminApp() {
                     className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
                   >
                     <RefreshCw className="w-4 h-4" />
-                    <span>Yangilash</span>
+                    <span>{t('refresh', 'Yangilash')}</span>
                   </button>
                 </div>
               </div>
@@ -2566,16 +2566,16 @@ export function AdminApp() {
                     type="text"
                     value={appSearch}
                     onChange={(e) => setAppSearch(e.target.value)}
-                    placeholder="Do‘kon nomi, manzil, telefon yoki tashkilot..."
+                    placeholder={t('Do‘kon nomi, manzil, telefon yoki tashkilot...')}
                     className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
                   />
                 </div>
 
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
                   {[
-                    { id: 'ALL', label: `Barchasi (${applications.length})` },
-                    { id: 'PENDING', label: `Kutilmoqda (${applications.filter(a => a.status === 'PENDING').length})` },
-                    { id: 'NEEDS_CHANGES', label: `Tuzatishda (${applications.filter(a => a.status === 'NEEDS_CHANGES').length})` }
+                    { id: 'ALL', label: `${t('Barchasi')} (${applications.length})` },
+                    { id: 'PENDING', label: `${t('Kutilmoqda')} (${applications.filter(a => a.status === 'PENDING').length})` },
+                    { id: 'NEEDS_CHANGES', label: `${t('Tuzatishda')} (${applications.filter(a => a.status === 'NEEDS_CHANGES').length})` }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -2624,11 +2624,11 @@ export function AdminApp() {
                                   ? 'bg-amber-100 text-amber-900 border border-amber-300'
                                   : 'bg-orange-100 text-orange-900 border border-orange-300'
                               }`}>
-                                {app.status === 'PENDING' ? 'KUTILMOQDA' : 'TUZATISHDA'}
+                                {app.status === 'PENDING' ? t('KUTILMOQDA') : t('TUZATISHDA')}
                               </span>
                             </div>
                             <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                              Tashkilot: <strong className="text-[#172C28] dark:text-white">{(app as any).organizationName || 'Mustaqil tashkilot'}</strong>
+                              {t('Tashkilot:')} <strong className="text-[#172C28] dark:text-white">{(app as any).organizationName || t('Mustaqil tashkilot')}</strong>
                               <span className="ml-2 font-mono text-[#116B50] dark:text-[#4ADE80]">
                                 STIR: {(app as any).inn || '307654321'}
                               </span>
@@ -2643,7 +2643,7 @@ export function AdminApp() {
                             className="px-3 py-1.5 rounded-xl bg-[#116B50] hover:bg-[#0B563F] text-white text-xs font-bold flex items-center gap-1 transition shadow-sm"
                           >
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Tasdiqlash</span>
+                            <span>{t('Tasdiqlash')}</span>
                           </button>
                           <Button
                             variant="secondary"
@@ -2654,7 +2654,7 @@ export function AdminApp() {
                             }}
                             className="text-xs font-bold flex items-center gap-1.5"
                           >
-                            <span>Tafsilot</span>
+                            <span>{t('Tafsilot')}</span>
                           </Button>
                         </div>
                       </div>
@@ -2677,7 +2677,7 @@ export function AdminApp() {
                             rel="noreferrer"
                             className="text-[#116B50] dark:text-[#4ADE80] font-semibold hover:underline flex items-center gap-1"
                           >
-                            <span>Kartada tekshirish</span>
+                            <span>{t('Kartada tekshirish')}</span>
                             <ExternalLink className="w-3 h-3" />
                           </a>
                         </div>
@@ -2700,10 +2700,10 @@ export function AdminApp() {
                       <CheckCircle2 className="w-7 h-7" />
                     </div>
                     <h3 className="text-sm font-bold text-[#172C28] dark:text-white">
-                      Hozirda kutilayotgan do‘kon arizalari mavjud emas
+                      {t('Hozirda kutilayotgan do‘kon arizalari mavjud emas')}
                     </h3>
                     <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 max-w-sm">
-                      Barcha yangi do‘konlar ko‘rib chiqilgan va platformada faollashtirilgan.
+                      {t('Barcha yangi do‘konlar ko‘rib chiqilgan va platformada faollashtirilgan.')}
                     </p>
                   </div>
                 )}
@@ -2719,11 +2719,11 @@ export function AdminApp() {
                 <div>
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-200 uppercase tracking-wider">
                     <AlertTriangle className="w-4 h-4 text-amber-300" />
-                    <span>Xaridor E’tirozlari & Sifat Nazorati</span>
+                    <span>{t('Xaridor E’tirozlari & Sifat Nazorati')}</span>
                   </div>
-                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">Foydalanuvchilar Shikoyatlari</h2>
+                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">{t('Foydalanuvchilar Shikoyatlari')}</h2>
                   <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
-                    Noto‘g‘ri narx, rastada yo‘q mahsulot yoki yopiq do‘konlar bo‘yicha tushgan shikoyatlarni tekshiring va do‘kon egasiga talab yuboring.
+                    {t('Noto‘g‘ri narx, rastada yo‘q mahsulot yoki yopiq do‘konlar bo‘yicha tushgan shikoyatlarni tekshiring va do‘kon egasiga talab yuboring.')}
                   </p>
                 </div>
 
@@ -2733,7 +2733,7 @@ export function AdminApp() {
                     className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
                   >
                     <RefreshCw className="w-4 h-4" />
-                    <span>Yangilash</span>
+                    <span>{t('refresh', 'Yangilash')}</span>
                   </button>
                 </div>
               </div>
@@ -2746,7 +2746,7 @@ export function AdminApp() {
                     type="text"
                     value={reportSearch}
                     onChange={(e) => setReportSearch(e.target.value)}
-                    placeholder="Do‘kon nomi, shikoyat tafsiloti yoki sabab..."
+                    placeholder={t('Do‘kon nomi, shikoyat tafsiloti yoki sabab...')}
                     className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
                   />
                 </div>
@@ -2755,9 +2755,9 @@ export function AdminApp() {
                   {/* Status Filters */}
                   <div className="flex items-center gap-1">
                     {[
-                      { id: 'ALL', label: `Barchasi (${reports.length})` },
-                      { id: 'OPEN', label: `Ochiq (${reports.filter(r => r.status === 'OPEN').length})` },
-                      { id: 'RESOLVED', label: `Hal qilingan (${reports.filter(r => r.status === 'RESOLVED').length})` }
+                      { id: 'ALL', label: `${t('Barchasi')} (${reports.length})` },
+                      { id: 'OPEN', label: `${t('Ochiq')} (${reports.filter(r => r.status === 'OPEN').length})` },
+                      { id: 'RESOLVED', label: `${t('Hal qilingan')} (${reports.filter(r => r.status === 'RESOLVED').length})` }
                     ].map(tab => (
                       <button
                         key={tab.id}
@@ -2779,12 +2779,12 @@ export function AdminApp() {
                     onChange={(e) => setReportFilterReason(e.target.value)}
                     className="px-3 py-1.5 rounded-xl text-xs font-bold bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
                   >
-                    <option value="ALL">Barcha sabablar</option>
-                    <option value="WRONG_PRICE">Noto‘g‘ri narx (WRONG_PRICE)</option>
-                    <option value="UNAVAILABLE_PRODUCT">Yo‘q mahsulot (UNAVAILABLE_PRODUCT)</option>
-                    <option value="WRONG_LOCATION">Noto‘g‘ri manzil (WRONG_LOCATION)</option>
-                    <option value="CLOSED_STORE">Yopiq do‘kon (CLOSED_STORE)</option>
-                    <option value="OTHER">Boshqa (OTHER)</option>
+                    <option value="ALL">{t('Barcha sabablar')}</option>
+                    <option value="WRONG_PRICE">{t('Noto‘g‘ri narx')} (WRONG_PRICE)</option>
+                    <option value="UNAVAILABLE_PRODUCT">{t('Yo‘q mahsulot')} (UNAVAILABLE_PRODUCT)</option>
+                    <option value="WRONG_LOCATION">{t('Noto‘g‘ri manzil')} (WRONG_LOCATION)</option>
+                    <option value="CLOSED_STORE">{t('Yopiq do‘kon')} (CLOSED_STORE)</option>
+                    <option value="OTHER">{t('Boshqa')} (OTHER)</option>
                   </select>
                 </div>
               </div>
@@ -2794,12 +2794,12 @@ export function AdminApp() {
                 <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
                   <thead>
                     <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
-                      <th className="py-3 px-4 font-semibold">Do‘kon & Filial</th>
-                      <th className="py-3 px-4 font-semibold">Shikoyat turi</th>
-                      <th className="py-3 px-4 font-semibold">Tafsilot</th>
-                      <th className="py-3 px-4 font-semibold">Holat</th>
-                      <th className="py-3 px-4 font-semibold">Sana</th>
-                      <th className="py-3 px-4 font-semibold">Amallar</th>
+                      <th className="py-3 px-4 font-semibold">{t('Do‘kon & Filial')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('Shikoyat turi')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('Tafsilot')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('Holat')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('Sana')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('Amallar')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
@@ -2836,22 +2836,22 @@ export function AdminApp() {
                             <td className="py-3.5 px-4 font-bold">
                               {rep.reason === 'WRONG_PRICE' && (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300 border border-red-200">
-                                  Noto‘g‘ri narx
+                                  {t('Noto‘g‘ri narx')}
                                 </span>
                               )}
                               {rep.reason === 'UNAVAILABLE_PRODUCT' && (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-200">
-                                  Yo‘q tovar
+                                  {t('Yo‘q tovar')}
                                 </span>
                               )}
                               {rep.reason === 'WRONG_LOCATION' && (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300 border border-blue-200">
-                                  Noto‘g‘ri manzil
+                                  {t('Noto‘g‘ri manzil')}
                                 </span>
                               )}
                               {rep.reason === 'CLOSED_STORE' && (
                                 <span className="px-2 py-0.5 rounded text-[10px] font-extrabold bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300 border border-rose-200">
-                                  Yopiq do‘kon
+                                  {t('Yopiq do‘kon')}
                                 </span>
                               )}
                               {!['WRONG_PRICE', 'UNAVAILABLE_PRODUCT', 'WRONG_LOCATION', 'CLOSED_STORE'].includes(rep.reason) && (
@@ -2870,7 +2870,7 @@ export function AdminApp() {
                             </td>
                             <td className="py-3.5 px-4">
                               <Tag variant={rep.status === 'OPEN' ? 'warn' : 'default'}>
-                                {rep.status === 'OPEN' ? 'OCHIQ' : 'HAL QILINGAN'}
+                                {rep.status === 'OPEN' ? t('OCHIQ') : t('HAL QILINGAN')}
                               </Tag>
                             </td>
                             <td className="py-3.5 px-4 text-[#566A63] dark:text-[#8B9E95] whitespace-nowrap">
@@ -2888,18 +2888,18 @@ export function AdminApp() {
                                     }}
                                     className="text-xs font-bold whitespace-nowrap"
                                   >
-                                    Ko‘rib chiqish
+                                    {t('Ko‘rib chiqish')}
                                   </Button>
                                 ) : (
                                   <span className="text-xs text-[#116B50] dark:text-[#4ADE80] font-semibold flex items-center gap-1">
                                     <CheckCircle2 className="w-3.5 h-3.5" />
-                                    <span>Hal qilingan</span>
+                                    <span>{t('Hal qilingan')}</span>
                                   </span>
                                 )}
                                 <button
                                   type="button"
                                   onClick={() => handleDeleteReport(rep.id)}
-                                  title="Shikoyatni o‘chirish"
+                                  title={t('Shikoyatni o‘chirish')}
                                   className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition border border-transparent hover:border-red-200"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
@@ -2926,7 +2926,7 @@ export function AdminApp() {
                     <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mb-2">
                       <CheckCircle2 className="w-6 h-6" />
                     </div>
-                    <p className="text-xs font-bold text-[#172C28] dark:text-white">Mos keladigan shikoyatlar mavjud emas</p>
+                    <p className="text-xs font-bold text-[#172C28] dark:text-white">{t('Mos keladigan shikoyatlar mavjud emas')}</p>
                   </div>
                 )}
               </div>
@@ -2949,10 +2949,10 @@ export function AdminApp() {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h1 className="text-3xl font-extrabold tracking-tight text-[#172C28] dark:text-white">
-                    Foydalanuvchilar va Xodimlar
+                    {t('Foydalanuvchilar va Xodimlar')}
                   </h1>
                   <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    Barcha tashkilot xodimlari, login/parollar va Telegram / SMS orqali tasdiqlash holati
+                    {t('Barcha tashkilot xodimlari, login/parollar va Telegram / SMS orqali tasdiqlash holati')}
                   </p>
                 </div>
 
@@ -2975,7 +2975,7 @@ export function AdminApp() {
                   className="flex items-center gap-1.5"
                 >
                   <Plus className="w-4 h-4" />
-                  <span>+ Yangi foydalanuvchi qo‘shish</span>
+                  <span>{t('+ Yangi foydalanuvchi qo‘shish')}</span>
                 </Button>
               </div>
 
@@ -2989,7 +2989,7 @@ export function AdminApp() {
                       type="text"
                       value={userSearch}
                       onChange={(e) => setUserSearch(e.target.value)}
-                      placeholder="Ism, login, telefon yoki tashkilot..."
+                      placeholder={t('Ism, login, telefon yoki tashkilot...')}
                       className="w-full pl-9 pr-3.5 py-2.5 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
                     />
                   </div>
@@ -3006,7 +3006,7 @@ export function AdminApp() {
                             : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
                         }`}
                       >
-                        {st === 'ALL' ? 'Barchasi' : st === 'ACTIVE' ? 'Faol' : st === 'PENDING' ? 'Kutilmoqda' : st === 'SUSPENDED' ? 'To‘xtatilgan' : 'O‘chirilgan'}
+                        {st === 'ALL' ? t('Barchasi') : st === 'ACTIVE' ? t('Faol') : st === 'PENDING' ? t('Kutilmoqda') : st === 'SUSPENDED' ? t('To‘xtatilgan') : t('O‘chirilgan')}
                       </button>
                     ))}
                   </div>
@@ -3015,7 +3015,7 @@ export function AdminApp() {
                 {/* 2-Qator: Rollar (pastga tushirilgan va to'liq responsiv, scrollbarsiz) */}
                 <div className="flex items-center gap-2 pt-2.5 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex-wrap">
                   <span className="text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] shrink-0">
-                    Rol bo‘yicha:
+                    {t('Rol bo‘yicha:')}
                   </span>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {['ALL', 'OWNER', 'MANAGER', 'OPERATOR', 'CUSTOMER', 'SUPERADMIN'].map((r) => (
@@ -3028,7 +3028,7 @@ export function AdminApp() {
                             : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
                         }`}
                       >
-                        {r === 'ALL' ? 'Barcha rollar' : r}
+                        {r === 'ALL' ? t('Barcha rollar') : r}
                       </button>
                     ))}
                   </div>
@@ -3040,13 +3040,13 @@ export function AdminApp() {
                   <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
                     <thead>
                       <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
-                        <th className="py-3.5 px-4 font-semibold">Foydalanuvchi & Telefon</th>
-                        <th className="py-3.5 px-4 font-semibold">Tashkilot</th>
-                        <th className="py-3.5 px-4 font-semibold">Login</th>
-                        <th className="py-3.5 px-4 font-semibold">Parol</th>
-                        <th className="py-3.5 px-4 font-semibold">Roli</th>
-                        <th className="py-3.5 px-4 font-semibold">Tasdiqlash & Holat</th>
-                        <th className="py-3.5 px-4 font-semibold text-right">Amallar</th>
+                        <th className="py-3.5 px-4 font-semibold">{t('Foydalanuvchi & Telefon')}</th>
+                        <th className="py-3.5 px-4 font-semibold">{t('Tashkilot')}</th>
+                        <th className="py-3.5 px-4 font-semibold">{t('Login')}</th>
+                        <th className="py-3.5 px-4 font-semibold">{t('Parol')}</th>
+                        <th className="py-3.5 px-4 font-semibold">{t('Roli')}</th>
+                        <th className="py-3.5 px-4 font-semibold">{t('Tasdiqlash & Holat')}</th>
+                        <th className="py-3.5 px-4 font-semibold text-right">{t('Amallar')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
@@ -3078,10 +3078,10 @@ export function AdminApp() {
                             <tr key={u.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50 transition">
                               <td className="py-3.5 px-4">
                                 <div className="font-bold text-[#172C28] dark:text-[#E8F2EC]">{u.fullName}</div>
-                                <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">{u.phone || 'Telefon yo‘q'}</div>
+                                <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">{u.phone || t('Telefon yo‘q')}</div>
                               </td>
                               <td className="py-3.5 px-4 font-medium text-[#116B50] dark:text-[#4ADE80]">
-                                {(u as any).organizationName || 'Tizim foydalanuvchisi'}
+                                {(u as any).organizationName || t('Tizim foydalanuvchisi')}
                               </td>
                               <td className="py-3.5 px-4 font-mono text-[11px] text-[#172C28] dark:text-[#E8F2EC]">
                                 {u.email}
@@ -3108,12 +3108,12 @@ export function AdminApp() {
                                 {isPending ? (
                                   <div className="flex items-center gap-1.5">
                                     <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
-                                      <Clock className="w-3 h-3" /> {method === 'TELEGRAM' ? 'Telegram' : 'SMS'} tasdiqlash
+                                      <Clock className="w-3 h-3" /> {method === 'TELEGRAM' ? t('Telegram tasdiqlash') : t('SMS tasdiqlash')}
                                     </span>
                                   </div>
                                 ) : (
                                   <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-[#116B50] dark:text-[#4ADE80] border border-emerald-200 dark:border-emerald-800">
-                                    <CheckCircle className="w-3 h-3" /> Faol & Tasdiqlangan
+                                    <CheckCircle className="w-3 h-3" /> {t('Faol & Tasdiqlangan')}
                                   </span>
                                 )}
                               </td>
@@ -3139,7 +3139,7 @@ export function AdminApp() {
                                         title="Kodni kiritib tasdiqlash"
                                         className="px-2.5 py-1 rounded-lg bg-[#116B50] text-white text-[11px] font-bold hover:bg-[#0d533e] transition"
                                       >
-                                        Tasdiqlash
+                                        {t('Tasdiqlash')}
                                       </button>
                                     </>
                                   )}
@@ -3169,7 +3169,7 @@ export function AdminApp() {
                                         : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 hover:bg-emerald-100'
                                     }`}
                                   >
-                                    {u.status === 'ACTIVE' ? 'Bloklash' : 'Faol qilish'}
+                                    {u.status === 'ACTIVE' ? t('Bloklash') : t('Faol qilish')}
                                   </button>
                                   <button
                                     onClick={() => handleDeleteUser(u)}
@@ -3177,7 +3177,7 @@ export function AdminApp() {
                                     className="px-2 py-1 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition flex items-center gap-1 text-[11px] font-semibold"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
-                                    <span>O‘chirish</span>
+                                    <span>{t('O‘chirish')}</span>
                                   </button>
                                 </div>
                               </td>
@@ -3199,11 +3199,11 @@ export function AdminApp() {
                 <div>
                   <div className="flex items-center gap-2 text-xs font-bold text-emerald-200 uppercase tracking-wider">
                     <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                    <span>Xavfsizlik & Boshqaruv Jurnali</span>
+                    <span>{t('Xavfsizlik & Boshqaruv Jurnali')}</span>
                   </div>
-                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">Tizim Amallari Auditi</h2>
+                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">{t('Tizim Amallari Auditi')}</h2>
                   <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
-                    Kim, qachon va qaysi operatsiyani bajargan: do‘konlar faollashuvi, login/parol o‘zgarishlari va narxlar tekshiruvi.
+                    {t('Kim, qachon va qaysi operatsiyani bajargan: do‘konlar faollashuvi, login/parol o‘zgarishlari va narxlar tekshiruvi.')}
                   </p>
                 </div>
 
@@ -3213,7 +3213,7 @@ export function AdminApp() {
                     className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
                   >
                     <RefreshCw className="w-4 h-4" />
-                    <span>Yangilash</span>
+                    <span>{t('refresh', 'Yangilash')}</span>
                   </button>
                 </div>
               </div>
@@ -3226,18 +3226,18 @@ export function AdminApp() {
                     type="text"
                     value={auditSearch}
                     onChange={(e) => setAuditSearch(e.target.value)}
-                    placeholder="Foydalanuvchi, amal yoki obyekt bo‘yicha izlash..."
+                    placeholder={t('Foydalanuvchi, amal yoki obyekt bo‘yicha izlash...')}
                     className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
                   />
                 </div>
 
                 <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
                   {[
-                    { id: 'ALL', label: `Barchasi (${auditLogs.length})` },
-                    { id: 'STORE', label: 'Do‘konlar' },
-                    { id: 'USER', label: 'Foydalanuvchilar' },
-                    { id: 'ORGANIZATION', label: 'Tashkilotlar' },
-                    { id: 'ITEM_PROPOSAL', label: 'Takliflar' }
+                    { id: 'ALL', label: `${t('Barchasi')} (${auditLogs.length})` },
+                    { id: 'STORE', label: t('Do‘konlar') },
+                    { id: 'USER', label: t('Foydalanuvchilar') },
+                    { id: 'ORGANIZATION', label: t('Tashkilotlar') },
+                    { id: 'ITEM_PROPOSAL', label: t('Takliflar') }
                   ].map(tab => (
                     <button
                       key={tab.id}
@@ -3259,11 +3259,11 @@ export function AdminApp() {
                 <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
                   <thead>
                     <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
-                      <th className="py-3 px-4 font-semibold">Sana va vaqt</th>
-                      <th className="py-3 px-4 font-semibold">Foydalanuvchi</th>
-                      <th className="py-3 px-4 font-semibold">Amal (Operatsiya)</th>
-                      <th className="py-3 px-4 font-semibold">Obyekt</th>
-                      <th className="py-3 px-4 font-semibold">O‘zgarish tafsiloti</th>
+                      <th className="py-3 px-4 font-semibold">{t('Sana va vaqt')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('Foydalanuvchi')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('Amal (Operatsiya)')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('Obyekt')}</th>
+                      <th className="py-3 px-4 font-semibold">{t('O‘zgarish tafsiloti')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
@@ -3337,7 +3337,7 @@ export function AdminApp() {
                     <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mb-2">
                       <ShieldCheck className="w-6 h-6" />
                     </div>
-                    <p className="text-xs font-bold text-[#172C28] dark:text-white">Audit qaydnomalari topilmadi</p>
+                    <p className="text-xs font-bold text-[#172C28] dark:text-white">{t('Audit qaydnomalari topilmadi')}</p>
                   </div>
                 )}
               </div>
@@ -4015,27 +4015,27 @@ export function AdminApp() {
       <Modal
         isOpen={isAppModalOpen}
         onClose={() => setIsAppModalOpen(false)}
-        title="Do‘kon arizasini ko‘rib chiqish"
+        title={t('Do‘kon arizasini ko‘rib chiqish')}
         footer={
           <div className="flex gap-2">
             <Button variant="danger" onClick={() => handleAppDecision('REJECT')}>
-              Rad etish
+              {t('Rad etish')}
             </Button>
             <Button variant="secondary" onClick={() => handleAppDecision('REQUEST_CHANGES')}>
-              Tuzatish so‘rash
+              {t('Tuzatish so‘rash')}
             </Button>
             <Button variant="primary" onClick={() => handleAppDecision('APPROVE')}>
-              Tasdiqlash
+              {t('Tasdiqlash')}
             </Button>
           </div>
         }
       >
         {selectedApp && (
           <div className="flex flex-col gap-3 text-xs text-[#172C28] dark:text-[#E8F2EC]">
-            <p><strong>Nomi:</strong> {selectedApp.name}</p>
-            <p><strong>Manzil:</strong> {selectedApp.address}</p>
-            <p><strong>Telefon:</strong> {selectedApp.phone}</p>
-            <p><strong>Lokatsiya:</strong> {selectedApp.location.lat}, {selectedApp.location.lng}</p>
+            <p><strong>{t('Nomi:')}</strong> {selectedApp.name}</p>
+            <p><strong>{t('Manzil:')}</strong> {selectedApp.address}</p>
+            <p><strong>{t('Telefon:')}</strong> {selectedApp.phone}</p>
+            <p><strong>{t('Lokatsiya:')}</strong> {selectedApp.location.lat}, {selectedApp.location.lng}</p>
           </div>
         )}
       </Modal>
@@ -4044,24 +4044,24 @@ export function AdminApp() {
       <Modal
         isOpen={isReportModalOpen}
         onClose={() => setIsReportModalOpen(false)}
-        title="Shikoyatni ko‘rib chiqish"
+        title={t('Shikoyatni ko‘rib chiqish')}
         footer={
           <div className="flex gap-2">
             <Button variant="secondary" onClick={() => handleResolveReport('DISMISSED')}>
-              Bekor qilish
+              {t('cancel', 'Bekor qilish')}
             </Button>
             <Button variant="primary" onClick={() => handleResolveReport('RESOLVED')}>
-              Hal qilindi deb tasdiqlash
+              {t('Hal qilindi deb tasdiqlash')}
             </Button>
           </div>
         }
       >
         {selectedReport && (
           <div className="flex flex-col gap-3 text-xs text-[#172C28] dark:text-[#E8F2EC]">
-            <p><strong>Turi:</strong> {selectedReport.reason}</p>
-            <p><strong>Xabar:</strong> {selectedReport.details}</p>
+            <p><strong>{t('Shikoyat turi')}:</strong> {selectedReport.reason}</p>
+            <p><strong>{t('Tafsilot')}:</strong> {selectedReport.details}</p>
             <div>
-              <label className="font-semibold block mb-1">Xulosa / Tuzatish izohi</label>
+              <label className="font-semibold block mb-1">{t('Xulosa / Tuzatish izohi')}</label>
               <textarea
                 rows={3}
                 value={resolutionNotes}

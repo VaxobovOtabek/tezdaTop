@@ -18,7 +18,7 @@ import {
   Store,
   MessageCircle
 } from 'lucide-react';
-import { Button, Tag, Modal } from '@yaqintop/ui';
+import { Button, Tag, Modal, useTranslation } from '@yaqintop/ui';
 
 export interface AdminReview {
   id: string;
@@ -55,6 +55,7 @@ export function ReviewsModerationHub({
   onStatsUpdate,
   stores = []
 }: ReviewsModerationHubProps) {
+  const { t } = useTranslation();
   const [reviews, setReviews] = useState<AdminReview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -235,7 +236,7 @@ export function ReviewsModerationHub({
             <span>Platforma Sifat & Fikrlar Markazi</span>
           </div>
           <h2 className="text-2xl font-extrabold tracking-tight mt-1 flex items-center gap-3">
-            <span>Sharhlar va Baholar Moderatsiyasi</span>
+            <span>{t('Sharhlar va Baholar Moderatsiyasi')}</span>
             {pendingReviewsCount > 0 && (
               <span className="min-w-6 h-6 px-2 bg-amber-500 text-white text-xs font-black rounded-full flex items-center justify-center shadow-md animate-pulse">
                 {pendingReviewsCount}
@@ -254,7 +255,7 @@ export function ReviewsModerationHub({
             className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
           >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span>Yangilash</span>
+            <span>{t('refresh', 'Yangilash')}</span>
           </button>
         </div>
       </div>
@@ -267,7 +268,7 @@ export function ReviewsModerationHub({
             <MessageSquare className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs text-[#566A63] dark:text-[#8B9E95] font-medium">Jami sharhlar</div>
+            <div className="text-xs text-[#566A63] dark:text-[#8B9E95] font-medium">{t('Jami sharhlar')}</div>
             <div className="text-xl font-extrabold text-[#172C28] dark:text-white mt-0.5">{totalReviews} ta</div>
           </div>
         </div>
