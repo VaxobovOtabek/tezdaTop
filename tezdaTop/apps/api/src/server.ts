@@ -31,7 +31,7 @@ import {
   isTradeOrganization
 } from '@yaqintop/contracts';
 import { registerCustomer } from './services/customer-registration.service.js';
-import { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured, insertRegisteredCustomer } from './db/supabase.js';
+import { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured, insertRegisteredCustomer, persistItemProposalToSupabase, persistPhotoProposalToSupabase, supabase } from './db/supabase.js';
 
 const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 const PORT = process.env.PORT || 4000;
@@ -1365,9 +1365,12 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
       p.createdOfferId = newOfferId;
       p.updatedAt = now;
       db.itemProposals.set(p.id, p);
+      await persistItemProposalToSupabase(p);
     }
 
+    db.saveToFile();
     db.scheduleSave();
+    await syncAllToSupabase(db);
 
     res.json({
       success: true,
@@ -1381,6 +1384,11 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
   }
 
   // Not yet 3 distinct users -> remains PENDING
+  const currentProp = existingUserProposal || db.itemProposals.get(proposalId);
+  if (currentProp) {
+    await persistItemProposalToSupabase(currentProp);
+  }
+  db.saveToFile();
   db.scheduleSave();
   const remaining = 3 - distinctCount;
   res.json({
@@ -1472,14 +1480,50 @@ app.get('/api/v1/admin/item-proposals', (req: Request, res: Response) => {
 });
 
 // 4. Taklifni tasdiqlash (Admin, Moderator yoki Do'kon egasi)
-app.post('/api/v1/admin/item-proposals/:id/approve', (req: Request, res: Response) => {
+app.post('/api/v1/admin/item-proposals/:id/approve', async (req: Request, res: Response) => {
   const user = getCurrentUser(req);
   if (!user) {
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
     return;
   }
 
-  const proposal = db.itemProposals.get(req.params.id);
+  const requestedId = req.params.id;
+  let proposal: any = db.itemProposals.get(requestedId);
+
+  // Fallback 1: match by start of ID in memory
+  if (!proposal) {
+    proposal = Array.from(db.itemProposals.values()).find(
+      (p) => p.id === requestedId || p.id.startsWith(requestedId) || requestedId.startsWith(p.id) || requestedId.startsWith(p.id.slice(0, 8))
+    );
+  }
+
+  // Fallback 2: pull from Supabase reports table
+  if (!proposal && isSupabaseConfigured() && supabase) {
+    try {
+      const { data: rep } = await supabase.from('reports').select('*').eq('id', requestedId).eq('target_type', 'ITEM_PROPOSAL').maybeSingle();
+      if (rep && rep.details) {
+        const parsed = typeof rep.details === 'string' ? JSON.parse(rep.details) : rep.details;
+        if (parsed) {
+          proposal = { ...parsed, id: rep.id, status: rep.status || parsed.status || 'PENDING' };
+          db.itemProposals.set(proposal.id, proposal);
+        }
+      }
+      if (!proposal) {
+        const { data: reps } = await supabase.from('reports').select('*').eq('target_type', 'ITEM_PROPOSAL');
+        const match = reps?.find(r => r.id === requestedId || r.id.startsWith(requestedId) || requestedId.startsWith(r.id.slice(0, 8)));
+        if (match && match.details) {
+          const parsed = typeof match.details === 'string' ? JSON.parse(match.details) : match.details;
+          if (parsed) {
+            proposal = { ...parsed, id: match.id, status: match.status || parsed.status || 'PENDING' };
+            db.itemProposals.set(proposal.id, proposal);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Supabase Item Proposal Lookup Error]', e);
+    }
+  }
+
   if (!proposal) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Taklif topilmadi' });
     return;
@@ -1576,6 +1620,9 @@ app.post('/api/v1/admin/item-proposals/:id/approve', (req: Request, res: Respons
   proposal.updatedAt = now;
   db.itemProposals.set(proposal.id, proposal);
 
+  await persistItemProposalToSupabase(proposal);
+  await syncAllToSupabase(db);
+  db.saveToFile();
   db.scheduleSave();
 
   res.json({
@@ -1586,14 +1633,50 @@ app.post('/api/v1/admin/item-proposals/:id/approve', (req: Request, res: Respons
 });
 
 // 5. Taklifni rad etish
-app.post('/api/v1/admin/item-proposals/:id/reject', (req: Request, res: Response) => {
+app.post('/api/v1/admin/item-proposals/:id/reject', async (req: Request, res: Response) => {
   const user = getCurrentUser(req);
   if (!user) {
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
     return;
   }
 
-  const proposal = db.itemProposals.get(req.params.id);
+  const requestedId = req.params.id;
+  let proposal: any = db.itemProposals.get(requestedId);
+
+  // Fallback 1: match by start of ID in memory
+  if (!proposal) {
+    proposal = Array.from(db.itemProposals.values()).find(
+      (p) => p.id === requestedId || p.id.startsWith(requestedId) || requestedId.startsWith(p.id) || requestedId.startsWith(p.id.slice(0, 8))
+    );
+  }
+
+  // Fallback 2: pull from Supabase
+  if (!proposal && isSupabaseConfigured() && supabase) {
+    try {
+      const { data: rep } = await supabase.from('reports').select('*').eq('id', requestedId).eq('target_type', 'ITEM_PROPOSAL').maybeSingle();
+      if (rep && rep.details) {
+        const parsed = typeof rep.details === 'string' ? JSON.parse(rep.details) : rep.details;
+        if (parsed) {
+          proposal = { ...parsed, id: rep.id, status: rep.status || parsed.status || 'PENDING' };
+          db.itemProposals.set(proposal.id, proposal);
+        }
+      }
+      if (!proposal) {
+        const { data: reps } = await supabase.from('reports').select('*').eq('target_type', 'ITEM_PROPOSAL');
+        const match = reps?.find(r => r.id === requestedId || r.id.startsWith(requestedId) || requestedId.startsWith(r.id.slice(0, 8)));
+        if (match && match.details) {
+          const parsed = typeof match.details === 'string' ? JSON.parse(match.details) : match.details;
+          if (parsed) {
+            proposal = { ...parsed, id: match.id, status: match.status || parsed.status || 'PENDING' };
+            db.itemProposals.set(proposal.id, proposal);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Supabase Item Proposal Lookup Error]', e);
+    }
+  }
+
   if (!proposal) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Taklif topilmadi' });
     return;
@@ -1609,6 +1692,8 @@ app.post('/api/v1/admin/item-proposals/:id/reject', (req: Request, res: Response
   proposal.updatedAt = new Date().toISOString();
   db.itemProposals.set(proposal.id, proposal);
 
+  await persistItemProposalToSupabase(proposal);
+  db.saveToFile();
   db.scheduleSave();
 
   res.json({
@@ -1673,6 +1758,8 @@ app.post('/api/v1/stores/:storeId/photo-proposals', async (req: Request, res: Re
   };
 
   db.photoProposals.set(proposalId, proposal);
+  await persistPhotoProposalToSupabase(proposal);
+  db.saveToFile();
   db.scheduleSave();
 
   res.status(201).json({
@@ -1727,14 +1814,50 @@ app.get('/api/v1/admin/photo-proposals', (req: Request, res: Response) => {
   res.json({ items: proposals, total: proposals.length });
 });
 
-app.post('/api/v1/admin/photo-proposals/:id/approve', (req: Request, res: Response) => {
+app.post('/api/v1/admin/photo-proposals/:id/approve', async (req: Request, res: Response) => {
   const user = getCurrentUser(req);
   if (!user) {
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
     return;
   }
 
-  const proposal = db.photoProposals.get(req.params.id);
+  const requestedId = req.params.id;
+  let proposal: any = db.photoProposals.get(requestedId);
+
+  // Fallback 1: match in memory by prefix
+  if (!proposal) {
+    proposal = Array.from(db.photoProposals.values()).find(
+      (p) => p.id === requestedId || p.id.startsWith(requestedId) || requestedId.startsWith(p.id) || requestedId.startsWith(p.id.slice(0, 8))
+    );
+  }
+
+  // Fallback 2: pull from Supabase
+  if (!proposal && isSupabaseConfigured() && supabase) {
+    try {
+      const { data: rep } = await supabase.from('reports').select('*').eq('id', requestedId).eq('target_type', 'PHOTO_PROPOSAL').maybeSingle();
+      if (rep && rep.details) {
+        const parsed = typeof rep.details === 'string' ? JSON.parse(rep.details) : rep.details;
+        if (parsed) {
+          proposal = { ...parsed, id: rep.id, status: rep.status || parsed.status || 'PENDING' };
+          db.photoProposals.set(proposal.id, proposal);
+        }
+      }
+      if (!proposal) {
+        const { data: reps } = await supabase.from('reports').select('*').eq('target_type', 'PHOTO_PROPOSAL');
+        const match = reps?.find(r => r.id === requestedId || r.id.startsWith(requestedId) || requestedId.startsWith(r.id.slice(0, 8)));
+        if (match && match.details) {
+          const parsed = typeof match.details === 'string' ? JSON.parse(match.details) : match.details;
+          if (parsed) {
+            proposal = { ...parsed, id: match.id, status: match.status || parsed.status || 'PENDING' };
+            db.photoProposals.set(proposal.id, proposal);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Supabase Photo Proposal Lookup Error]', e);
+    }
+  }
+
   if (!proposal) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Rasm so‘rovi topilmadi' });
     return;
@@ -1770,6 +1893,9 @@ app.post('/api/v1/admin/photo-proposals/:id/approve', (req: Request, res: Respon
   proposal.updatedAt = now;
   db.photoProposals.set(proposal.id, proposal);
 
+  await persistPhotoProposalToSupabase(proposal);
+  await syncAllToSupabase(db);
+  db.saveToFile();
   db.scheduleSave();
 
   res.json({
@@ -1781,14 +1907,50 @@ app.post('/api/v1/admin/photo-proposals/:id/approve', (req: Request, res: Respon
   });
 });
 
-app.post('/api/v1/admin/photo-proposals/:id/reject', (req: Request, res: Response) => {
+app.post('/api/v1/admin/photo-proposals/:id/reject', async (req: Request, res: Response) => {
   const user = getCurrentUser(req);
   if (!user) {
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
     return;
   }
 
-  const proposal = db.photoProposals.get(req.params.id);
+  const requestedId = req.params.id;
+  let proposal: any = db.photoProposals.get(requestedId);
+
+  // Fallback 1: match in memory by prefix
+  if (!proposal) {
+    proposal = Array.from(db.photoProposals.values()).find(
+      (p) => p.id === requestedId || p.id.startsWith(requestedId) || requestedId.startsWith(p.id) || requestedId.startsWith(p.id.slice(0, 8))
+    );
+  }
+
+  // Fallback 2: pull from Supabase
+  if (!proposal && isSupabaseConfigured() && supabase) {
+    try {
+      const { data: rep } = await supabase.from('reports').select('*').eq('id', requestedId).eq('target_type', 'PHOTO_PROPOSAL').maybeSingle();
+      if (rep && rep.details) {
+        const parsed = typeof rep.details === 'string' ? JSON.parse(rep.details) : rep.details;
+        if (parsed) {
+          proposal = { ...parsed, id: rep.id, status: rep.status || parsed.status || 'PENDING' };
+          db.photoProposals.set(proposal.id, proposal);
+        }
+      }
+      if (!proposal) {
+        const { data: reps } = await supabase.from('reports').select('*').eq('target_type', 'PHOTO_PROPOSAL');
+        const match = reps?.find(r => r.id === requestedId || r.id.startsWith(requestedId) || requestedId.startsWith(r.id.slice(0, 8)));
+        if (match && match.details) {
+          const parsed = typeof match.details === 'string' ? JSON.parse(match.details) : match.details;
+          if (parsed) {
+            proposal = { ...parsed, id: match.id, status: match.status || parsed.status || 'PENDING' };
+            db.photoProposals.set(proposal.id, proposal);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Supabase Photo Proposal Lookup Error]', e);
+    }
+  }
+
   if (!proposal) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Rasm so‘rovi topilmadi' });
     return;
@@ -1801,6 +1963,8 @@ app.post('/api/v1/admin/photo-proposals/:id/reject', (req: Request, res: Respons
   proposal.updatedAt = now;
   db.photoProposals.set(proposal.id, proposal);
 
+  await persistPhotoProposalToSupabase(proposal);
+  db.saveToFile();
   db.scheduleSave();
 
   res.json({

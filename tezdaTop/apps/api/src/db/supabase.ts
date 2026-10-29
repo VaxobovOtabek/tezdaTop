@@ -316,6 +316,40 @@ export async function syncAllToSupabase(db: InMemoryDatabase): Promise<boolean> 
       else console.log(`[Supabase Sync] ✅ Synced ${credRows.length} credential requests`);
     }
 
+    // 15. Item Proposals (persisted in reports table)
+    if (db.itemProposals.size > 0) {
+      const propRows = Array.from(db.itemProposals.values()).map(p => ({
+        id: p.id,
+        target_id: p.storeId,
+        target_type: 'ITEM_PROPOSAL',
+        user_id: p.userId || null,
+        reason: p.title || 'Tovar taklifi',
+        details: JSON.stringify(p),
+        status: p.status || 'PENDING',
+        created_at: p.createdAt || new Date().toISOString()
+      }));
+      const { error } = await supabase.from('reports').upsert(propRows, { onConflict: 'id' });
+      if (error) console.error('[Supabase Sync] Error syncing item_proposals:', error.message);
+      else console.log(`[Supabase Sync] ✅ Synced ${propRows.length} item proposals`);
+    }
+
+    // 16. Photo Proposals (persisted in reports table)
+    if (db.photoProposals.size > 0) {
+      const photoRows = Array.from(db.photoProposals.values()).map(p => ({
+        id: p.id,
+        target_id: p.storeId,
+        target_type: 'PHOTO_PROPOSAL',
+        user_id: p.userId || null,
+        reason: p.targetType === 'STORE' ? 'Store photo' : 'Product photo',
+        details: JSON.stringify(p),
+        status: p.status || 'PENDING',
+        created_at: p.createdAt || new Date().toISOString()
+      }));
+      const { error } = await supabase.from('reports').upsert(photoRows, { onConflict: 'id' });
+      if (error) console.error('[Supabase Sync] Error syncing photo_proposals:', error.message);
+      else console.log(`[Supabase Sync] ✅ Synced ${photoRows.length} photo proposals`);
+    }
+
     console.log('[Supabase Sync] Full database sync to Supabase completed successfully!');
     return true;
   } catch (err) {
@@ -499,10 +533,73 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
         if (completion) db.stockDocuments.set(document.id, { ...document, totalAmount: completion.totalAmount, paymentMethod: completion.paymentMethod, supplierOrCustomer: completion.customerName });
       }
     }
+    // Proposals (Item & Photo proposals stored in reports)
+    const { data: propReports, error: propErr } = await supabase.from('reports').select('*').in('target_type', ['ITEM_PROPOSAL', 'PHOTO_PROPOSAL']);
+    if (!propErr && propReports && propReports.length > 0) {
+      for (const r of propReports) {
+        try {
+          if (!r.details) continue;
+          const parsed = typeof r.details === 'string' ? JSON.parse(r.details) : r.details;
+          if (r.target_type === 'ITEM_PROPOSAL') {
+            db.itemProposals.set(r.id, {
+              ...parsed,
+              id: r.id,
+              status: r.status || parsed.status || 'PENDING'
+            });
+          } else if (r.target_type === 'PHOTO_PROPOSAL') {
+            db.photoProposals.set(r.id, {
+              ...parsed,
+              id: r.id,
+              status: r.status || parsed.status || 'PENDING'
+            });
+          }
+        } catch (e) {
+          console.error('[Supabase Sync] Failed to parse proposal report details:', e);
+        }
+      }
+      console.log(`[Supabase Sync] ✅ Loaded ${db.itemProposals.size} item proposals and ${db.photoProposals.size} photo proposals`);
+    }
+
     console.log(`[Supabase Sync] Successfully loaded: ${db.organizations.size} orgs, ${db.users.size} users, ${db.stores.size} stores, ${db.variants.size} variants, ${db.offers.size} offers.`);
     return true;
   } catch (err) {
     console.error('[Supabase Sync] Failed to pull data from Supabase Cloud:', err);
     return false;
+  }
+}
+
+export async function persistItemProposalToSupabase(proposal: any): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from('reports').upsert({
+      id: proposal.id,
+      target_id: proposal.storeId,
+      target_type: 'ITEM_PROPOSAL',
+      user_id: proposal.userId || null,
+      reason: proposal.title || 'Tovar taklifi',
+      details: JSON.stringify(proposal),
+      status: proposal.status || 'PENDING',
+      created_at: proposal.createdAt || new Date().toISOString()
+    }, { onConflict: 'id' });
+  } catch (err) {
+    console.error('[Supabase Sync] Error persisting item proposal:', err);
+  }
+}
+
+export async function persistPhotoProposalToSupabase(proposal: any): Promise<void> {
+  if (!supabase) return;
+  try {
+    await supabase.from('reports').upsert({
+      id: proposal.id,
+      target_id: proposal.storeId,
+      target_type: 'PHOTO_PROPOSAL',
+      user_id: proposal.userId || null,
+      reason: proposal.targetType === 'STORE' ? 'Store photo' : 'Product photo',
+      details: JSON.stringify(proposal),
+      status: proposal.status || 'PENDING',
+      created_at: proposal.createdAt || new Date().toISOString()
+    }, { onConflict: 'id' });
+  } catch (err) {
+    console.error('[Supabase Sync] Error persisting photo proposal:', err);
   }
 }
