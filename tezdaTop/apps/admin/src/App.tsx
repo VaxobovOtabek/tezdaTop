@@ -547,6 +547,76 @@ export function AdminApp() {
     }
   };
 
+  // Delete Report
+  const handleDeleteReport = async (reportId: string) => {
+    if (!window.confirm('Haqiqatan ham ushbu shikoyatni o‘chirib tashlamoqchimisiz?')) return;
+    try {
+      const res = await fetch(`/api/v1/admin/reports/${reportId}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast('Shikoyat muvaffaqiyatli o‘chirildi');
+        setReports(prev => prev.filter(r => r.id !== reportId));
+        loadData();
+      } else {
+        showToast('O‘chirishda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa uzildi');
+    }
+  };
+
+  // Resolve Store Issues directly from map or cards
+  const handleResolveStoreIssues = async (store: EnrichedStore) => {
+    try {
+      const res = await fetch(`/api/v1/admin/stores/${store.id}/resolve-issues`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (res.ok) {
+        showToast('Do‘kondagi barcha muammolar muvaffaqiyatli bartaraf etildi va o‘chirildi!');
+        setStores(prev => prev.map(s => s.id === store.id ? {
+          ...s,
+          status: 'ACTIVE',
+          isVerified: true,
+          openReportsCount: 0,
+          openCorrectionsCount: 0,
+          hasPendingModeration: false
+        } : s));
+        setReports(prev => prev.map(r => r.storeId === store.id ? { ...r, status: 'RESOLVED' } : r));
+        setApplications(prev => prev.filter(a => a.id !== store.id));
+        loadData();
+      } else {
+        showToast('Muammolarni bartaraf etishda xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa uzildi');
+    }
+  };
+
+  // Quick Application Decision
+  const handleQuickAppDecision = async (appId: string, action: 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES') => {
+    try {
+      const res = await fetch(`/api/v1/admin/applications/${appId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action })
+      });
+      if (res.ok) {
+        showToast(
+          action === 'APPROVE'
+            ? 'Do‘kon arizasi tasdiqlandi va platformada faollashtirildi!'
+            : action === 'REJECT'
+            ? 'Ariza rad etildi'
+            : 'Tuzatish kiritish talabi yuborildi'
+        );
+        loadData();
+      }
+    } catch {
+      showToast('Xatolik yuz berdi');
+    }
+  };
+
   // Handle User suspension/restoration
   const handleToggleUserStatus = async (user: User) => {
     const newStatus = user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
@@ -1456,6 +1526,7 @@ export function AdminApp() {
               onEditStore={(st) => handleOpenEditStore(st)}
               onJumpToReports={() => setActiveTab('reports')}
               onJumpToApplications={() => setActiveTab('applications')}
+              onResolveStoreIssues={handleResolveStoreIssues}
               onManageUsers={(orgId) => {
                 const org = organizations.find(o => o.id === orgId);
                 if (org) handleOpenOrgUsers(org);
@@ -2562,16 +2633,24 @@ export function AdminApp() {
                         </div>
 
                         <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleQuickAppDecision(app.id, 'APPROVE')}
+                            className="px-3 py-1.5 rounded-xl bg-[#116B50] hover:bg-[#0B563F] text-white text-xs font-bold flex items-center gap-1 transition shadow-sm"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Tasdiqlash</span>
+                          </button>
                           <Button
-                            variant="primary"
+                            variant="secondary"
                             size="sm"
                             onClick={() => {
                               setSelectedApp(app);
                               setIsAppModalOpen(true);
                             }}
-                            className="bg-[#116B50] hover:bg-[#0B563F] text-white text-xs font-bold flex items-center gap-1.5"
+                            className="text-xs font-bold flex items-center gap-1.5"
                           >
-                            <span>Ko‘rib chiqish va tasdiqlash</span>
+                            <span>Tafsilot</span>
                           </Button>
                         </div>
                       </div>
@@ -2794,24 +2873,34 @@ export function AdminApp() {
                               {new Date(rep.createdAt).toLocaleDateString('uz-UZ')}
                             </td>
                             <td className="py-3.5 px-4">
-                              {rep.status === 'OPEN' ? (
-                                <Button
-                                  variant="secondary"
-                                  size="sm"
-                                  onClick={() => {
-                                    setSelectedReport(rep);
-                                    setIsReportModalOpen(true);
-                                  }}
-                                  className="text-xs font-bold whitespace-nowrap"
+                              <div className="flex items-center gap-1.5">
+                                {rep.status === 'OPEN' ? (
+                                  <Button
+                                    variant="secondary"
+                                    size="sm"
+                                    onClick={() => {
+                                      setSelectedReport(rep);
+                                      setIsReportModalOpen(true);
+                                    }}
+                                    className="text-xs font-bold whitespace-nowrap"
+                                  >
+                                    Ko‘rib chiqish
+                                  </Button>
+                                ) : (
+                                  <span className="text-xs text-[#116B50] dark:text-[#4ADE80] font-semibold flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                    <span>Hal qilingan</span>
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteReport(rep.id)}
+                                  title="Shikoyatni o‘chirish"
+                                  className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 dark:hover:bg-red-950/50 transition border border-transparent hover:border-red-200"
                                 >
-                                  Ko‘rib chiqish
-                                </Button>
-                              ) : (
-                                <span className="text-xs text-[#116B50] dark:text-[#4ADE80] font-semibold flex items-center gap-1">
-                                  <CheckCircle2 className="w-3.5 h-3.5" />
-                                  <span>Hal qilingan</span>
-                                </span>
-                              )}
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );

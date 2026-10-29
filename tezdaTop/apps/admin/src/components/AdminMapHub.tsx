@@ -14,6 +14,9 @@ import {
   Search,
   Filter,
   CheckCircle,
+  CheckCircle2,
+  Trash2,
+  Loader2,
   XCircle,
   ShieldAlert,
   ChevronRight,
@@ -42,6 +45,7 @@ interface AdminMapHubProps {
   onJumpToReports: (storeId?: string) => void;
   onJumpToApplications: (storeId?: string) => void;
   onManageUsers: (organizationId: string) => void;
+  onResolveStoreIssues?: (store: EnrichedStore) => Promise<void> | void;
 }
 
 const REGION_OPTIONS = [
@@ -73,13 +77,15 @@ export function AdminMapHub({
   onEditStore,
   onJumpToReports,
   onJumpToApplications,
-  onManageUsers
+  onManageUsers,
+  onResolveStoreIssues
 }: AdminMapHubProps) {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
 
   const [selectedStore, setSelectedStore] = useState<EnrichedStore | null>(null);
+  const [isResolving, setIsResolving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRegion, setSelectedRegion] = useState('Barcha viloyatlar');
   const [selectedDistrict, setSelectedDistrict] = useState('Barcha tumanlar');
@@ -409,25 +415,135 @@ export function AdminMapHub({
               </div>
 
               {/* Red Warning Banner if issues exist */}
-              {((selectedStore.openReportsCount || 0) > 0 || selectedStore.hasPendingModeration) && (
-                <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl p-2.5 text-xs text-red-700 dark:text-red-400 flex flex-col gap-1.5">
-                  <div className="flex items-center gap-2 font-bold">
-                    <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
-                    <span>
-                      {selectedStore.openReportsCount || 1} ta ochiq shikoyat / moderatsiya talabi!
+              {((selectedStore.openReportsCount || 0) > 0 || selectedStore.hasPendingModeration || selectedStore.status === 'PENDING') ? (
+                <div className="bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-900 rounded-xl p-3 text-xs text-red-700 dark:text-red-400 flex flex-col gap-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 font-bold">
+                      <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 animate-pulse" />
+                      <span>
+                        {(selectedStore.openReportsCount || 0) > 0
+                          ? `${selectedStore.openReportsCount} ta ochiq shikoyat mavjud`
+                          : selectedStore.status === 'PENDING'
+                          ? '1 ta ariza moderatsiyasi kutilmoqda'
+                          : '1 ta moderatsiya talabi'}
+                      </span>
+                    </div>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-extrabold bg-red-600 text-white">
+                      🔴 DIQQAT
                     </span>
                   </div>
-                  <p className="text-[11px] text-red-600/90 dark:text-red-300">
-                    Xaridorlar narx nomuvofiqligi yoki tovar yo‘qligi haqida murojaat qilgan.
+
+                  <p className="text-[11px] text-red-600/90 dark:text-red-300 leading-relaxed">
+                    {selectedStore.status === 'PENDING' && (selectedStore.openReportsCount || 0) === 0
+                      ? 'Ushbu do‘kon arizasi tekshiruv kutilmoqda. Xaritada to‘liq faollashtirish yoki muammoni o‘chirib yopishingiz mumkin.'
+                      : (selectedStore.openReportsCount || 0) > 0
+                      ? 'Xaridorlar tomonidan narx nomuvofiqligi yoki yo‘q tovar bo‘yicha shikoyat tushgan.'
+                      : 'Ushbu do‘kon bo‘yicha moderatsiya talab etiladi.'}
                   </p>
-                  <Button
-                    variant="danger"
-                    size="sm"
-                    onClick={() => onJumpToReports(selectedStore.id)}
-                    className="w-full text-xs font-bold mt-1"
-                  >
-                    Shikoyatni ko‘rish va tuzatish
-                  </Button>
+
+                  <div className="flex flex-col gap-1.5 pt-1 border-t border-red-200/60 dark:border-red-900/60">
+                    {/* Primary Button: Muammoni o'chirish */}
+                    <button
+                      type="button"
+                      disabled={isResolving}
+                      onClick={async () => {
+                        setIsResolving(true);
+                        try {
+                          if (onResolveStoreIssues) {
+                            await onResolveStoreIssues(selectedStore);
+                          } else {
+                            await fetch(`/api/v1/admin/stores/${selectedStore.id}/resolve-issues`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' }
+                            });
+                          }
+                          setSelectedStore({
+                            ...selectedStore,
+                            status: 'ACTIVE',
+                            openReportsCount: 0,
+                            openCorrectionsCount: 0,
+                            hasPendingModeration: false
+                          });
+                        } catch (e) {
+                          console.error(e);
+                        } finally {
+                          setIsResolving(false);
+                        }
+                      }}
+                      className="w-full py-2 px-3 rounded-xl bg-red-600 hover:bg-red-700 active:scale-[0.98] text-white font-black text-xs transition flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+                    >
+                      {isResolving ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          <span>O‘chirilmoqda...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Muammoni o‘chirish (Bartaraf etish)</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* Quick Approve Button for Pending Stores */}
+                    {selectedStore.status === 'PENDING' && (
+                      <button
+                        type="button"
+                        disabled={isResolving}
+                        onClick={async () => {
+                          setIsResolving(true);
+                          try {
+                            if (onResolveStoreIssues) {
+                              await onResolveStoreIssues(selectedStore);
+                            } else {
+                              await fetch(`/api/v1/admin/applications/${selectedStore.id}`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ action: 'APPROVE' })
+                              });
+                            }
+                            setSelectedStore({
+                              ...selectedStore,
+                              status: 'ACTIVE',
+                              openReportsCount: 0,
+                              hasPendingModeration: false
+                            });
+                          } catch (e) {
+                            console.error(e);
+                          } finally {
+                            setIsResolving(false);
+                          }
+                        }}
+                        className="w-full py-1.5 px-3 rounded-xl bg-[#116B50] hover:bg-[#0B563F] text-white font-bold text-xs transition flex items-center justify-center gap-1.5"
+                      >
+                        <CheckCircle className="w-3.5 h-3.5" />
+                        <span>Arizani tasdiqlash (Faollashtirish)</span>
+                      </button>
+                    )}
+
+                    {/* Secondary Navigation Button */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedStore.status === 'PENDING') {
+                          onJumpToApplications(selectedStore.id);
+                        } else {
+                          onJumpToReports(selectedStore.id);
+                        }
+                      }}
+                      className="w-full py-1.5 px-3 rounded-xl bg-white dark:bg-[#1A2822] hover:bg-red-100/50 dark:hover:bg-red-950/40 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 font-bold text-xs transition flex items-center justify-center gap-1.5"
+                    >
+                      <ExternalLink className="w-3.5 h-3.5" />
+                      <span>
+                        {selectedStore.status === 'PENDING' ? 'Arizalar bo‘limida ko‘rish' : 'Shikoyatlarni ko‘rish va tuzatish'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 rounded-xl p-2.5 text-xs text-emerald-800 dark:text-emerald-300 flex items-center gap-2 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Ushbu do‘konda hech qanday muammo yo‘q, barchasi to‘g‘ri.</span>
                 </div>
               )}
 

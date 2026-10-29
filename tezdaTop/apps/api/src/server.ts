@@ -3110,6 +3110,37 @@ app.patch('/api/v1/admin/reports/:id', async (req, res) => {
   res.json({ report: rep });
 });
 
+app.delete('/api/v1/admin/reports/:id', async (req, res) => {
+  const rep = db.reports.get(req.params.id);
+  if (!rep) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Shikoyat topilmadi' });
+    return;
+  }
+  db.reports.delete(req.params.id);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('reports').delete().eq('id', req.params.id);
+    } catch (e) {
+      console.error('[Supabase Report Delete Error]', e);
+    }
+  }
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: SEED_IDS.adminUserId,
+    actorEmail: 'admin@yaqintop.uz',
+    action: 'DELETE_REPORT',
+    entityType: 'REPORT',
+    entityId: req.params.id,
+    diff: { storeId: rep.storeId, reason: rep.reason },
+    timestamp: new Date().toISOString()
+  });
+
+  db.scheduleSave();
+  res.json({ success: true, message: 'Shikoyat muvaffaqiyatli o‘chirildi' });
+});
+
 app.get('/api/v1/admin/users', (req, res) => {
   const users = Array.from(db.users.values()).map(({ passwordHash, ...u }) => {
     const membership = Array.from(db.memberships.values()).find(m => m.userId === u.id);
@@ -4023,7 +4054,7 @@ app.post('/api/v1/admin/stores', (req, res) => {
   res.status(201).json({ store });
 });
 
-app.patch('/api/v1/admin/stores/:id', (req, res) => {
+app.patch('/api/v1/admin/stores/:id', async (req, res) => {
   const store = db.stores.get(req.params.id);
   if (!store) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
@@ -4051,6 +4082,21 @@ app.patch('/api/v1/admin/stores/:id', (req, res) => {
   if (type !== undefined) store.type = type;
   store.updatedAt = new Date().toISOString();
 
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('stores').update({
+        name: store.name,
+        address: store.address,
+        phone: store.phone,
+        status: store.status,
+        is_active: store.status === 'ACTIVE',
+        updated_at: store.updatedAt
+      }).eq('id', store.id);
+    } catch (e) {
+      console.error('[Supabase Store Update Error]', e);
+    }
+  }
+
   db.auditLogs.push({
     id: uuidv4(),
     actorId: SEED_IDS.adminUserId,
@@ -4065,6 +4111,151 @@ app.patch('/api/v1/admin/stores/:id', (req, res) => {
   db.scheduleSave();
 
   res.json({ store });
+});
+
+app.post('/api/v1/admin/stores/:id/resolve-issues', async (req, res) => {
+  const store = db.stores.get(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  // 1. Resolve / clear all open reports for this store
+  let resolvedReportsCount = 0;
+  for (const [repId, rep] of db.reports.entries()) {
+    if (rep.storeId === store.id && rep.status === 'OPEN') {
+      rep.status = 'RESOLVED';
+      (rep as any).resolutionNotes = 'Admin tomonidan moderatsiya xaritasidan bartaraf etildi va o‘chirildi';
+      (rep as any).resolvedAt = new Date().toISOString();
+      resolvedReportsCount++;
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          await supabase.from('reports').update({
+            status: 'RESOLVED',
+            updated_at: new Date().toISOString()
+          }).eq('id', rep.id);
+        } catch (e) {
+          console.error('[Supabase Report Resolve Error]', e);
+        }
+      }
+    }
+  }
+
+  // 2. Resolve / close any open corrections for this store
+  for (const [corrId, corr] of db.corrections.entries()) {
+    if (corr.storeId === store.id && corr.status === 'OPEN') {
+      corr.status = 'RESOLVED' as any;
+    }
+  }
+
+  // 3. If store was PENDING or NEEDS_CHANGES, approve / activate it
+  const prevStatus = store.status;
+  if (store.status === 'PENDING' || store.status === 'NEEDS_CHANGES') {
+    store.status = 'ACTIVE';
+    store.isVerified = true;
+    store.updatedAt = new Date().toISOString();
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('stores').update({
+          status: 'ACTIVE',
+          is_active: true,
+          updated_at: new Date().toISOString()
+        }).eq('id', store.id);
+      } catch (e) {
+        console.error('[Supabase Store Activate Error]', e);
+      }
+    }
+  }
+
+  // 4. Audit Log
+  const auditEntry = {
+    id: uuidv4(),
+    actorId: SEED_IDS.adminUserId,
+    actorEmail: 'admin@yaqintop.uz',
+    action: 'RESOLVE_STORE_ISSUES',
+    entityType: 'STORE',
+    entityId: store.id,
+    diff: {
+      resolvedReportsCount,
+      prevStatus,
+      newStatus: store.status
+    },
+    timestamp: new Date().toISOString()
+  };
+  db.auditLogs.push(auditEntry);
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('audit_logs').insert({
+        id: auditEntry.id,
+        user_id: SEED_IDS.adminUserId,
+        action: auditEntry.action,
+        entity: 'STORE',
+        entity_id: store.id,
+        details: auditEntry.diff
+      });
+    } catch (e) {
+      console.error('[Supabase Audit Log Error]', e);
+    }
+  }
+
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: 'Do‘kondagi barcha muammolar muvaffaqiyatli bartaraf etildi va o‘chirildi',
+    store: {
+      ...store,
+      openReportsCount: 0,
+      openCorrectionsCount: 0,
+      hasPendingModeration: false
+    },
+    resolvedReportsCount
+  });
+});
+
+app.delete('/api/v1/admin/stores/:id/issues', async (req, res) => {
+  const store = db.stores.get(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  // Clear reports for this store
+  let resolvedReportsCount = 0;
+  for (const [repId, rep] of db.reports.entries()) {
+    if (rep.storeId === store.id) {
+      if (rep.status === 'OPEN') resolvedReportsCount++;
+      rep.status = 'RESOLVED';
+      (rep as any).resolvedAt = new Date().toISOString();
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          await supabase.from('reports').update({
+            status: 'RESOLVED',
+            updated_at: new Date().toISOString()
+          }).eq('id', rep.id);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }
+  if (store.status === 'PENDING' || store.status === 'NEEDS_CHANGES') {
+    store.status = 'ACTIVE';
+    store.isVerified = true;
+    store.updatedAt = new Date().toISOString();
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('stores').update({
+          status: 'ACTIVE',
+          is_active: true,
+          updated_at: new Date().toISOString()
+        }).eq('id', store.id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+  db.scheduleSave();
+  res.json({ success: true, message: 'Muammolar muvaffaqiyatli o‘chirildi', resolvedReportsCount });
 });
 
 app.delete('/api/v1/admin/stores/:id', (req, res) => {
