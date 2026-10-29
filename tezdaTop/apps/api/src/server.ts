@@ -2792,7 +2792,167 @@ app.get('/api/v1/admin/overview', (req, res) => {
     (c) => c.status === 'OPEN' && new Date(c.deadline).getTime() < Date.now()
   ).length;
 
-  res.json({ pendingApps, openReports, overdueCorrections });
+  const pendingCredentialRequests = Array.from(db.credentialRequests.values()).filter((r) => r.status === 'PENDING').length;
+  const pendingInquiries = Array.from(db.inquiries.values()).filter((i) => i.status === 'MERCHANT_SUBMITTED' || i.status === 'PENDING' || i.status === 'PENDING_MERCHANT_REPLY').length;
+  const pendingItemProposals = Array.from(db.itemProposals.values()).filter((p) => p.status === 'PENDING').length;
+  const pendingPhotoProposals = Array.from(db.photoProposals.values()).filter((p) => p.status === 'PENDING').length;
+  const totalPendingProposals = pendingItemProposals + pendingPhotoProposals;
+  const pendingRequests = pendingCredentialRequests + pendingInquiries + totalPendingProposals;
+
+  const allReviews = Array.from(db.reviews.values());
+  const pendingReviews = allReviews.filter((r: any) => r.status === 'PENDING' || r.status === 'HIDDEN').length;
+
+  res.json({
+    pendingApps,
+    openReports,
+    overdueCorrections,
+    pendingCredentialRequests,
+    pendingInquiries,
+    pendingItemProposals,
+    pendingPhotoProposals,
+    totalPendingProposals,
+    pendingRequests,
+    pendingReviews,
+    totalReviews: allReviews.length
+  });
+});
+
+// Admin Review Moderation Routes
+app.get('/api/v1/admin/reviews', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user || !['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ruxsat berilmagan' });
+    return;
+  }
+
+  // Ensure reviews are populated if empty
+  if (db.reviews.size === 0) {
+    const seedReviews = [
+      {
+        id: 'dc8fcbc5-b471-4daa-a83b-a6dc1452053d',
+        storeId: SEED_IDS.navbahorStoreId,
+        userId: SEED_IDS.customerUserId,
+        userName: 'Otabek Xaridor',
+        rating: 5,
+        comment: 'Do‘konda barcha shirinliklar bor ekan, narxlari ham qulay va toza joy.',
+        status: 'PUBLISHED' as const,
+        merchantReply: 'Tashrifingiz uchun rahmat! Har doim xizmatingizdamiz.',
+        merchantRepliedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'e335a9b9-0f22-4a3d-aab3-8cdd7ceb8263',
+        storeId: SEED_IDS.barakaStoreId,
+        userId: SEED_IDS.customerUserId,
+        userName: 'Sardor Qosimov',
+        rating: 4,
+        comment: 'Xizmat ko‘rsatish sifati a’lo darajada, mahsulotlar yangi. Faqat qatorlar orasi biroz torroq.',
+        status: 'PUBLISHED' as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    for (const sr of seedReviews) {
+      db.reviews.set(sr.id, sr);
+    }
+  }
+
+  const enrichedReviews = Array.from(db.reviews.values())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map((r) => {
+      const store = db.stores.get(r.storeId);
+      const org = store ? db.organizations.get(store.organizationId) : undefined;
+      return {
+        ...r,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || '',
+        organizationName: org?.name || ''
+      };
+    });
+
+  res.json({ reviews: enrichedReviews, total: enrichedReviews.length });
+});
+
+app.patch('/api/v1/admin/reviews/:id/status', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user || !['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ruxsat berilmagan' });
+    return;
+  }
+
+  const review = db.reviews.get(req.params.id);
+  if (!review) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Sharh topilmadi' });
+    return;
+  }
+
+  const { status } = req.body;
+  if (!['PUBLISHED', 'HIDDEN', 'REJECTED', 'PENDING'].includes(status)) {
+    res.status(400).json({ code: 'BAD_REQUEST', message: 'Noto‘g‘ri status ko‘rsatildi' });
+    return;
+  }
+
+  review.status = status;
+  (review as any).updatedAt = new Date().toISOString();
+  db.reviews.set(review.id, review);
+
+  // Recalculate store rating
+  const store = db.stores.get(review.storeId);
+  if (store) {
+    const pubReviews = Array.from(db.reviews.values()).filter((r) => r.storeId === store.id && r.status === 'PUBLISHED');
+    const sum = pubReviews.reduce((acc, r) => acc + r.rating, 0);
+    store.rating = pubReviews.length > 0 ? parseFloat((sum / pubReviews.length).toFixed(1)) : 0;
+    store.reviewCount = pubReviews.length;
+  }
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('reviews').update({
+        status: review.status
+      }).eq('id', review.id);
+    } catch (e) {
+      console.error('[Supabase Review Update Error]', e);
+    }
+  }
+
+  res.json({ success: true, review });
+});
+
+app.delete('/api/v1/admin/reviews/:id', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user || !['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ruxsat berilmagan' });
+    return;
+  }
+
+  const review = db.reviews.get(req.params.id);
+  if (!review) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Sharh topilmadi' });
+    return;
+  }
+
+  const storeId = review.storeId;
+  db.reviews.delete(req.params.id);
+
+  // Recalculate store rating
+  const store = db.stores.get(storeId);
+  if (store) {
+    const pubReviews = Array.from(db.reviews.values()).filter((r) => r.storeId === storeId && r.status === 'PUBLISHED');
+    const sum = pubReviews.reduce((acc, r) => acc + r.rating, 0);
+    store.rating = pubReviews.length > 0 ? parseFloat((sum / pubReviews.length).toFixed(1)) : 0;
+    store.reviewCount = pubReviews.length;
+  }
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('reviews').delete().eq('id', req.params.id);
+    } catch (e) {
+      console.error('[Supabase Review Delete Error]', e);
+    }
+  }
+
+  res.json({ success: true, message: 'Sharh muvaffaqiyatli o‘chirildi' });
 });
 
 app.get('/api/v1/admin/applications', (req, res) => {

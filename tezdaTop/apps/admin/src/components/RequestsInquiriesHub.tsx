@@ -30,6 +30,7 @@ export interface RequestsInquiriesHubProps {
   stores: EnrichedStore[];
   isDarkMode: boolean;
   onShowToast: (msg: string) => void;
+  onStatsUpdate?: () => void;
 }
 
 
@@ -38,7 +39,7 @@ const getHubAuthHeaders = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: RequestsInquiriesHubProps) {
+export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsUpdate }: RequestsInquiriesHubProps) {
   const [activeTab, setActiveTab] = useState<'credentials' | 'inquiries' | 'proposals'>('credentials');
 
   // Credential Requests State
@@ -107,6 +108,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
         const d = await photoRes.json();
         setPhotoProposals(d.items || []);
       }
+      onStatsUpdate?.();
     } catch (e) {
       console.error(e);
     } finally {
@@ -453,7 +455,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           <Key className="w-4 h-4" />
           <span>Login & Parol O‘zgartirish So‘rovlari</span>
           {pendingCredCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#B42318] text-white">
+            <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
               {pendingCredCount}
             </span>
           )}
@@ -470,8 +472,8 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           <MessageSquare className="w-4 h-4" />
           <span>Do‘konlar bilan Rasmiy Murojaatlar</span>
           {pendingInqRepliesCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white">
-              {pendingInqRepliesCount} yangi javob
+            <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
+              {pendingInqRepliesCount}
             </span>
           )}
         </button>
@@ -487,7 +489,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           <Sparkles className="w-4 h-4" />
           <span>Tovar, Xizmat & Rasm Takliflari</span>
           {(pendingProposalsCount + pendingPhotoProposalsCount) > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#F59E0B] text-white">
+            <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
               {pendingProposalsCount + pendingPhotoProposalsCount}
             </span>
           )}

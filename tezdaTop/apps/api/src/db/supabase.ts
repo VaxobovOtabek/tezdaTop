@@ -560,6 +560,26 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
       console.log(`[Supabase Sync] ✅ Loaded ${db.itemProposals.size} item proposals and ${db.photoProposals.size} photo proposals`);
     }
 
+    // 6. Reviews
+    const { data: revList, error: revErr } = await supabase.from('reviews').select('*');
+    if (!revErr && revList && revList.length > 0) {
+      for (const r of revList) {
+        db.reviews.set(r.id, {
+          id: r.id,
+          storeId: r.store_id,
+          userId: r.user_id,
+          userName: r.user_name || 'Foydalanuvchi',
+          rating: r.rating || 5,
+          comment: r.comment || '',
+          status: (r.status as any) || 'PUBLISHED',
+          merchantReply: r.merchant_reply || undefined,
+          merchantRepliedAt: r.merchant_replied_at || undefined,
+          createdAt: r.created_at || new Date().toISOString()
+        } as any);
+      }
+      console.log(`[Supabase Sync] ✅ Loaded ${db.reviews.size} reviews`);
+    }
+
     console.log(`[Supabase Sync] Successfully loaded: ${db.organizations.size} orgs, ${db.users.size} users, ${db.stores.size} stores, ${db.variants.size} variants, ${db.offers.size} offers.`);
     return true;
   } catch (err) {

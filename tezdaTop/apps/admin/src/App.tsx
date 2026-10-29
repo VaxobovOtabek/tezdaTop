@@ -65,6 +65,7 @@ import { ArchitectureAndDbViewer } from './components/ArchitectureAndDbViewer';
 import { LocationPickerModal } from './components/LocationPickerModal';
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
+import { ReviewsModerationHub } from './components/ReviewsModerationHub';
 
 // Helper for strictly validating and formatting Uzbek phone numbers
 export const formatUzPhone = (value: string): string => {
@@ -159,7 +160,19 @@ export function AdminApp() {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
-  const [overviewStats, setOverviewStats] = useState({ pendingApps: 0, openReports: 0, overdueCorrections: 0 });
+  const [overviewStats, setOverviewStats] = useState({
+    pendingApps: 0,
+    openReports: 0,
+    overdueCorrections: 0,
+    pendingCredentialRequests: 0,
+    pendingInquiries: 0,
+    pendingItemProposals: 0,
+    pendingPhotoProposals: 0,
+    totalPendingProposals: 0,
+    pendingRequests: 0,
+    pendingReviews: 0,
+    totalReviews: 0
+  });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
   const [stores, setStores] = useState<EnrichedStore[]>([]);
   const [applications, setApplications] = useState<StoreType[]>([]);
@@ -379,17 +392,70 @@ export function AdminApp() {
     try {
       const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
       const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const [overRes, orgRes, storeRes, appRes, repRes, usersRes, auditRes] = await Promise.all([
+      const [overRes, orgRes, storeRes, appRes, repRes, usersRes, auditRes, itemPropRes, photoPropRes, credReqRes, revRes] = await Promise.all([
         fetch('/api/v1/admin/overview', { credentials: 'include', headers: authHeaders }),
         fetch('/api/v1/admin/organizations', { credentials: 'include', headers: authHeaders }),
         fetch('/api/v1/admin/stores', { credentials: 'include', headers: authHeaders }),
         fetch('/api/v1/admin/applications', { credentials: 'include', headers: authHeaders }),
         fetch('/api/v1/admin/reports', { credentials: 'include', headers: authHeaders }),
         fetch('/api/v1/admin/users', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/audit', { credentials: 'include', headers: authHeaders })
+        fetch('/api/v1/admin/audit', { credentials: 'include', headers: authHeaders }),
+        fetch('/api/v1/admin/item-proposals', { credentials: 'include', headers: authHeaders }).catch(() => null),
+        fetch('/api/v1/admin/photo-proposals', { credentials: 'include', headers: authHeaders }).catch(() => null),
+        fetch('/api/v1/admin/credential-requests', { credentials: 'include', headers: authHeaders }).catch(() => null),
+        fetch('/api/v1/admin/reviews', { credentials: 'include', headers: authHeaders }).catch(() => null)
       ]);
 
-      if (overRes.ok) setOverviewStats(await overRes.json());
+      let extraPendingProps = 0;
+      let extraPendingPhotos = 0;
+      let extraPendingCreds = 0;
+      let extraPendingRevs = 0;
+
+      if (itemPropRes && itemPropRes.ok) {
+        const d = await itemPropRes.json();
+        const items = d.items || d.proposals || [];
+        extraPendingProps = items.filter((p: any) => p.status === 'PENDING').length;
+      }
+      if (photoPropRes && photoPropRes.ok) {
+        const d = await photoPropRes.json();
+        const items = d.items || [];
+        extraPendingPhotos = items.filter((p: any) => p.status === 'PENDING').length;
+      }
+      if (credReqRes && credReqRes.ok) {
+        const d = await credReqRes.json();
+        const reqs = d.requests || [];
+        extraPendingCreds = reqs.filter((r: any) => r.status === 'PENDING').length;
+      }
+      if (revRes && revRes.ok) {
+        const d = await revRes.json();
+        const revs = d.reviews || [];
+        extraPendingRevs = revs.filter((r: any) => r.status === 'PENDING' || r.status === 'HIDDEN').length;
+      }
+
+      if (overRes.ok) {
+        const stats = await overRes.json();
+        const calculatedPendingRequests = Math.max(
+          stats.pendingRequests || 0,
+          extraPendingProps + extraPendingPhotos + extraPendingCreds
+        );
+        setOverviewStats({
+          ...stats,
+          pendingRequests: calculatedPendingRequests,
+          pendingItemProposals: Math.max(stats.pendingItemProposals || 0, extraPendingProps),
+          pendingPhotoProposals: Math.max(stats.pendingPhotoProposals || 0, extraPendingPhotos),
+          pendingCredentialRequests: Math.max(stats.pendingCredentialRequests || 0, extraPendingCreds),
+          pendingReviews: Math.max(stats.pendingReviews || 0, extraPendingRevs)
+        });
+      } else {
+        setOverviewStats(prev => ({
+          ...prev,
+          pendingRequests: extraPendingProps + extraPendingPhotos + extraPendingCreds,
+          pendingItemProposals: extraPendingProps,
+          pendingPhotoProposals: extraPendingPhotos,
+          pendingCredentialRequests: extraPendingCreds,
+          pendingReviews: extraPendingRevs
+        }));
+      }
       if (orgRes.ok) {
         const d = await orgRes.json();
         setOrganizations(d.organizations || []);
@@ -1283,7 +1349,8 @@ export function AdminApp() {
                 id: 'requests-inquiries',
                 label: 'So‘rovlar & Murojaatlar',
                 icon: Send,
-                isSpecial: true
+                isSpecial: true,
+                badge: overviewStats.pendingRequests || undefined
               },
               {
                 id: 'analytics',
@@ -1301,9 +1368,9 @@ export function AdminApp() {
               { id: 'roles-guide', label: 'Rollar & Yo‘riqnoma', icon: Shield },
               { id: 'organizations', label: 'Tashkilotlar va Do‘konlar', icon: Building2, count: stores.length },
               { id: 'api-explorer', label: 'API Explorer (Postman)', icon: Terminal, adminOnly: true },
-              { id: 'applications', label: 'Do‘kon arizalari', icon: Store, badge: overviewStats.pendingApps },
-              { id: 'reports', label: 'Shikoyatlar navbati', icon: AlertTriangle, badge: overviewStats.openReports },
-              { id: 'reviews', label: 'Sharhlar moderatsiyasi', icon: MessageSquare },
+              { id: 'applications', label: 'Do‘kon arizalari', icon: Store, badge: overviewStats.pendingApps || undefined },
+              { id: 'reports', label: 'Shikoyatlar navbati', icon: AlertTriangle, badge: overviewStats.openReports || undefined },
+              { id: 'reviews', label: 'Sharhlar moderatsiyasi', icon: MessageSquare, badge: overviewStats.pendingReviews || undefined },
               { id: 'users', label: 'Foydalanuvchilar', icon: Users },
               { id: 'audit', label: 'Tizim auditi', icon: ShieldCheck }
             ]
@@ -1328,9 +1395,16 @@ export function AdminApp() {
                     <span>{item.label}</span>
                   </div>
                   {item.badge ? (
-                    <span className="w-4 h-4 bg-[#B42318] text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                      {item.badge}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {item.isSpecial && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-[#116B50] text-white">
+                          LIVE
+                        </span>
+                      )}
+                      <span className="min-w-[22px] h-[22px] px-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black rounded-full flex items-center justify-center shadow-md shadow-amber-500/25 ring-2 ring-amber-400/50 animate-pulse">
+                        {item.badge}
+                      </span>
+                    </div>
                   ) : item.isSpecial ? (
                     <span className="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-[#116B50] text-white">
                       LIVE
@@ -1387,6 +1461,7 @@ export function AdminApp() {
               stores={stores}
               isDarkMode={isDarkMode}
               onShowToast={(msg) => showToast(msg)}
+              onStatsUpdate={() => loadData()}
             />
           )}
 
@@ -1412,37 +1487,65 @@ export function AdminApp() {
               </div>
 
               {/* Stat Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Faol do‘konlar & filiallar</span>
-                  <div className="text-3xl font-extrabold text-[#116B50] dark:text-[#4ADE80] mt-2">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
+                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Faol do‘konlar</span>
+                  <div className="text-2xl font-extrabold text-[#116B50] dark:text-[#4ADE80] mt-2">
                     {stores.filter(s => s.status === 'ACTIVE').length} ta
                   </div>
-                  <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Xaridorlar xaritasida mavjud</span>
+                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Xaritada mavjud</span>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
-                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Kutilayotgan do‘kon arizalari</span>
-                  <div className="text-3xl font-extrabold text-[#8A4B08] dark:text-amber-400 mt-2">
-                    {overviewStats.pendingApps} ta
+                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
+                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Do‘kon arizalari</span>
+                  <div className="text-2xl font-extrabold text-[#8A4B08] dark:text-amber-400 mt-2 flex items-center gap-1.5">
+                    <span>{overviewStats.pendingApps} ta</span>
+                    {overviewStats.pendingApps > 0 && (
+                      <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
+                    )}
                   </div>
-                  <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Tekshirish talab etiladi</span>
+                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Tekshirish talab etiladi</span>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
+                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
                   <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Ochiq shikoyatlar</span>
-                  <div className="text-3xl font-extrabold text-[#B42318] dark:text-red-400 mt-2">
-                    {overviewStats.openReports} ta
+                  <div className="text-2xl font-extrabold text-[#B42318] dark:text-red-400 mt-2 flex items-center gap-1.5">
+                    <span>{overviewStats.openReports} ta</span>
+                    {overviewStats.openReports > 0 && (
+                      <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
+                    )}
                   </div>
-                  <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Narx va qoldiq xatolari</span>
+                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Narx va qoldiq xatolari</span>
                 </div>
 
-                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
+                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
+                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">So‘rov & Takliflar</span>
+                  <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
+                    <span>{overviewStats.pendingRequests || 0} ta</span>
+                    {(overviewStats.pendingRequests || 0) > 0 && (
+                      <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Tovar, rasm & loginlar</span>
+                </div>
+
+                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
+                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Moderatsiyadagi sharhlar</span>
+                  <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400 mt-2 flex items-center gap-1.5">
+                    <span>{overviewStats.pendingReviews || 0} ta</span>
+                    {(overviewStats.pendingReviews || 0) > 0 && (
+                      <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
+                    )}
+                  </div>
+                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Xaridor fikrlari</span>
+                </div>
+
+                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm">
                   <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold">Kechikkan tuzatishlar</span>
-                  <div className="text-3xl font-extrabold text-[#172C28] dark:text-[#E8F2EC] mt-2">
+                  <div className="text-2xl font-extrabold text-[#172C28] dark:text-[#E8F2EC] mt-2">
                     {overviewStats.overdueCorrections} ta
                   </div>
-                  <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Do‘kon javobi kutilmoqda</span>
+                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] mt-1 block">Do‘kon javobi kutilmoqda</span>
                 </div>
               </div>
 
@@ -2147,6 +2250,16 @@ export function AdminApp() {
                 </table>
               </div>
             </div>
+          )}
+
+          {/* REVIEWS MODERATION TAB */}
+          {activeTab === 'reviews' && (
+            <ReviewsModerationHub
+              isDarkMode={isDarkMode}
+              onShowToast={(msg) => showToast(msg)}
+              onStatsUpdate={() => loadData()}
+              stores={stores.map(s => ({ id: s.id, name: s.name }))}
+            />
           )}
 
           {/* USERS TAB */}
