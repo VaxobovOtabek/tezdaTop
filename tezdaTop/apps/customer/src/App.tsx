@@ -44,7 +44,14 @@ import { UzbekistanRegionPickerModal, detectNearestUzbekistanLocation } from './
 import { apiUrl } from './config/api.js';
 import { LandingApp } from '@yaqintop/landing-app';
 
+const isLocalEnv = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === '0.0.0.0'
+);
+
 export function CustomerApp() {
+  const customerHomePath = isLocalEnv ? '/' : '/customer';
   const { t } = useTranslation();
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     return localStorage.getItem('yaqintop_theme') === 'dark';
@@ -132,7 +139,15 @@ export function CustomerApp() {
   });
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [view, setView] = useState<'landing' | 'search' | 'detail' | 'route' | 'hub' | 'products' | 'product-detail'>('search');
+  const [view, setView] = useState<'landing' | 'search' | 'detail' | 'route' | 'hub' | 'products' | 'product-detail'>(() => {
+    if (typeof window !== 'undefined') {
+      const p = (window.location.pathname || '').split('?')[0].replace(/\/+$/, '');
+      if (!isLocalEnv && (p === '' || p === '/')) {
+        return 'landing';
+      }
+    }
+    return 'search';
+  });
   const [activeProductParam, setActiveProductParam] = useState<string>('');
   const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history' | 'proposals'>('favorites');
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
@@ -392,18 +407,38 @@ export function CustomerApp() {
     const cleanPath = (path || '/').split('?')[0];
     const normalized = cleanPath === '' ? '/' : cleanPath;
 
-    // If URL starts with '/customer', immediately strip '/customer' and canonicalize to clean URL '/' or subpath
-    if (normalized === '/customer' || normalized.startsWith('/customer/')) {
-      const cleanTarget = normalized.replace(/^\/customer(?=\/|$)/, '') || '/';
-      window.history.replaceState(null, '', cleanTarget);
-      setCurrentPath(cleanTarget);
-      handleRoute(cleanTarget);
-      return;
+    // 1. LOCAL DEV SPECIAL CASE (localhost:3000):
+    // On local dev port 3000, Customer is at root '/'. If user visits '/customer', clean to '/'
+    if (isLocalEnv) {
+      if (normalized === '/customer' || normalized.startsWith('/customer/')) {
+        const cleanTarget = normalized.replace(/^\/customer(?=\/|$)/, '') || '/';
+        window.history.replaceState(null, '', cleanTarget);
+        setCurrentPath(cleanTarget);
+        handleRoute(cleanTarget);
+        return;
+      }
     }
 
     setCurrentPath(normalized);
 
-    // Only render Landing Page if explicitly on '/lending'
+    // 2. PRODUCTION ROOT (yaqintop.uz/) -> Always render Landing Page!
+    if (!isLocalEnv && (normalized === '/' || normalized === '')) {
+      setView('landing');
+      setRouteData(null);
+      if (typeof document !== 'undefined') {
+        const lang = localStorage.getItem('yaqintop_lang') || 'uz';
+        if (lang === 'ru') {
+          document.title = 'YaqinTop — Экосистема поиска местных товаров и магазинов | Узбекистан';
+        } else if (lang === 'en') {
+          document.title = 'YaqinTop — Local Store & Product Search Ecosystem | Uzbekistan';
+        } else {
+          document.title = 'YaqinTop — Mahalliy Tovar va Xizmatlar Qidiruv Ekotizimi | O‘zbekiston';
+        }
+      }
+      return;
+    }
+
+    // Explicit '/lending' route also renders Landing Page
     if (normalized === '/lending') {
       setView('landing');
       setRouteData(null);
@@ -415,7 +450,10 @@ export function CustomerApp() {
       document.title = 'YaqinTop — Yaqiningizdagi tovarlar, xizmatlar va do‘konlar qidiruvi';
     }
 
-    const relPath = normalized;
+    // Customer internal routes (relative to customer base)
+    // On prod, path is /customer, /customer/dokon/..., etc. -> relPath is /, /dokon/..., etc.
+    // On local, path is /, /dokon/..., etc. -> relPath is /, /dokon/..., etc.
+    const relPath = normalized.replace(/^\/customer(?=\/|$)/, '') || '/';
 
     if (relPath !== '/marshrut') {
       setRouteData(null);
@@ -425,8 +463,8 @@ export function CustomerApp() {
       if (!currentUser) {
         setAuthErrorBanner('⚠️ Shaxsiy kabinet va ma‘lumotlarni ko‘rish uchun iltimos, tizimga kiring!');
         setIsLoginModalOpen(true);
-        window.history.replaceState(null, '', '/');
-        setCurrentPath('/');
+        window.history.replaceState(null, '', customerHomePath);
+        setCurrentPath(customerHomePath);
         setView('search');
         return;
       }
@@ -455,8 +493,8 @@ export function CustomerApp() {
         setView('route');
       } else {
         // Prevent history loop on back/forward or reload when route data is not in memory
-        window.history.replaceState(null, '', '/');
-        setCurrentPath('/');
+        window.history.replaceState(null, '', customerHomePath);
+        setCurrentPath(customerHomePath);
         setView('search');
       }
     } else if (relPath === '/mahsulotlar' || relPath === '/tovarlar') {
@@ -474,10 +512,29 @@ export function CustomerApp() {
 
   const navigateTo = (path: string, options?: { replace?: boolean }) => {
     let target = path;
-    if (target === '/customer' || target === '') {
+
+    if (target === '/' && !isLocalEnv) {
       target = '/';
-    } else if (target.startsWith('/customer/')) {
-      target = target.replace(/^\/customer(?=\/|$)/, '') || '/';
+    } else if (isLocalEnv) {
+      if (target === '/customer' || target === '') {
+        target = '/';
+      } else if (target.startsWith('/customer/')) {
+        target = target.replace(/^\/customer(?=\/|$)/, '') || '/';
+      }
+    } else {
+      // Production:
+      if (target === '/customer' || target === '/customer/') {
+        target = '/customer';
+      } else if (
+        !target.startsWith('/customer') &&
+        !target.startsWith('/admin') &&
+        !target.startsWith('/owner') &&
+        !target.startsWith('/moderator') &&
+        target !== '/' &&
+        target !== '/lending'
+      ) {
+        target = target.startsWith('/') ? `/customer${target}` : `/customer/${target}`;
+      }
     }
 
     if (options?.replace) {
@@ -491,8 +548,8 @@ export function CustomerApp() {
   const handleStopRoute = () => {
     setRouteData(null);
     setView('search');
-    window.history.replaceState(null, '', '/');
-    setCurrentPath('/');
+    window.history.replaceState(null, '', customerHomePath);
+    setCurrentPath(customerHomePath);
     showToast('Marshrut rejimi to‘xtatildi');
   };
 
@@ -542,6 +599,7 @@ export function CustomerApp() {
       if (!href) return;
       if (href === '/' || href.startsWith('/customer')) {
         if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && target.target !== '_blank') {
+          if (href === '/' && isLocalEnv) return;
           e.preventDefault();
           navigateTo(href);
         }
@@ -922,7 +980,7 @@ export function CustomerApp() {
               setSearchQuery('');
               setSelectedResult(null);
               setSelectedNearbyStore(null);
-              navigateTo('/');
+              navigateTo(customerHomePath);
             }}
             className="flex items-center gap-1.5 cursor-pointer select-none shrink-0 group"
             title="Qidiruv bosh sahifasiga qaytish"
@@ -949,7 +1007,7 @@ export function CustomerApp() {
             <button
               onClick={() => {
                 setSearchCategory('products');
-                navigateTo('/');
+                navigateTo(customerHomePath);
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 (view === 'search' || (view as string) === 'route') && searchCategory === 'products'
@@ -964,7 +1022,7 @@ export function CustomerApp() {
             <button
               onClick={() => {
                 setSearchCategory('organizations');
-                navigateTo('/');
+                navigateTo(customerHomePath);
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 (view === 'search' || (view as string) === 'route') && searchCategory === 'organizations'
@@ -977,7 +1035,13 @@ export function CustomerApp() {
             </button>
 
             <a
-              href={import.meta.env.DEV ? 'http://localhost:3003' : '/'}
+              href={isLocalEnv ? 'http://localhost:3003' : '/'}
+              onClick={(e) => {
+                if (!isLocalEnv) {
+                  e.preventDefault();
+                  navigateTo('/');
+                }
+              }}
               className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] hover:text-[#116B50] dark:hover:text-[#4ADE80]"
               title="Lending sahifasiga o‘tish"
             >
@@ -1115,7 +1179,7 @@ export function CustomerApp() {
               };
               navigateTo(pathToMap[sec] || '/sevimlilar');
             }}
-            onBackToSearch={() => navigateTo('/')}
+            onBackToSearch={() => navigateTo(customerHomePath)}
             onOpenStore={(storeId) => {
               loadStoreCatalog(storeId);
               navigateTo(`/dokon/${storeId}`);
@@ -1125,7 +1189,7 @@ export function CustomerApp() {
             }}
             onSearchQuery={(q) => {
               setSearchQuery(q);
-              navigateTo('/');
+              navigateTo(customerHomePath);
               doSearch(q);
             }}
             isDarkMode={isDarkMode}
@@ -1143,7 +1207,7 @@ export function CustomerApp() {
             matchedOffer={selectedResult?.bestOffer?.id !== 'default' ? selectedResult?.bestOffer : null}
             currentUser={currentUser}
             onRequireAuth={(msg) => requireAuth(msg || 'Ushbu amalni bajarish')}
-            onBack={() => navigateTo('/')}
+            onBack={() => navigateTo(customerHomePath)}
             onGetRoute={(mode) => fetchRoute((selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail), mode)}
             onReportError={() => requireAuth('Murojaat yuborish', () => setIsReportModalOpen(true))}
             onShowToast={showToast}
@@ -1857,7 +1921,13 @@ export function CustomerApp() {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden h-16 bg-white dark:bg-[#14201A] border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40">
         <a
-          href={import.meta.env.DEV ? 'http://localhost:3003' : '/'}
+          href={isLocalEnv ? 'http://localhost:3003' : '/'}
+          onClick={(e) => {
+            if (!isLocalEnv) {
+              e.preventDefault();
+              navigateTo('/');
+            }
+          }}
           className="flex flex-col items-center gap-1 text-[10px] font-semibold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80]"
           title="Lending sahifasiga o‘tish"
         >
@@ -1870,7 +1940,7 @@ export function CustomerApp() {
             if (view === 'route') {
               handleStopRoute();
             } else if (view !== 'search') {
-              navigateTo('/');
+              navigateTo(customerHomePath);
               setMobileTab('xarita');
             } else {
               setMobileTab(mobileTab === 'xarita' ? 'royxat' : 'xarita');
