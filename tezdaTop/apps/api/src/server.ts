@@ -87,9 +87,7 @@ app.use(
         origin.includes('localhost') ||
         origin.includes('127.0.0.1') ||
         origin.endsWith('.vercel.app') ||
-        origin.includes('yaqintop.uz') ||
-        origin.includes('yondatop.uz') ||
-        origin.includes('tezdatop.uz')
+        origin.includes('yaqintop.uz')
       ) {
         return callback(null, true);
       }

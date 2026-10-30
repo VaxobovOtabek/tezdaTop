@@ -6,7 +6,11 @@ import { seedDatabase } from '../src/db/seed.js';
 vi.mock('../src/db/supabase.js', () => ({
   isSupabaseConfigured: () => false,
   syncAllFromSupabase: vi.fn(),
-  syncAllToSupabase: vi.fn()
+  syncAllToSupabase: vi.fn(),
+  persistItemProposalToSupabase: vi.fn(),
+  persistPhotoProposalToSupabase: vi.fn(),
+  insertRegisteredCustomer: vi.fn(),
+  supabase: null
 }));
 
 let server: Server;

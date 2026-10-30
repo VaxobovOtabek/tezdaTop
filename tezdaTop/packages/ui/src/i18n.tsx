@@ -1460,10 +1460,11 @@ export function useTranslation() {
 
 export interface LanguageSwitcherProps {
   className?: string;
+  buttonClassName?: string;
   variant?: 'buttons' | 'dropdown' | 'minimal';
 }
 
-export function LanguageSwitcher({ className = '', variant = 'dropdown' }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ className = '', buttonClassName = '', variant = 'dropdown' }: LanguageSwitcherProps) {
   const { lang, setLang } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
 
@@ -1502,11 +1503,11 @@ export function LanguageSwitcher({ className = '', variant = 'dropdown' }: Langu
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="h-9 px-3 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center gap-1.5 text-xs font-bold shadow-sm"
+        className={`h-8 sm:h-9 px-2 sm:px-3 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-bold shadow-2xs ${buttonClassName}`}
       >
         <span>{current.flag}</span>
         <span>{current.short}</span>
-        <svg className="w-3.5 h-3.5 opacity-60 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg className="w-3 h-3 sm:w-3.5 sm:h-3.5 opacity-60 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
         </svg>
       </button>

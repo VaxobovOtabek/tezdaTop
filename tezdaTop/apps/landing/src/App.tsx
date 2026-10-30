@@ -303,12 +303,34 @@ export function LandingApp() {
     window.location.href = `/customer?category=${encodeURIComponent(categoryName)}`;
   };
 
-  const displayRegion = t(selectedRegion)
-    .replace(' viloyati', '')
-    .replace(' shahri', '')
-    .replace(' область', '')
-    .replace(' region', '')
-    .replace(' city', '');
+  const getShortRegionName = (regKey: string) => {
+    const raw = t(regKey);
+    let s = raw;
+    s = s.replace(/город\s+/i, '');
+    s = s.replace(/Республика\s+/i, '');
+    s = s.replace('Сырдарьинская область', 'Сырдарья');
+    s = s.replace('Ташкентская область', 'Ташкент обл.');
+    s = s.replace('Самаркандская область', 'Самарканд');
+    s = s.replace('Ферганская область', 'Фергана');
+    s = s.replace('Андижанская область', 'Андижан');
+    s = s.replace('Наманганская область', 'Наманган');
+    s = s.replace('Бухарская область', 'Бухара');
+    s = s.replace('Хорезмская область', 'Хорезм');
+    s = s.replace('Кашкадарьинская область', 'Кашкадарья');
+    s = s.replace('Сурхандарьинская область', 'Сурхандарья');
+    s = s.replace('Джизакская область', 'Джизак');
+    s = s.replace('Навоийская область', 'Навои');
+    s = s.replace(/ская область/i, '');
+    s = s.replace(/инская область/i, '');
+    s = s.replace(/ viloyati/i, '');
+    s = s.replace(/ shahri/i, '');
+    s = s.replace(/ область/i, '');
+    s = s.replace(/ region/i, '');
+    s = s.replace(/ city/i, '');
+    return s.trim();
+  };
+
+  const displayRegion = getShortRegionName(selectedRegion);
 
   return (
     <div className={`min-h-screen flex flex-col font-sans transition-colors duration-200 overflow-x-hidden w-full max-w-full ${isDarkMode ? 'dark bg-[#0A120E] text-[#E8F2EC]' : 'bg-[#FAFCFA] text-[#172C28]'}`}>
@@ -316,15 +338,15 @@ export function LandingApp() {
       <div className="fixed top-0 left-1/2 -translate-x-1/2 w-full max-w-[1200px] h-[450px] bg-gradient-to-b from-[#116B50]/15 via-[#22C55E]/10 to-transparent blur-[140px] pointer-events-none -z-10" />
 
       {/* HEADER / NAVBAR */}
-      <header className="sticky top-0 z-50 bg-white/90 dark:bg-[#0E1713]/90 backdrop-blur-md border-b border-[#DCE5DF] dark:border-[#22332C] px-3 sm:px-6 lg:px-12 py-2.5 sm:py-3 transition-colors">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+      <header className="sticky top-0 z-50 bg-white/95 dark:bg-[#0E1713]/95 backdrop-blur-md border-b border-[#DCE5DF] dark:border-[#22332C] px-2.5 sm:px-6 lg:px-12 py-2 sm:py-3 transition-colors">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-4">
           {/* Logo & Brand */}
-          <a href="#" className="flex items-center gap-2 sm:gap-3 shrink-0 group">
-            <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#116B50] to-[#22C55E] flex items-center justify-center text-white font-extrabold text-base sm:text-xl shadow-md shadow-[#116B50]/25 group-hover:scale-105 transition">
+          <a href="#" className="flex items-center gap-1.5 sm:gap-3 shrink-0 group">
+            <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#116B50] to-[#22C55E] flex items-center justify-center text-white font-extrabold text-sm sm:text-xl shadow-md shadow-[#116B50]/25 group-hover:scale-105 transition">
               Y
             </div>
             <div>
-              <div className="font-extrabold text-base sm:text-xl tracking-tight text-[#172C28] dark:text-white flex items-center gap-1 leading-none">
+              <div className="font-extrabold text-sm sm:text-xl tracking-tight text-[#172C28] dark:text-white flex items-center gap-1 leading-none">
                 <span>YaqinTop</span>
                 <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-[#116B50] dark:bg-[#4ADE80] animate-pulse" />
               </div>
@@ -346,16 +368,16 @@ export function LandingApp() {
           </nav>
 
           {/* Right Action Controls */}
-          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             {/* Region Selector Button */}
             <button
               type="button"
               onClick={() => setIsRegionModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] text-[11px] sm:text-xs font-bold transition shadow-2xs cursor-pointer"
+              className="flex items-center gap-1 px-1.5 py-1 sm:px-3 sm:py-2 h-8 sm:h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] text-[11px] sm:text-xs font-bold transition shadow-2xs cursor-pointer shrink-0"
             >
-              <MapPin className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
-              <span className="max-w-[65px] min-[380px]:max-w-[85px] sm:max-w-[120px] truncate">{displayRegion}</span>
-              <ChevronDown className="w-3 h-3 text-[#566A63] dark:text-[#8B9E95] shrink-0" />
+              <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
+              <span className="max-w-[46px] min-[360px]:max-w-[62px] min-[400px]:max-w-[85px] sm:max-w-[120px] truncate">{displayRegion}</span>
+              <ChevronDown className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-[#566A63] dark:text-[#8B9E95] shrink-0" />
             </button>
 
             {/* Language Switcher */}
@@ -367,13 +389,13 @@ export function LandingApp() {
               title={isDarkMode ? t('light_theme', "Yorug' tema") : t('dark_theme', "Qorong'i tema")}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#F3F6F3] dark:hover:bg-[#1C2E26] transition flex items-center justify-center shadow-2xs shrink-0 cursor-pointer"
             >
-              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
+              {isDarkMode ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#116B50]" />}
             </button>
 
             {/* Kirish / Portal Switcher Button */}
             <button
               onClick={() => setIsPortalModalOpen(true)}
-              className="px-3 sm:px-4 py-1.5 sm:py-2 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-[11px] sm:text-xs font-bold transition shadow-sm flex items-center gap-1 sm:gap-1.5 cursor-pointer"
+              className="h-8 sm:h-9 px-2.5 sm:px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-[11px] sm:text-xs font-bold transition shadow-sm flex items-center gap-1 sm:gap-1.5 cursor-pointer shrink-0 whitespace-nowrap"
             >
               <span>{t('login')}</span>
             </button>
@@ -381,7 +403,7 @@ export function LandingApp() {
             {/* Mobile Hamburger */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 p-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-white flex items-center justify-center shadow-2xs shrink-0"
+              className="lg:hidden w-8 h-8 sm:w-9 sm:h-9 p-1 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-white flex items-center justify-center shadow-2xs shrink-0 cursor-pointer"
               aria-label={t('Menyuni ochish', 'Menyuni ochish')}
             >
               {isMobileMenuOpen ? <X className="w-4 h-4 text-rose-500" /> : <Menu className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />}
