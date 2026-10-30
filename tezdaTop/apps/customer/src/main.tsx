@@ -3,7 +3,6 @@ import ReactDOM from 'react-dom/client';
 import { LanguageProvider } from '@yaqintop/ui';
 import { CustomerApp } from './App';
 import { initAnalytics } from './utils/analytics';
-import '../../landing/src/index.css';
 import './index.css';
 
 // Initialize Google Analytics for Customer App

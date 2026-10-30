@@ -882,11 +882,7 @@ export function CustomerApp() {
   };
 
   if (view === 'landing') {
-    return (
-      <div className="w-full min-h-screen bg-[#F8FAF9] dark:bg-[#0C1410] text-[#172C28] dark:text-[#E8F2EC]">
-        <LandingApp />
-      </div>
-    );
+    return <LandingApp />;
   }
 
   return (
