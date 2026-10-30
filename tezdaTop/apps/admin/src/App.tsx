@@ -36,6 +36,8 @@ import {
   Compass,
   Phone,
   Image as ImageIcon,
+  Upload,
+  Camera,
   Terminal,
   Sparkles,
   Key,
@@ -293,9 +295,10 @@ export function AdminApp() {
     setOrganizationTypeName('');
     setIsAddingOrganizationType(false);
   };
+  const [showNewOrgInn, setShowNewOrgInn] = useState(false);
   const [newOrgForm, setNewOrgForm] = useState({
     name: '',
-    inn: '308' + Math.floor(100000 + Math.random() * 900000),
+    inn: '',
     region: 'Toshkent shahri',
     city: 'Yunusobod',
     district: 'Navbahor MFY',
@@ -308,7 +311,13 @@ export function AdminApp() {
     photoUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=60',
     openTime: '08:00',
     closeTime: '22:00',
-    isVerified: true
+    isVerified: true,
+    includeInitialOffer: false,
+    initialOfferTitle: '',
+    initialOfferType: 'PRODUCT' as 'PRODUCT' | 'SERVICE',
+    initialOfferCategory: 'Umumiy',
+    initialOfferPrice: '',
+    initialOfferStock: '10'
   });
 
   // Add Store to Existing Organization Modal
@@ -1018,6 +1027,15 @@ export function AdminApp() {
         isClosed: false
       }));
 
+      const initialOffer = (newOrgForm.includeInitialOffer && newOrgForm.initialOfferTitle.trim() && newOrgForm.initialOfferPrice) ? {
+        title: newOrgForm.initialOfferTitle.trim(),
+        type: newOrgForm.initialOfferType,
+        category: newOrgForm.initialOfferCategory,
+        price: parseFloat(newOrgForm.initialOfferPrice),
+        stockOnHand: parseInt(newOrgForm.initialOfferStock || '10', 10),
+        photoUrl: ''
+      } : undefined;
+
       const res = await fetch('/api/v1/admin/organizations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1035,16 +1053,18 @@ export function AdminApp() {
           lat: newOrgForm.lat,
           lng: newOrgForm.lng,
           photoUrl: newOrgForm.photoUrl,
-          hours
+          hours,
+          initialOffer
         })
       });
 
       if (res.ok) {
         showToast('Yangi tashkilot va filial kartaga muvaffaqiyatli qo‘shildi!');
         setIsAddOrgModalOpen(false);
+        setShowNewOrgInn(false);
         setNewOrgForm({
           name: '',
-          inn: '308' + Math.floor(100000 + Math.random() * 900000),
+          inn: '',
           region: 'Toshkent shahri',
           city: 'Yunusobod',
           district: 'Navbahor MFY',
@@ -1057,7 +1077,13 @@ export function AdminApp() {
           photoUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=60',
           openTime: '08:00',
           closeTime: '22:00',
-          isVerified: true
+          isVerified: true,
+          includeInitialOffer: false,
+          initialOfferTitle: '',
+          initialOfferType: 'PRODUCT',
+          initialOfferCategory: 'Umumiy',
+          initialOfferPrice: '',
+          initialOfferStock: '10'
         });
         loadData();
       } else {
@@ -1140,6 +1166,56 @@ export function AdminApp() {
       }
     } catch {
       showToast('Server bilan aloqa uzildi');
+    }
+  };
+
+  const getCustomerStoreUrl = (storeId: string) => {
+    const origin = window.location.origin;
+    if (origin.includes(':3002') || origin.includes(':3001')) {
+      return `${origin.replace(':3002', ':3000').replace(':3001', ':3000')}/dokon/${storeId}`;
+    }
+    return `${(import.meta as any).env?.VITE_CUSTOMER_APP_URL || origin}/dokon/${storeId}`;
+  };
+
+  const handleStorePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          let width = img.width;
+          let height = img.height;
+          const maxDim = 900;
+          if (width > height) {
+            if (width > maxDim) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            }
+          } else {
+            if (height > maxDim) {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+            setEditStoreForm(prev => prev ? ({ ...prev, photoUrl: dataUrl }) : null);
+          } else {
+            setEditStoreForm(prev => prev ? ({ ...prev, photoUrl: event.target?.result as string }) : null);
+          }
+        };
+        img.src = event.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      showToast('Rasmni yuklashda xatolik yuz berdi');
     }
   };
 
@@ -1535,6 +1611,15 @@ export function AdminApp() {
                 const org = organizations.find(o => o.id === orgId);
                 if (org) handleOpenOrgUsers(org);
               }}
+              onAddStoreAtCoords={(lat, lng) => {
+                setNewOrgForm(prev => ({
+                  ...prev,
+                  lat: lat.toFixed(6),
+                  lng: lng.toFixed(6)
+                }));
+                setIsAddOrgModalOpen(true);
+              }}
+              onStoreCreatedOrUpdated={() => loadData()}
             />
           )}
 
@@ -2488,8 +2573,8 @@ export function AdminApp() {
                           </div>
 
                           {/* Actions */}
-                          <div className="flex items-center justify-between pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] gap-2">
-                            <div className="flex gap-2">
+                          <div className="flex items-center justify-between pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] gap-2 flex-wrap">
+                            <div className="flex gap-2 flex-wrap">
                               <Button
                                 variant="secondary"
                                 size="sm"
@@ -2498,6 +2583,16 @@ export function AdminApp() {
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
                                 Tahrirlash
+                              </Button>
+                              <Button
+                                variant="secondary"
+                                size="sm"
+                                onClick={() => window.open(getCustomerStoreUrl(st.id), '_blank')}
+                                className="flex items-center gap-1 text-xs text-[#116B50] dark:text-[#4ADE80]"
+                                title="Tashkilotning mijozlar sahifasini yangi oynada ko‘rish"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                Sahifani ko‘rish
                               </Button>
                               <Button
                                 variant={st.status === 'ACTIVE' ? 'danger' : 'secondary'}
@@ -3356,30 +3451,57 @@ export function AdminApp() {
         title="Yangi tashkilot va kartaga do‘kon qo‘shish"
       >
         <form onSubmit={handleCreateOrganization} className="flex flex-col gap-4 text-xs">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Tashkilot nomi *</label>
-              <input
-                type="text"
-                required
-                value={newOrgForm.name}
-                onChange={(e) => setNewOrgForm({ ...newOrgForm, name: e.target.value })}
-                placeholder="Masalan: 'Korzinka MChJ'"
-                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
-              />
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">Tashkilot nomi *</label>
+              {!showNewOrgInn && (
+                <button
+                  type="button"
+                  onClick={() => setShowNewOrgInn(true)}
+                  className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>+ STIR (INN) kiritish</span>
+                </button>
+              )}
             </div>
-            <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">STIR (INN - 9 raqam) (ixtiyoriy)</label>
+            <input
+              type="text"
+              required
+              value={newOrgForm.name}
+              onChange={(e) => setNewOrgForm({ ...newOrgForm, name: e.target.value })}
+              placeholder="Masalan: 'Korzinka MChJ' yoki 'Navbahor do‘koni'"
+              className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+            />
+          </div>
+
+          {showNewOrgInn && (
+            <div className="p-3 rounded-xl bg-[#F3F8F5] dark:bg-[#1A2D25] border border-[#DCE5DF] dark:border-[#273B32] animate-in fade-in duration-200">
+              <div className="flex items-center justify-between mb-1">
+                <label className="font-semibold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
+                  <span>STIR (INN — 9 ta raqam)</span>
+                  <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] font-normal">(ixtiyoriy)</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowNewOrgInn(false);
+                    setNewOrgForm(prev => ({ ...prev, inn: '' }));
+                  }}
+                  className="text-[10px] text-red-500 hover:text-red-700 font-medium cursor-pointer"
+                >
+                  ✕ Bekor qilish
+                </button>
+              </div>
               <input
                 type="text"
                 maxLength={9}
                 value={newOrgForm.inn}
                 onChange={(e) => setNewOrgForm({ ...newOrgForm, inn: e.target.value.replace(/\D/g, '').slice(0, 9) })}
-                placeholder="308123456"
-                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs font-mono text-[#172C28] dark:text-[#E8F2EC]"
+                placeholder="Masalan: 308123456"
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-xs font-mono text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
               />
             </div>
-          </div>
+          )}
 
           <div className="grid grid-cols-3 gap-2">
             <div>
@@ -3584,6 +3706,86 @@ export function AdminApp() {
                 className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E]"
               />
             </div>
+          </div>
+
+          {/* Initial Product / Service (Tovar yoki Usluga) */}
+          <div className="p-3 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-2.5">
+            <label className="flex items-center gap-2 cursor-pointer font-bold text-xs text-[#172C28] dark:text-[#E8F2EC]">
+              <input
+                type="checkbox"
+                checked={newOrgForm.includeInitialOffer}
+                onChange={(e) => setNewOrgForm({ ...newOrgForm, includeInitialOffer: e.target.checked })}
+                className="w-4 h-4 rounded text-[#116B50] focus:ring-[#116B50]"
+              />
+              <span>📦 Ushbu tashkilotga tovar yoki 🛠️ xizmat ham qo‘shib ketish</span>
+            </label>
+
+            {newOrgForm.includeInitialOffer && (
+              <div className="flex flex-col gap-3 pt-2 border-t border-[#DCE5DF] dark:border-[#273B32]">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewOrgForm({ ...newOrgForm, initialOfferType: 'PRODUCT', initialOfferCategory: 'Oziq-ovqat' })}
+                    className={`p-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      newOrgForm.initialOfferType === 'PRODUCT'
+                        ? 'border-[#116B50] bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] ring-1 ring-[#116B50]'
+                        : 'border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#566A63]'
+                    }`}
+                  >
+                    <span>📦 Tovar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setNewOrgForm({ ...newOrgForm, initialOfferType: 'SERVICE', initialOfferCategory: 'Xizmat' })}
+                    className={`p-2 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-1.5 ${
+                      newOrgForm.initialOfferType === 'SERVICE'
+                        ? 'border-[#116B50] bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] ring-1 ring-[#116B50]'
+                        : 'border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#566A63]'
+                    }`}
+                  >
+                    <span>🛠️ Xizmat (Usluga)</span>
+                  </button>
+                </div>
+
+                <div>
+                  <label className="font-semibold block mb-1">
+                    {newOrgForm.initialOfferType === 'SERVICE' ? 'Xizmat nomi *' : 'Tovar nomi *'}
+                  </label>
+                  <input
+                    type="text"
+                    value={newOrgForm.initialOfferTitle}
+                    onChange={(e) => setNewOrgForm({ ...newOrgForm, initialOfferTitle: e.target.value })}
+                    placeholder={newOrgForm.initialOfferType === 'SERVICE' ? 'Masalan: Avtomobil yuvish' : 'Masalan: Non yoki Flesh'}
+                    className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-xs"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="font-semibold block mb-1">Narxi (so‘m) *</label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="100"
+                      value={newOrgForm.initialOfferPrice}
+                      onChange={(e) => setNewOrgForm({ ...newOrgForm, initialOfferPrice: e.target.value })}
+                      placeholder="Masalan: 12000"
+                      className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-xs font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="font-semibold block mb-1">Kategoriya</label>
+                    <input
+                      type="text"
+                      value={newOrgForm.initialOfferCategory}
+                      onChange={(e) => setNewOrgForm({ ...newOrgForm, initialOfferCategory: e.target.value })}
+                      placeholder="Oziq-ovqat, Xizmat"
+                      className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2 pt-2 border-t border-[#DCE5DF] dark:border-[#22332C]">
@@ -3814,6 +4016,19 @@ export function AdminApp() {
       >
         {editStoreForm && (
           <form onSubmit={handleSaveStoreEdit} className="flex flex-col gap-4 text-xs">
+            <div className="flex items-center justify-between p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800">
+              <span className="text-emerald-800 dark:text-emerald-300 font-semibold text-[11px]">
+                ID: {editStoreForm.id}
+              </span>
+              <button
+                type="button"
+                onClick={() => window.open(getCustomerStoreUrl(editStoreForm.id), '_blank')}
+                className="text-xs text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1 font-bold cursor-pointer"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Tashkilot sahifasini ko‘rish</span>
+              </button>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Do‘kon nomi *</label>
@@ -3976,14 +4191,77 @@ export function AdminApp() {
               </div>
             </div>
 
-            <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Rasm URL</label>
-              <input
-                type="url"
-                value={editStoreForm.photoUrl}
-                onChange={(e) => setEditStoreForm({ ...editStoreForm, photoUrl: e.target.value })}
-                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E]"
-              />
+            {/* Rasm yuklash (Fayl + URL) */}
+            <div className="flex flex-col gap-2 p-3 bg-[#F9FAF9] dark:bg-[#16241E] rounded-xl border border-[#DCE5DF] dark:border-[#273B32]">
+              <div className="flex items-center justify-between">
+                <label className="font-semibold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                  <span>Tashkilot rasmi:</span>
+                </label>
+                {editStoreForm.photoUrl && (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                    ✓ Rasm yuklangan
+                  </span>
+                )}
+              </div>
+
+              {editStoreForm.photoUrl ? (
+                <div className="relative w-full h-36 rounded-xl overflow-hidden border border-[#DCE5DF] dark:border-[#273B32] bg-[#E2EEE4] dark:bg-[#182C22] group">
+                  <img src={editStoreForm.photoUrl} alt="Store preview" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                    <label className="px-3 py-1.5 rounded-xl bg-white text-[#172C28] text-xs font-bold hover:bg-gray-100 transition cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Almashtirish</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleStorePhotoUpload}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditStoreForm({ ...editStoreForm, photoUrl: '' })}
+                      className="px-3 py-1.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>O‘chirish</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <label className="w-full h-24 rounded-xl border-2 border-dashed border-[#116B50]/60 dark:border-[#4ADE80]/60 bg-[#E0EFE7]/30 dark:bg-[#1A2822] hover:bg-[#E0EFE7]/70 flex flex-col items-center justify-center gap-1 cursor-pointer transition p-3 text-center group">
+                    <Upload className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition" />
+                    <span className="font-bold text-xs text-[#116B50] dark:text-[#4ADE80]">
+                      Qurilmadan rasm yuklash
+                    </span>
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                      JPEG, PNG, WebP (avtomatik siqiladi)
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleStorePhotoUpload}
+                    />
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-[#DCE5DF] dark:bg-[#273B32]" />
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">yoki internetdan havola</span>
+                    <div className="h-px flex-1 bg-[#DCE5DF] dark:bg-[#273B32]" />
+                  </div>
+
+                  <input
+                    type="url"
+                    placeholder="https://example.com/photo.jpg"
+                    value={editStoreForm.photoUrl}
+                    onChange={(e) => setEditStoreForm({ ...editStoreForm, photoUrl: e.target.value })}
+                    className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs"
+                  />
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-2">

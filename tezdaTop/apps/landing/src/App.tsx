@@ -342,9 +342,11 @@ export function LandingApp() {
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-1.5 sm:gap-4">
           {/* Logo & Brand */}
           <a href="#" className="flex items-center gap-1.5 sm:gap-3 shrink-0 group">
-            <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-gradient-to-tr from-[#116B50] to-[#22C55E] flex items-center justify-center text-white font-extrabold text-sm sm:text-xl shadow-md shadow-[#116B50]/25 group-hover:scale-105 transition">
-              Y
-            </div>
+            <img
+              src="/favicon.png"
+              alt="YaqinTop"
+              className="w-7 h-7 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl shadow-md shadow-[#116B50]/20 group-hover:scale-105 transition object-contain"
+            />
             <div>
               <div className="font-extrabold text-sm sm:text-xl tracking-tight text-[#172C28] dark:text-white flex items-center gap-1 leading-none">
                 <span>YaqinTop</span>
@@ -1387,9 +1389,11 @@ export function LandingApp() {
             {/* Col 1: Brand */}
             <div className="col-span-2 md:col-span-1">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#116B50] to-[#22C55E] flex items-center justify-center text-white font-extrabold text-base">
-                  Y
-                </div>
+                <img
+                  src="/favicon.png"
+                  alt="YaqinTop"
+                  className="w-8 h-8 rounded-xl shadow-xs object-contain"
+                />
                 <span className="font-extrabold text-lg text-[#172C28] dark:text-white">YaqinTop</span>
               </div>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2 font-medium">

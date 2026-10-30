@@ -22,7 +22,7 @@ import {
   EyeOff,
   Camera
 } from 'lucide-react';
-import { Button, Tag, Modal } from '@yaqintop/ui';
+import { Button, Tag, Modal, useTranslation } from '@yaqintop/ui';
 import { CredentialChangeRequest, AdminInquiry } from '@yaqintop/contracts';
 import { EnrichedStore } from './AdminMapHub';
 
@@ -30,6 +30,7 @@ export interface RequestsInquiriesHubProps {
   stores: EnrichedStore[];
   isDarkMode: boolean;
   onShowToast: (msg: string) => void;
+  onStatsUpdate?: () => void;
 }
 
 
@@ -38,7 +39,8 @@ const getHubAuthHeaders = (): Record<string, string> => {
   return token ? { Authorization: `Bearer ${token}` } : {};
 };
 
-export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: RequestsInquiriesHubProps) {
+export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsUpdate }: RequestsInquiriesHubProps) {
+  const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'credentials' | 'inquiries' | 'proposals'>('credentials');
 
   // Credential Requests State
@@ -59,9 +61,9 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   const [proposals, setProposals] = useState<any[]>([]);
   const [proposalStatusFilter, setProposalStatusFilter] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'AUTO_APPROVED' | 'REJECTED'>('PENDING');
   const [proposalSearch, setProposalSearch] = useState('');
-  const [isProcessingProposal, setIsProcessingProposal] = useState(false);
   const [photoProposals, setPhotoProposals] = useState<any[]>([]);
   const [proposalSubTab, setProposalSubTab] = useState<'items' | 'photos'>('items');
+  const [isProcessingProposal, setIsProcessingProposal] = useState(false);
 
   const [newInquiryForm, setNewInquiryForm] = useState({
     storeId: '',
@@ -107,6 +109,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
         const d = await photoRes.json();
         setPhotoProposals(d.items || []);
       }
+      onStatsUpdate?.();
     } catch (e) {
       console.error(e);
     } finally {
@@ -179,27 +182,6 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
     }
   };
 
-  const handleRejectProposal = async (id: string, title: string) => {
-    setIsProcessingProposal(true);
-    try {
-      const res = await fetch(`/api/v1/admin/item-proposals/${id}/reject`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: getHubAuthHeaders()
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        onShowToast(`"${title}" taklifi rad etildi`);
-        await loadData();
-      } else {
-        onShowToast(data.message || 'Xatolik yuz berdi');
-      }
-    } catch {
-      onShowToast('Server bilan bog‘lanishda xatolik');
-    } finally {
-      setIsProcessingProposal(false);
-    }
-  };
   const handleApprovePhotoProposal = async (id: string, label: string) => {
     setIsProcessingProposal(true);
     try {
@@ -233,6 +215,28 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
       const data = await res.json();
       if (res.ok && data.success) {
         onShowToast(`"${label}" rasm so‘rovi rad etildi`);
+        await loadData();
+      } else {
+        onShowToast(data.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      onShowToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsProcessingProposal(false);
+    }
+  };
+
+  const handleRejectProposal = async (id: string, title: string) => {
+    setIsProcessingProposal(true);
+    try {
+      const res = await fetch(`/api/v1/admin/item-proposals/${id}/reject`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: getHubAuthHeaders()
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        onShowToast(`"${title}" taklifi rad etildi`);
         await loadData();
       } else {
         onShowToast(data.message || 'Xatolik yuz berdi');
@@ -384,21 +388,21 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
   const pendingProposalsCount = proposals.filter(p => p.status === 'PENDING').length;
   const pendingPhotoProposalsCount = photoProposals.filter(p => p.status === 'PENDING').length;
 
-  const filteredPhotoProposals = photoProposals.filter((p) => {
-    const matchesFilter = proposalStatusFilter === 'ALL' || p.status === proposalStatusFilter;
-    const matchesSearch = !proposalSearch.trim() ||
-      (p.storeName && p.storeName.toLowerCase().includes(proposalSearch.toLowerCase())) ||
-      (p.productTitle && p.productTitle.toLowerCase().includes(proposalSearch.toLowerCase())) ||
-      (p.comment && p.comment.toLowerCase().includes(proposalSearch.toLowerCase()));
-    return matchesFilter && matchesSearch;
-  });
-
   const filteredProposals = proposals.filter((p) => {
     const matchesFilter = proposalStatusFilter === 'ALL' || p.status === proposalStatusFilter;
     const matchesSearch = !proposalSearch.trim() ||
       (p.title && p.title.toLowerCase().includes(proposalSearch.toLowerCase())) ||
       (p.storeName && p.storeName.toLowerCase().includes(proposalSearch.toLowerCase())) ||
       (p.category && p.category.toLowerCase().includes(proposalSearch.toLowerCase()));
+    return matchesFilter && matchesSearch;
+  });
+
+  const filteredPhotoProposals = photoProposals.filter((p) => {
+    const matchesFilter = proposalStatusFilter === 'ALL' || p.status === proposalStatusFilter;
+    const matchesSearch = !proposalSearch.trim() ||
+      (p.storeName && p.storeName.toLowerCase().includes(proposalSearch.toLowerCase())) ||
+      (p.productTitle && p.productTitle.toLowerCase().includes(proposalSearch.toLowerCase())) ||
+      (p.comment && p.comment.toLowerCase().includes(proposalSearch.toLowerCase()));
     return matchesFilter && matchesSearch;
   });
   const pendingInqRepliesCount = inquiries.filter(i => i.status === 'MERCHANT_SUBMITTED').length;
@@ -450,9 +454,9 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           }`}
         >
           <Key className="w-4 h-4" />
-          <span>Login & Parol O‘zgartirish So‘rovlari</span>
+          <span>{t('Login & Parol O‘zgartirish So‘rovlari')}</span>
           {pendingCredCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#B42318] text-white">
+            <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
               {pendingCredCount}
             </span>
           )}
@@ -467,10 +471,10 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           }`}
         >
           <MessageSquare className="w-4 h-4" />
-          <span>Do‘konlar bilan Rasmiy Murojaatlar</span>
+          <span>{t('Do‘konlar bilan Rasmiy Murojaatlar')}</span>
           {pendingInqRepliesCount > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-emerald-600 text-white">
-              {pendingInqRepliesCount} yangi javob
+            <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
+              {pendingInqRepliesCount}
             </span>
           )}
         </button>
@@ -484,9 +488,9 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
           }`}
         >
           <Sparkles className="w-4 h-4" />
-          <span>Tovar, Xizmat & Rasm Takliflari</span>
+          <span>{t('Tovar, Xizmat & Rasm Takliflari')}</span>
           {(pendingProposalsCount + pendingPhotoProposalsCount) > 0 && (
-            <span className="px-2 py-0.5 rounded-full text-[11px] font-extrabold bg-[#F59E0B] text-white">
+            <span className="min-w-5 h-5 px-1.5 rounded-full text-[11px] font-extrabold bg-amber-500 text-white flex items-center justify-center shadow-sm">
               {pendingProposalsCount + pendingPhotoProposalsCount}
             </span>
           )}
@@ -882,7 +886,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
               }`}
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Tovar & Xizmat Takliflari</span>
+              <span>{t('Tovar & Xizmat Takliflari')}</span>
               {pendingProposalsCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
                   {pendingProposalsCount}
@@ -898,7 +902,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
               }`}
             >
               <Camera className="w-3.5 h-3.5" />
-              <span>Rasm O‘zgartirish So‘rovlari</span>
+              <span>{t('Rasm O‘zgartirish So‘rovlari')}</span>
               {pendingPhotoProposalsCount > 0 && (
                 <span className="px-1.5 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-500 text-white">
                   {pendingPhotoProposalsCount}
@@ -931,10 +935,10 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
                       : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#22362E]'
                   }`}
                 >
-                  {st === 'ALL' && `Barchasi (${proposalSubTab === 'items' ? proposals.length : photoProposals.length})`}
-                  {st === 'PENDING' && `Kutilayotgan (${proposalSubTab === 'items' ? pendingProposalsCount : pendingPhotoProposalsCount})`}
-                  {st === 'APPROVED' && 'Tasdiqlangan'}
-                  {st === 'REJECTED' && 'Rad etilgan'}
+                  {st === 'ALL' && `${t('all', 'Barchasi')} (${proposalSubTab === 'items' ? proposals.length : photoProposals.length})`}
+                  {st === 'PENDING' && `${t('Kutilayotgan', 'Kutilayotgan')} (${proposalSubTab === 'items' ? pendingProposalsCount : pendingPhotoProposalsCount})`}
+                  {st === 'APPROVED' && t('Tasdiqlangan', 'Tasdiqlangan')}
+                  {st === 'REJECTED' && t('Rad etilgan', 'Rad etilgan')}
                 </button>
               ))}
             </div>
@@ -1025,7 +1029,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
                           onClick={() => handleRejectProposal(prop.id, prop.title)}
                           className="flex-1 text-xs font-bold text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                         >
-                          Rad etish
+                          {t('Rad etish', 'Rad etish')}
                         </Button>
                         <Button
                           variant="primary"
@@ -1034,7 +1038,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast }: Reques
                           onClick={() => handleApproveProposal(prop.id, prop.title)}
                           className="flex-1 text-xs font-bold bg-[#116B50] text-white hover:bg-[#0D523D]"
                         >
-                          Tasdiqlash
+                          {t('Tasdiqlash', 'Tasdiqlash')}
                         </Button>
                       </div>
                     ) : (

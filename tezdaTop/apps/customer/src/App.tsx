@@ -926,12 +926,14 @@ export function CustomerApp() {
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
           <div
             onClick={() => navigateTo('/')}
-            className="flex items-center gap-1.5 cursor-pointer select-none shrink-0"
+            className="flex items-center gap-1.5 cursor-pointer select-none shrink-0 group"
             title="Lending sahifasiga qaytish"
           >
-            <div className="w-7 h-8 sm:w-8 sm:h-9 bg-[#116B50] rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl-sm flex items-center justify-center text-white font-extrabold text-base sm:text-xl shadow-sm">
-              Y
-            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}favicon.png`}
+              alt="YaqinTop"
+              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl shadow-2xs shrink-0 object-contain group-hover:scale-105 transition"
+            />
             <span className="font-extrabold text-lg sm:text-2xl tracking-tight text-[#172C28] dark:text-white hidden min-[420px]:inline">
               YaqinTop
             </span>

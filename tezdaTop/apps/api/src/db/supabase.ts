@@ -152,9 +152,9 @@ export async function syncAllToSupabase(db: InMemoryDatabase): Promise<boolean> 
         sku: v.sku || null,
         category: v.category || 'Boshqa',
         unit: (v as any).packUnit || (v as any).unit || 'dona',
-        image_url: (v as any).imageUrl || null,
+        image_url: (v as any).imageUrl || (v as any).photoUrl || null,
         description: (v as any).description || null,
-        attributes: { brand: (v as any).brand, packSize: (v as any).packSize, aliases: (v as any).aliases, kind: v.kind, durationMinutes: v.durationMinutes },
+        attributes: { brand: (v as any).brand, packSize: (v as any).packSize, aliases: (v as any).aliases, kind: v.kind, durationMinutes: v.durationMinutes, photoUrl: (v as any).photoUrl || (v as any).imageUrl },
         created_at: (v as any).createdAt || new Date().toISOString(),
         updated_at: (v as any).updatedAt || new Date().toISOString()
       }));
@@ -473,6 +473,7 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
     const { data: variants, error: varErr } = await supabase.from('variants').select('*');
     if (!varErr && variants && variants.length > 0) {
       for (const v of variants) {
+        const photo = v.image_url || (v.attributes as any)?.photoUrl || (v.attributes as any)?.imageUrl || undefined;
         db.variants.set(v.id, {
           id: v.id,
           organizationId: v.organization_id,
@@ -483,7 +484,8 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
           category: v.category || 'Boshqa',
           packUnit: v.unit || 'dona',
           unit: v.unit || 'dona',
-          imageUrl: v.image_url || undefined,
+          imageUrl: photo,
+          photoUrl: photo,
           description: v.description || undefined,
           brand: (v.attributes as any)?.brand || '',
           packSize: (v.attributes as any)?.packSize || '1 dona',
@@ -502,11 +504,17 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
       for (const o of offers) {
         const stockOnHand = o.stock_on_hand ?? o.stock_count ?? (o.in_stock ? 10 : 0);
         const variant = db.variants.get(o.variant_id);
+        const resolvedVariant = variant
+          ? {
+              ...variant,
+              photoUrl: variant.photoUrl || (variant as any).imageUrl || (variant as any).attributes?.photoUrl
+            }
+          : (variant as any);
         db.offers.set(o.id, {
           id: o.id,
           storeId: o.store_id,
           variantId: o.variant_id,
-          variant: variant as any,
+          variant: resolvedVariant,
           price: String(o.price),
           originalPrice: o.original_price ? String(o.original_price) : undefined,
           currency: o.currency || 'UZS',

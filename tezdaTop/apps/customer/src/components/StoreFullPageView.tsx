@@ -36,7 +36,8 @@ import {
   Image as ImageIcon,
   Plus,
   List,
-  Edit3
+  Edit3,
+  Trash2
 } from 'lucide-react';
 import { Button, Tag, StarRating, Modal, Input, useTranslation } from '@yaqintop/ui';
 import { Offer, Store, isTradeOrganization } from '@yaqintop/contracts';
@@ -56,6 +57,7 @@ interface StoreFullPageViewProps {
   onGetRoute: (mode: 'walking' | 'driving') => void;
   onReportError: () => void;
   onShowToast: (msg: string) => void;
+  onStoreUpdated?: (updatedStore: any) => void;
 }
 
 const DEFAULT_STORE_IMAGES = [
@@ -151,11 +153,43 @@ export function StoreFullPageView({
   onBack,
   onGetRoute,
   onReportError,
-  onShowToast
+  onShowToast,
+  onStoreUpdated
 }: StoreFullPageViewProps) {
   const { t } = useTranslation();
   const [activeTab, setActiveTab] = useState<'catalog' | 'reviews' | 'about' | 'map'>('catalog');
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+
+  // Current store state (synced with prop, updated instantly on direct edit)
+  const [currentStore, setCurrentStore] = useState(store);
+  useEffect(() => {
+    setCurrentStore(store);
+  }, [store]);
+
+  const activeStore = currentStore || store;
+
+  // Direct edit authorization check for Admin / Moderator / Store Owner
+  const isAdminOrModerator = Boolean(currentUser && ['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(currentUser.role));
+  const isStoreOwner = Boolean(currentUser && (currentUser.role === 'OWNER' || (activeStore as any)?.ownerId === currentUser.id));
+  const canDirectlyManageStore = isAdminOrModerator || isStoreOwner;
+
+  // Edit Store Modal State (Admin / Moderator / Owner)
+  const [isEditStoreModalOpen, setIsEditStoreModalOpen] = useState(false);
+  const [isSavingStore, setIsSavingStore] = useState(false);
+  const [editStoreForm, setEditStoreForm] = useState({
+    name: '',
+    phone: '',
+    address: '',
+    region: 'Toshkent shahri',
+    district: '',
+    inn: '',
+    type: 'RETAIL',
+    openTime: '08:00',
+    closeTime: '22:00',
+    photoUrl: '',
+    photos: [] as string[],
+    description: ''
+  });
   const [productSearch, setProductSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [isFavorite, setIsFavorite] = useState(() => {
@@ -256,6 +290,102 @@ export function StoreFullPageView({
     } catch (err) {
       console.error('Failed to read image file:', err);
       onShowToast('Rasmni yuklashda xatolik');
+    }
+  };
+
+  const handleOpenEditStoreModal = () => {
+    if (!currentUser) {
+      onRequireAuth?.('Tashkilot ma’lumotlarini tahrirlash uchun iltimos, tizimga kiring');
+      return;
+    }
+    const s = activeStore;
+    const firstHours = s?.hours?.[0];
+    const existingPhotos: string[] = Array.isArray(s?.photos) && s.photos.length > 0
+      ? s.photos
+      : s?.photoUrl ? [s.photoUrl] : [];
+
+    setEditStoreForm({
+      name: s?.name || '',
+      phone: s?.phone || '',
+      address: s?.address || '',
+      region: s?.region || 'Toshkent shahri',
+      district: s?.district || '',
+      inn: s?.inn || organization?.inn || '',
+      type: s?.type || 'RETAIL',
+      openTime: firstHours?.openTime || '08:00',
+      closeTime: firstHours?.closeTime || '22:00',
+      photoUrl: s?.photoUrl || existingPhotos[0] || '',
+      photos: existingPhotos,
+      description: s?.description || ''
+    });
+    setIsEditStoreModalOpen(true);
+  };
+
+  const handleSaveStore = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editStoreForm.name.trim()) {
+      onShowToast('Iltimos, tashkilot nomini kiriting');
+      return;
+    }
+    const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
+    setIsSavingStore(true);
+    try {
+      const s = activeStore;
+      const formattedHours = [
+        {
+          dayOfWeek: 1,
+          openTime: editStoreForm.openTime,
+          closeTime: editStoreForm.closeTime,
+          isClosed: false
+        }
+      ];
+      const allPhotos = editStoreForm.photoUrl
+        ? [editStoreForm.photoUrl, ...editStoreForm.photos.filter(p => p !== editStoreForm.photoUrl)]
+        : editStoreForm.photos;
+
+      const res = await fetch(apiUrl(`/api/v1/admin/stores/${s.id}`), {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: editStoreForm.name.trim(),
+          inn: editStoreForm.inn.trim() || undefined,
+          region: editStoreForm.region,
+          district: editStoreForm.district,
+          address: editStoreForm.address.trim(),
+          phone: editStoreForm.phone.trim(),
+          type: editStoreForm.type,
+          hours: formattedHours,
+          photoUrl: editStoreForm.photoUrl,
+          photos: allPhotos,
+          description: editStoreForm.description.trim() || undefined
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.store) {
+        const updated = {
+          ...s,
+          ...data.store,
+          photoUrl: editStoreForm.photoUrl,
+          photos: allPhotos,
+          hours: formattedHours
+        };
+        setCurrentStore(updated);
+        onStoreUpdated?.(updated);
+        setIsEditStoreModalOpen(false);
+        onShowToast('🎉 Tashkilot ma’lumotlari va rasmlari muvaffaqiyatli saqlandi!');
+      } else {
+        onShowToast(data.message || 'Tahrirlashda xatolik yuz berdi');
+      }
+    } catch (err) {
+      console.error(err);
+      onShowToast('Server bilan bog‘lanishda xatolik yuz berdi');
+    } finally {
+      setIsSavingStore(false);
     }
   };
 
@@ -632,8 +762,10 @@ export function StoreFullPageView({
     }
   };
 
-  const storeImages = store?.photoUrl
-    ? [store.photoUrl, ...DEFAULT_STORE_IMAGES.slice(1)]
+  const storeImages: string[] = (activeStore?.photos && Array.isArray(activeStore.photos) && activeStore.photos.length > 0)
+    ? (activeStore.photos as string[])
+    : activeStore?.photoUrl
+    ? [activeStore.photoUrl, ...DEFAULT_STORE_IMAGES.slice(1)]
     : DEFAULT_STORE_IMAGES;
 
   // Categories
@@ -657,7 +789,7 @@ export function StoreFullPageView({
   });
 
   const currentDayOfWeek = new Date().getDay();
-  const todayHours = store?.hours?.find((h: any) => h.dayOfWeek === currentDayOfWeek) || store?.hours?.[0];
+  const todayHours = activeStore?.hours?.find((h: any) => h.dayOfWeek === currentDayOfWeek) || activeStore?.hours?.[0];
   const isCurrentlyOpen = todayHours ? !todayHours.isClosed : true;
 
   return (
@@ -674,6 +806,18 @@ export function StoreFullPageView({
         </button>
 
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {canDirectlyManageStore && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={handleOpenEditStoreModal}
+              className="border-amber-300 dark:border-amber-700/60 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 hover:bg-amber-100 font-bold flex items-center gap-1"
+            >
+              <Edit3 className="w-3.5 h-3.5" />
+              <span>Tahrirlash</span>
+            </Button>
+          )}
+
           <Button
             variant="secondary"
             size="sm"
@@ -719,6 +863,39 @@ export function StoreFullPageView({
 
       {/* Main Content Body */}
       <div className="max-w-6xl mx-auto w-full px-3.5 py-4 sm:px-6 sm:py-5 md:px-8 md:py-6 flex flex-col gap-4 sm:gap-5 pb-24 md:pb-12 overflow-x-hidden shrink-0">
+        {/* ADMIN / MODERATOR EDIT PANEL BAR */}
+        {canDirectlyManageStore && (
+          <div className="w-full p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-amber-500/15 border border-emerald-500/40 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <span className="px-2.5 py-1 rounded-lg bg-[#116B50] text-white text-[11px] font-extrabold uppercase tracking-wide flex items-center gap-1 shrink-0">
+                🛡️ {currentUser?.role || 'MODERATOR'}
+              </span>
+              <div>
+                <h4 className="text-xs sm:text-sm font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
+                  <span>Tashkilot boshqaruv paneli</span>
+                  <span className="text-[11px] font-normal text-emerald-700 dark:text-emerald-400 font-mono">
+                    ({activeStore?.id?.slice(0, 8)}...)
+                  </span>
+                </h4>
+                <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+                  Siz ushbu tashkilotning ma’lumotlari, ish vaqti va rasmlarini to‘g‘ridan-to‘g‘ri tahrirlashingiz mumkin
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleOpenEditStoreModal}
+                className="bg-[#116B50] hover:bg-[#0d533e] text-xs font-bold flex items-center gap-1.5 shadow"
+              >
+                <Edit3 className="w-3.5 h-3.5" />
+                <span>Tashkilotni tahrirlash</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* HERO SECTION: Gallery & Summary Card */}
         <div className="w-full shrink-0 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 shadow-sm">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 md:gap-6 items-start">
@@ -727,7 +904,7 @@ export function StoreFullPageView({
               <div className="relative w-full h-56 sm:h-72 md:h-80 lg:h-96 rounded-2xl overflow-hidden bg-[#E2EEE4] dark:bg-[#182C22] border border-[#DCE5DF] dark:border-[#2A3F36] shadow-inner group shrink-0">
                 <img
                   src={storeImages[activeImageIndex]}
-                  alt={store?.name}
+                  alt={activeStore?.name}
                   className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
@@ -765,15 +942,27 @@ export function StoreFullPageView({
                     </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleOpenPhotoModal('STORE')}
-                    className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-white/90 dark:bg-black/80 hover:bg-white dark:hover:bg-black text-[#172C28] dark:text-white backdrop-blur-sm font-bold flex items-center gap-1 shadow transition active:scale-95 cursor-pointer shrink-0"
-                    title="Tashkilot rasmini yangilash yoki taklif qilish"
-                  >
-                    <Camera className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
-                    <span>Rasm taklif qilish</span>
-                  </button>
+                  {canDirectlyManageStore ? (
+                    <button
+                      type="button"
+                      onClick={handleOpenEditStoreModal}
+                      className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-1 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white backdrop-blur-sm font-bold flex items-center gap-1.5 shadow transition active:scale-95 cursor-pointer shrink-0"
+                      title="Tashkilot rasmlari va ma’lumotlarini tahrirlash"
+                    >
+                      <Camera className="w-3.5 h-3.5" />
+                      <span>Rasmlarni tahrirlash</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPhotoModal('STORE')}
+                      className="text-[11px] sm:text-xs px-2.5 sm:px-3 py-0.5 sm:py-1 rounded-full bg-white/90 dark:bg-black/80 hover:bg-white dark:hover:bg-black text-[#172C28] dark:text-white backdrop-blur-sm font-bold flex items-center gap-1 shadow transition active:scale-95 cursor-pointer shrink-0"
+                      title="Tashkilot rasmini yangilash yoki taklif qilish"
+                    >
+                      <Camera className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+                      <span>Rasm taklif qilish</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -782,7 +971,7 @@ export function StoreFullPageView({
                 className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none no-scrollbar max-w-full shrink-0"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
-                {storeImages.map((img, idx) => (
+                {storeImages.map((img: string, idx: number) => (
                   <button
                     key={idx}
                     onClick={() => setActiveImageIndex(idx)}
@@ -802,23 +991,36 @@ export function StoreFullPageView({
             <div className="lg:col-span-5 flex flex-col gap-3.5 sm:gap-4 min-w-0">
               <div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  {store?.isVerified && (
+                  {activeStore?.isVerified && (
                     <Tag variant="default" className="text-xs font-bold">
                       <ShieldCheck className="w-3.5 h-3.5 mr-1 inline" /> Rasmiy tasdiqlangan
                     </Tag>
                   )}
                   <span className="text-xs px-2.5 py-0.5 rounded-lg bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-bold">
-                    {store?.type === 'WHOLESALE'
+                    {activeStore?.type === 'WHOLESALE'
                       ? '📦 Ulgurji savdo markazi'
-                      : !isTradeOrganization(store?.type)
+                      : !isTradeOrganization(activeStore?.type)
                       ? '🛠️ Xizmat ko‘rsatish'
                       : '🏪 Chakana do‘kon'}
                   </span>
                 </div>
 
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#172C28] dark:text-white tracking-tight mt-1.5 sm:mt-2 leading-tight break-words">
-                  {store?.name}
-                </h1>
+                <div className="flex items-start justify-between gap-2 mt-1.5 sm:mt-2">
+                  <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-[#172C28] dark:text-white tracking-tight leading-tight break-words">
+                    {activeStore?.name}
+                  </h1>
+                  {canDirectlyManageStore && (
+                    <button
+                      type="button"
+                      onClick={handleOpenEditStoreModal}
+                      className="p-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-300 dark:border-amber-700/60 font-bold text-xs flex items-center gap-1.5 shrink-0 transition active:scale-95 cursor-pointer"
+                      title="Tashkilot ma’lumotlarini tahrirlash"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Tahrirlash</span>
+                    </button>
+                  )}
+                </div>
 
                 {organization && (
                   <div className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1.5 flex items-center gap-1.5 font-medium break-words">
@@ -1291,6 +1493,7 @@ export function StoreFullPageView({
                 {filteredOffers.map((off) => {
                   const isService = off.variant.kind === 'SERVICE';
                   const isAvailable = isService ? off.status === 'ACTIVE' : off.stockOnHand > 0;
+                  const productPhoto = off.variant.photoUrl || (off.variant as any).imageUrl || (off.variant as any)?.attributes?.photoUrl;
                   return (
                     <div
                       key={off.id}
@@ -1298,10 +1501,10 @@ export function StoreFullPageView({
                     >
                       <div>
                         {/* Product Photo if available */}
-                        {off.variant.photoUrl ? (
+                        {productPhoto ? (
                           <div className="relative w-full h-32 mb-2.5 rounded-xl overflow-hidden bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF]/60 dark:border-[#2A3F36]">
                             <img
-                              src={off.variant.photoUrl}
+                              src={productPhoto}
                               alt={off.variant.title}
                               className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                             />
@@ -1337,7 +1540,7 @@ export function StoreFullPageView({
                           </div>
                         )}
 
-                        {!off.variant.photoUrl && (
+                        {!productPhoto && (
                           <button
                             type="button"
                             onClick={() => handleOpenPhotoModal('PRODUCT', off.variantId, off.variant.title)}
@@ -2328,6 +2531,259 @@ export function StoreFullPageView({
           </div>
         </form>
       </Modal>
+
+      {/* 4. ADMIN & MODERATOR DIRECT STORE EDIT MODAL */}
+      {isEditStoreModalOpen && (
+        <Modal
+          isOpen={isEditStoreModalOpen}
+          onClose={() => setIsEditStoreModalOpen(false)}
+          title="🏪 Tashkilot ma’lumotlari va rasmlarini tahrirlash"
+        >
+          <form onSubmit={handleSaveStore} className="flex flex-col gap-4">
+            <div className="p-3 bg-emerald-50 dark:bg-emerald-950/40 rounded-xl border border-emerald-200 dark:border-emerald-800 text-xs flex items-center justify-between">
+              <div>
+                <span className="text-[#116B50] dark:text-[#4ADE80] font-bold block">
+                  🛡️ Boshqaruvchi: {currentUser?.role || 'MODERATOR'}
+                </span>
+                <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+                  Kiritilgan o‘zgarishlar va rasmlar to‘g‘ridan-to‘g‘ri do‘kon sahifasida yangilanadi
+                </span>
+              </div>
+            </div>
+
+            {/* Do'kon nomi va toifasi */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                  Tashkilot / Do‘kon nomi: *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editStoreForm.name}
+                  onChange={(e) => setEditStoreForm(f => ({ ...f, name: e.target.value }))}
+                  placeholder="Masalan: Mahalla Savdo"
+                  className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-white focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:border-[#116B50]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                  Faoliyat toifasi (Turi):
+                </label>
+                <select
+                  value={editStoreForm.type}
+                  onChange={(e) => setEditStoreForm(f => ({ ...f, type: e.target.value }))}
+                  className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-white outline-none"
+                >
+                  <option value="RETAIL">🏪 Chakana savdo do‘koni</option>
+                  <option value="WHOLESALE">📦 Ulgurji savdo bazasi</option>
+                  <option value="PHARMACY">💊 Dorixona</option>
+                  <option value="AUTO_SERVICE">🛠️ Avtoservis va ustaxona</option>
+                  <option value="BEAUTY_SALON">✂️ Go‘zallik saloni / Sartaroshxona</option>
+                  <option value="EDUCATION">🎓 O‘quv markazi / Kurslar</option>
+                  <option value="SERVICES">⚙️ Maishiy xizmatlar</option>
+                  <option value="OTHER">🏢 Boshqa xizmat / savdo</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Telefon va INN */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                  Telefon raqami:
+                </label>
+                <input
+                  type="text"
+                  value={editStoreForm.phone}
+                  onChange={(e) => setEditStoreForm(f => ({ ...f, phone: e.target.value }))}
+                  placeholder="+998 90 123 45 67"
+                  className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-white focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:border-[#116B50]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                  STIR (INN):
+                </label>
+                <input
+                  type="text"
+                  value={editStoreForm.inn}
+                  onChange={(e) => setEditStoreForm(f => ({ ...f, inn: e.target.value.replace(/\D/g, '').slice(0, 9) }))}
+                  placeholder="9 xonali INN"
+                  className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-white focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:border-[#116B50]"
+                />
+              </div>
+            </div>
+
+            {/* Manzil va Tuman */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                  Manzili (Ko‘cha, uy):
+                </label>
+                <input
+                  type="text"
+                  value={editStoreForm.address}
+                  onChange={(e) => setEditStoreForm(f => ({ ...f, address: e.target.value }))}
+                  placeholder="Amir Temur ko‘chasi, 12-uy"
+                  className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-white focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:border-[#116B50]"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                  Tuman / Mo‘ljal:
+                </label>
+                <input
+                  type="text"
+                  value={editStoreForm.district}
+                  onChange={(e) => setEditStoreForm(f => ({ ...f, district: e.target.value }))}
+                  placeholder="Masalan: Yunusobod tumani, Oloy bozori"
+                  className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-white focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:border-[#116B50]"
+                />
+              </div>
+            </div>
+
+            {/* Ish vaqtlari */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                  Ochilish vaqti:
+                </label>
+                <input
+                  type="time"
+                  value={editStoreForm.openTime}
+                  onChange={(e) => setEditStoreForm(f => ({ ...f, openTime: e.target.value }))}
+                  className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-white focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                  Yopilish vaqti:
+                </label>
+                <input
+                  type="time"
+                  value={editStoreForm.closeTime}
+                  onChange={(e) => setEditStoreForm(f => ({ ...f, closeTime: e.target.value }))}
+                  className="w-full p-2.5 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-semibold text-[#172C28] dark:text-white focus:outline-none"
+                />
+              </div>
+            </div>
+
+            {/* Tashkilot rasmi (FAYLDAN YUKLASH + URL) */}
+            <div className="flex flex-col gap-2 p-3.5 bg-[#F9FAF9] dark:bg-[#1A2822] rounded-2xl border border-[#DCE5DF] dark:border-[#2A3F36]">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
+                  <Camera className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                  <span>Tashkilotning asosiy rasmi:</span>
+                </label>
+                {editStoreForm.photoUrl && (
+                  <span className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">
+                    ✓ Rasm yuklangan
+                  </span>
+                )}
+              </div>
+
+              {editStoreForm.photoUrl ? (
+                <div className="relative w-full h-44 sm:h-52 rounded-xl overflow-hidden border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#E2EEE4] dark:bg-[#182C22] group">
+                  <img src={editStoreForm.photoUrl} alt="Store main preview" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                    <label className="px-3 py-1.5 rounded-xl bg-white text-[#172C28] text-xs font-bold hover:bg-gray-100 transition cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Almashtirish</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handlePhotoFileUpload(e, (url) => setEditStoreForm(f => ({ ...f, photoUrl: url })))}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditStoreForm(f => ({ ...f, photoUrl: '' }))}
+                      className="px-3 py-1.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>O‘chirish</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2.5">
+                  <label className="w-full h-32 rounded-xl border-2 border-dashed border-[#116B50]/60 dark:border-[#4ADE80]/60 bg-[#E0EFE7]/40 dark:bg-[#16241E] hover:bg-[#E0EFE7]/80 dark:hover:bg-[#1E362A] flex flex-col items-center justify-center gap-1.5 cursor-pointer transition p-4 text-center group">
+                    <div className="w-10 h-10 rounded-full bg-[#116B50]/15 dark:bg-[#4ADE80]/15 flex items-center justify-center text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition">
+                      <Upload className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <span className="font-extrabold text-xs text-[#116B50] dark:text-[#4ADE80] block">
+                        Qurilmadan rasm yuklash (Fayl tanlash)
+                      </span>
+                      <p className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                        Kamera yoki galereyadan rasm tanlang (JPEG, PNG, WebP)
+                      </p>
+                    </div>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handlePhotoFileUpload(e, (url) => setEditStoreForm(f => ({ ...f, photoUrl: url })))}
+                    />
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-[#DCE5DF] dark:bg-[#2A3F36]" />
+                    <span className="text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95]">yoki internetdan havola</span>
+                    <div className="h-px flex-1 bg-[#DCE5DF] dark:bg-[#2A3F36]" />
+                  </div>
+
+                  <input
+                    type="url"
+                    placeholder="https://example.com/store-photo.jpg"
+                    value={editStoreForm.photoUrl}
+                    onChange={(e) => setEditStoreForm(f => ({ ...f, photoUrl: e.target.value }))}
+                    className="w-full h-10 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Tavsif */}
+            <div>
+              <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] mb-1.5 block">
+                Tashkilot haqida qo‘shimcha ma’lumot / tavsif:
+              </label>
+              <textarea
+                rows={3}
+                value={editStoreForm.description}
+                onChange={(e) => setEditStoreForm(f => ({ ...f, description: e.target.value }))}
+                placeholder="Tashkilot faoliyati, xizmatlari va qo‘shimcha qulayliklari haqida..."
+                className="w-full p-3 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:border-[#116B50]"
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-[#DCE5DF] dark:border-[#2A3F36]">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setIsEditStoreModalOpen(false)}
+              >
+                Bekor qilish
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isSavingStore}
+                className="bg-[#116B50] hover:bg-[#0d533e] font-bold"
+              >
+                {isSavingStore ? 'Saqlanmoqda...' : 'O‘zgarishlarni saqlash'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
     </div>
   );
 }

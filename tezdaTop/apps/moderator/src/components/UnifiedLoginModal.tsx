@@ -15,7 +15,7 @@ export function UnifiedLoginModal({
   isOpen,
   onClose,
   onLoginSuccess,
-  appTitle = 'YaqinTop Moderator Portali',
+  appTitle = 'YaqinTop Boshqaruv Admin Paneli',
   initialError = null
 }: UnifiedLoginModalProps) {
   const [login, setLogin] = useState('');
@@ -86,7 +86,7 @@ export function UnifiedLoginModal({
     <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - Tizimga Kirish`}>
       <div className="flex flex-col gap-4 py-1">
         <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
-          Moderatorlik boshqaruv markaziga kirish uchun moderator hisobingiz bilan tizimga kiring.
+          Boshqaruv Admin paneliga kirish uchun administrator hisobingiz bilan tizimga kiring.
         </p>
 
         {errorMsg && (
@@ -114,7 +114,7 @@ export function UnifiedLoginModal({
                 required
                 value={login}
                 onChange={(e) => setLogin(e.target.value)}
-                placeholder="masalan: moderator yoki +998904445566"
+                placeholder="masalan: admin yoki +998905556677"
                 className="w-full h-10 pl-9 pr-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>

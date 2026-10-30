@@ -332,13 +332,13 @@ export function UnifiedUserProfileModal({
 
             <div>
               <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
-                Moderator Login (Foydalanuvchi nomi yoki telefon)
+                Admin Login (Foydalanuvchi nomi yoki telefon)
               </label>
               <input
                 type="text"
                 value={reqEmail}
                 onChange={(e) => setReqEmail(e.target.value)}
-                placeholder="masalan: moderator1 yoki mod_toshkent"
+                placeholder="masalan: superadmin yoki admin2026"
                 className="w-full h-10 px-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>

@@ -1292,10 +1292,14 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
     }
     if (!db.variants.has(variantId)) {
       const existingByName = Array.from(db.variants.values()).find(
-        (v) => v.title.toLowerCase().trim() === cleanTitle.toLowerCase()
+        (v) => (v.title || (v as any).name || '').toLowerCase().trim() === cleanTitle.toLowerCase()
       );
       if (existingByName) {
         variantId = existingByName.id;
+        if (!existingByName.photoUrl && chosenPhotoUrl) {
+          existingByName.photoUrl = chosenPhotoUrl;
+          (existingByName as any).imageUrl = chosenPhotoUrl;
+        }
       } else {
         db.variants.set(variantId, {
           id: variantId,
@@ -1303,11 +1307,19 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
           sku: cleanBarcode || `SKU-${Date.now().toString(36).toUpperCase()}`,
           barcode: cleanBarcode,
           title: cleanTitle,
+          name: cleanTitle,
           category: cleanCategory,
           packUnit: cleanUnit,
           photoUrl: chosenPhotoUrl,
+          imageUrl: chosenPhotoUrl,
           ...({ createdAt: now, updatedAt: now } as any)
         });
+      }
+    } else if (chosenPhotoUrl) {
+      const v = db.variants.get(variantId);
+      if (v && !v.photoUrl) {
+        v.photoUrl = chosenPhotoUrl;
+        (v as any).imageUrl = chosenPhotoUrl;
       }
     }
 
@@ -1323,13 +1335,22 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
       targetOffer.status = 'ACTIVE';
       if (chosenPhotoUrl) {
         targetOffer.variant.photoUrl = chosenPhotoUrl;
+        (targetOffer.variant as any).imageUrl = chosenPhotoUrl;
         const v = db.variants.get(variantId);
-        if (v) v.photoUrl = chosenPhotoUrl;
+        if (v) {
+          v.photoUrl = chosenPhotoUrl;
+          (v as any).imageUrl = chosenPhotoUrl;
+        }
       }
       targetOffer.priceUpdatedAt = now;
       newOfferId = targetOffer.id;
     } else {
       newOfferId = uuidv4();
+      const variantObj = db.variants.get(variantId)!;
+      if (chosenPhotoUrl && !variantObj.photoUrl) {
+        variantObj.photoUrl = chosenPhotoUrl;
+        (variantObj as any).imageUrl = chosenPhotoUrl;
+      }
       const newOffer: Offer = {
         id: newOfferId,
         storeId: store.id,
@@ -1342,7 +1363,7 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
         priceUpdatedAt: now,
         wholesaleTiers: [],
         version: 1,
-        variant: db.variants.get(variantId)!
+        variant: variantObj
       };
       db.offers.set(newOfferId, newOffer);
     }
@@ -1548,10 +1569,14 @@ app.post('/api/v1/admin/item-proposals/:id/approve', async (req: Request, res: R
   }
   if (!db.variants.has(variantId)) {
     const existingByName = Array.from(db.variants.values()).find(
-      (v) => v.title.toLowerCase().trim() === proposal.title.toLowerCase().trim()
+      (v) => (v.title || (v as any).name || '').toLowerCase().trim() === proposal.title.toLowerCase().trim()
     );
     if (existingByName) {
       variantId = existingByName.id;
+      if (!existingByName.photoUrl && proposal.photoUrl) {
+        existingByName.photoUrl = proposal.photoUrl;
+        (existingByName as any).imageUrl = proposal.photoUrl;
+      }
     } else {
       db.variants.set(variantId, {
         id: variantId,
@@ -1559,11 +1584,19 @@ app.post('/api/v1/admin/item-proposals/:id/approve', async (req: Request, res: R
         sku: proposal.barcode || `SKU-${Date.now().toString(36).toUpperCase()}`,
         barcode: proposal.barcode,
         title: proposal.title,
+        name: proposal.title,
         category: proposal.category,
         packUnit: proposal.packUnit,
         photoUrl: proposal.photoUrl,
+        imageUrl: proposal.photoUrl,
         ...({ createdAt: now, updatedAt: now } as any)
       });
+    }
+  } else if (proposal.photoUrl) {
+    const v = db.variants.get(variantId);
+    if (v && !v.photoUrl) {
+      v.photoUrl = proposal.photoUrl;
+      (v as any).imageUrl = proposal.photoUrl;
     }
   }
 
@@ -1579,13 +1612,22 @@ app.post('/api/v1/admin/item-proposals/:id/approve', async (req: Request, res: R
     targetOffer.status = 'ACTIVE';
     if (proposal.photoUrl) {
       targetOffer.variant.photoUrl = proposal.photoUrl;
+      (targetOffer.variant as any).imageUrl = proposal.photoUrl;
       const v = db.variants.get(variantId);
-      if (v) v.photoUrl = proposal.photoUrl;
+      if (v) {
+        v.photoUrl = proposal.photoUrl;
+        (v as any).imageUrl = proposal.photoUrl;
+      }
     }
     targetOffer.priceUpdatedAt = now;
     offerId = targetOffer.id;
   } else {
     offerId = uuidv4();
+    const variantObj = db.variants.get(variantId)!;
+    if (proposal.photoUrl && !variantObj.photoUrl) {
+      variantObj.photoUrl = proposal.photoUrl;
+      (variantObj as any).imageUrl = proposal.photoUrl;
+    }
     const newOffer: Offer = {
       id: offerId,
       storeId: store.id,
@@ -1598,7 +1640,7 @@ app.post('/api/v1/admin/item-proposals/:id/approve', async (req: Request, res: R
       priceUpdatedAt: now,
       wholesaleTiers: [],
       version: 1,
-      variant: db.variants.get(variantId)!
+      variant: variantObj
     };
     db.offers.set(offerId, newOffer);
   }
@@ -3729,7 +3771,7 @@ app.get('/api/v1/admin/organizations', (req, res) => {
   res.json({ organizations: orgs });
 });
 
-app.post('/api/v1/admin/organizations', (req, res) => {
+app.post('/api/v1/admin/organizations', async (req, res) => {
   const { name, inn, region, city, district, type = 'RETAIL', status = 'ACTIVE', storeName, address, phone, lat, lng, hours, photoUrl } = req.body;
   if (typeof type !== 'string' || !type.trim() || type.trim().length > 80) {
     res.status(400).json({ code: 'INVALID_REQUEST', message: 'Tashkilot turi 1–80 belgidan iborat bo‘lishi kerak' });
@@ -3793,6 +3835,86 @@ app.post('/api/v1/admin/organizations', (req, res) => {
   };
   db.stores.set(storeId, newStore);
 
+  // Support initial offer (product or service) created with store
+  let createdOffer: any = null;
+  if (req.body.initialOffer && req.body.initialOffer.title && (req.body.initialOffer.price !== undefined && req.body.initialOffer.price !== null && req.body.initialOffer.price !== '')) {
+    const io = req.body.initialOffer;
+    const isService = io.type === 'SERVICE' || io.type === 'Xizmat';
+    const variantId = uuidv4();
+    const offerId = uuidv4();
+    const finalPhotoUrl = io.photoUrl || io.imageUrl || '';
+    const variant: any = {
+      id: variantId,
+      productId: uuidv4(),
+      organizationId: orgId,
+      title: io.title.trim(),
+      brand: io.brand?.trim() || (isService ? 'Xizmat' : 'Boshqa'),
+      category: io.category?.trim() || (isService ? 'Xizmat' : 'Umumiy'),
+      packSize: isService ? '1 ta' : '1 dona',
+      packUnit: io.packUnit || (isService ? 'xizmat' : 'dona'),
+      barcode: io.barcode?.trim() || (isService ? '' : `${Math.floor(10000000 + Math.random() * 90000000)}`),
+      sku: `SKU-${Math.floor(100 + Math.random() * 900)}`,
+      photoUrl: finalPhotoUrl,
+      type: isService ? 'SERVICE' : 'PRODUCT',
+      aliases: [io.title.toLowerCase()]
+    };
+    db.variants.set(variantId, variant);
+
+    const initialStock = io.stockOnHand !== undefined ? parseInt(io.stockOnHand, 10) : (isService ? 999 : 10);
+    const offer: any = {
+      id: offerId,
+      storeId,
+      variantId,
+      variant,
+      price: new Decimal(io.price).toFixed(2),
+      minOrderQuantity: 1,
+      stockOnHand: initialStock,
+      stockVerifiedAt: new Date().toISOString(),
+      priceUpdatedAt: new Date().toISOString(),
+      freshness: 'NEW',
+      status: 'ACTIVE',
+      wholesaleTiers: [],
+      version: 1
+    };
+    db.offers.set(offerId, offer);
+    db.balances.set(offerId, {
+      offerId,
+      onHand: new Decimal(initialStock),
+      averageUnitCost: new Decimal(io.price).times(0.75),
+      lastVerifiedAt: new Date(),
+      version: 1
+    });
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('variants').upsert({
+          id: variant.id,
+          organization_id: orgId,
+          title: variant.title,
+          brand: variant.brand,
+          category: variant.category,
+          barcode: variant.barcode,
+          pack_size: variant.packSize,
+          pack_unit: variant.packUnit,
+          image_url: variant.photoUrl,
+          attributes: { photoUrl: variant.photoUrl, type: variant.type }
+        });
+        await supabase.from('offers').upsert({
+          id: offer.id,
+          store_id: storeId,
+          variant_id: variant.id,
+          price: parseFloat(offer.price),
+          in_stock: initialStock > 0,
+          stock_count: initialStock,
+          status: 'ACTIVE'
+        });
+      } catch (e) {
+        console.error('[Supabase Initial Offer Error]', e);
+      }
+    }
+    createdOffer = offer;
+  }
+
   db.auditLogs.push({
     id: uuidv4(),
     actorId: SEED_IDS.adminUserId,
@@ -3806,7 +3928,7 @@ app.post('/api/v1/admin/organizations', (req, res) => {
 
   db.scheduleSave();
 
-  res.status(201).json({ organization: newOrg, store: newStore });
+  res.status(201).json({ organization: newOrg, store: newStore, offer: createdOffer });
 });
 
 app.patch('/api/v1/admin/organizations/:id', (req, res) => {
@@ -3989,7 +4111,7 @@ app.post('/api/v1/admin/stores', (req, res) => {
       db.organizations.set(orgId, {
         id: orgId,
         name: name + ' MChJ',
-        inn: inn || '308000000',
+        inn: inn || '',
         region: region || 'Toshkent shahri',
         city: city || 'Yunusobod',
         district: district || '',
@@ -4053,13 +4175,22 @@ app.post('/api/v1/admin/stores', (req, res) => {
 });
 
 app.patch('/api/v1/admin/stores/:id', async (req, res) => {
-  const store = db.stores.get(req.params.id);
+  const store = db.stores.get(req.params.id) || findStoreByParam(req.params.id);
   if (!store) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
   }
 
-  const { name, inn, region, city, district, address, phone, location, hours, photoUrl, status, isVerified, type } = req.body;
+  const user = getCurrentUser(req);
+  if (user && !['ADMIN', 'SUPERADMIN', 'MODERATOR', 'OWNER'].includes(user.role)) {
+    const isOwner = (store as any).ownerId === user.id;
+    if (!isOwner) {
+      res.status(403).json({ code: 'FORBIDDEN', message: 'Tashkilotni tahrirlash huquqingiz yo‘q' });
+      return;
+    }
+  }
+
+  const { name, inn, region, city, district, address, phone, location, hours, photoUrl, photos, description, status, isVerified, type } = req.body;
   if (name !== undefined) store.name = name;
   if (inn !== undefined) (store as any).inn = inn;
   if (region !== undefined) (store as any).region = region;
@@ -4067,14 +4198,29 @@ app.patch('/api/v1/admin/stores/:id', async (req, res) => {
   if (district !== undefined) (store as any).district = district;
   if (address !== undefined) store.address = address;
   if (phone !== undefined) store.phone = phone;
-  if (location !== undefined) {
+  if (description !== undefined) (store as any).description = description;
+  if (location !== undefined && location.lat !== undefined && location.lng !== undefined) {
     store.location = {
       lat: parseFloat(location.lat),
       lng: parseFloat(location.lng)
     };
   }
   if (hours !== undefined) store.hours = hours;
-  if (photoUrl !== undefined) store.photoUrl = photoUrl;
+  if (photoUrl !== undefined) {
+    store.photoUrl = photoUrl;
+    if (photoUrl) {
+      const existingPhotos = (store as any).photos || [];
+      if (!existingPhotos.includes(photoUrl)) {
+        (store as any).photos = [photoUrl, ...existingPhotos.filter((p: string) => p !== photoUrl)];
+      }
+    }
+  }
+  if (photos !== undefined && Array.isArray(photos)) {
+    (store as any).photos = photos;
+    if (photos.length > 0 && !photoUrl) {
+      store.photoUrl = photos[0];
+    }
+  }
   if (status !== undefined) store.status = status;
   if (isVerified !== undefined) store.isVerified = isVerified;
   if (type !== undefined) store.type = type;
@@ -4082,12 +4228,19 @@ app.patch('/api/v1/admin/stores/:id', async (req, res) => {
 
   if (isSupabaseConfigured() && supabase) {
     try {
+      const storePhotos = (store as any).photos || (store.photoUrl ? [store.photoUrl] : []);
       await supabase.from('stores').update({
         name: store.name,
         address: store.address,
         phone: store.phone,
         status: store.status,
         is_active: store.status === 'ACTIVE',
+        photos: storePhotos,
+        working_hours: (store as any).hours || null,
+        region: (store as any).region || null,
+        district: (store as any).district || null,
+        latitude: store.location?.lat || null,
+        longitude: store.location?.lng || null,
         updated_at: store.updatedAt
       }).eq('id', store.id);
     } catch (e) {
@@ -4095,10 +4248,13 @@ app.patch('/api/v1/admin/stores/:id', async (req, res) => {
     }
   }
 
+  db.saveToFile();
+  db.scheduleSave();
+
   db.auditLogs.push({
     id: uuidv4(),
-    actorId: SEED_IDS.adminUserId,
-    actorEmail: 'admin@yaqintop.uz',
+    actorId: user?.id || SEED_IDS.adminUserId,
+    actorEmail: user?.email || 'admin@yaqintop.uz',
     action: 'UPDATE_STORE',
     entityType: 'STORE',
     entityId: store.id,
@@ -4106,9 +4262,127 @@ app.patch('/api/v1/admin/stores/:id', async (req, res) => {
     timestamp: new Date().toISOString()
   });
 
+  res.json({ success: true, store });
+});
+
+app.post('/api/v1/admin/stores/:id/offers', async (req, res) => {
+  const matchedStore = findStoreByParam(req.params.id) || db.stores.get(req.params.id);
+  if (!matchedStore) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  const { title, price, type = 'PRODUCT', category, brand, barcode, packUnit, stockOnHand, imageUrl, photoUrl, description } = req.body;
+  if (!title || price === undefined || price === null || price === '') {
+    res.status(400).json({ code: 'INVALID_DATA', message: 'Mahsulot yoki xizmat nomi va narxi majburiy' });
+    return;
+  }
+  const isService = type === 'SERVICE' || type === 'Xizmat';
+  const finalPhotoUrl = photoUrl || imageUrl || '';
+  const finalCategory = category?.trim() || (isService ? 'Xizmat' : 'Umumiy');
+  const finalPackUnit = packUnit || (isService ? 'xizmat' : 'dona');
+  const initialStock = stockOnHand !== undefined ? parseInt(stockOnHand, 10) : (isService ? 999 : 10);
+  const finalPrice = new Decimal(price).toFixed(2);
+
+  const variantId = uuidv4();
+  const offerId = uuidv4();
+
+  const variant: any = {
+    id: variantId,
+    productId: uuidv4(),
+    organizationId: matchedStore.organizationId,
+    title: title.trim(),
+    brand: brand?.trim() || (isService ? 'Xizmat' : 'Boshqa'),
+    category: finalCategory,
+    packSize: isService ? '1 ta' : '1 dona',
+    packUnit: finalPackUnit,
+    barcode: barcode?.trim() || (isService ? '' : `${Math.floor(10000000 + Math.random() * 90000000)}`),
+    sku: `SKU-${Math.floor(100 + Math.random() * 900)}`,
+    photoUrl: finalPhotoUrl,
+    description: description?.trim() || '',
+    type: isService ? 'SERVICE' : 'PRODUCT',
+    aliases: [title.toLowerCase()]
+  };
+  db.variants.set(variantId, variant);
+
+  const offer: any = {
+    id: offerId,
+    storeId: matchedStore.id,
+    variantId,
+    variant,
+    price: finalPrice,
+    minOrderQuantity: 1,
+    stockOnHand: initialStock,
+    stockVerifiedAt: new Date().toISOString(),
+    priceUpdatedAt: new Date().toISOString(),
+    freshness: 'NEW',
+    status: 'ACTIVE',
+    wholesaleTiers: [],
+    version: 1
+  };
+  db.offers.set(offerId, offer);
+  db.balances.set(offerId, {
+    offerId,
+    onHand: new Decimal(initialStock),
+    averageUnitCost: new Decimal(price).times(0.75),
+    lastVerifiedAt: new Date(),
+    version: 1
+  });
+
+  // Supabase sync
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('variants').upsert({
+        id: variant.id,
+        organization_id: matchedStore.organizationId,
+        title: variant.title,
+        brand: variant.brand,
+        category: variant.category,
+        barcode: variant.barcode,
+        pack_size: variant.packSize,
+        pack_unit: variant.packUnit,
+        image_url: variant.photoUrl,
+        attributes: { photoUrl: variant.photoUrl, type: variant.type, description: variant.description }
+      });
+      await supabase.from('offers').upsert({
+        id: offer.id,
+        store_id: matchedStore.id,
+        variant_id: variant.id,
+        price: parseFloat(finalPrice),
+        in_stock: initialStock > 0,
+        stock_count: initialStock,
+        status: 'ACTIVE'
+      });
+    } catch (err) {
+      console.error('[Supabase Offer Sync Error]', err);
+    }
+  }
+
+  db.saveToFile();
   db.scheduleSave();
 
-  res.json({ store });
+  res.status(201).json({ success: true, offer });
+});
+
+app.delete('/api/v1/admin/offers/:id', async (req, res) => {
+  const offer = db.offers.get(req.params.id);
+  if (!offer) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tovar yoki xizmat topilmadi' });
+    return;
+  }
+  db.offers.delete(offer.id);
+  if (offer.variantId) {
+    db.variants.delete(offer.variantId);
+  }
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('offers').delete().eq('id', offer.id);
+    } catch (e) {
+      console.error('[Supabase Offer Delete Error]', e);
+    }
+  }
+  db.saveToFile();
+  db.scheduleSave();
+  res.json({ success: true, message: 'O‘chirildi' });
 });
 
 app.post('/api/v1/admin/stores/:id/resolve-issues', async (req, res) => {

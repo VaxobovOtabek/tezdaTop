@@ -64,7 +64,8 @@
     <link rel="icon" type="image/png" sizes="96x96" href="/customer/favicon-96x96.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="/customer/favicon-48x48.png" />
     <link rel="shortcut icon" href="/customer/favicon.ico" />
-    <link rel="apple-touch-icon" href="/customer/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/customer/apple-touch-icon.png" />
+    <link rel="apple-touch-startup-image" href="/customer/icons/icon-512.png" />
 
     <!-- Schema.org JSON-LD Structured Data for Google Rich Snippets -->
     <script type="application/ld+json">
@@ -115,7 +116,35 @@
     </script>
   </head>
   <body class="bg-[#F3F6F3] text-[#172C28] antialiased">
-    <div id="root"></div>
+    <div id="root">
+      <!-- Instant Native PWA / Web Launch Splash Screen (Replaced upon React hydration) -->
+      <div id="pwa-launch-splash" style="position:fixed;inset:0;background:linear-gradient(180deg,#116B50 0%,#094734 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:99999;font-family:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;color:#ffffff;user-select:none;">
+        <div style="position:relative;width:96px;height:96px;display:flex;align-items:center;justify-content:center;">
+          <img src="/customer/icons/icon-512.png" alt="YaqinTop" width="96" height="96" style="width:96px;height:96px;border-radius:24px;box-shadow:0 14px 34px rgba(0,0,0,0.3);animation:pwaIconPulse 2.2s ease-in-out infinite;" />
+        </div>
+        <div style="margin-top:20px;font-size:24px;font-weight:800;letter-spacing:-0.5px;color:#FFFFFF;text-shadow:0 2px 10px rgba(0,0,0,0.18);">
+          YaqinTop
+        </div>
+        <div style="margin-top:6px;font-size:13px;font-weight:500;color:rgba(255,255,255,0.8);">
+          Yaqiningizdagi tovar va do‘konlar
+        </div>
+        <div style="margin-top:32px;display:flex;gap:6px;align-items:center;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#4ADE80;animation:pwaDotBounce 1.4s infinite ease-in-out both;animation-delay:0s;"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#4ADE80;animation:pwaDotBounce 1.4s infinite ease-in-out both;animation-delay:0.2s;"></span>
+          <span style="width:8px;height:8px;border-radius:50%;background:#4ADE80;animation:pwaDotBounce 1.4s infinite ease-in-out both;animation-delay:0.4s;"></span>
+        </div>
+        <style>
+          @keyframes pwaIconPulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.06); }
+          }
+          @keyframes pwaDotBounce {
+            0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+            40% { transform: scale(1.2); opacity: 1; }
+          }
+        </style>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

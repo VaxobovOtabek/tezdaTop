@@ -103,6 +103,7 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
   const [addingType, setAddingType] = useState(false);
   const [typeName, setTypeName] = useState('');
   const [showBranchField, setShowBranchField] = useState(false);
+  const [showInnField, setShowInnField] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [locatingGps, setLocatingGps] = useState(false);
@@ -360,8 +361,59 @@ export function OwnerOnboarding({ onCreated, onLogin }: { onCreated: (data: any,
 
       <form onSubmit={submit} className="space-y-6 mt-6">
         <fieldset disabled={busy} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {field('name', 'Tashkilot nomi')}
-          {field('inn', 'STIR (INN) — 9 ta raqam (ixtiyoriy)', 'text', false)}
+          <div className={showInnField ? 'sm:col-span-1' : 'sm:col-span-2'}>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium text-[#172C28] dark:text-[#E8F2EC]">
+                {t('Tashkilot nomi')} *
+              </label>
+              {!showInnField && (
+                <button
+                  type="button"
+                  onClick={() => setShowInnField(true)}
+                  className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  <span>+ {t('STIR (INN) kiritish')}</span>
+                </button>
+              )}
+            </div>
+            <input
+              required
+              className={inputClass}
+              value={form.name}
+              placeholder="Masalan: 'Orom Farm' yoki 'Navbahor do‘koni'"
+              onChange={event => setForm(data => ({ ...data, name: event.target.value }))}
+            />
+          </div>
+
+          {showInnField && (
+            <div className="sm:col-span-1">
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-[#172C28] dark:text-[#E8F2EC]">
+                  {t('STIR (INN — 9 ta raqam)')}
+                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-normal ml-1">({t('ixtiyoriy')})</span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowInnField(false);
+                    setForm(data => ({ ...data, inn: '' }));
+                  }}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium cursor-pointer"
+                >
+                  ✕ {t('Bekor qilish')}
+                </button>
+              </div>
+              <input
+                type="text"
+                maxLength={9}
+                pattern="\\d{9}"
+                className={inputClass}
+                placeholder="123456789"
+                value={form.inn}
+                onChange={event => setForm(data => ({ ...data, inn: event.target.value.replace(/\D/g, '').slice(0, 9) }))}
+              />
+            </div>
+          )}
 
           <label className="text-sm font-medium text-[#172C28] dark:text-[#E8F2EC]">
             {t('Viloyat / Hudud')} *

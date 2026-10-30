@@ -1,4 +1,4 @@
-const CACHE_NAME = 'yaqintop-customer-v1';
+const CACHE_NAME = 'yaqintop-customer-v2';
 const PRECACHE_ASSETS = [
   '/customer/',
   '/customer/manifest.json',

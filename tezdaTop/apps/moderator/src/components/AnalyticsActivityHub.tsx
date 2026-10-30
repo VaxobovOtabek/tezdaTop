@@ -128,7 +128,7 @@ export function AnalyticsActivityHub({ isDarkMode, onShowToast }: AnalyticsActiv
         <div className="p-5 rounded-2xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">Faol Xaridorlar</span>
-            <div className="w-8 h-8 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
               <Users className="w-4 h-4" />
             </div>
           </div>
@@ -410,7 +410,7 @@ export function AnalyticsActivityHub({ isDarkMode, onShowToast }: AnalyticsActiv
               {[
                 { key: 'WRONG_PRICE', label: 'Narx ilovada boshqacha (WRONG_PRICE)', count: data?.complaintsByReason?.WRONG_PRICE || 2, color: 'bg-red-500' },
                 { key: 'UNAVAILABLE_PRODUCT', label: 'Tovar mavjud emas / Tugagan', count: data?.complaintsByReason?.UNAVAILABLE_PRODUCT || 1, color: 'bg-amber-500' },
-                { key: 'WRONG_LOCATION', label: 'Do‘kon manzili yoki eshigi noto‘g‘ri', count: data?.complaintsByReason?.WRONG_LOCATION || 1, color: 'bg-[#116B50]' },
+                { key: 'WRONG_LOCATION', label: 'Do‘kon manzili yoki eshigi noto‘g‘ri', count: data?.complaintsByReason?.WRONG_LOCATION || 1, color: 'bg-blue-500' },
                 { key: 'CLOSED_STORE', label: 'Ish vaqtida do‘kon yopiq', count: data?.complaintsByReason?.CLOSED_STORE || 0, color: 'bg-slate-500' }
               ].map((item) => (
                 <div key={item.key} className="flex flex-col gap-1 text-xs">
