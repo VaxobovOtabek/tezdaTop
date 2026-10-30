@@ -51,9 +51,11 @@ services:
       NODE_ENV: production
       PORT: 4000
       DATABASE_URL: postgresql://yaqintop:secretpassword@postgres:5432/yaqintop_db
-      CUSTOMER_APP_URL: http://localhost
-      MERCHANT_APP_URL: http://localhost/merchant
+      CUSTOMER_APP_URL: http://localhost/customer
+      MERCHANT_APP_URL: http://localhost/owner
       ADMIN_APP_URL: http://localhost/admin
+      MODERATOR_APP_URL: http://localhost/moderator
+      LANDING_APP_URL: http://localhost
     ports:
       - "4000:4000"
     depends_on:

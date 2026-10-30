@@ -10,7 +10,8 @@ export default defineConfig(({ command }) => ({
     alias: {
       '@yaqintop/contracts': path.resolve(__dirname, '../../packages/contracts/src/index.ts'),
       '@yaqintop/ui': path.resolve(__dirname, '../../packages/ui/src/index.tsx'),
-      '@yaqintop/config': path.resolve(__dirname, '../../packages/config/src/index.ts')
+      '@yaqintop/config': path.resolve(__dirname, '../../packages/config/src/index.ts'),
+      '@yaqintop/landing-app': path.resolve(__dirname, '../landing/src/App.tsx')
     }
   },
   server: {

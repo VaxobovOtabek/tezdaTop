@@ -11,10 +11,11 @@ YaqinTop monoreposi quyidagi mikro-servislar va ilovalardan iborat:
 | Servis / Ilova | Ishlab chiqish porti | Production Subdomain / Yo‘l | Vazifasi |
 |---|---|---|---|
 | **@yaqintop/api** | `:4000` | `api.yaqintop.uz` yoki `/api/v1` | Fastify REST API, OSRM marshrut, Auth & RBAC, DB |
-| **@yaqintop/customer** | `:3000` | `yaqintop.uz` yoki `/` | Xaridor SPA/PWA (Karta, Qidiruv, Do‘kon profili, Marshrut) |
-| **@yaqintop/merchant** | `:3001` | `merchant.yaqintop.uz` yoki `/merchant` | Do‘kon boshqaruv kabineti (Tovarlar, Kassa, Qoldiq, Xarajat) |
-| **@yaqintop/admin** | `:3002` | `admin.yaqintop.uz` yoki `/admin` | Tizim boshqaruv paneli (Arizalar, ERD, Xarita, Moderatsiya) |
-| **@yaqintop/landing** | `:3003` | `promo.yaqintop.uz` yoki `/landing` | Taqdimot, Live demo widgeti va ro‘yxatdan o‘tish |
+| **@yaqintop/landing** | `:3003` | `yaqintop.uz` (Root `/`) | Rasmiy Lending sahifasi, demo qidiruv va taqdimot |
+| **@yaqintop/customer** | `:3000` | `yaqintop.uz/customer` | Xaridor / Foydalanuvchi SPA/PWA (Karta, Qidiruv, Do‘kon profili, Marshrut) |
+| **@yaqintop/merchant** | `:3001` | `yaqintop.uz/owner` | Do‘kon boshqaruv kabineti (Tovarlar, Kassa, Qoldiq, Xarajat) |
+| **@yaqintop/admin** | `:3002` | `yaqintop.uz/admin` | Tizim boshqaruv paneli (Arizalar, ERD, Xarita, Moderatsiya) |
+| **@yaqintop/moderator** | `:3004` | `yaqintop.uz/moderator` | Moderator portali (Arizalar va shikoyatlarni ko‘rib chiqish) |
 
 ---
 
@@ -227,80 +228,57 @@ server {
     }
 }
 
-# 2. XARIDOR ILOVASI (yaqintop.uz va www.yaqintop.uz)
+# 2. YAGONA DOMEN MARSHRUTLASH (yaqintop.uz va www.yaqintop.uz)
 server {
     listen 80;
     server_name yaqintop.uz www.yaqintop.uz;
-    root /var/www/yaqintop/apps/customer/dist;
-    index index.html;
 
     # Gzip siqish
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript image/svg+xml;
 
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    # API so'rovlarni proksi qilish (agar bir xil domenda bo'lsa)
+    # 1. API so'rovlarni proksi qilish
     location /api/v1/ {
         proxy_pass http://127.0.0.1:4000/api/v1/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # 2. Foydalanuvchi / Xaridor sahifasi (/customer)
+    location /customer {
+        alias /var/www/yaqintop/apps/customer/dist;
+        try_files $uri $uri/ /customer/index.html;
+    }
+
+    # 3. Do'kon boshqaruvi (/owner)
+    location /owner {
+        alias /var/www/yaqintop/apps/merchant/dist;
+        try_files $uri $uri/ /owner/index.html;
+    }
+
+    # 4. Admin paneli (/admin)
+    location /admin {
+        alias /var/www/yaqintop/apps/admin/dist;
+        try_files $uri $uri/ /admin/index.html;
+    }
+
+    # 5. Moderator portali (/moderator)
+    location /moderator {
+        alias /var/www/yaqintop/apps/moderator/dist;
+        try_files $uri $uri/ /moderator/index.html;
+    }
+
+    # 6. Rasmiy Lending sahifasi (Root /)
+    location / {
+        root /var/www/yaqintop/apps/landing/dist;
+        try_files $uri $uri/ /index.html;
     }
 
     # Statik fayllar keshini boshqarish
     location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
         expires 30d;
         add_header Cache-Control "public, no-transform";
-    }
-}
-
-# 3. DO'KON BOSHQARUVI - MERCHANT PORTAL (merchant.yaqintop.uz)
-server {
-    listen 80;
-    server_name merchant.yaqintop.uz;
-    root /var/www/yaqintop/apps/merchant/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/v1/ {
-        proxy_pass http://127.0.0.1:4000/api/v1/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-
-# 4. ADMIN PANELI (admin.yaqintop.uz)
-server {
-    listen 80;
-    server_name admin.yaqintop.uz;
-    root /var/www/yaqintop/apps/admin/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    location /api/v1/ {
-        proxy_pass http://127.0.0.1:4000/api/v1/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-
-# 5. LANDING SAYT (promo.yaqintop.uz)
-server {
-    listen 80;
-    server_name promo.yaqintop.uz;
-    root /var/www/yaqintop/apps/landing/dist;
-    index index.html;
-
-    location / {
-        try_files $uri $uri/ /index.html;
     }
 }
 ```

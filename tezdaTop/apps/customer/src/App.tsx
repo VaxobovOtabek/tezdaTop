@@ -28,6 +28,7 @@ import {
   Package,
   Sparkles,
   Smartphone,
+  Compass,
   Store as StoreIcon
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
@@ -41,6 +42,7 @@ import { ProductsCatalogView, CatalogProduct } from './components/ProductsCatalo
 import { ProductDetailPageView, DetailedProduct, AlternativeProduct } from './components/ProductDetailPageView';
 import { UzbekistanRegionPickerModal, detectNearestUzbekistanLocation } from './components/UzbekistanRegionPickerModal';
 import { apiUrl } from './config/api.js';
+import { LandingApp } from '@yaqintop/landing-app';
 
 export function CustomerApp() {
   const { t } = useTranslation();
@@ -130,13 +132,25 @@ export function CustomerApp() {
   });
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [view, setView] = useState<'search' | 'detail' | 'route' | 'hub' | 'products' | 'product-detail'>('search');
+  const [view, setView] = useState<'landing' | 'search' | 'detail' | 'route' | 'hub' | 'products' | 'product-detail'>(() => {
+    if (typeof window !== 'undefined') {
+      const p = (window.location.pathname || '').split('?')[0].replace(/\/+$/, '');
+      if (p === '' || p === '/') return 'landing';
+    }
+    return 'search';
+  });
   const [activeProductParam, setActiveProductParam] = useState<string>('');
   const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history' | 'proposals'>('favorites');
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
   const [mobileTab, setMobileTab] = useState<'xarita' | 'royxat'>('xarita');
   const [searchCategory, setSearchCategory] = useState<'products' | 'organizations'>('products');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('q') || params.get('category') || '';
+    }
+    return '';
+  });
   const [radiusM, setRadiusM] = useState(1000);
   const [openNow, setOpenNow] = useState(false);
   const [inStock, setInStock] = useState(false);
@@ -375,46 +389,72 @@ export function CustomerApp() {
 
     setView('search');
     setMobileTab('xarita');
-    navigateTo('/');
+    navigateTo('/customer');
     showToast(`Xaritada "${product.title}" mavjud bo‘lgan ${mappedResults.length} ta do‘kon ko‘rsatilmoqda`);
   };
 
   // URL Routing Sync
   const handleRoute = (path: string) => {
-    const cleanPath = path.split('?')[0];
-    setCurrentPath(cleanPath);
+    const cleanPath = (path || '/').split('?')[0];
+    const normalized = cleanPath === '' ? '/' : cleanPath;
+    setCurrentPath(normalized);
 
-    if (cleanPath !== '/marshrut') {
+    // If at root '/' or '', render Landing Page
+    if (normalized === '/') {
+      setView('landing');
+      setRouteData(null);
+      if (typeof document !== 'undefined') {
+        const lang = localStorage.getItem('yaqintop_lang') || 'uz';
+        if (lang === 'ru') {
+          document.title = 'YaqinTop — Экосистема поиска местных товаров и магазинов | Узбекистан';
+        } else if (lang === 'en') {
+          document.title = 'YaqinTop — Local Store & Product Search Ecosystem | Uzbekistan';
+        } else {
+          document.title = 'YaqinTop — Mahalliy Tovar va Xizmatlar Qidiruv Ekotizimi | O‘zbekiston';
+        }
+      }
+      return;
+    }
+
+    // Set Customer App title
+    if (typeof document !== 'undefined') {
+      document.title = 'YaqinTop — Yaqiningizdagi tovarlar, xizmatlar va do‘konlar qidiruvi';
+    }
+
+    // Customer internal routes
+    const relPath = normalized.replace(/^\/customer(?=\/|$)/, '') || '/';
+
+    if (relPath !== '/marshrut') {
       setRouteData(null);
     }
 
-    if (cleanPath === '/sevimlilar' || cleanPath === '/sharhlarim' || cleanPath === '/ariza' || cleanPath === '/murojaatlar' || cleanPath === '/tarix' || cleanPath === '/takliflarim' || cleanPath === '/takliflar') {
+    if (relPath === '/sevimlilar' || relPath === '/sharhlarim' || relPath === '/ariza' || relPath === '/murojaatlar' || relPath === '/tarix' || relPath === '/takliflarim' || relPath === '/takliflar') {
       if (!currentUser) {
         setAuthErrorBanner('⚠️ Shaxsiy kabinet va ma‘lumotlarni ko‘rish uchun iltimos, tizimga kiring!');
         setIsLoginModalOpen(true);
-        window.history.replaceState(null, '', '/');
-        setCurrentPath('/');
+        window.history.replaceState(null, '', '/customer');
+        setCurrentPath('/customer');
         setView('search');
         return;
       }
     }
 
-    if (cleanPath === '/sevimlilar') {
+    if (relPath === '/sevimlilar') {
       setView('hub');
       setHubSection('favorites');
-    } else if (cleanPath === '/sharhlarim') {
+    } else if (relPath === '/sharhlarim') {
       setView('hub');
       setHubSection('reviews');
-    } else if (cleanPath === '/ariza' || cleanPath === '/murojaatlar') {
+    } else if (relPath === '/ariza' || relPath === '/murojaatlar') {
       setView('hub');
       setHubSection('inquiries');
-    } else if (cleanPath === '/tarix') {
+    } else if (relPath === '/tarix') {
       setView('hub');
       setHubSection('history');
-    } else if (cleanPath === '/takliflarim' || cleanPath === '/takliflar') {
+    } else if (relPath === '/takliflarim' || relPath === '/takliflar') {
       setView('hub');
       setHubSection('proposals');
-    } else if (cleanPath === '/marshrut') {
+    } else if (relPath === '/marshrut') {
       if (routeData || routeDataRef.current) {
         if (!routeData && routeDataRef.current) {
           setRouteData(routeDataRef.current);
@@ -422,14 +462,14 @@ export function CustomerApp() {
         setView('route');
       } else {
         // Prevent history loop on back/forward or reload when route data is not in memory
-        window.history.replaceState(null, '', '/');
-        setCurrentPath('/');
+        window.history.replaceState(null, '', '/customer');
+        setCurrentPath('/customer');
         setView('search');
       }
-    } else if (cleanPath === '/mahsulotlar' || cleanPath === '/tovarlar') {
+    } else if (relPath === '/mahsulotlar' || relPath === '/tovarlar') {
       setView('products');
-    } else if (cleanPath.startsWith('/dokon/')) {
-      const storeId = cleanPath.replace('/dokon/', '').trim();
+    } else if (relPath.startsWith('/dokon/')) {
+      const storeId = relPath.replace('/dokon/', '').trim();
       if (storeId) {
         loadStoreCatalog(storeId);
         setView('detail');
@@ -440,19 +480,26 @@ export function CustomerApp() {
   };
 
   const navigateTo = (path: string, options?: { replace?: boolean }) => {
-    if (options?.replace) {
-      window.history.replaceState(null, '', path);
-    } else {
-      window.history.pushState(null, '', path);
+    let target = path;
+    if (target === '/') {
+      target = '/';
+    } else if (!target.startsWith('/customer') && !target.startsWith('/admin') && !target.startsWith('/owner') && !target.startsWith('/moderator')) {
+      target = target.startsWith('/') ? `/customer${target}` : `/customer/${target}`;
     }
-    handleRoute(path);
+
+    if (options?.replace) {
+      window.history.replaceState(null, '', target);
+    } else {
+      window.history.pushState(null, '', target);
+    }
+    handleRoute(target);
   };
 
   const handleStopRoute = () => {
     setRouteData(null);
     setView('search');
-    window.history.replaceState(null, '', '/');
-    setCurrentPath('/');
+    window.history.replaceState(null, '', '/customer');
+    setCurrentPath('/customer');
     showToast('Marshrut rejimi to‘xtatildi');
   };
 
@@ -493,7 +540,26 @@ export function CustomerApp() {
       handleRoute(window.location.pathname || '/');
     };
     window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+
+    // Intercept clicks on links pointing to /customer or / for instant SPA transition
+    const handleLinkClick = (e: MouseEvent) => {
+      const target = (e.target as HTMLElement)?.closest('a');
+      if (!target) return;
+      const href = target.getAttribute('href');
+      if (!href) return;
+      if (href === '/' || href.startsWith('/customer')) {
+        if (!e.ctrlKey && !e.metaKey && !e.shiftKey && !e.altKey && target.target !== '_blank') {
+          e.preventDefault();
+          navigateTo(href);
+        }
+      }
+    };
+    document.addEventListener('click', handleLinkClick);
+
+    return () => {
+      window.removeEventListener('popstate', onPopState);
+      document.removeEventListener('click', handleLinkClick);
+    };
   }, []);
 
   // Fetch search results from API
@@ -815,6 +881,14 @@ export function CustomerApp() {
     }
   };
 
+  if (view === 'landing') {
+    return (
+      <div className="w-full min-h-screen bg-[#F8FAF9] dark:bg-[#0C1410] text-[#172C28] dark:text-[#E8F2EC]">
+        <LandingApp />
+      </div>
+    );
+  }
+
   return (
     <div className={`h-screen w-screen flex flex-col font-sans antialiased overflow-hidden transition-colors ${isDarkMode ? 'dark bg-[#0E1713] text-[#E8F2EC]' : 'bg-[#F3F6F3] text-[#172C28]'}`}>
       {/* Toast Notification */}
@@ -857,6 +931,7 @@ export function CustomerApp() {
           <div
             onClick={() => navigateTo('/')}
             className="flex items-center gap-1.5 cursor-pointer select-none shrink-0"
+            title="Lending sahifasiga qaytish"
           >
             <div className="w-7 h-8 sm:w-8 sm:h-9 bg-[#116B50] rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl-sm flex items-center justify-center text-white font-extrabold text-base sm:text-xl shadow-sm">
               Y
@@ -882,7 +957,7 @@ export function CustomerApp() {
             <button
               onClick={() => {
                 setSearchCategory('products');
-                navigateTo('/');
+                navigateTo('/customer');
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 (view === 'search' || (view as string) === 'route') && searchCategory === 'products'
@@ -897,7 +972,7 @@ export function CustomerApp() {
             <button
               onClick={() => {
                 setSearchCategory('organizations');
-                navigateTo('/');
+                navigateTo('/customer');
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 (view === 'search' || (view as string) === 'route') && searchCategory === 'organizations'
@@ -908,6 +983,19 @@ export function CustomerApp() {
               <Building2 className="w-3.5 h-3.5" />
               <span>{t('cust_search_organizations', 'Tashkilot izlash')}</span>
             </button>
+
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                navigateTo('/');
+              }}
+              className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] hover:text-[#116B50] dark:hover:text-[#4ADE80]"
+              title="Lending sahifasiga o‘tish"
+            >
+              <Compass className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80]" />
+              <span>{t('landing', 'Lending')}</span>
+            </a>
 
             <button
               onClick={() => navigateTo('/sevimlilar')}
@@ -1039,7 +1127,7 @@ export function CustomerApp() {
               };
               navigateTo(pathToMap[sec] || '/sevimlilar');
             }}
-            onBackToSearch={() => navigateTo('/')}
+            onBackToSearch={() => navigateTo('/customer')}
             onOpenStore={(storeId) => {
               loadStoreCatalog(storeId);
               navigateTo(`/dokon/${storeId}`);
@@ -1049,7 +1137,7 @@ export function CustomerApp() {
             }}
             onSearchQuery={(q) => {
               setSearchQuery(q);
-              navigateTo('/');
+              navigateTo('/customer');
               doSearch(q);
             }}
             isDarkMode={isDarkMode}
@@ -1067,7 +1155,7 @@ export function CustomerApp() {
             matchedOffer={selectedResult?.bestOffer?.id !== 'default' ? selectedResult?.bestOffer : null}
             currentUser={currentUser}
             onRequireAuth={(msg) => requireAuth(msg || 'Ushbu amalni bajarish')}
-            onBack={() => navigateTo('/')}
+            onBack={() => navigateTo('/customer')}
             onGetRoute={(mode) => fetchRoute((selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail), mode)}
             onReportError={() => requireAuth('Murojaat yuborish', () => setIsReportModalOpen(true))}
             onShowToast={showToast}
@@ -1781,11 +1869,20 @@ export function CustomerApp() {
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden h-16 bg-white dark:bg-[#14201A] border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40">
         <button
+          onClick={() => navigateTo('/')}
+          className="flex flex-col items-center gap-1 text-[10px] font-semibold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80]"
+          title="Lending sahifasiga o‘tish"
+        >
+          <Compass className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+          <span>Lending</span>
+        </button>
+
+        <button
           onClick={() => {
             if (view === 'route') {
               handleStopRoute();
             } else if (view !== 'search') {
-              navigateTo('/');
+              navigateTo('/customer');
               setMobileTab('xarita');
             } else {
               setMobileTab(mobileTab === 'xarita' ? 'royxat' : 'xarita');

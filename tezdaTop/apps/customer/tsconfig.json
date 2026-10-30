@@ -19,8 +19,9 @@
     "paths": {
       "@yaqintop/contracts": ["../../packages/contracts/src/index.ts"],
       "@yaqintop/ui": ["../../packages/ui/src/index.tsx"],
-      "@yaqintop/config": ["../../packages/config/src/index.ts"]
+      "@yaqintop/config": ["../../packages/config/src/index.ts"],
+      "@yaqintop/landing-app": ["../landing/src/App.tsx"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "../landing/src"]
 }
