@@ -31,7 +31,7 @@ import {
   Compass,
   Store as StoreIcon
 } from 'lucide-react';
-import { Button, Tag, Modal, StarRating } from '@yaqintop/ui';
+import { Button, Tag, Modal, StarRating, YaqinTopLogo } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
 import { InteractiveMap } from './components/InteractiveMap';
 import { StoreFullPageView } from './components/StoreFullPageView';
@@ -132,13 +132,7 @@ export function CustomerApp() {
   });
 
   const [isLocationModalOpen, setIsLocationModalOpen] = useState(false);
-  const [view, setView] = useState<'landing' | 'search' | 'detail' | 'route' | 'hub' | 'products' | 'product-detail'>(() => {
-    if (typeof window !== 'undefined') {
-      const p = (window.location.pathname || '').split('?')[0].replace(/\/+$/, '');
-      if (p === '' || p === '/') return 'landing';
-    }
-    return 'search';
-  });
+  const [view, setView] = useState<'landing' | 'search' | 'detail' | 'route' | 'hub' | 'products' | 'product-detail'>('search');
   const [activeProductParam, setActiveProductParam] = useState<string>('');
   const [hubSection, setHubSection] = useState<'favorites' | 'reviews' | 'inquiries' | 'history' | 'proposals'>('favorites');
   const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
@@ -389,7 +383,7 @@ export function CustomerApp() {
 
     setView('search');
     setMobileTab('xarita');
-    navigateTo('/customer');
+    navigateTo('/');
     showToast(`Xaritada "${product.title}" mavjud bo‘lgan ${mappedResults.length} ta do‘kon ko‘rsatilmoqda`);
   };
 
@@ -397,22 +391,22 @@ export function CustomerApp() {
   const handleRoute = (path: string) => {
     const cleanPath = (path || '/').split('?')[0];
     const normalized = cleanPath === '' ? '/' : cleanPath;
+
+    // If URL starts with '/customer', immediately strip '/customer' and canonicalize to clean URL '/' or subpath
+    if (normalized === '/customer' || normalized.startsWith('/customer/')) {
+      const cleanTarget = normalized.replace(/^\/customer(?=\/|$)/, '') || '/';
+      window.history.replaceState(null, '', cleanTarget);
+      setCurrentPath(cleanTarget);
+      handleRoute(cleanTarget);
+      return;
+    }
+
     setCurrentPath(normalized);
 
-    // If at root '/' or '', render Landing Page
-    if (normalized === '/') {
+    // Only render Landing Page if explicitly on '/lending'
+    if (normalized === '/lending') {
       setView('landing');
       setRouteData(null);
-      if (typeof document !== 'undefined') {
-        const lang = localStorage.getItem('yaqintop_lang') || 'uz';
-        if (lang === 'ru') {
-          document.title = 'YaqinTop — Экосистема поиска местных товаров и магазинов | Узбекистан';
-        } else if (lang === 'en') {
-          document.title = 'YaqinTop — Local Store & Product Search Ecosystem | Uzbekistan';
-        } else {
-          document.title = 'YaqinTop — Mahalliy Tovar va Xizmatlar Qidiruv Ekotizimi | O‘zbekiston';
-        }
-      }
       return;
     }
 
@@ -421,8 +415,7 @@ export function CustomerApp() {
       document.title = 'YaqinTop — Yaqiningizdagi tovarlar, xizmatlar va do‘konlar qidiruvi';
     }
 
-    // Customer internal routes
-    const relPath = normalized.replace(/^\/customer(?=\/|$)/, '') || '/';
+    const relPath = normalized;
 
     if (relPath !== '/marshrut') {
       setRouteData(null);
@@ -432,8 +425,8 @@ export function CustomerApp() {
       if (!currentUser) {
         setAuthErrorBanner('⚠️ Shaxsiy kabinet va ma‘lumotlarni ko‘rish uchun iltimos, tizimga kiring!');
         setIsLoginModalOpen(true);
-        window.history.replaceState(null, '', '/customer');
-        setCurrentPath('/customer');
+        window.history.replaceState(null, '', '/');
+        setCurrentPath('/');
         setView('search');
         return;
       }
@@ -462,8 +455,8 @@ export function CustomerApp() {
         setView('route');
       } else {
         // Prevent history loop on back/forward or reload when route data is not in memory
-        window.history.replaceState(null, '', '/customer');
-        setCurrentPath('/customer');
+        window.history.replaceState(null, '', '/');
+        setCurrentPath('/');
         setView('search');
       }
     } else if (relPath === '/mahsulotlar' || relPath === '/tovarlar') {
@@ -481,10 +474,10 @@ export function CustomerApp() {
 
   const navigateTo = (path: string, options?: { replace?: boolean }) => {
     let target = path;
-    if (target === '/') {
+    if (target === '/customer' || target === '') {
       target = '/';
-    } else if (!target.startsWith('/customer') && !target.startsWith('/admin') && !target.startsWith('/owner') && !target.startsWith('/moderator')) {
-      target = target.startsWith('/') ? `/customer${target}` : `/customer/${target}`;
+    } else if (target.startsWith('/customer/')) {
+      target = target.replace(/^\/customer(?=\/|$)/, '') || '/';
     }
 
     if (options?.replace) {
@@ -498,8 +491,8 @@ export function CustomerApp() {
   const handleStopRoute = () => {
     setRouteData(null);
     setView('search');
-    window.history.replaceState(null, '', '/customer');
-    setCurrentPath('/customer');
+    window.history.replaceState(null, '', '/');
+    setCurrentPath('/');
     showToast('Marshrut rejimi to‘xtatildi');
   };
 
@@ -925,15 +918,16 @@ export function CustomerApp() {
       <header className="h-[58px] sm:h-[68px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-2.5 sm:px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
         <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
           <div
-            onClick={() => navigateTo('/')}
+            onClick={() => {
+              setSearchQuery('');
+              setSelectedResult(null);
+              setSelectedNearbyStore(null);
+              navigateTo('/');
+            }}
             className="flex items-center gap-1.5 cursor-pointer select-none shrink-0 group"
-            title="Lending sahifasiga qaytish"
+            title="Qidiruv bosh sahifasiga qaytish"
           >
-            <img
-              src={`${import.meta.env.BASE_URL}favicon.png`}
-              alt="YaqinTop"
-              className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl shadow-2xs shrink-0 object-contain group-hover:scale-105 transition"
-            />
+            <YaqinTopLogo className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl shadow-2xs shrink-0 group-hover:scale-105 transition" />
             <span className="font-extrabold text-lg sm:text-2xl tracking-tight text-[#172C28] dark:text-white hidden min-[420px]:inline">
               YaqinTop
             </span>
@@ -955,7 +949,7 @@ export function CustomerApp() {
             <button
               onClick={() => {
                 setSearchCategory('products');
-                navigateTo('/customer');
+                navigateTo('/');
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 (view === 'search' || (view as string) === 'route') && searchCategory === 'products'
@@ -970,7 +964,7 @@ export function CustomerApp() {
             <button
               onClick={() => {
                 setSearchCategory('organizations');
-                navigateTo('/customer');
+                navigateTo('/');
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 ${
                 (view === 'search' || (view as string) === 'route') && searchCategory === 'organizations'
@@ -983,11 +977,7 @@ export function CustomerApp() {
             </button>
 
             <a
-              href="/"
-              onClick={(e) => {
-                e.preventDefault();
-                navigateTo('/');
-              }}
+              href={import.meta.env.DEV ? 'http://localhost:3003' : '/'}
               className="px-3 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] hover:text-[#116B50] dark:hover:text-[#4ADE80]"
               title="Lending sahifasiga o‘tish"
             >
@@ -1125,7 +1115,7 @@ export function CustomerApp() {
               };
               navigateTo(pathToMap[sec] || '/sevimlilar');
             }}
-            onBackToSearch={() => navigateTo('/customer')}
+            onBackToSearch={() => navigateTo('/')}
             onOpenStore={(storeId) => {
               loadStoreCatalog(storeId);
               navigateTo(`/dokon/${storeId}`);
@@ -1135,7 +1125,7 @@ export function CustomerApp() {
             }}
             onSearchQuery={(q) => {
               setSearchQuery(q);
-              navigateTo('/customer');
+              navigateTo('/');
               doSearch(q);
             }}
             isDarkMode={isDarkMode}
@@ -1153,7 +1143,7 @@ export function CustomerApp() {
             matchedOffer={selectedResult?.bestOffer?.id !== 'default' ? selectedResult?.bestOffer : null}
             currentUser={currentUser}
             onRequireAuth={(msg) => requireAuth(msg || 'Ushbu amalni bajarish')}
-            onBack={() => navigateTo('/customer')}
+            onBack={() => navigateTo('/')}
             onGetRoute={(mode) => fetchRoute((selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail), mode)}
             onReportError={() => requireAuth('Murojaat yuborish', () => setIsReportModalOpen(true))}
             onShowToast={showToast}
@@ -1866,21 +1856,21 @@ export function CustomerApp() {
 
       {/* Mobile Bottom Navigation */}
       <nav className="md:hidden h-16 bg-white dark:bg-[#14201A] border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40">
-        <button
-          onClick={() => navigateTo('/')}
+        <a
+          href={import.meta.env.DEV ? 'http://localhost:3003' : '/'}
           className="flex flex-col items-center gap-1 text-[10px] font-semibold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80]"
           title="Lending sahifasiga o‘tish"
         >
           <Compass className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
           <span>Lending</span>
-        </button>
+        </a>
 
         <button
           onClick={() => {
             if (view === 'route') {
               handleStopRoute();
             } else if (view !== 'search') {
-              navigateTo('/customer');
+              navigateTo('/');
               setMobileTab('xarita');
             } else {
               setMobileTab(mobileTab === 'xarita' ? 'royxat' : 'xarita');

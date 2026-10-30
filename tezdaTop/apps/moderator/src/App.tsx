@@ -56,7 +56,7 @@ import {
   Cpu,
   Database
 } from 'lucide-react';
-import { Button, Tag, Modal, Input } from '@yaqintop/ui';
+import { Button, Tag, Modal, Input, YaqinTopLogo } from '@yaqintop/ui';
 import { Report, Store as StoreType, User } from '@yaqintop/contracts';
 import { ApiExplorer } from './components/ApiExplorer';
 import { SupabaseUsagePanel } from './components/SupabaseUsagePanel';
@@ -1403,9 +1403,7 @@ export function ModeratorApp() {
       {/* Header */}
       <header className="h-[72px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-6 flex items-center justify-between sticky top-0 z-30 transition-colors">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-9 bg-[#116B50] rounded-tl-xl rounded-tr-xl rounded-br-xl rounded-bl-sm flex items-center justify-center text-white font-extrabold text-xl shadow-sm">
-            Y
-          </div>
+          <YaqinTopLogo className="w-8 h-8 rounded-xl shadow-sm shrink-0" />
           <div>
             <span className="font-extrabold text-2xl tracking-tight text-[#172C28] dark:text-white leading-none block">
               YaqinTop

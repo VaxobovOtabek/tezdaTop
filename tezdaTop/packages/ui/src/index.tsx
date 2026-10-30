@@ -225,3 +225,52 @@ export function StarRating({ rating, count }: { rating: number; count?: number }
     </span>
   );
 }
+
+// ================= YAQINTOP BRAND LOGO =================
+export interface YaqinTopLogoProps extends React.SVGProps<SVGSVGElement> {
+  size?: number | string;
+  className?: string;
+  rounded?: boolean;
+}
+
+export function YaqinTopLogo({
+  size = 32,
+  className = '',
+  rounded = true,
+  ...props
+}: YaqinTopLogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 1024 1024"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      role="img"
+      aria-label="YaqinTop"
+      {...props}
+    >
+      <defs>
+        <linearGradient id="yaqinTopBrandGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#0FB165" />
+          <stop offset="100%" stopColor="#077D5B" />
+        </linearGradient>
+      </defs>
+      <rect
+        x="65"
+        y="76"
+        width="892"
+        height="878"
+        rx={rounded ? "240" : "0"}
+        ry={rounded ? "240" : "0"}
+        fill="url(#yaqinTopBrandGradient)"
+      />
+      <path
+        d="M 327,360 L 451,360 L 511.5,489 L 573,360 L 695,360 L 567,580 L 567,741 L 453,741 L 453,580 Z"
+        fill="#FFFFFF"
+      />
+    </svg>
+  );
+}
+
