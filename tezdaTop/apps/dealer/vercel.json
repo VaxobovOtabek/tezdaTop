@@ -1,0 +1,32 @@
+{
+  "rewrites": [
+    {
+      "source": "/diller/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/dealer/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/diller/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/dealer/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

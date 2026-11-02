@@ -69,6 +69,38 @@
       "destination": "https://tezda-merchant.vercel.app/:path*"
     },
     {
+      "source": "/diller/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/dealer/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/diller",
+      "destination": "https://tezda-dealer.vercel.app/"
+    },
+    {
+      "source": "/diller/(.*)",
+      "destination": "https://tezda-dealer.vercel.app/$1"
+    },
+    {
+      "source": "/diller/:path*",
+      "destination": "https://tezda-dealer.vercel.app/:path*"
+    },
+    {
+      "source": "/dealer",
+      "destination": "https://tezda-dealer.vercel.app/"
+    },
+    {
+      "source": "/dealer/(.*)",
+      "destination": "https://tezda-dealer.vercel.app/$1"
+    },
+    {
+      "source": "/dealer/:path*",
+      "destination": "https://tezda-dealer.vercel.app/:path*"
+    },
+    {
       "source": "/api/:path*",
       "destination": "https://tez-api.vercel.app/api/:path*"
     },

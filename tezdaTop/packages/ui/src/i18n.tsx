@@ -1310,8 +1310,23 @@ export const DICTIONARY: Translations = {
   'Aloqa': { uz: 'Aloqa', ru: 'Контакты', en: 'Contact' },
   'role_customer': { uz: 'Xaridor', ru: 'Покупатель', en: 'Customer' },
   'role_merchant': { uz: 'Tadbirkor', ru: 'Предприниматель', en: 'Merchant' },
+  'role_dealer': { uz: 'Diller / B2B', ru: 'Дилер / B2B', en: 'Dealer / B2B' },
   'role_moderator': { uz: 'Moderator', ru: 'Модератор', en: 'Moderator' },
   'role_admin': { uz: 'Admin', ru: 'Администратор', en: 'Admin' },
+  'Diller': { uz: 'Diller', ru: 'Дилер', en: 'Dealer' },
+  'Diller & Distribyutsiya': { uz: 'Diller & Distribyutsiya', ru: 'Дилер и дистрибьюция', en: 'Dealer & Distribution' },
+  'Diller & B2B CRM': { uz: 'Diller & B2B CRM', ru: 'Дилерский B2B CRM', en: 'Dealer & B2B CRM' },
+  'Diller sifatida kirish': { uz: 'Diller sifatida kirish', ru: 'Войти как дилер', en: 'Log in as Dealer' },
+  'B2B yetkazish, nakladnoy, qarz va GIS xarita': {
+    uz: 'B2B yetkazish, nakladnoy, qarz va GIS xarita',
+    ru: 'B2B поставки, накладные, долги и GIS карта',
+    en: 'B2B supplies, invoices, debts & GIS map'
+  },
+  'Do‘konlarga tovar yetkazish (nakladnoy), mijozlar qarz daftari, inkassatsiya va ko‘p nuqtali optimal GIS marshruti.': {
+    uz: 'Do‘konlarga tovar yetkazish (nakladnoy), mijozlar qarz daftari, inkassatsiya va ko‘p nuqtali optimal GIS marshruti.',
+    ru: 'Поставки товаров в магазины (накладные), учет задолженностей, инкассация и оптимальный многоточечный GIS-маршрут.',
+    en: 'Store supply delivery (invoices), ledger debts, cash collection and multi-stop optimal GIS route.'
+  },
   'Xaridor': { uz: 'Xaridor', ru: 'Покупатель', en: 'Customer' },
   'Tadbirkor': { uz: 'Tadbirkor', ru: 'Предприниматель', en: 'Merchant' },
   'Do‘kon': { uz: 'Do‘kon', ru: 'Магазин', en: 'Store' },

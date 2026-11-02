@@ -36,7 +36,8 @@ import {
   Smartphone,
   QrCode,
   Tag,
-  FileText
+  FileText,
+  Truck
 } from 'lucide-react';
 import { MinimalCustomerMapWidget } from './components/MinimalCustomerMapWidget';
 
@@ -211,6 +212,14 @@ const PORTALS = [
     sub: 'Tovarlar, kassa qoldiqlari, narxlar',
     icon: Store,
     color: 'bg-emerald-700 text-white hover:bg-emerald-800'
+  },
+  {
+    id: 'dealer',
+    url: '/diller',
+    title: 'Diller & Distribyutsiya',
+    sub: 'B2B yetkazish, nakladnoy, qarz va GIS xarita',
+    icon: Truck,
+    color: 'bg-teal-600 text-white hover:bg-teal-700'
   },
   {
     id: 'moderator',
@@ -714,14 +723,14 @@ export function LandingApp() {
             {t('Qaysi rolda kirmoqchisiz?')}
           </h2>
           <p className="text-xs sm:text-sm md:text-base text-[#566A63] dark:text-[#8B9E95] mt-2.5 font-medium max-w-lg">
-            {t('Xaridorlar, do‘kon egalari, moderatorlar va tizim ma’murlari uchun 4 ta alohida moslashtirilgan portal:')}
+            {t('Xaridorlar, do‘kon egalari, dillerlar, moderatorlar va tizim ma’murlari uchun 5 ta alohida moslashtirilgan portal:')}
           </p>
         </div>
 
-        {/* 4 Ta Katta Portal Kartochkasi */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+        {/* 5 Ta Katta Portal Kartochkasi */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-5">
           {/* 1. Xaridor Ilovasi */}
-          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
@@ -731,7 +740,7 @@ export function LandingApp() {
                   {t('role_customer', 'Xaridor')}
                 </span>
               </div>
-              <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+              <h3 className="text-base sm:text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
                 {t('Xaridor Ilovasi')}
               </h3>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
@@ -750,7 +759,7 @@ export function LandingApp() {
           </div>
 
           {/* 2. Do'kon & Tadbirkor Kabineti */}
-          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
@@ -760,7 +769,7 @@ export function LandingApp() {
                   {t('role_merchant', 'Tadbirkor')}
                 </span>
               </div>
-              <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+              <h3 className="text-base sm:text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
                 {t('Do‘kon & Tadbirkor')}
               </h3>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
@@ -778,18 +787,47 @@ export function LandingApp() {
             </div>
           </div>
 
-          {/* 3. Moderator Portali */}
-          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+          {/* 3. Diller & B2B Distribyutsiya */}
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
-                  <ShieldCheck className="w-6 h-6" />
+                  <Truck className="w-6 h-6" />
                 </div>
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-500/20">
+                  {t('role_dealer', 'Diller / B2B')}
+                </span>
+              </div>
+              <h3 className="text-base sm:text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+                {t('Diller & B2B CRM')}
+              </h3>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
+                {t('Do‘konlarga tovar yetkazish (nakladnoy), mijozlar qarz daftari, inkassatsiya va ko‘p nuqtali optimal GIS marshruti.')}
+              </p>
+            </div>
+            <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
+              <a
+                href="/diller"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
+              >
+                <span>{t('Diller sifatida kirish')}</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
+              </a>
+            </div>
+          </div>
+
+          {/* 4. Moderator Portali */}
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
+                  <ShieldCheck className="w-6 h-6" />
+                </div>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-teal-50 dark:bg-teal-950/60 text-teal-700 dark:text-teal-300 border border-teal-500/20">
                   {t('role_moderator', 'Moderator')}
                 </span>
               </div>
-              <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+              <h3 className="text-base sm:text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
                 {t('Moderator Portali')}
               </h3>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
@@ -799,7 +837,7 @@ export function LandingApp() {
             <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-white/10">
               <a
                 href="/moderator"
-                className="w-full py-2.5 px-4 rounded-xl bg-[#116B50] hover:bg-[#0D533E] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
+                className="w-full py-2.5 px-4 rounded-xl bg-[#0F5A44] hover:bg-[#0B4534] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-md cursor-pointer"
               >
                 <span>{t('Moderator sifatida kirish')}</span>
                 <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition" />
@@ -807,8 +845,8 @@ export function LandingApp() {
             </div>
           </div>
 
-          {/* 4. Admin Paneli */}
-          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
+          {/* 5. Admin Paneli */}
+          <div className="group rounded-3xl bg-white dark:bg-[#14201A] border-2 border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] dark:hover:border-[#4ADE80] p-5 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
                 <div className="w-12 h-12 rounded-2xl bg-teal-500/10 text-teal-600 dark:text-teal-400 flex items-center justify-center group-hover:scale-110 transition shadow-2xs">
@@ -818,7 +856,7 @@ export function LandingApp() {
                   {t('role_admin', 'Administrator')}
                 </span>
               </div>
-              <h3 className="text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
+              <h3 className="text-base sm:text-lg font-extrabold text-[#172C28] dark:text-white group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition">
                 {t('Boshqaruv Admin')}
               </h3>
               <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-2.5 leading-relaxed font-medium">
@@ -1364,6 +1402,13 @@ export function LandingApp() {
               >
                 <Store className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
                 <span className="truncate">{t('stores', 'Do‘kon')}</span>
+              </a>
+              <a
+                href="/diller"
+                className="justify-center px-3 py-2 rounded-xl bg-white dark:bg-[#18261F] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#116B50] dark:hover:border-[#4ADE80] text-xs font-bold text-[#172C28] dark:text-white flex items-center gap-1.5 transition shadow-2xs hover:shadow cursor-pointer truncate"
+              >
+                <Truck className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0" />
+                <span className="truncate">{t('role_dealer', 'Diller')}</span>
               </a>
               <a
                 href="/moderator"

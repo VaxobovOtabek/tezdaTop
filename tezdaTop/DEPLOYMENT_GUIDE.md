@@ -16,6 +16,7 @@ YaqinTop monoreposi quyidagi mikro-servislar va ilovalardan iborat:
 | **@yaqintop/merchant** | `:3001` | `yaqintop.uz/owner` | Do‘kon boshqaruv kabineti (Tovarlar, Kassa, Qoldiq, Xarajat) |
 | **@yaqintop/admin** | `:3002` | `yaqintop.uz/admin` | Tizim boshqaruv paneli (Arizalar, ERD, Xarita, Moderatsiya) |
 | **@yaqintop/moderator** | `:3004` | `yaqintop.uz/moderator` | Moderator portali (Arizalar va shikoyatlarni ko‘rib chiqish) |
+| **@yaqintop/dealer** | `:3005` | `yaqintop.uz/diller` | Diller & Distribyutsiya CRM (B2B ta’minot, qarz, inkassatsiya, GIS) |
 
 ---
 
