@@ -841,37 +841,7 @@ export default function App() {
               <h1 className="text-xl sm:text-2xl font-black text-[#172C28] dark:text-white">
                 {t('login_modal_title')}
               </h1>
-              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 max-w-xs leading-relaxed">
-                B2B tovarlar ta’minoti, hisob-kitoblar va GIS CRM tizimiga kirish
-              </p>
-            </div>
-
-            {/* Auth Mode Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-xl mb-4">
-              <button
-                type="button"
-                onClick={() => { setAuthMode('CREDENTIALS'); setLoginError(null); }}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  authMode === 'CREDENTIALS'
-                    ? 'bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] shadow-xs'
-                    : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
-                }`}
-              >
-                <User className="w-3.5 h-3.5" />
-                <span>{t('login_credentials_tab')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => { setAuthMode('TOKEN'); setLoginError(null); }}
-                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
-                  authMode === 'TOKEN'
-                    ? 'bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] shadow-xs'
-                    : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
-                }`}
-              >
-                <Key className="w-3.5 h-3.5" />
-                <span>{t('quick_login_token')}</span>
-              </button>
+             
             </div>
 
             {/* Error Message */}
@@ -935,38 +905,8 @@ export default function App() {
                   <span>{isLoggingIn ? t('verifying') : t('sign_in')}</span>
                 </Button>
 
-                {/* Quick Fill Demo Credentials */}
-                <div className="pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex flex-col gap-2">
-                  <span className="text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95] text-center">
-                    Tezkor demo hisoblar (avtomatik to‘ldirish):
-                  </span>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoginInput('diller1');
-                        setPasswordInput('DemoPass123!');
-                        setLoginError(null);
-                      }}
-                      className="px-2.5 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F8FAF9] dark:bg-[#1A2822] hover:border-[#116B50] text-[11px] text-left transition cursor-pointer"
-                    >
-                      <div className="font-bold text-[#116B50] dark:text-[#4ADE80]">Diller 1</div>
-                      <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">diller1 / DemoPass123!</div>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setLoginInput('admin@yaqintop.uz');
-                        setPasswordInput('DemoPass123!');
-                        setLoginError(null);
-                      }}
-                      className="px-2.5 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F8FAF9] dark:bg-[#1A2822] hover:border-[#116B50] text-[11px] text-left transition cursor-pointer"
-                    >
-                      <div className="font-bold text-[#116B50] dark:text-[#4ADE80]">Superadmin</div>
-                      <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">admin / DemoPass123!</div>
-                    </button>
-                  </div>
-                </div>
+               
+                
               </form>
             ) : (
               <form onSubmit={handleTokenLogin} className="flex flex-col gap-4">
