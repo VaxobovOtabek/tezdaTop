@@ -34,6 +34,8 @@ import {
   User,
   Shield,
   Eye,
+  EyeOff,
+  Lock,
   ChevronRight,
   Info,
   Key,
@@ -200,6 +202,7 @@ export default function App() {
   const [loginError, setLoginError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isTokenLoggingIn, setIsTokenLoggingIn] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Supply Form State
   const [supplyStoreId, setSupplyStoreId] = useState('');
@@ -301,7 +304,8 @@ export default function App() {
       ]);
 
       if (meRes.status === 401 || meRes.status === 403) {
-        setIsLoginModalOpen(true);
+        setCurrentUser(null);
+        clearSessionCache();
         setIsLoading(false);
         return;
       }
@@ -338,13 +342,14 @@ export default function App() {
   };
 
   useEffect(() => {
+    if (!currentUser) return;
     if (isInitialMount.current) {
       isInitialMount.current = false;
       loadInitialData();
     } else {
       loadAnalytics(selectedPeriod);
     }
-  }, [selectedPeriod]);
+  }, [selectedPeriod, currentUser]);
 
   useEffect(() => {
     if (currentUser) {
@@ -482,7 +487,8 @@ export default function App() {
     localStorage.removeItem('yaqintop_session_token');
     setCurrentUser(null);
     setDealer(null);
-    setIsLoginModalOpen(true);
+    setIsLoginModalOpen(false);
+    showToast('Tizimdan chiqildi');
   };
 
   // Handle Supply Order Creation (Tovar topshirish / Nakladnoy)
@@ -781,6 +787,278 @@ export default function App() {
       return matchesSearch && matchesStatus;
     });
   }, [stores, storeSearch, storeFilterStatus]);
+
+  const isDealerAuthorized = Boolean(
+    currentUser && ['DEALER', 'DEALER_AGENT', 'SUPERADMIN', 'ADMIN'].includes(currentUser.role)
+  );
+
+  // If user is not logged in as a dealer, lock the page and show ONLY the Login Screen (no background dashboard)
+  if (!isDealerAuthorized) {
+    return (
+      <div className="min-h-screen flex flex-col justify-between bg-gradient-to-br from-[#F4FAF6] via-[#EDF5F0] to-[#E2EFE7] dark:from-[#080E0A] dark:via-[#0D1711] dark:to-[#122119] text-[#172C28] dark:text-[#E8F2EC] selection:bg-[#116B50] selection:text-white p-4 sm:p-6 transition-colors duration-200">
+        {/* Top Navbar */}
+        <header className="max-w-6xl w-full mx-auto flex items-center justify-between py-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-[#116B50] text-white flex items-center justify-center font-black shadow-lg shadow-[#116B50]/25">
+              <Truck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base sm:text-lg font-black tracking-tight text-[#172C28] dark:text-white">
+                  {t('app_title')}
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-[#116B50]/10 text-[#116B50] dark:text-[#4ADE80] border border-[#116B50]/20">
+                  {t('app_tag')}
+                </span>
+              </div>
+              <p className="text-[11px] text-[#566A63] dark:text-[#8B9E95] font-medium hidden sm:block">
+                {t('header_subtitle')}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <LanguageSwitcher />
+            <button
+              type="button"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              className="p-2 rounded-xl bg-white/80 dark:bg-[#14201A]/80 border border-[#DCE5DF] dark:border-[#22332C] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] text-[#566A63] dark:text-[#8B9E95] transition cursor-pointer shadow-xs"
+              title={t('theme_toggle')}
+            >
+              {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4" />}
+            </button>
+          </div>
+        </header>
+
+        {/* Center Login Card */}
+        <main className="flex-1 flex items-center justify-center my-6">
+          <div className="w-full max-w-md bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-3xl p-6 sm:p-8 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            {/* Header / Security Badge */}
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] flex items-center justify-center mb-3 shadow-inner">
+                <Lock className="w-7 h-7" />
+              </div>
+              <h1 className="text-xl sm:text-2xl font-black text-[#172C28] dark:text-white">
+                {t('login_modal_title')}
+              </h1>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-1 max-w-xs leading-relaxed">
+                B2B tovarlar ta’minoti, hisob-kitoblar va GIS CRM tizimiga kirish
+              </p>
+            </div>
+
+            {/* Auth Mode Tabs */}
+            <div className="flex items-center gap-1.5 p-1 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-xl mb-4">
+              <button
+                type="button"
+                onClick={() => { setAuthMode('CREDENTIALS'); setLoginError(null); }}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  authMode === 'CREDENTIALS'
+                    ? 'bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] shadow-xs'
+                    : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+                }`}
+              >
+                <User className="w-3.5 h-3.5" />
+                <span>{t('login_credentials_tab')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAuthMode('TOKEN'); setLoginError(null); }}
+                className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                  authMode === 'TOKEN'
+                    ? 'bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] shadow-xs'
+                    : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+                }`}
+              >
+                <Key className="w-3.5 h-3.5" />
+                <span>{t('quick_login_token')}</span>
+              </button>
+            </div>
+
+            {/* Error Message */}
+            {loginError && (
+              <div className="mb-4 p-3 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 text-xs text-rose-600 dark:text-rose-400 font-bold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{loginError}</span>
+              </div>
+            )}
+
+            {authMode === 'CREDENTIALS' ? (
+              <form onSubmit={handleLogin} className="flex flex-col gap-4">
+                <div>
+                  <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] block mb-1.5">
+                    {t('login_username_label')}
+                  </label>
+                  <div className="relative">
+                    <User className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="diller1 yoki +998901234567"
+                      value={loginInput}
+                      onChange={(e) => setLoginInput(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] block mb-1.5">
+                    {t('login_password_label')}
+                  </label>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••"
+                      value={passwordInput}
+                      onChange={(e) => setPasswordInput(e.target.value)}
+                      className="w-full pl-9 pr-10 py-2.5 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white cursor-pointer"
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isLoggingIn}
+                  className="w-full py-3 bg-[#116B50] hover:bg-[#0E5842] active:scale-98 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer mt-1"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>{isLoggingIn ? t('verifying') : t('sign_in')}</span>
+                </Button>
+
+                {/* Quick Fill Demo Credentials */}
+                <div className="pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex flex-col gap-2">
+                  <span className="text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95] text-center">
+                    Tezkor demo hisoblar (avtomatik to‘ldirish):
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginInput('diller1');
+                        setPasswordInput('DemoPass123!');
+                        setLoginError(null);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F8FAF9] dark:bg-[#1A2822] hover:border-[#116B50] text-[11px] text-left transition cursor-pointer"
+                    >
+                      <div className="font-bold text-[#116B50] dark:text-[#4ADE80]">Diller 1</div>
+                      <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">diller1 / DemoPass123!</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setLoginInput('admin@yaqintop.uz');
+                        setPasswordInput('DemoPass123!');
+                        setLoginError(null);
+                      }}
+                      className="px-2.5 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#2A3F36] bg-[#F8FAF9] dark:bg-[#1A2822] hover:border-[#116B50] text-[11px] text-left transition cursor-pointer"
+                    >
+                      <div className="font-bold text-[#116B50] dark:text-[#4ADE80]">Superadmin</div>
+                      <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">admin / DemoPass123!</div>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleTokenLogin} className="flex flex-col gap-4">
+                <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900/50 text-xs text-blue-900 dark:text-blue-200 flex items-start gap-2">
+                  <Key className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                  <span>{t('login_token_info')}</span>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-[#172C28] dark:text-[#E8F2EC]">
+                      {t('login_token_label')}
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handlePasteClipboard}
+                      className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>{t('login_paste_clipboard')}</span>
+                    </button>
+                  </div>
+                  <textarea
+                    required
+                    rows={3}
+                    placeholder="yaqintop_sess_..."
+                    value={tokenInput}
+                    onChange={(e) => setTokenInput(e.target.value)}
+                    className="w-full px-3 py-2 text-xs font-mono rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                  />
+                </div>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isTokenLoggingIn}
+                  className="w-full py-3 bg-[#116B50] hover:bg-[#0E5842] active:scale-98 text-white font-bold text-xs rounded-xl transition shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Key className="w-4 h-4" />
+                  <span>{isTokenLoggingIn ? t('verifying') : t('login_token_submit')}</span>
+                </Button>
+
+                <div className="text-center pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C]">
+                  <button
+                    type="button"
+                    onClick={() => { setAuthMode('CREDENTIALS'); setLoginError(null); }}
+                    className="text-xs text-[#566A63] dark:text-[#8B9E95] font-semibold hover:underline cursor-pointer"
+                  >
+                    {t('login_back_credentials')}
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {/* Back to Home / Customer link */}
+            <div className="mt-6 pt-4 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex items-center justify-between text-xs text-[#566A63] dark:text-[#8B9E95]">
+              <a
+                href="/"
+                className="hover:text-[#116B50] dark:hover:text-[#4ADE80] font-medium transition flex items-center gap-1"
+              >
+                <span>← Asosiy lending</span>
+              </a>
+              <a
+                href="/customer"
+                className="hover:text-[#116B50] dark:hover:text-[#4ADE80] font-medium transition"
+              >
+                <span>Xaridor ilovasi →</span>
+              </a>
+            </div>
+          </div>
+        </main>
+
+        {/* Footer */}
+        <footer className="text-center py-3 text-xs text-[#566A63] dark:text-[#8B9E95]">
+          © 2026 YaqinTop. Barcha huquqlar himoyalangan.
+        </footer>
+
+        {/* Global Token Quick Login Modal (Ctrl + Alt + T) */}
+        <TokenQuickLoginModal
+          onLoginSuccess={(user) => {
+            if (['DEALER', 'DEALER_AGENT', 'SUPERADMIN', 'ADMIN'].includes(user.role)) {
+              saveCachedSession(user, user.token || 'quick', Date.now() + 86400000);
+              setCurrentUser(user);
+              showToast('Tizimga kirildi');
+            } else {
+              setLoginError('Bu hisob dillerlik tizimiga tegishli emas');
+            }
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAF9] dark:bg-[#0B130E] text-[#172C28] dark:text-white">
