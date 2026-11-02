@@ -1,0 +1,45 @@
+# Temporary & Local Scripts
+scratch/
+.agents/
+.github/
+scripts/
+
+# Documentation & Internal Guides
+docs/
+*.md
+!README.md
+DEPLOYMENT_GUIDE.md
+LANDING_DEPLOY.md
+SECURITY-AUDIT-2026-10-07.md
+
+# VPS, Docker & Reverse Proxy configs
+infra/
+Dockerfile*
+docker-compose*.yml
+nginx*.conf
+
+# Tests & Test Coverage
+**/test/
+**/tests/
+**/*.spec.ts
+**/*.test.ts
+coverage/
+.nyc_output/
+vitest.config.ts
+
+# Data & Local Databases
+**/data/*.json
+*.sqlite
+*.db
+
+# Build Artifacts & Caches
+.turbo/
+*.tsbuildinfo
+node_modules/
+.local/
+pnpm-debug.log*
+
+# Environment files
+.env
+.env.*
+!.env.example

@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply font-sans;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(86, 106, 99, 0.25);
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(86, 106, 99, 0.45);
+}
+
+/* Leaflet Map Styles and Dark Mode Theme */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  background-color: #f3f6f3 !important;
+  font-family: inherit !important;
+  z-index: 1;
+}
+
+.dark .leaflet-container {
+  background-color: #121a16 !important;
+}
+
+.dark .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.dark .leaflet-popup-content-wrapper {
+  background-color: #16241E !important;
+  color: #E8F2EC !important;
+  border: 1px solid #2A3F36 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark .leaflet-popup-tip {
+  background-color: #16241E !important;
+}
+
+.dark .leaflet-bar a {
+  background-color: #16241E !important;
+  color: #E8F2EC !important;
+  border-bottom-color: #2A3F36 !important;
+}
+
+.dark .leaflet-bar a:hover {
+  background-color: #1F332A !important;
+  color: #4ADE80 !important;
+}
+
+.dark .leaflet-control-attribution {
+  background-color: rgba(22, 36, 30, 0.85) !important;
+  color: #8B9E95 !important;
+}
+
+.dark .leaflet-control-attribution a {
+  color: #4ADE80 !important;
+}
+
+/* Dealer Map Markers: Dots, Badges, Hover & Selected States */
+.dealer-marker-dot {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+.dealer-marker-dot:hover {
+  transform: translate(-50%, -50%) scale(1.35) !important;
+  z-index: 999 !important;
+}
+
+.dealer-marker-badge {
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease !important;
+}
+.dealer-marker-badge:hover {
+  transform: translate(-50%, 0) scale(1.12) !important;
+  z-index: 999 !important;
+}
+
+.dealer-marker-selected {
+  z-index: 1000 !important;
+  filter: drop-shadow(0 0 12px rgba(16, 185, 129, 0.65));
+  animation: marker-pulse 2s infinite ease-in-out;
+}
+
+@keyframes marker-pulse {
+  0%, 100% {
+    transform: translate(-50%, 0) scale(1.15);
+  }
+  50% {
+    transform: translate(-50%, 0) scale(1.18);
+  }
+}
+
+.dealer-marker-tooltip {
+  background: #14201A !important;
+  color: #FFFFFF !important;
+  border: 1px solid #22332C !important;
+  border-radius: 10px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45) !important;
+  padding: 4px 8px !important;
+}
+.dealer-marker-tooltip::before {
+  border-top-color: #14201A !important;
+}
+

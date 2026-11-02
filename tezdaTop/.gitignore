@@ -1,0 +1,16 @@
+node_modules
+dist
+.turbo
+.vercel
+.DS_Store
+*.log
+.env
+.env.*
+!.env.example
+coverage
+pnpm-debug.log*
+.local/
+yaqintop_db.json
+**/yaqintop_db.json
+apps/api/data/yaqintop_db.json
+*.tsbuildinfo

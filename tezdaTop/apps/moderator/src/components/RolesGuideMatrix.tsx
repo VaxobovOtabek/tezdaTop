@@ -1,0 +1,522 @@
+import React, { useState } from 'react';
+import {
+  Shield,
+  ShieldCheck,
+  Building2,
+  Store,
+  UserCheck,
+  Users,
+  ShoppingCart,
+  CheckCircle2,
+  XCircle,
+  HelpCircle,
+  BookOpen,
+  ArrowRight,
+  Sparkles,
+  Key,
+  MapPin,
+  Lock,
+  FileCheck,
+  Send,
+  AlertTriangle,
+  Truck
+} from 'lucide-react';
+import { Tag, Button } from '@yaqintop/ui';
+
+interface RoleDefinition {
+  role: string;
+  title: string;
+  badgeColor: string;
+  icon: any;
+  targetUser: string;
+  description: string;
+  responsibilities: string[];
+  permissions: {
+    systemControl: boolean;
+    manageOrgs: boolean;
+    manageBranches: boolean;
+    manageOffers: boolean;
+    manageStockDocs: boolean;
+    verifyOtps: boolean;
+    manageReports: boolean;
+    viewAnalytics: boolean;
+    b2bDistribution: boolean;
+  };
+}
+
+const ROLES_DATA: RoleDefinition[] = [
+  {
+    role: 'SUPERADMIN',
+    title: 'Boshqaruvchi Admin (SuperAdmin)',
+    badgeColor: 'bg-emerald-600 text-white',
+    icon: ShieldCheck,
+    targetUser: 'Platforma boshqaruv jamoasi (Faqat Bosh Admin)',
+    description: 'YaqinTop platformasining barcha bo‘limlari, shu jumladan Arxitektura & Relyatsion DB Explorer, API Postman Visual, Tizim auditi va barcha rollarni (Admin, Moderator, Diller, Do‘kon xodimlari) to‘liq boshqaruvchi yagona bosh admin.',
+    responsibilities: [
+      'Arxitektura & DB relyatsion modeli va API Explorer (Postman) bo‘limlaridan to‘liq foydalanish',
+      'Yangi Moderator, Diller, Do‘kon egalari va xodimlarni platformaga qo‘shish',
+      'Barcha tashkilot, filiallar va dillerlarni ro‘yxatdan o‘tkazish, tahrirlash va faollashtirish',
+      'Tizim auditi (Audit Logs) va ma’lumotlar bazasi yaxlitligini nazorat qilish'
+    ],
+    permissions: {
+      systemControl: true,
+      manageOrgs: true,
+      manageBranches: true,
+      manageOffers: true,
+      manageStockDocs: true,
+      verifyOtps: true,
+      manageReports: true,
+      viewAnalytics: true,
+      b2bDistribution: true
+    }
+  },
+  {
+    role: 'MODERATOR',
+    title: 'Moderator (Moderatsiya Mutaxassisi)',
+    badgeColor: 'bg-[#116B50] text-white',
+    icon: Shield,
+    targetUser: 'Moderatsiya va ma’lumotlar sifati mutaxassislari',
+    description: 'Xarita va moderatsiya markazi, so‘rov va murojaatlar, qidiruv analitikasi, rollar yo‘riqnomasi, tashkilot va do‘konlar, dillerlar hisobi, arizalar, shikoyat navbati, sharh moderatsiyasi, tizim auditi va foydalanuvchilar (Dillerlar, do‘kon xodimlari, xaridorlar) bilan ishlaydi.',
+    responsibilities: [
+      'Xarita & Moderatsiya markazida filiallar va shikoyat nuqtalarini tekshirish',
+      'Do‘kon arizalari, xaridorlar shikoyatlari va sharhlarni ko‘rib chiqib tasdiqlash/rad etish',
+      'Dillerlar hisobini yaratish, eksperimental xarita ruxsatini boshqarish va mijoz do‘konlarni tasdiqlash',
+      'Tashkilotlarga do‘kon xodimlari va xaridorlarni qo‘shish hamda Telegram orqali tasdiqlash',
+      'Murojaatlarga javob yozish va qidiruv faoliyati analitikasini kuzatish'
+    ],
+    permissions: {
+      systemControl: false,
+      manageOrgs: true,
+      manageBranches: true,
+      manageOffers: true,
+      manageStockDocs: false,
+      verifyOtps: true,
+      manageReports: true,
+      viewAnalytics: true,
+      b2bDistribution: true
+    }
+  },
+  {
+    role: 'DEALER',
+    title: 'Diller / Distribyutor',
+    badgeColor: 'bg-indigo-600 text-white',
+    icon: Truck,
+    targetUser: 'Ulgurji mahsulot yetkazib beruvchilar va distribyutsiya kompaniyalari',
+    description: 'YaqinTop B2B tarmog‘i orqali o‘ziga biriktirilgan chakana savdo nuqtalari bilan ishlovchi ulgurji taqsimotchi. Tovar tarqatish (nakladnoy / yuk xati), nasiya/qarz hisobi (akt-sverka), real kassa tushumi (inkassatsiya), vozvrat, OSRM orqali transport marshrutlash xaritasi va eksperimental global tovarlar taqsimoti xaritasini boshqaradi.',
+    responsibilities: [
+      'O‘z mijoz do‘konlari bazasini shakllantirish va yangi savdo nuqtalarini xaritada belgilash',
+      'Do‘konlarga nakladnoy (yuk xati) orqali tovar topshirish va to‘lov/qarz balansini avtomatik hisoblash',
+      'Qarzni so‘ndirish bo‘yicha kassa inkassatsiyasi va batafsil akt-sverka yuritish',
+      'Yaroqsiz tovarlarni qaytarib olish (vozvrat) va uning summasini do‘kon qarzidan chegirish',
+      'OSRM xaritasi orqali tanlangan do‘konlar bo‘yicha eng optimal transport marshrutini olish',
+      'Eksperimental xaritada raqobatchi sirlarini saqlagan holda hududiy tovar oqimlari va bozor to‘yinganligini tahlil qilish'
+    ],
+    permissions: {
+      systemControl: false,
+      manageOrgs: false,
+      manageBranches: false,
+      manageOffers: false,
+      manageStockDocs: true,
+      verifyOtps: false,
+      manageReports: false,
+      viewAnalytics: true,
+      b2bDistribution: true
+    }
+  },
+  {
+    role: 'OWNER',
+    title: 'Tashkilot / Biznes Egasi',
+    badgeColor: 'bg-purple-600 text-white',
+    icon: Building2,
+    targetUser: 'Savdo tarmog‘i yoki do‘kon egasi',
+    description: 'O‘z tashkilotiga tegishli barcha filiallar, xodimlar, tovar nomenklaturasi va umumiy moliyaviy hisobotlarni to‘liq boshqaradi.',
+    responsibilities: [
+      'Yangi filiallar va omborlarni kiritish',
+      'Kassirlar (Operator) va filial menejerlariga ruxsatnomalar berish',
+      'Moliyaviy ko‘rsatkichlar va CSV hisobotlarni yuklab olish',
+      'Kirim, chiqim va inventarizatsiya hujjatlarini tasdiqlash'
+    ],
+    permissions: {
+      systemControl: false,
+      manageOrgs: false,
+      manageBranches: true,
+      manageOffers: true,
+      manageStockDocs: true,
+      verifyOtps: true,
+      manageReports: false,
+      viewAnalytics: true,
+      b2bDistribution: false
+    }
+  },
+  {
+    role: 'MANAGER',
+    title: 'Filial / Do‘kon Boshqaruvchisi',
+    badgeColor: 'bg-amber-600 text-white',
+    icon: Store,
+    targetUser: 'Alohida do‘kon yoki filial rahbari',
+    description: 'Filialdagi tovar narxlarini yangilash, qoldiqlarni nazorat qilish, kunlik savdo ko‘rsatkichlarini kuzatish.',
+    responsibilities: [
+      'Filial tovarlari narxlarini belgilash',
+      'Hujjatlar (Kirim, Sotuv, Inventarizatsiya) kiritish',
+      'Moderatsiyadan kelgan tuzatish so‘rovlariga javob berish'
+    ],
+    permissions: {
+      systemControl: false,
+      manageOrgs: false,
+      manageBranches: false,
+      manageOffers: true,
+      manageStockDocs: true,
+      verifyOtps: false,
+      manageReports: false,
+      viewAnalytics: true,
+      b2bDistribution: false
+    }
+  },
+  {
+    role: 'OPERATOR',
+    title: 'Kassir / Operator',
+    badgeColor: 'bg-teal-600 text-white',
+    icon: UserCheck,
+    targetUser: 'Kassir, omborchi, sotuvchi',
+    description: 'Kunlik sotuvlarni ro‘yxatdan o‘tkazish, yangi tovar kirimlarini kiritish va shtrix-kod orqali tovar izlash.',
+    responsibilities: [
+      'Kassa orqali tezkor sotuvlarni amalga oshirish',
+      'Yangi tovar qabul qilib olish va partiyalarni kiritish',
+      'Tezda qoldiq tekshirish'
+    ],
+    permissions: {
+      systemControl: false,
+      manageOrgs: false,
+      manageBranches: false,
+      manageOffers: false,
+      manageStockDocs: true,
+      verifyOtps: false,
+      manageReports: false,
+      viewAnalytics: false,
+      b2bDistribution: false
+    }
+  },
+  {
+    role: 'CUSTOMER',
+    title: 'Xaridor / Iste’molchi',
+    badgeColor: 'bg-emerald-700 text-white',
+    icon: ShoppingCart,
+    targetUser: 'Oddiy xaridor (Mobil / Veb)',
+    description: 'Yaqin atrofdagi tovarlarni izlaydi, narxlarni solishtiradi, eng arzon do‘konga yo‘nalish oladi va shikoyat qoldiradi.',
+    responsibilities: [
+      'Eng yaqin masofadagi tovarlar va arzon narxlarni topish',
+      'Savat to‘plash va do‘konga yo‘l xaritasi olish',
+      'Narx noto‘g‘ri bo‘lsa shikoyat (Report) yuborish'
+    ],
+    permissions: {
+      systemControl: false,
+      manageOrgs: false,
+      manageBranches: false,
+      manageOffers: false,
+      manageStockDocs: false,
+      verifyOtps: false,
+      manageReports: false,
+      viewAnalytics: false,
+      b2bDistribution: false
+    }
+  }
+];
+
+const GUIDES = [
+  {
+    step: '1',
+    title: 'Yangi Tashkilot va Filiallarni kiritish',
+    icon: Building2,
+    summary: 'Yuridik tashkilot nomi, STIR (INN), Viloyat va Tuman tanlanib tizimga qo‘shiladi.',
+    instructions: [
+      '1. "Tashkilotlar va Do‘konlar" bo‘limiga o‘ting.',
+      '2. "+ Yangi tashkilot / Do‘kon" tugmasini bosing.',
+      '3. Tashkilot nomi, STIR (9-xonali INN raqami), Viloyat, Tuman va do‘kon manzilini kiriting.',
+      '4. Xaritadan aniq GPS koordinatasini belgilang va "Saqlash" tugmasini bosing.'
+    ]
+  },
+  {
+    step: '2',
+    title: 'Xodimlarga Login, Parol va Telegram Tasdiqlash berish',
+    icon: Key,
+    summary: 'Har bir tashkilot xodimiga unikal login va xavfsiz parol taqdim etiladi.',
+    instructions: [
+      '1. Tashkilot kartasidagi "Xodimlar" yoki "+ Xodim qo‘shish" tugmasini bosing.',
+      '2. Xodimning F.I.Sh, Email/Login, Telefon raqami va Rolini (OWNER, MANAGER yoki OPERATOR) tanlang.',
+      '3. Tasdiqlash usuli sifatida "Telegram" yoki "SMS" ni belgilang.',
+      '4. "Qo‘shish" tugmasini bosganingizda, xodimga tasdiqlash kodi yuboriladi va uning paroli ochiq matnda ko‘rinadi.'
+    ]
+  },
+  {
+    step: '3',
+    title: 'Geo-Moderatsiya Haritasi orqali Nazorat qilish',
+    icon: MapPin,
+    summary: 'Xaritadagi qizil belgilar orqali shikoyat va moderatsiyadagi do‘konlarni tezkor tahlil qilish.',
+    instructions: [
+      '1. "Xarita & Moderatsiya markazi" bo‘limiga kiring.',
+      '2. Qizil ko‘rsatkichli (🔴) do‘konlarga e’tibor bering – ularda xaridor shikoyati yoki o‘zgarish talabi mavjud.',
+      '3. Do‘kon ustiga bosib, "Tahrirlash", "Shikoyatlarga o‘tish" yoki "Xodimlarni boshqarish" amallarini bajaring.'
+    ]
+  },
+  {
+    step: '4',
+    title: 'Xaridorlar Shikoyatlarini Hal qilish',
+    icon: AlertTriangle,
+    summary: 'Narx tafovuti yoki qoldiq xatolari bo‘yicha tushgan shikoyatlarni tekshirish.',
+    instructions: [
+      '1. "Shikoyatlar navbati" bo‘limiga o‘ting.',
+      '2. Shikoyat tafsilotlarini o‘rganing va do‘kon egasi bilan bog‘laning.',
+      '3. Do‘kon narxni to‘g‘rilagach, "Hal qilindi deb tasdiqlash" tugmasini bosing.'
+    ]
+  },
+  {
+    step: '5',
+    title: 'Dillerlar va B2B Distribyutsiyani Boshqarish',
+    icon: Truck,
+    summary: 'Ulgurji yetkazib beruvchilar hisobi, do‘konlar biriktiruvi, nakladnoylar va xarita nazorati.',
+    instructions: [
+      '1. "Dillerlar & Distribyutorlar" bo‘limiga o‘ting.',
+      '2. Dillerning aylanmasi, biriktirilgan mijoz do‘konlari, tovar katalogi va debitorlik qarzlarini kuzating.',
+      '3. Har bir diller uchun "Eksperimental: Global tovarlar xaritasi" ruxsatini yoqing yoki cheklang.',
+      '4. Yangi dillerlarni "Foydalanuvchilar" bo‘limidan DEALER roli bilan qo‘shing (avtomatik B2B diller profili ochiladi).'
+    ]
+  }
+];
+
+export function RolesGuideMatrix() {
+  const [selectedRole, setSelectedRole] = useState<RoleDefinition>(ROLES_DATA[0]);
+  const [activeGuideTab, setActiveGuideTab] = useState<'matrix' | 'guides'>('matrix');
+
+  return (
+    <div className="max-w-6xl mx-auto flex flex-col gap-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-[#116B50] text-white flex items-center justify-center font-bold">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-extrabold text-[#172C28] dark:text-white">
+                Rollar Haritasi & Administrator Yo‘riqnomasi
+              </h1>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                YaqinTop platformasi foydalanuvchi iyerarxiyasi, ruxsatnomalar matritsasi va boshqaruv qoidalari
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 bg-[#F3F6F3] dark:bg-[#1A2822] p-1 rounded-xl">
+          <button
+            onClick={() => setActiveGuideTab('matrix')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
+              activeGuideTab === 'matrix'
+                ? 'bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] shadow-sm'
+                : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+            }`}
+          >
+            Rollar & Ruxsatlar Matritsasi
+          </button>
+          <button
+            onClick={() => setActiveGuideTab('guides')}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition ${
+              activeGuideTab === 'guides'
+                ? 'bg-white dark:bg-[#14201A] text-[#116B50] dark:text-[#4ADE80] shadow-sm'
+                : 'text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white'
+            }`}
+          >
+            Bosqichma-bosqich Qo‘llanma
+          </button>
+        </div>
+      </div>
+
+      {activeGuideTab === 'matrix' ? (
+        <div className="flex flex-col gap-6">
+          {/* Roles Selector Pills */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-2.5">
+            {ROLES_DATA.map((r) => {
+              const Icon = r.icon;
+              const isSelected = selectedRole.role === r.role;
+
+              return (
+                <button
+                  key={r.role}
+                  onClick={() => setSelectedRole(r)}
+                  className={`p-3 rounded-2xl border text-left transition flex flex-col justify-between gap-2 shadow-sm ${
+                    isSelected
+                      ? 'border-[#116B50] bg-[#E0EFE7] dark:bg-[#1E362A] dark:border-[#4ADE80]'
+                      : 'border-[#DCE5DF] dark:border-[#22332C] bg-white dark:bg-[#14201A] hover:border-[#116B50]/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className={`w-7 h-7 rounded-lg flex items-center justify-center ${r.badgeColor}`}>
+                      <Icon className="w-4 h-4 text-white" />
+                    </div>
+                    {isSelected && <CheckCircle2 className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />}
+                  </div>
+                  <div>
+                    <span className="font-extrabold text-xs block text-[#172C28] dark:text-white">
+                      {r.role}
+                    </span>
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] truncate block mt-0.5">
+                      {r.title}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Detailed Selected Role Inspector */}
+          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-6 shadow-sm flex flex-col gap-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 border-b border-[#DCE5DF] dark:border-[#22332C] pb-4">
+              <div className="flex items-center gap-3">
+                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${selectedRole.badgeColor}`}>
+                  <selectedRole.icon className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-extrabold text-[#172C28] dark:text-white">
+                      {selectedRole.title}
+                    </h2>
+                    <Tag variant="default" className="font-mono text-xs font-bold">
+                      {selectedRole.role}
+                    </Tag>
+                  </div>
+                  <span className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 block">
+                    Mo‘ljallangan: <strong className="text-[#172C28] dark:text-white">{selectedRole.targetUser}</strong>
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-[#172C28] dark:text-[#E8F2EC] leading-relaxed">
+              {selectedRole.description}
+            </p>
+
+            {/* Responsibilities list */}
+            <div>
+              <h3 className="font-bold text-xs text-[#172C28] dark:text-white uppercase tracking-wider mb-2">
+                Asosiy vazifalar va imkoniyatlar:
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {selectedRole.responsibilities.map((resp, i) => (
+                  <div
+                    key={i}
+                    className="p-2.5 rounded-xl bg-[#F9FAF9] dark:bg-[#16241E] border border-[#DCE5DF]/60 dark:border-[#22332C] text-xs flex items-start gap-2 text-[#172C28] dark:text-[#E8F2EC]"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] shrink-0 mt-0.5" />
+                    <span>{resp}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Full Permissions Matrix Table */}
+          <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-4 bg-[#F9FAF9] dark:bg-[#1A2822] border-b border-[#DCE5DF] dark:border-[#22332C]">
+              <h3 className="font-extrabold text-sm text-[#172C28] dark:text-white">
+                Ruxsatnomalar va Funksional Imkoniyatlar Solishtirmasi
+              </h3>
+              <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                Barcha 7 ta rolning platformadagi harakatlari
+              </p>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
+                <thead>
+                  <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9]/50 dark:bg-[#16241E]">
+                    <th className="py-3 px-4 font-semibold">Funksional Bo‘lim</th>
+                    {ROLES_DATA.map((r) => (
+                      <th key={r.role} className="py-3 px-3 font-bold text-center">
+                        {r.role}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
+                  {[
+                    { key: 'systemControl', label: 'Tizim boshqaruvi, audit va global sozlamalar' },
+                    { key: 'manageOrgs', label: 'Tashkilotlar va STIR/INN ma’lumotlarini kiritish' },
+                    { key: 'manageBranches', label: 'Filiallar ochish, GPS lokatsiya va ish vaqtlari' },
+                    { key: 'manageOffers', label: 'Chakana tovar narxlari va qoldiqlarini boshqarish' },
+                    { key: 'manageStockDocs', label: 'Kirim, Nakladnoy, Sotuv va Inventarizatsiya hujjatlari' },
+                    { key: 'b2bDistribution', label: 'B2B distribyutsiya, nakladnoy, debitorlik va OSRM marshrutlash' },
+                    { key: 'verifyOtps', label: 'Telegram/SMS orqali xodimlarni tasdiqlash' },
+                    { key: 'manageReports', label: 'Xaridorlar shikoyatlarini moderatsiya qilish' },
+                    { key: 'viewAnalytics', label: 'Moliyaviy tahlil va CSV hisobotlarni yuklash' }
+                  ].map((feat) => (
+                    <tr key={feat.key} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50">
+                      <td className="py-3 px-4 font-medium">{feat.label}</td>
+                      {ROLES_DATA.map((r) => {
+                        const hasPerm = (r.permissions as any)[feat.key];
+                        return (
+                          <td key={r.role} className="py-3 px-3 text-center">
+                            {hasPerm ? (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-[#116B50] dark:text-[#4ADE80] font-bold">
+                                ✓
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 font-bold">
+                                —
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Step-by-step Interactive Admin Operational Guide */
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {GUIDES.map((g) => {
+            const Icon = g.icon;
+            return (
+              <div
+                key={g.step}
+                className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-4"
+              >
+                <div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-[#116B50] text-white flex items-center justify-center font-black text-sm">
+                      {g.step}
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-[#172C28] dark:text-white">
+                        {g.title}
+                      </h3>
+                      <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95]">
+                        {g.summary}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-col gap-2 bg-[#F9FAF9] dark:bg-[#16241E] p-3.5 rounded-xl border border-[#DCE5DF]/60 dark:border-[#22332C]">
+                    {g.instructions.map((inst, i) => (
+                      <div key={i} className="text-xs text-[#172C28] dark:text-[#E8F2EC] leading-relaxed">
+                        {inst}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 text-xs text-[#116B50] dark:text-[#4ADE80] font-bold">
+                  <span>Tizimda avtomatik saqlanadi</span>
+                  <CheckCircle2 className="w-4 h-4" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

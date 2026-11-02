@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/moderator/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/moderator/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

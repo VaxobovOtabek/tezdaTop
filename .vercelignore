@@ -1,0 +1,18 @@
+# Root vercel ignore
+scratch/
+.agents/
+.github/
+node_modules/
+*.log
+.env
+.env.*
+!.env.example
+docs/
+*.md
+!README.md
+tezdaTop/scratch/
+tezdaTop/docs/
+tezdaTop/infra/
+tezdaTop/**/test/
+tezdaTop/**/tests/
+tezdaTop/**/data/*.json

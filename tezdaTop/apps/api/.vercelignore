@@ -1,0 +1,9 @@
+# Exclude tests and internal data from Serverless Function bundle
+test/
+tests/
+data/
+SUPABASE-MONITORING.md
+*.md
+tsconfig.tsbuildinfo
+vitest.config.ts
+*.log

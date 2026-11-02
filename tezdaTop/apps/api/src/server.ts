@@ -1,0 +1,5607 @@
+import { dealerRouter } from './routes/dealer.routes.js';
+import { adminDealersRouter } from './routes/admin-dealers.routes.js';
+import dotenv from 'dotenv';
+import path from 'path';
+
+dotenv.config({ path: path.resolve(process.cwd(), '.env'), quiet: true } as any);
+dotenv.config({ path: path.resolve(process.cwd(), '../../.env'), quiet: true } as any);
+
+import express, { Express, Request, Response, NextFunction } from 'express';
+import cors from 'cors';
+import cookieParser from 'cookie-parser';
+import { v4 as uuidv4 } from 'uuid';
+import Decimal from 'decimal.js';
+import { db } from './db/in-memory-db.js';
+import { seedDatabase, SEED_IDS } from './db/seed.js';
+import { calculateDistanceMetres } from './db/spatial.js';
+import { searchProducts, getMarkers, checkStoreIsOpenNow } from './services/search.service.js';
+import { routingService } from './services/routing.service.js';
+import { sanitizeCsvField } from './services/ledger.service.js';
+import { getSupabaseUsage } from './services/supabase-usage.service.js';
+import { createOwnerOrganization, OwnerOnboardingSchema, verifyOwnerPassword, hashOwnerPassword } from './services/owner-onboarding.service.js';
+import { SESSION_TTL_MS, isSessionExpired, sessionExpiresAt, createSignedSessionToken, verifySignedSessionToken, revokeToken, isTokenRevoked } from './services/session.service.js';
+import crypto from 'node:crypto';
+import { createService, completeService, serviceCompletionFromDocument } from './services/service-business.service.js';
+import {
+  SearchQuerySchema,
+  RouteRequestSchema,
+  LoginRequestSchema,
+  RegisterRequestSchema,
+  StockDocumentSchema,
+  Store,
+  Offer,
+  Variant,
+  isTradeOrganization
+} from '@yaqintop/contracts';
+import { registerCustomer } from './services/customer-registration.service.js';
+import { syncAllFromSupabase, syncAllToSupabase, isSupabaseConfigured, insertRegisteredCustomer, persistItemProposalToSupabase, persistPhotoProposalToSupabase, supabase } from './db/supabase.js';
+
+const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+const PORT = process.env.PORT || 4000;
+
+export const app: Express = express();
+
+let isDbReady = false;
+let initPromise: Promise<void> | null = null;
+
+export async function ensureDbInitialized() {
+  if (isDbReady) return;
+  if (!initPromise) {
+    initPromise = (async () => {
+      try {
+        const loaded = db.loadFromFile();
+
+        const isProdEnv = process.env.NODE_ENV === 'production' && !process.env.VERCEL;
+        const allowDemoSeed = !isProdEnv || process.env.ALLOW_DEMO_SEED === 'true';
+
+        if (isSupabaseConfigured()) {
+          console.log('[YaqinTop Supabase] Connecting to Supabase Cloud...');
+          const pulled = await syncAllFromSupabase(db);
+          if (!pulled || db.users.size === 0) {
+            if (!loaded || db.users.size === 0) {
+              if (allowDemoSeed) {
+                console.log('[YaqinTop DB] Seeding initial data...');
+                await seedDatabase();
+              } else {
+                console.warn('[YaqinTop DB] Production mode: Automatic demo seeding is disabled for security.');
+              }
+            }
+            if (db.users.size > 0) {
+              await syncAllToSupabase(db);
+            }
+          }
+        } else if (!loaded || db.users.size === 0) {
+          if (allowDemoSeed) {
+            await seedDatabase();
+            db.saveToFile();
+          } else {
+            console.warn('[YaqinTop DB] Production mode: Automatic demo seeding is disabled for security.');
+          }
+        }
+
+        isDbReady = true;
+        console.log(`[YaqinTop DB] Ready with ${db.users.size} users, ${db.stores.size} stores, ${db.offers.size} offers.`);
+      } catch (err) {
+        console.error('[YaqinTop DB Init Error]', err);
+        if (db.users.size === 0) {
+          await seedDatabase();
+        }
+        isDbReady = true;
+      }
+    })();
+  }
+  await initPromise;
+}
+
+const ALLOWED_ORIGINS = new Set([
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:3003',
+  'http://localhost:3004',
+  'http://localhost:3005',
+  'http://127.0.0.1:3005',
+  process.env.DEALER_APP_URL,
+  'http://localhost:4000',
+  'http://127.0.0.1:3000',
+  'http://127.0.0.1:3001',
+  'http://127.0.0.1:3002',
+  'http://127.0.0.1:3003',
+  'http://127.0.0.1:3004',
+  'http://127.0.0.1:4000',
+  'https://yaqintop.uz',
+  'https://www.yaqintop.uz',
+  process.env.CUSTOMER_APP_URL,
+  process.env.MERCHANT_APP_URL,
+  process.env.ADMIN_APP_URL,
+  process.env.MODERATOR_APP_URL,
+  process.env.LANDING_APP_URL,
+  process.env.PUBLIC_URL
+].filter(Boolean) as string[]);
+
+function isAllowedOrigin(origin: string): boolean {
+  if (ALLOWED_ORIGINS.has(origin)) return true;
+  try {
+    const parsed = new URL(origin);
+    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') return true;
+    if (parsed.hostname === 'yaqintop.uz' || parsed.hostname.endsWith('.yaqintop.uz')) return true;
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      if (isAllowedOrigin(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('CORS policy: Not allowed by CORS'));
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-user-id', 'x-user-email', 'x-user-role', 'x-idempotency-key']
+  })
+);
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
+
+// Security Headers Middleware
+app.disable('x-powered-by');
+app.use((_req: Request, res: Response, next: NextFunction) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  next();
+});
+
+// In-Memory Sliding Window Rate Limiter
+interface RateLimitRecord {
+  count: number;
+  resetAt: number;
+}
+const rateLimitMap = new Map<string, RateLimitRecord>();
+function createRateLimiter(options: { windowMs: number; max: number; message: string; keyPrefix?: string }) {
+  const { windowMs, max, message, keyPrefix = 'rl' } = options;
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (process.env.NODE_ENV === 'test') return next();
+    const clientIp = req.ip || req.socket.remoteAddress || 'unknown';
+    const key = `${keyPrefix}:${clientIp}`;
+    const now = Date.now();
+    let record = rateLimitMap.get(key);
+    if (!record || now > record.resetAt) {
+      record = { count: 1, resetAt: now + windowMs };
+      rateLimitMap.set(key, record);
+      return next();
+    }
+    record.count++;
+    if (record.count > max) {
+      const retryAfter = Math.ceil((record.resetAt - now) / 1000);
+      res.setHeader('Retry-After', retryAfter);
+      res.status(429).json({ code: 'TOO_MANY_REQUESTS', message, retryAfter });
+      return;
+    }
+    next();
+  };
+}
+
+const authLoginLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 30, message: 'Kirish urinishlari ko‘payib ketdi. Iltimos, 1 daqiqadan so‘ng qayta urinib ko‘ring.', keyPrefix: 'login' });
+const authRegisterLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 15, message: 'Ro‘yxatdan o‘tish urinishlari ko‘payib ketdi. Iltimos, keyinroq urinib ko‘ring.', keyPrefix: 'register' });
+const userVerifyLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 10, message: 'Tasdiqlash kodi kiritish urinishlari ko‘payib ketdi.', keyPrefix: 'verify' });
+
+
+// Ensure DB is initialized before handling requests (for Serverless / Vercel support)
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    await ensureDbInitialized();
+    next();
+  } catch (err) {
+    console.error('[YaqinTop DB Init Error]', err);
+    next();
+  }
+});
+
+// Request tracking & audit middleware
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const reqId = req.headers['x-request-id'] || uuidv4();
+  res.setHeader('X-Request-Id', String(reqId));
+
+  // Automatically persist database on disk whenever any mutation happens successfully
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    res.on('finish', () => {
+      if (res.statusCode >= 200 && res.statusCode < 400) {
+        db.scheduleSave();
+      }
+    });
+  }
+
+  next();
+});
+
+// Helper for session resolution
+function getCurrentUser(req: Request) {
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader?.trim();
+  const cookieToken = req.cookies?.session_token?.trim();
+  const token = bearerToken || cookieToken;
+  if (!token) return null;
+  if (isTokenRevoked(token)) return null;
+
+  // 1. In-memory session Map check
+  const session = db.sessions.get(token);
+  if (session) {
+    if (isSessionExpired(session)) {
+      db.sessions.delete(token);
+      db.scheduleSave();
+      return null;
+    }
+    const user = db.users.get(session.userId);
+    if (user && user.status !== 'SUSPENDED') return user;
+  }
+
+  // 2. Stateless / serverless signed token verification (cross-container resilient)
+  const verified = verifySignedSessionToken(token);
+  if (verified) {
+    const user = db.users.get(verified.userId);
+    if (user && user.status !== 'SUSPENDED') {
+      db.sessions.set(token, { userId: verified.userId, createdAt: new Date(verified.createdAt) });
+      return user;
+    }
+  }
+
+  // 3. Also check cookieToken if bearerToken was checked first and was different
+  if (bearerToken && cookieToken && bearerToken !== cookieToken && !isTokenRevoked(cookieToken)) {
+    const cookieVerified = verifySignedSessionToken(cookieToken);
+    if (cookieVerified) {
+      const user = db.users.get(cookieVerified.userId);
+      if (user && user.status !== 'SUSPENDED') return user;
+    }
+  }
+
+  return null;
+}
+
+// Role-based authorization middleware
+export function requireStaffRole(allowedRoles: ('ADMIN' | 'SUPERADMIN' | 'MODERATOR')[] = ['ADMIN', 'SUPERADMIN', 'MODERATOR']) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const user = getCurrentUser(req);
+    if (!user || user.status === 'SUSPENDED') {
+      res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+      return;
+    }
+    if (!allowedRoles.includes(user.role as any)) {
+      res.status(403).json({ code: 'FORBIDDEN', message: 'Ushbu amalni bajarish uchun yetarli ruxsat yo‘q' });
+      return;
+    }
+    res.locals.user = user;
+    next();
+  };
+}
+
+// ================= HEALTH CHECKS =================
+app.get('/api/v1/admin/supabase-usage', async (req: Request, res: Response) => {
+  // Monitoring requires a real session, never the existing demo/header fallback.
+  const token = req.cookies?.session_token || req.headers.authorization?.replace('Bearer ', '');
+  const user = getCurrentUser(req);
+  if (!user || user.status === 'SUSPENDED') return res.status(401).json({ message: 'Tizimga kiring.' });
+  if (!['ADMIN', 'SUPERADMIN'].includes(user.role)) return res.status(403).json({ message: 'Faqat administrator uchun.' });
+  const period = req.query.period || 'day';
+  if (period !== 'day' && period !== 'week' && period !== 'month') return res.status(400).json({ message: 'Davr noto‘g‘ri.' });
+  res.setHeader('Cache-Control', 'no-store');
+  try { return res.json(await getSupabaseUsage(period)); }
+  catch { return res.status(503).json({ message: 'Supabase monitoringi vaqtincha mavjud emas. Lokal sozlamalarni tekshiring.' }); }
+});
+
+app.get('/', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'YaqinTop API',
+    storesCount: db.stores.size,
+    offersCount: db.offers.size,
+    usersCount: db.users.size,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'YaqinTop API',
+    storesCount: db.stores.size,
+    offersCount: db.offers.size,
+    usersCount: db.users.size,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/v1', (req, res) => {
+  res.json({
+    status: 'ok',
+    service: 'YaqinTop API v1',
+    storesCount: db.stores.size,
+    offersCount: db.offers.size,
+    usersCount: db.users.size,
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.get('/api/v1/health/live', (req, res) => {
+  res.json({ status: 'live', timestamp: new Date().toISOString() });
+});
+
+app.get('/api/v1/health/ready', (req, res) => {
+  res.json({
+    status: 'ready',
+    database: 'healthy',
+    storesCount: db.stores.size,
+    offersCount: db.offers.size
+  });
+});
+
+// ================= AUTH ROUTES =================
+app.post('/api/v1/auth/login', authLoginLimiter, (req, res) => {
+  const parsed = LoginRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Login va parol kiritilishi shart' });
+    return;
+  }
+
+  const { email, login, username, phone, password } = req.body;
+  const rawIdentifier = (login || email || username || phone || '').toString().trim();
+
+  if (!rawIdentifier || !password) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Login va parol kiritilishi shart' });
+    return;
+  }
+
+  const normalizedInput = rawIdentifier.toLowerCase();
+  const digitsOnlyInput = rawIdentifier.replace(/\D/g, '');
+
+  let matchedUser = Array.from(db.users.values()).find(u => {
+    const userEmail = u.email.toLowerCase();
+    const userEmailPrefix = userEmail.split('@')[0];
+    const userPhoneDigits = (u.phone || '').replace(/\D/g, '');
+
+    // Strict matching: exact email, exact login/username (email prefix), or exact normalized full phone
+    if (userEmail === normalizedInput || userEmailPrefix === normalizedInput) return true;
+    if (digitsOnlyInput.length >= 9 && userPhoneDigits && (userPhoneDigits === digitsOnlyInput || userPhoneDigits.endsWith(digitsOnlyInput))) return true;
+    return false;
+  }) || null;
+
+  if (!matchedUser || !verifyOwnerPassword(password, matchedUser.passwordHash)) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Login yoki parol noto‘g‘ri' });
+    return;
+  }
+
+  if (matchedUser.status === 'SUSPENDED') {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Foydalanuvchi hisobi to‘xtatilgan' });
+    return;
+  }
+
+  const token = createSignedSessionToken(matchedUser.id);
+  db.sessions.set(token, { userId: matchedUser.id, createdAt: new Date() });
+
+  res.cookie('session_token', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: SESSION_TTL_MS
+  });
+
+  const { passwordHash, ...userClean } = matchedUser;
+  delete (userClean as any).plainPassword;
+  delete (userClean as any).verificationCode;
+  if (matchedUser.role === 'DEALER' || matchedUser.role === 'DEALER_AGENT') {
+    const dealer = Array.from(db.dealers.values()).find(d => d.userId === matchedUser.id);
+    if (dealer) {
+      (userClean as any).dealer = {
+        id: dealer.id,
+        companyName: dealer.companyName,
+        allowExperimentalMap: Boolean(dealer.allowExperimentalMap)
+      };
+    }
+  }
+
+  res.json({ user: userClean, token, expiresAt: sessionExpiresAt(db.sessions.get(token)!) });
+});
+
+app.post('/api/v1/auth/register', authRegisterLimiter, async (req, res) => {
+  const parsed = RegisterRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Ism, ko‘pi bilan 8 belgili login, +998 formatidagi telefon va kamida 8 belgili parol kiriting' });
+    return;
+  }
+  let newUser;
+  try {
+    newUser = await registerCustomer(db.users, parsed.data, async user => {
+      await insertRegisteredCustomer(user);
+      if (!isSupabaseConfigured() && !db.saveToFile()) throw new Error('LOCAL_SAVE_FAILED');
+    });
+  } catch (error: any) {
+    const conflict = error?.code === '23505' || error?.message?.includes('allaqachon');
+    res.status(conflict ? 409 : 503).json({ code: conflict ? 'CONFLICT' : 'PERSISTENCE_FAILED', message: conflict ? 'Bu login yoki telefon allaqachon ro‘yxatdan o‘tgan' : 'Hisob bazaga saqlanmadi. Keyinroq qayta urinib ko‘ring.' });
+    return;
+  }
+
+  const token = createSignedSessionToken(newUser.id);
+  db.sessions.set(token, { userId: newUser.id, createdAt: new Date() });
+
+  res.cookie('session_token', token, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: SESSION_TTL_MS
+  });
+
+  const { passwordHash, ...userClean } = newUser;
+  delete (userClean as any).plainPassword;
+  delete (userClean as any).verificationCode;
+  res.status(201).json({ user: userClean, token, expiresAt: sessionExpiresAt(db.sessions.get(token)!) });
+});
+
+// Quick Token Login (for direct impersonation / instant login via token)
+app.post('/api/v1/auth/token-login', (req, res) => {
+  const { token } = req.body;
+  if (!token || typeof token !== 'string') {
+    res.status(400).json({ code: 'INVALID_TOKEN', message: 'Token kiritilmadi' });
+    return;
+  }
+
+  const cleanToken = token.trim();
+  let user = null;
+
+  // 1. In-memory session check
+  const session = db.sessions.get(cleanToken);
+  if (session) {
+    if (isSessionExpired(session)) {
+      db.sessions.delete(cleanToken);
+      res.status(401).json({ code: 'TOKEN_EXPIRED', message: 'Ushbu tokenning amal qilish muddati tugagan' });
+      return;
+    }
+    user = db.users.get(session.userId);
+  }
+
+  // 2. Stateless / serverless signed token verification
+  if (!user) {
+    const verified = verifySignedSessionToken(cleanToken);
+    if (verified) {
+      user = db.users.get(verified.userId);
+      if (user) {
+        db.sessions.set(cleanToken, { userId: verified.userId, createdAt: new Date(verified.createdAt) });
+      }
+    }
+  }
+
+  if (!user) {
+    res.status(401).json({ code: 'INVALID_TOKEN', message: 'Bunday token mavjud emas yoki eskirgan' });
+    return;
+  }
+
+  if (user.status === 'SUSPENDED') {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Foydalanuvchi hisobi to‘xtatilgan' });
+    return;
+  }
+
+  res.cookie('session_token', cleanToken, {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+    maxAge: SESSION_TTL_MS
+  });
+
+  const { passwordHash, ...userClean } = user as any;
+  delete (userClean as any).plainPassword;
+  delete (userClean as any).verificationCode;
+  const activeSession = db.sessions.get(cleanToken);
+  const expiresAt = activeSession ? sessionExpiresAt(activeSession) : Date.now() + SESSION_TTL_MS;
+
+  res.json({
+    user: userClean,
+    token: cleanToken,
+    expiresAt,
+    message: `"${user.fullName}" hisobiga muvaffaqiyatli kirildi!`
+  });
+});
+
+app.get('/api/v1/auth/me', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Avtorizatsiyadan o‘tilmagan' });
+    return;
+  }
+  const { passwordHash, ...userClean } = user as any;
+  delete (userClean as any).plainPassword;
+  delete (userClean as any).verificationCode;
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader?.trim();
+  const token = bearerToken || req.cookies?.session_token?.trim();
+  const session = token ? db.sessions.get(token) : null;
+  const expiresAt = session ? sessionExpiresAt(session) : Date.now() + SESSION_TTL_MS;
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ user: userClean, token, expiresAt });
+});
+
+app.post('/api/v1/auth/logout', (req, res) => {
+  const authHeader = req.headers.authorization;
+  const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader?.trim();
+  const cookieToken = req.cookies?.session_token?.trim();
+  const token = bearerToken || cookieToken;
+  if (token) {
+    db.sessions.delete(token);
+    revokeToken(token);
+  }
+  if (cookieToken) {
+    db.sessions.delete(cookieToken);
+    revokeToken(cookieToken);
+  }
+  res.clearCookie('session_token');
+  res.json({ success: true });
+});
+
+// User Credential Change Request (Sends to Admin for Approval)
+app.post('/api/v1/auth/request-credential-change', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+
+  const { requestedEmail, requestedPassword, requestedFullName, requestedPhone, reason } = req.body;
+  if (!requestedEmail && !requestedPassword && !requestedFullName && !requestedPhone) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Kamida bitta o‘zgarish maydoni to‘ldirilishi kerak' });
+    return;
+  }
+
+  // Find membership & organization info
+  const membership = Array.from(db.memberships.values()).find(m => m.userId === user.id);
+  let orgName: string | undefined;
+  if (membership) {
+    const org = db.organizations.get(membership.organizationId);
+    if (org) orgName = org.name;
+  }
+
+  const requestId = uuidv4();
+  const changeReq = {
+    id: requestId,
+    userId: user.id,
+    userName: user.fullName,
+    userEmail: user.email,
+    userPhone: user.phone,
+    userRole: user.role,
+    organizationId: membership?.organizationId,
+    organizationName: orgName,
+    requestedEmail: requestedEmail?.trim(),
+    requestedPassword: requestedPassword?.trim() ? hashOwnerPassword(requestedPassword.trim()) : undefined,
+    requestedFullName: requestedFullName?.trim(),
+    requestedPhone: requestedPhone?.trim(),
+    reason: reason?.trim() || 'Foydalanuvchi profilingiz orqali so‘rov yuborildi',
+    status: 'PENDING' as const,
+    createdAt: new Date().toISOString()
+  };
+
+  db.credentialRequests.set(requestId, changeReq);
+
+  // Notify superadmin
+  db.notifications.set(uuidv4(), {
+    id: uuidv4(),
+    userId: SEED_IDS.adminUserId,
+    title: 'Yangi login/parol almashtirish so‘rovi',
+    message: `${user.fullName} (${user.email}) login/parol ma‘lumotlarini o‘zgartirish uchun so‘rov yubordi.`,
+    type: 'WARNING',
+    isRead: false,
+    createdAt: new Date().toISOString()
+  });
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: user.id,
+    actorEmail: user.email,
+    action: 'REQUEST_CREDENTIAL_CHANGE',
+    entityType: 'CREDENTIAL_REQUEST',
+    entityId: requestId,
+    diff: { requestedEmail, requestedFullName, reason },
+    timestamp: new Date().toISOString()
+  });
+
+  const { requestedPassword: _, ...safeReq } = changeReq;
+  res.status(201).json({
+    success: true,
+    request: safeReq,
+    message: 'So‘rovingiz adminga tasdiqlash uchun yuborildi. Admin tasdiqlagach yangi login/parol kuchga kiradi va sizga xabar yuboriladi.'
+  });
+});
+
+// Get user's own credential requests
+app.get('/api/v1/auth/my-requests', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+
+  const myReqs = Array.from(db.credentialRequests.values())
+    .filter(r => r.userId === user.id)
+    .map(({ requestedPassword, ...safe }) => safe)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({ requests: myReqs });
+});
+
+// Notifications
+app.get('/api/v1/auth/notifications', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const targetUserId = (['ADMIN', 'SUPERADMIN'].includes(user.role) && req.query.userId)
+    ? String(req.query.userId)
+    : user.id;
+
+  const notifs = Array.from(db.notifications.values())
+    .filter(n => n.userId === targetUserId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({ notifications: notifs });
+});
+
+app.patch('/api/v1/auth/notifications/:id/read', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const notif = db.notifications.get(req.params.id);
+  if (!notif) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Bildirishnoma topilmadi' });
+    return;
+  }
+  if (notif.userId !== user.id && !['ADMIN', 'SUPERADMIN'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ruxsat berilmagan' });
+    return;
+  }
+  notif.isRead = true;
+  res.json({ success: true, notification: notif });
+});
+
+// Search query logger
+export interface SearchLogEntry {
+  id: string;
+  query: string;
+  userType: 'CUSTOMER' | 'GUEST';
+  userName: string;
+  locationName: string;
+  radiusM: number;
+  resultsCount: number;
+  timestamp: string;
+}
+
+export const searchLogs: SearchLogEntry[] = [
+  {
+    id: 's-1',
+    query: 'Snickers 50g',
+    userType: 'CUSTOMER',
+    userName: 'Otabek Xaridor',
+    locationName: 'Yunusobod tumani',
+    radiusM: 1000,
+    resultsCount: 4,
+    timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString()
+  },
+  {
+    id: 's-2',
+    query: 'Coca-Cola 1.5l',
+    userType: 'CUSTOMER',
+    userName: 'Otabek Xaridor',
+    locationName: 'Yunusobod tumani',
+    radiusM: 1500,
+    resultsCount: 3,
+    timestamp: new Date(Date.now() - 28 * 60 * 1000).toISOString()
+  },
+  {
+    id: 's-3',
+    query: 'Nesquik kakao',
+    userType: 'GUEST',
+    userName: 'Mehmon foydalanuvchi #491',
+    locationName: 'Mirobod tumani',
+    radiusM: 1000,
+    resultsCount: 2,
+    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString()
+  },
+  {
+    id: 's-4',
+    query: '24/7 ochiq market',
+    userType: 'GUEST',
+    userName: 'Mehmon foydalanuvchi #312',
+    locationName: 'Mirobod tumani',
+    radiusM: 3000,
+    resultsCount: 1,
+    timestamp: new Date(Date.now() - 65 * 60 * 1000).toISOString()
+  },
+  {
+    id: 's-5',
+    query: 'Ulgurji shokolad bloki',
+    userType: 'GUEST',
+    userName: 'Mehmon foydalanuvchi #108',
+    locationName: 'Shayxontohur tumani',
+    radiusM: 2000,
+    resultsCount: 2,
+    timestamp: new Date(Date.now() - 95 * 60 * 1000).toISOString()
+  },
+  {
+    id: 's-6',
+    query: 'Mars 50g',
+    userType: 'CUSTOMER',
+    userName: 'Otabek Xaridor',
+    locationName: 'Yunusobod tumani',
+    radiusM: 1000,
+    resultsCount: 3,
+    timestamp: new Date(Date.now() - 130 * 60 * 1000).toISOString()
+  }
+];
+
+// ================= SEARCH & MAP ROUTES =================
+app.post('/api/v1/search/products', (req, res) => {
+  try {
+    const user = getCurrentUser(req);
+    const parsed = SearchQuerySchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ code: 'INVALID_QUERY', message: parsed.error.issues[0].message });
+      return;
+    }
+    const result = searchProducts(parsed.data);
+
+    if (parsed.data.q && parsed.data.q.trim()) {
+      searchLogs.unshift({
+        id: uuidv4(),
+        query: parsed.data.q.trim(),
+        userType: user ? 'CUSTOMER' : 'GUEST',
+        userName: user ? user.fullName : `Mehmon foydalanuvchi #${Math.floor(100 + Math.random() * 900)}`,
+        locationName: 'Toshkent shahri (Pilot)',
+        radiusM: parsed.data.radiusM || 1000,
+        resultsCount: result.totalOffers || result.items.length,
+        timestamp: new Date().toISOString()
+      });
+      if (searchLogs.length > 100) searchLogs.pop();
+    }
+
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ code: 'SEARCH_ERROR', message: err.message });
+  }
+});
+
+app.get('/api/v1/search/products', (req, res) => {
+  try {
+    const q = req.query.q as string | undefined;
+    const lat = parseFloat(req.query.lat as string || '41.311081');
+    const lng = parseFloat(req.query.lng as string || '69.240562');
+    const radiusM = parseInt(req.query.radiusM as string || '1000', 10);
+    const openNow = req.query.openNow === 'true';
+    const inStock = req.query.inStock === 'true';
+    const freshOnly = req.query.freshOnly === 'true';
+    const sort = (req.query.sort as any) || 'relevance';
+    const minQuantity = req.query.minQuantity ? parseInt(req.query.minQuantity as string, 10) : undefined;
+
+    const result = searchProducts({
+      q,
+      lat,
+      lng,
+      radiusM,
+      openNow,
+      inStock,
+      freshOnly,
+      sort,
+      minQuantity,
+      limit: 20
+    });
+    res.json(result);
+  } catch (err: any) {
+    res.status(400).json({ code: 'SEARCH_ERROR', message: err.message });
+  }
+});
+
+// ================= PRODUCTS CATALOG =================
+app.get('/api/v1/products', (req: Request, res: Response) => {
+  try {
+    const q = ((req.query.q as string) || '').trim().toLowerCase();
+    const category = ((req.query.category as string) || '').trim();
+    const lat = req.query.lat ? parseFloat(req.query.lat as string) : 41.311081;
+    const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
+
+    const getProductImage = (title: string, cat?: string) => {
+      const t = title.toLowerCase();
+      if (t.includes('snickers')) {
+        return 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('mars')) {
+        return 'https://images.unsplash.com/photo-1582293041079-7814c2f12063?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('twix')) {
+        return 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('bounty')) {
+        return 'https://images.unsplash.com/photo-1548848221-0c2e497ed557?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('cola')) {
+        return 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=80';
+      }
+      if (t.includes('nesquik') || t.includes('kakao')) {
+        return 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?w=500&auto=format&fit=crop&q=80';
+      }
+      if (cat && cat.toLowerCase().includes('ichimlik')) {
+        return 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?w=500&auto=format&fit=crop&q=80';
+      }
+      return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=80';
+    };
+
+    const productList = [];
+
+    for (const variant of db.variants.values()) {
+      if (category && category !== 'Barchasi' && variant.category !== category) {
+        continue;
+      }
+
+      if (q) {
+        const matchTitle = variant.title.toLowerCase().includes(q);
+        const matchBrand = variant.brand ? variant.brand.toLowerCase().includes(q) : false;
+        const matchCat = variant.category ? variant.category.toLowerCase().includes(q) : false;
+        const matchBarcode = variant.barcode ? variant.barcode.includes(q) : false;
+        const matchAliases = (variant.aliases || []).some((a: string) => a.toLowerCase().includes(q));
+        if (!matchTitle && !matchBrand && !matchCat && !matchBarcode && !matchAliases) {
+          continue;
+        }
+      }
+
+      // Gather active offers & deduplicate per store
+      const storeOfferMap = new Map<string, any>();
+      for (const off of db.offers.values()) {
+        if (off.variantId !== variant.id) continue;
+        if (off.status === 'INACTIVE' || off.stockOnHand <= 0) continue;
+
+        const store = db.stores.get(off.storeId);
+        if (!store || store.status !== 'ACTIVE') continue;
+
+        const org = db.organizations.get(store.organizationId);
+        if (!org || org.status !== 'ACTIVE') continue;
+
+        const priceNum = Number(off.price);
+        const existing = storeOfferMap.get(store.id);
+        if (!existing || priceNum < existing.price) {
+          const dist = store.location
+            ? Math.round(calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng))
+            : 0;
+
+          storeOfferMap.set(store.id, {
+            offerId: off.id,
+            storeId: store.id,
+            storeName: store.name,
+            storeAddress: store.address,
+            storeDistrict: store.district,
+            storePhone: store.phone,
+            storeType: store.type,
+            storeRating: store.rating || 4.5,
+            location: store.location,
+            price: priceNum,
+            stockOnHand: off.stockOnHand,
+            wholesaleTiers: off.wholesaleTiers || [],
+            distanceM: dist,
+            isOpenNow: checkStoreIsOpenNow(store),
+            stockVerifiedAt: off.stockVerifiedAt
+          });
+        }
+      }
+      const matchingOffers = Array.from(storeOfferMap.values());
+
+      matchingOffers.sort((a, b) => a.price - b.price);
+
+      const minPrice = matchingOffers.length > 0 ? matchingOffers[0].price : 0;
+      const maxPrice = matchingOffers.length > 0 ? matchingOffers[matchingOffers.length - 1].price : 0;
+      const totalStock = matchingOffers.reduce((sum, o) => sum + o.stockOnHand, 0);
+
+      const discountPercent = Math.min(35, Math.max(12, Math.round(((variant.id.charCodeAt(0) % 20) + 12))));
+      const originalPrice = minPrice > 0 ? Math.round(minPrice * (1 + discountPercent / 100)) : 0;
+
+      productList.push({
+        id: variant.id,
+        productId: variant.productId,
+        title: variant.title,
+        brand: variant.brand || 'Boshqa',
+        category: variant.category || 'Oziq-ovqat',
+        packSize: variant.packSize,
+        packUnit: variant.packUnit || 'dona',
+        barcode: variant.barcode,
+        sku: variant.sku,
+        imageUrl: getProductImage(variant.title, variant.category),
+        minPrice,
+        maxPrice,
+        originalPrice,
+        discountPercent,
+        totalStock,
+        availableStoresCount: matchingOffers.length,
+        stores: matchingOffers
+      });
+    }
+
+    productList.sort((a, b) => (b.availableStoresCount - a.availableStoresCount) || (a.minPrice - b.minPrice));
+
+    res.json({
+      items: productList,
+      totalCount: productList.length
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/products/:id', (req: Request, res: Response) => {
+  try {
+    const param = req.params.id.toLowerCase();
+    let variant = db.variants.get(param);
+    if (!variant) {
+      for (const v of db.variants.values()) {
+        const slug = v.title.toLowerCase().replace(/[^a-z0-9а-яёўқғҳ]+/gi, '-').replace(/^-+|-+$/g, '');
+        if (v.id.toLowerCase() === param || slug === param || v.barcode === param) {
+          variant = v;
+          break;
+        }
+      }
+    }
+
+    if (!variant) {
+      res.status(404).json({ error: 'Mahsulot topilmadi' });
+      return;
+    }
+
+    const lat = req.query.lat ? parseFloat(req.query.lat as string) : 41.311081;
+    const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
+
+    const getProductImage = (title: string, cat?: string) => {
+      const t = title.toLowerCase();
+      if (t.includes('snickers')) return 'https://images.unsplash.com/photo-1541781774459-bb2af2f05b55?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('mars')) return 'https://images.unsplash.com/photo-1582293041079-7814c2f12063?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('twix')) return 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('bounty')) return 'https://images.unsplash.com/photo-1548848221-0c2e497ed557?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('cola')) return 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=500&auto=format&fit=crop&q=80';
+      if (t.includes('nesquik') || t.includes('kakao')) return 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?w=500&auto=format&fit=crop&q=80';
+      if (cat && cat.toLowerCase().includes('ichimlik')) return 'https://images.unsplash.com/photo-1527661591475-527312dd65f5?w=500&auto=format&fit=crop&q=80';
+      return 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500&auto=format&fit=crop&q=80';
+    };
+
+    const storeOfferMap = new Map<string, any>();
+    for (const off of db.offers.values()) {
+      if (off.variantId !== variant.id) continue;
+      if (off.status === 'INACTIVE' || off.stockOnHand <= 0) continue;
+
+      const store = db.stores.get(off.storeId);
+      if (!store || store.status !== 'ACTIVE') continue;
+
+      const org = db.organizations.get(store.organizationId);
+      if (!org || org.status !== 'ACTIVE') continue;
+
+      const priceNum = Number(off.price);
+      const existing = storeOfferMap.get(store.id);
+      if (!existing || priceNum < existing.price) {
+        const dist = store.location
+          ? Math.round(calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng))
+          : 0;
+
+        storeOfferMap.set(store.id, {
+          offerId: off.id,
+          storeId: store.id,
+          storeName: store.name,
+          storeAddress: store.address,
+          storeDistrict: store.district,
+          storePhone: store.phone,
+          storeType: store.type,
+          storeRating: store.rating || 4.5,
+          location: store.location,
+          price: priceNum,
+          stockOnHand: off.stockOnHand,
+          wholesaleTiers: off.wholesaleTiers || [],
+          distanceM: dist,
+          isOpenNow: checkStoreIsOpenNow(store),
+          stockVerifiedAt: off.stockVerifiedAt
+        });
+      }
+    }
+
+    const matchingOffers = Array.from(storeOfferMap.values());
+    matchingOffers.sort((a, b) => a.price - b.price);
+
+    const minPrice = matchingOffers.length > 0 ? matchingOffers[0].price : 0;
+    const maxPrice = matchingOffers.length > 0 ? matchingOffers[matchingOffers.length - 1].price : 0;
+    const totalStock = matchingOffers.reduce((sum, o) => sum + o.stockOnHand, 0);
+
+    const discountPercent = Math.min(35, Math.max(12, Math.round(((variant.id.charCodeAt(0) % 20) + 12))));
+    const originalPrice = minPrice > 0 ? Math.round(minPrice * (1 + discountPercent / 100)) : 0;
+
+    // Alternative / Similar products in the same category or brand
+    const similarProducts = [];
+    for (const altVariant of db.variants.values()) {
+      if (altVariant.id === variant.id) continue;
+
+      const isSameCategory = altVariant.category && variant.category && altVariant.category === variant.category;
+      const isSameBrand = altVariant.brand && variant.brand && altVariant.brand === variant.brand;
+
+      const altOffersMap = new Map<string, any>();
+      for (const off of db.offers.values()) {
+        if (off.variantId !== altVariant.id) continue;
+        if (off.status === 'INACTIVE' || off.stockOnHand <= 0) continue;
+        const s = db.stores.get(off.storeId);
+        if (!s || s.status !== 'ACTIVE') continue;
+        const org = db.organizations.get(s.organizationId);
+        if (!org || org.status !== 'ACTIVE') continue;
+
+        const pNum = Number(off.price);
+        const ex = altOffersMap.get(s.id);
+        if (!ex || pNum < ex.price) {
+          altOffersMap.set(s.id, {
+            offerId: off.id,
+            storeId: s.id,
+            storeName: s.name,
+            price: pNum,
+            stockOnHand: off.stockOnHand,
+            location: s.location
+          });
+        }
+      }
+
+      const altOffers = Array.from(altOffersMap.values());
+      altOffers.sort((a, b) => a.price - b.price);
+      const altMinPrice = altOffers.length > 0 ? altOffers[0].price : 0;
+      const altMaxPrice = altOffers.length > 0 ? altOffers[altOffers.length - 1].price : 0;
+      const altStock = altOffers.reduce((sum, o) => sum + o.stockOnHand, 0);
+
+      let relevance = 0;
+      if (isSameCategory) relevance += 3;
+      if (isSameBrand) relevance += 2;
+      if (altOffers.length > 0) relevance += 1;
+
+      similarProducts.push({
+        id: altVariant.id,
+        productId: altVariant.productId,
+        title: altVariant.title,
+        brand: altVariant.brand || 'Boshqa',
+        category: altVariant.category || 'Oziq-ovqat',
+        packSize: altVariant.packSize,
+        packUnit: altVariant.packUnit || 'dona',
+        barcode: altVariant.barcode,
+        sku: altVariant.sku,
+        imageUrl: getProductImage(altVariant.title, altVariant.category),
+        minPrice: altMinPrice,
+        maxPrice: altMaxPrice,
+        totalStock: altStock,
+        availableStoresCount: altOffers.length,
+        stores: altOffers,
+        relevance
+      });
+    }
+
+    similarProducts.sort((a, b) => b.relevance - a.relevance || b.availableStoresCount - a.availableStoresCount);
+
+    res.json({
+      product: {
+        id: variant.id,
+        productId: variant.productId,
+        title: variant.title,
+        brand: variant.brand || 'Boshqa',
+        category: variant.category || 'Oziq-ovqat',
+        packSize: variant.packSize,
+        packUnit: variant.packUnit || 'dona',
+        barcode: variant.barcode,
+        sku: variant.sku,
+        imageUrl: getProductImage(variant.title, variant.category),
+        minPrice,
+        maxPrice,
+        originalPrice,
+        discountPercent,
+        totalStock,
+        availableStoresCount: matchingOffers.length,
+        stores: matchingOffers,
+        similarProducts: similarProducts.slice(0, 8)
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/v1/search/markers', (req, res) => {
+  try {
+    const q = req.query.q as string | undefined;
+    const lat = parseFloat(req.query.lat as string || '41.311081');
+    const lng = parseFloat(req.query.lng as string || '69.240562');
+    const radiusM = parseInt(req.query.radiusM as string || '1000', 10);
+
+    const markers = getMarkers({ q, lat, lng, radiusM, limit: 50, sort: 'relevance' });
+    res.json({ markers });
+  } catch (err: any) {
+    res.status(400).json({ code: 'MARKER_ERROR', message: err.message });
+  }
+});
+
+// ================= STORE & OFFER DETAIL =================
+app.get('/api/v1/stores', (req, res) => {
+  const lat = req.query.lat ? parseFloat(req.query.lat as string) : 41.311081;
+  const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
+  const radiusM = req.query.radiusM ? parseInt(req.query.radiusM as string, 10) : 0;
+  const openNow = req.query.openNow === 'true';
+  const query = (req.query.q || req.query.query || '').toString().trim().toLowerCase();
+
+  const results: any[] = [];
+  for (const store of db.stores.values()) {
+    if (store.status !== 'ACTIVE') continue;
+    const org = db.organizations.get(store.organizationId);
+    if (!org || org.status !== 'ACTIVE') continue;
+
+    if (query) {
+      const matchName = store.name.toLowerCase().includes(query);
+      const matchOrgName = org.name.toLowerCase().includes(query);
+      const matchType = (store.type || org.type || '').toLowerCase().includes(query);
+      const matchAddress = (store.address || '').toLowerCase().includes(query);
+      const matchCity = (store.city || org.city || '').toLowerCase().includes(query);
+      if (!matchName && !matchOrgName && !matchType && !matchAddress && !matchCity) {
+        continue;
+      }
+    }
+
+    const dist = calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng);
+    if (radiusM && dist > radiusM) continue;
+
+    const isOpen = checkStoreIsOpenNow(store);
+    if (openNow && !isOpen) continue;
+
+    const offersCount = Array.from(db.offers.values()).filter(
+      (o) => o.storeId === store.id && o.status !== 'INACTIVE'
+    ).length;
+
+    results.push({
+      store,
+      organization: org,
+      distanceM: dist,
+      isOpenNow: isOpen,
+      offersCount
+    });
+  }
+
+  // Sort by nearest
+  results.sort((a, b) => a.distanceM - b.distanceM);
+  res.json({ items: results, total: results.length });
+});
+
+function findStoreByParam(param: string): Store | undefined {
+  let store = db.stores.get(param);
+  if (store) return store;
+
+  // Coordinates matching like @41.3135,69.2435 or 41.3135,69.2435
+  if (param.includes('@') || param.includes(',')) {
+    const coordStr = param.replace(/^.*@/, '');
+    const [latStr, lngStr] = coordStr.split(',');
+    const lat = parseFloat(latStr);
+    const lng = parseFloat(lngStr);
+    if (!isNaN(lat) && !isNaN(lng)) {
+      for (const s of db.stores.values()) {
+        if (s.location && Math.abs(s.location.lat - lat) < 0.0008 && Math.abs(s.location.lng - lng) < 0.0008) {
+          return s;
+        }
+      }
+    }
+  }
+
+  // Slug matching
+  const cleanParam = param.toLowerCase().replace(/@.*$/, '').replace(/^-+|-+$/g, '');
+  if (cleanParam) {
+    for (const s of db.stores.values()) {
+      const sSlug = s.name.toLowerCase().replace(/[^a-z0-9а-яёўқғҳ]+/gi, '-').replace(/^-+|-+$/g, '');
+      if (sSlug === cleanParam || sSlug.includes(cleanParam) || cleanParam.includes(sSlug)) {
+        return s;
+      }
+    }
+  }
+
+  return undefined;
+}
+
+// Support multi-segment slug and coordinates like /api/v1/stores/:slug/@:lat,:lng
+app.get('/api/v1/stores/:slug/@:lat,:lng', (req: any, res: any) => {
+  const param = `@${req.params.lat},${req.params.lng}`;
+  const store = findStoreByParam(param) || findStoreByParam(req.params.slug);
+  if (!store || store.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  const org = db.organizations.get(store.organizationId);
+  if (!org || org.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  const offersCount = Array.from(db.offers.values()).filter(
+    (o) => o.storeId === store.id && o.status !== 'INACTIVE'
+  ).length;
+  res.json({
+    store,
+    organization: org,
+    isOpenNow: checkStoreIsOpenNow(store),
+    offersCount
+  });
+});
+
+app.get('/api/v1/stores/:slug/@:lat,:lng/offers', (req: any, res: any) => {
+  const param = `@${req.params.lat},${req.params.lng}`;
+  const matchedStore = findStoreByParam(param) || findStoreByParam(req.params.slug);
+  const storeId = matchedStore ? matchedStore.id : req.params.slug;
+  const storeOffers = Array.from(db.offers.values()).filter(
+    (o) => o.storeId === storeId && o.status !== 'INACTIVE'
+  );
+  res.json({ offers: storeOffers });
+});
+
+app.get('/api/v1/stores/:id', (req, res) => {
+  const store = findStoreByParam(req.params.id);
+  if (!store || store.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  const org = db.organizations.get(store.organizationId);
+  if (!org || org.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const offersCount = Array.from(db.offers.values()).filter(
+    (o) => o.storeId === store.id && o.status !== 'INACTIVE'
+  ).length;
+
+  res.json({
+    store,
+    organization: org,
+    isOpenNow: checkStoreIsOpenNow(store),
+    offersCount
+  });
+});
+
+app.get('/api/v1/stores/:id/offers', (req, res) => {
+  const matchedStore = findStoreByParam(req.params.id);
+  const storeId = matchedStore ? matchedStore.id : req.params.id;
+  const storeOffers = Array.from(db.offers.values()).filter(
+    (o) => o.storeId === storeId && o.status !== 'INACTIVE'
+  );
+  res.json({ offers: storeOffers });
+});
+
+app.get('/api/v1/offers/:id/similar', (req, res) => {
+  const offer = db.offers.get(req.params.id);
+  if (!offer) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Taklif topilmadi' });
+    return;
+  }
+  const similar = Array.from(db.offers.values()).filter(
+    (o) =>
+      o.storeId === offer.storeId &&
+      o.id !== offer.id &&
+      o.variant.category === offer.variant.category &&
+      o.stockOnHand > 0
+  );
+  res.json({ similar: similar.slice(0, 6) });
+});
+
+
+// ================= CROWDSOURCED ITEM PROPOSALS (TOVAR VA XIZMAT TAKLIF QILISH & 3-USER KONSENSUS) =================
+
+// Helper to check if user can manage a store (Admin, Moderator, or Store Owner)
+function canUserManageStoreProposals(user: any, storeId: string): boolean {
+  if (!user) return false;
+  if (['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) return true;
+  const store = db.stores.get(storeId);
+  if (!store) return false;
+  if ((store as any).ownerId === user.id) return true;
+  const isMember = Array.from(db.memberships.values()).some(
+    (m) => m.userId === user.id && m.organizationId === store.organizationId && m.status === 'ACTIVE'
+  );
+  return isMember;
+}
+
+// 1. Foydalanuvchi do'konga tovar yoki xizmat taklif qilishi
+app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tovar yoki xizmat taklif qilish uchun iltimos, tizimga kiring' });
+    return;
+  }
+
+  const { storeId } = req.params;
+  const store = findStoreByParam(storeId) || db.stores.get(storeId);
+  if (!store || store.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const {
+    title,
+    type = 'PRODUCT',
+    category = 'Boshqa',
+    price = 0,
+    stockOnHand = 1,
+    packUnit = 'dona',
+    barcode,
+    description,
+    photoUrl
+  } = req.body;
+
+  if (!title || typeof title !== 'string' || title.trim().length < 2) {
+    res.status(400).json({ code: 'INVALID_INPUT', message: 'Tovar yoki xizmat nomi kamida 2 ta belgidan iborat bo‘lishi kerak' });
+    return;
+  }
+
+  const numPrice = Math.max(0, Math.round(Number(price) || 0));
+  const numStock = Math.max(1, Math.round(Number(stockOnHand) || 1));
+  const cleanTitle = title.trim();
+  const itemType: 'PRODUCT' | 'SERVICE' = type === 'SERVICE' ? 'SERVICE' : 'PRODUCT';
+  const cleanUnit = (packUnit || (itemType === 'SERVICE' ? 'xizmat' : 'dona')).trim();
+  const cleanCategory = (category || (itemType === 'SERVICE' ? 'Xizmatlar' : 'Oziq-ovqat')).trim();
+  const cleanBarcode = barcode && typeof barcode === 'string' && barcode.trim() ? barcode.trim() : undefined;
+
+  // Normalized title for consensus matching
+  const normalizedTitle = cleanTitle.toLowerCase().replace(/[^a-z0-9а-яёўқғҳ]+/gi, ' ').replace(/\s+/g, ' ').trim();
+  const consensusGroupKey = cleanBarcode
+    ? `${store.id}_bc_${cleanBarcode}`
+    : `${store.id}_${itemType}_${normalizedTitle}`;
+
+  const now = new Date().toISOString();
+
+  // Check if THIS user already submitted a pending proposal for this item
+  let existingUserProposal = Array.from(db.itemProposals.values()).find(
+    (p) => p.storeId === store.id && p.consensusGroupKey === consensusGroupKey && p.userId === user.id && p.status === 'PENDING'
+  );
+
+  let proposalId: string;
+  if (existingUserProposal) {
+    // Update existing proposal values
+    existingUserProposal.title = cleanTitle;
+    existingUserProposal.price = numPrice;
+    existingUserProposal.stockOnHand = numStock;
+    existingUserProposal.category = cleanCategory;
+    existingUserProposal.packUnit = cleanUnit;
+    if (description) existingUserProposal.description = description.trim();
+    if (photoUrl) existingUserProposal.photoUrl = photoUrl.trim();
+    existingUserProposal.updatedAt = now;
+    proposalId = existingUserProposal.id;
+    db.itemProposals.set(proposalId, existingUserProposal);
+  } else {
+    // Create new proposal
+    proposalId = uuidv4();
+    const newProposal = {
+      id: proposalId,
+      storeId: store.id,
+      userId: user.id,
+      userFullName: user.fullName || user.email.split('@')[0],
+      userPhone: user.phone || '',
+      title: cleanTitle,
+      normalizedTitle,
+      type: itemType,
+      category: cleanCategory,
+      price: numPrice,
+      stockOnHand: numStock,
+      packUnit: cleanUnit,
+      barcode: cleanBarcode,
+      photoUrl: photoUrl && typeof photoUrl === 'string' ? photoUrl.trim() : undefined,
+      description: description && typeof description === 'string' ? description.trim() : undefined,
+      status: 'PENDING' as const,
+      consensusGroupKey,
+      createdAt: now,
+      updatedAt: now
+    };
+    db.itemProposals.set(proposalId, newProposal);
+  }
+
+  // Calculate consensus: find all PENDING proposals for this consensusGroupKey
+  const matchingPending = Array.from(db.itemProposals.values()).filter(
+    (p) => p.storeId === store.id && p.consensusGroupKey === consensusGroupKey && p.status === 'PENDING'
+  );
+
+  // Group by distinct user
+  const distinctUserProposals = new Map<string, any>();
+  for (const p of matchingPending) {
+    distinctUserProposals.set(p.userId, p);
+  }
+
+  const distinctCount = distinctUserProposals.size;
+
+  // RULE: If 3 or more distinct users proposed the same item -> AUTO APPROVE!
+  if (distinctCount >= 3) {
+    const list = Array.from(distinctUserProposals.values());
+    const avgPrice = Math.round(list.reduce((sum, p) => sum + Number(p.price), 0) / list.length);
+    const avgStock = Math.round(list.reduce((sum, p) => sum + Number(p.stockOnHand), 0) / list.length);
+
+    const chosenPhotoUrl = list.find((p) => p.photoUrl)?.photoUrl || (typeof photoUrl === 'string' ? photoUrl.trim() : undefined);
+
+    // Find or create variant
+    let variantId = uuidv4();
+    if (cleanBarcode) {
+      const existingV = Array.from(db.variants.values()).find((v) => v.barcode === cleanBarcode);
+      if (existingV) variantId = existingV.id;
+    }
+    if (!db.variants.has(variantId)) {
+      const existingByName = Array.from(db.variants.values()).find(
+        (v) => (v.title || (v as any).name || '').toLowerCase().trim() === cleanTitle.toLowerCase()
+      );
+      if (existingByName) {
+        variantId = existingByName.id;
+        if (!existingByName.photoUrl && chosenPhotoUrl) {
+          existingByName.photoUrl = chosenPhotoUrl;
+          (existingByName as any).imageUrl = chosenPhotoUrl;
+        }
+      } else {
+        db.variants.set(variantId, {
+          id: variantId,
+          productId: uuidv4(),
+          sku: cleanBarcode || `SKU-${Date.now().toString(36).toUpperCase()}`,
+          barcode: cleanBarcode,
+          title: cleanTitle,
+          name: cleanTitle,
+          category: cleanCategory,
+          packUnit: cleanUnit,
+          photoUrl: chosenPhotoUrl,
+          imageUrl: chosenPhotoUrl,
+          ...({ createdAt: now, updatedAt: now } as any)
+        });
+      }
+    } else if (chosenPhotoUrl) {
+      const v = db.variants.get(variantId);
+      if (v && !v.photoUrl) {
+        v.photoUrl = chosenPhotoUrl;
+        (v as any).imageUrl = chosenPhotoUrl;
+      }
+    }
+
+    // Check if store already has an offer for this variant
+    let targetOffer = Array.from(db.offers.values()).find(
+      (o) => o.storeId === store.id && o.variantId === variantId
+    );
+
+    let newOfferId: string;
+    if (targetOffer) {
+      targetOffer.price = avgPrice.toString();
+      targetOffer.stockOnHand = avgStock;
+      targetOffer.status = 'ACTIVE';
+      if (chosenPhotoUrl) {
+        targetOffer.variant.photoUrl = chosenPhotoUrl;
+        (targetOffer.variant as any).imageUrl = chosenPhotoUrl;
+        const v = db.variants.get(variantId);
+        if (v) {
+          v.photoUrl = chosenPhotoUrl;
+          (v as any).imageUrl = chosenPhotoUrl;
+        }
+      }
+      targetOffer.priceUpdatedAt = now;
+      newOfferId = targetOffer.id;
+    } else {
+      newOfferId = uuidv4();
+      const variantObj = db.variants.get(variantId)!;
+      if (chosenPhotoUrl && !variantObj.photoUrl) {
+        variantObj.photoUrl = chosenPhotoUrl;
+        (variantObj as any).imageUrl = chosenPhotoUrl;
+      }
+      const newOffer: Offer = {
+        id: newOfferId,
+        storeId: store.id,
+        variantId,
+        price: avgPrice.toString(),
+        minOrderQuantity: 1,
+        stockOnHand: avgStock,
+        freshness: 'NEW',
+        status: 'ACTIVE',
+        priceUpdatedAt: now,
+        wholesaleTiers: [],
+        version: 1,
+        variant: variantObj
+      };
+      db.offers.set(newOfferId, newOffer);
+    }
+
+    // Update balances
+    db.balances.set(newOfferId, {
+      offerId: newOfferId,
+      onHand: new Decimal(avgStock),
+      averageUnitCost: new Decimal(Math.round(avgPrice * 0.7)),
+      lastVerifiedAt: new Date(),
+      version: 1
+    });
+
+    // Mark all matching proposals as AUTO_APPROVED
+    for (const p of list) {
+      p.status = 'AUTO_APPROVED';
+      p.approvedBy = 'CONSENSUS_3_USERS';
+      p.createdOfferId = newOfferId;
+      p.updatedAt = now;
+      db.itemProposals.set(p.id, p);
+      await persistItemProposalToSupabase(p);
+    }
+
+    db.saveToFile();
+    db.scheduleSave();
+    await syncAllToSupabase(db);
+
+    res.json({
+      success: true,
+      autoApproved: true,
+      offerId: newOfferId,
+      avgPrice,
+      avgStock,
+      message: `Tabriklaymiz! 3 ta mustaqil foydalanuvchi bir xil ${itemType === 'SERVICE' ? 'xizmat' : 'tovar'}ni kiritgani sababli, u o‘rtacha narxi (${avgPrice.toLocaleString('uz-UZ')} so‘m) va soni (${avgStock} ${cleanUnit}) bilan avtomatik tasdiqlanib, do‘kon sahifasiga qo‘shildi!`
+    });
+    return;
+  }
+
+  // Not yet 3 distinct users -> remains PENDING
+  const currentProp = existingUserProposal || db.itemProposals.get(proposalId);
+  if (currentProp) {
+    await persistItemProposalToSupabase(currentProp);
+  }
+  db.saveToFile();
+  db.scheduleSave();
+  const remaining = 3 - distinctCount;
+  res.json({
+    success: true,
+    autoApproved: false,
+    proposalId,
+    pendingCount: distinctCount,
+    remainingForAutoApproval: remaining,
+    message: `Taklifingiz muvaffaqiyatli qabul qilindi! Admin, moderator yoki do‘kon egasi tasdiqlaganidan so‘ng do‘kon sahifasida paydo bo‘ladi. (Eslatma: agar yana ${remaining} ta mustaqil foydalanuvchi xuddi shu ${itemType === 'SERVICE' ? 'xizmat' : 'tovar'}ni kiritsa, tizim o‘rtacha narx va soni bilan avtomatik tasdiqlaydi).`
+  });
+});
+
+// 2. Do'kon bo'yicha takliflarni olish
+app.get('/api/v1/stores/:storeId/proposals', (req: Request, res: Response) => {
+  const { storeId } = req.params;
+  const store = findStoreByParam(storeId) || db.stores.get(storeId);
+  const targetId = store ? store.id : storeId;
+
+  const proposals = Array.from(db.itemProposals.values())
+    .filter((p) => p.storeId === targetId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  // Attach consensus counts
+  const enriched = proposals.map((p) => {
+    const distinctUsers = new Set(
+      Array.from(db.itemProposals.values())
+        .filter((x) => x.storeId === p.storeId && x.consensusGroupKey === p.consensusGroupKey)
+        .map((x) => x.userId)
+    );
+    return {
+      ...p,
+      consensusCount: distinctUsers.size
+    };
+  });
+
+  res.json({ items: enriched, total: enriched.length });
+});
+
+// 3. Admin / Moderator / Merchant uchun barcha takliflarni olish
+app.get('/api/v1/admin/item-proposals', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  let proposals = Array.from(db.itemProposals.values());
+
+  // If merchant/owner, only show proposals for their stores
+  if (!['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    const userOrgs = new Set(
+      Array.from(db.memberships.values())
+        .filter((m) => m.userId === user.id && m.status === 'ACTIVE')
+        .map((m) => m.organizationId)
+    );
+    const storeIds = new Set(
+      Array.from(db.stores.values())
+        .filter((s) => (s as any).ownerId === user.id || userOrgs.has(s.organizationId))
+        .map((s) => s.id)
+    );
+    proposals = proposals.filter((p) => storeIds.has(p.storeId));
+  }
+
+  // Filter by status if requested
+  const statusFilter = req.query.status as string;
+  if (statusFilter && statusFilter !== 'ALL') {
+    proposals = proposals.filter((p) => p.status === statusFilter);
+  }
+
+  // Attach storeName & consensusCount
+  const enriched = proposals
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map((p) => {
+      const store = db.stores.get(p.storeId);
+      const distinctUsers = new Set(
+        Array.from(db.itemProposals.values())
+          .filter((x) => x.storeId === p.storeId && x.consensusGroupKey === p.consensusGroupKey)
+          .map((x) => x.userId)
+      );
+      return {
+        ...p,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || '',
+        consensusCount: distinctUsers.size
+      };
+    });
+
+  res.json({ items: enriched, total: enriched.length });
+});
+
+// 4. Taklifni tasdiqlash (Admin, Moderator yoki Do'kon egasi)
+app.post('/api/v1/admin/item-proposals/:id/approve', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  const requestedId = req.params.id;
+  let proposal: any = db.itemProposals.get(requestedId);
+
+  // Fallback 1: match by start of ID in memory
+  if (!proposal) {
+    proposal = Array.from(db.itemProposals.values()).find(
+      (p) => p.id === requestedId || p.id.startsWith(requestedId) || requestedId.startsWith(p.id) || requestedId.startsWith(p.id.slice(0, 8))
+    );
+  }
+
+  // Fallback 2: pull from Supabase reports table
+  if (!proposal && isSupabaseConfigured() && supabase) {
+    try {
+      const { data: rep } = await supabase.from('reports').select('*').eq('id', requestedId).eq('target_type', 'ITEM_PROPOSAL').maybeSingle();
+      if (rep && rep.details) {
+        const parsed = typeof rep.details === 'string' ? JSON.parse(rep.details) : rep.details;
+        if (parsed) {
+          proposal = { ...parsed, id: rep.id, status: rep.status || parsed.status || 'PENDING' };
+          db.itemProposals.set(proposal.id, proposal);
+        }
+      }
+      if (!proposal) {
+        const { data: reps } = await supabase.from('reports').select('*').eq('target_type', 'ITEM_PROPOSAL');
+        const match = reps?.find(r => r.id === requestedId || r.id.startsWith(requestedId) || requestedId.startsWith(r.id.slice(0, 8)));
+        if (match && match.details) {
+          const parsed = typeof match.details === 'string' ? JSON.parse(match.details) : match.details;
+          if (parsed) {
+            proposal = { ...parsed, id: match.id, status: match.status || parsed.status || 'PENDING' };
+            db.itemProposals.set(proposal.id, proposal);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Supabase Item Proposal Lookup Error]', e);
+    }
+  }
+
+  if (!proposal) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Taklif topilmadi' });
+    return;
+  }
+
+  if (!canUserManageStoreProposals(user, proposal.storeId)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ushbu do‘kon takliflarini tasdiqlash huquqingiz yo‘q' });
+    return;
+  }
+
+  const store = db.stores.get(proposal.storeId);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  // Create or find variant
+  let variantId = uuidv4();
+  if (proposal.barcode) {
+    const existingV = Array.from(db.variants.values()).find((v) => v.barcode === proposal.barcode);
+    if (existingV) variantId = existingV.id;
+  }
+  if (!db.variants.has(variantId)) {
+    const existingByName = Array.from(db.variants.values()).find(
+      (v) => (v.title || (v as any).name || '').toLowerCase().trim() === proposal.title.toLowerCase().trim()
+    );
+    if (existingByName) {
+      variantId = existingByName.id;
+      if (!existingByName.photoUrl && proposal.photoUrl) {
+        existingByName.photoUrl = proposal.photoUrl;
+        (existingByName as any).imageUrl = proposal.photoUrl;
+      }
+    } else {
+      db.variants.set(variantId, {
+        id: variantId,
+        productId: uuidv4(),
+        sku: proposal.barcode || `SKU-${Date.now().toString(36).toUpperCase()}`,
+        barcode: proposal.barcode,
+        title: proposal.title,
+        name: proposal.title,
+        category: proposal.category,
+        packUnit: proposal.packUnit,
+        photoUrl: proposal.photoUrl,
+        imageUrl: proposal.photoUrl,
+        ...({ createdAt: now, updatedAt: now } as any)
+      });
+    }
+  } else if (proposal.photoUrl) {
+    const v = db.variants.get(variantId);
+    if (v && !v.photoUrl) {
+      v.photoUrl = proposal.photoUrl;
+      (v as any).imageUrl = proposal.photoUrl;
+    }
+  }
+
+  // Create or update offer
+  let targetOffer = Array.from(db.offers.values()).find(
+    (o) => o.storeId === store.id && o.variantId === variantId
+  );
+
+  let offerId: string;
+  if (targetOffer) {
+    targetOffer.price = proposal.price.toString();
+    targetOffer.stockOnHand = proposal.stockOnHand;
+    targetOffer.status = 'ACTIVE';
+    if (proposal.photoUrl) {
+      targetOffer.variant.photoUrl = proposal.photoUrl;
+      (targetOffer.variant as any).imageUrl = proposal.photoUrl;
+      const v = db.variants.get(variantId);
+      if (v) {
+        v.photoUrl = proposal.photoUrl;
+        (v as any).imageUrl = proposal.photoUrl;
+      }
+    }
+    targetOffer.priceUpdatedAt = now;
+    offerId = targetOffer.id;
+  } else {
+    offerId = uuidv4();
+    const variantObj = db.variants.get(variantId)!;
+    if (proposal.photoUrl && !variantObj.photoUrl) {
+      variantObj.photoUrl = proposal.photoUrl;
+      (variantObj as any).imageUrl = proposal.photoUrl;
+    }
+    const newOffer: Offer = {
+      id: offerId,
+      storeId: store.id,
+      variantId,
+      price: proposal.price.toString(),
+      minOrderQuantity: 1,
+      stockOnHand: proposal.stockOnHand,
+      freshness: 'NEW',
+      status: 'ACTIVE',
+      priceUpdatedAt: now,
+      wholesaleTiers: [],
+      version: 1,
+      variant: variantObj
+    };
+    db.offers.set(offerId, newOffer);
+  }
+
+  // Update inventory balance
+  db.balances.set(offerId, {
+    offerId,
+    onHand: new Decimal(proposal.stockOnHand),
+    averageUnitCost: new Decimal(Math.round(proposal.price * 0.7)),
+    lastVerifiedAt: new Date(),
+    version: 1
+  });
+
+  proposal.status = 'APPROVED';
+  proposal.approvedBy = `${user.fullName || user.email} (${user.role})`;
+  proposal.createdOfferId = offerId;
+  proposal.updatedAt = now;
+  db.itemProposals.set(proposal.id, proposal);
+
+  await persistItemProposalToSupabase(proposal);
+  await syncAllToSupabase(db);
+  db.saveToFile();
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: `"${proposal.title}" muvaffaqiyatli tasdiqlandi va do‘konga qo‘shildi!`,
+    offerId
+  });
+});
+
+// 5. Taklifni rad etish
+app.post('/api/v1/admin/item-proposals/:id/reject', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  const requestedId = req.params.id;
+  let proposal: any = db.itemProposals.get(requestedId);
+
+  // Fallback 1: match by start of ID in memory
+  if (!proposal) {
+    proposal = Array.from(db.itemProposals.values()).find(
+      (p) => p.id === requestedId || p.id.startsWith(requestedId) || requestedId.startsWith(p.id) || requestedId.startsWith(p.id.slice(0, 8))
+    );
+  }
+
+  // Fallback 2: pull from Supabase
+  if (!proposal && isSupabaseConfigured() && supabase) {
+    try {
+      const { data: rep } = await supabase.from('reports').select('*').eq('id', requestedId).eq('target_type', 'ITEM_PROPOSAL').maybeSingle();
+      if (rep && rep.details) {
+        const parsed = typeof rep.details === 'string' ? JSON.parse(rep.details) : rep.details;
+        if (parsed) {
+          proposal = { ...parsed, id: rep.id, status: rep.status || parsed.status || 'PENDING' };
+          db.itemProposals.set(proposal.id, proposal);
+        }
+      }
+      if (!proposal) {
+        const { data: reps } = await supabase.from('reports').select('*').eq('target_type', 'ITEM_PROPOSAL');
+        const match = reps?.find(r => r.id === requestedId || r.id.startsWith(requestedId) || requestedId.startsWith(r.id.slice(0, 8)));
+        if (match && match.details) {
+          const parsed = typeof match.details === 'string' ? JSON.parse(match.details) : match.details;
+          if (parsed) {
+            proposal = { ...parsed, id: match.id, status: match.status || parsed.status || 'PENDING' };
+            db.itemProposals.set(proposal.id, proposal);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Supabase Item Proposal Lookup Error]', e);
+    }
+  }
+
+  if (!proposal) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Taklif topilmadi' });
+    return;
+  }
+
+  if (!canUserManageStoreProposals(user, proposal.storeId)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ushbu do‘kon takliflarini rad etish huquqingiz yo‘q' });
+    return;
+  }
+
+  proposal.status = 'REJECTED';
+  proposal.approvedBy = `${user.fullName || user.email} (${user.role})`;
+  proposal.updatedAt = new Date().toISOString();
+  db.itemProposals.set(proposal.id, proposal);
+
+  await persistItemProposalToSupabase(proposal);
+  db.saveToFile();
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: `"${proposal.title}" taklifi rad etildi.`
+  });
+});
+
+// ================= PHOTO CHANGE PROPOSALS (TASHKILOT VA TOVAR RASMINI O'ZGARTIRISH) =================
+app.post('/api/v1/stores/:storeId/photo-proposals', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Rasm taklif qilish uchun iltimos, tizimga kiring' });
+    return;
+  }
+
+  const { storeId } = req.params;
+  const store = findStoreByParam(storeId) || db.stores.get(storeId);
+  if (!store || store.status === 'SUSPENDED') {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const { targetType = 'STORE', variantId, photoUrl, comment } = req.body;
+
+  if (!photoUrl || typeof photoUrl !== 'string' || !photoUrl.trim()) {
+    res.status(400).json({ code: 'INVALID_INPUT', message: 'Rasm kiritilishi shart' });
+    return;
+  }
+
+  let productTitle: string | undefined;
+  if (targetType === 'PRODUCT') {
+    if (!variantId) {
+      res.status(400).json({ code: 'INVALID_INPUT', message: 'Tovar tanlanishi shart' });
+      return;
+    }
+    const variant = db.variants.get(variantId);
+    if (!variant) {
+      res.status(404).json({ code: 'NOT_FOUND', message: 'Mahsulot varianti topilmadi' });
+      return;
+    }
+    productTitle = variant.title;
+  }
+
+  const now = new Date().toISOString();
+  const proposalId = uuidv4();
+  const proposal: any = {
+    id: proposalId,
+    targetType: targetType === 'PRODUCT' ? 'PRODUCT' : 'STORE',
+    storeId: store.id,
+    storeName: store.name,
+    variantId: targetType === 'PRODUCT' ? variantId : undefined,
+    productTitle,
+    photoUrl: photoUrl.trim(),
+    comment: comment && typeof comment === 'string' ? comment.trim() : undefined,
+    userId: user.id,
+    userFullName: user.fullName || user.email.split('@')[0],
+    userPhone: user.phone || '',
+    status: 'PENDING',
+    createdAt: now,
+    updatedAt: now
+  };
+
+  db.photoProposals.set(proposalId, proposal);
+  await persistPhotoProposalToSupabase(proposal);
+  db.saveToFile();
+  db.scheduleSave();
+
+  res.status(201).json({
+    success: true,
+    message: 'Rasm moderatsiyaga muvaffaqiyatli yuborildi. Moderator tasdiqlaganidan so‘ng yangilanadi.',
+    proposal
+  });
+});
+
+app.get('/api/v1/stores/:storeId/photo-proposals', (req: Request, res: Response) => {
+  const { storeId } = req.params;
+  const store = findStoreByParam(storeId) || db.stores.get(storeId);
+  const targetId = store ? store.id : storeId;
+
+  const proposals = Array.from(db.photoProposals.values())
+    .filter((p) => p.storeId === targetId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({ items: proposals, total: proposals.length });
+});
+
+app.get('/api/v1/user/photo-proposals', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+  const userId = (['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role) && req.query.userId)
+    ? String(req.query.userId)
+    : user.id;
+
+  const proposals = Array.from(db.photoProposals.values())
+    .filter((p) => p.userId === userId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  res.json({ items: proposals, total: proposals.length });
+});
+
+app.get('/api/v1/admin/photo-proposals', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  let proposals = Array.from(db.photoProposals.values());
+
+  // Non-staff can only see photo proposals for stores they manage
+  if (!['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    const userOrgs = new Set(
+      Array.from(db.memberships.values())
+        .filter((m) => m.userId === user.id && m.status === 'ACTIVE')
+        .map((m) => m.organizationId)
+    );
+    const storeIds = new Set(
+      Array.from(db.stores.values())
+        .filter((s) => (s as any).ownerId === user.id || userOrgs.has(s.organizationId))
+        .map((s) => s.id)
+    );
+    proposals = proposals.filter((p) => storeIds.has(p.storeId));
+  }
+
+  const statusFilter = req.query.status as string;
+  if (statusFilter && statusFilter !== 'ALL') {
+    proposals = proposals.filter((p) => p.status === statusFilter);
+  }
+
+  proposals.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ items: proposals, total: proposals.length });
+});
+
+app.post('/api/v1/admin/photo-proposals/:id/approve', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  const requestedId = req.params.id;
+  let proposal: any = db.photoProposals.get(requestedId);
+
+  // Fallback 1: match in memory by prefix
+  if (!proposal) {
+    proposal = Array.from(db.photoProposals.values()).find(
+      (p) => p.id === requestedId || p.id.startsWith(requestedId) || requestedId.startsWith(p.id) || requestedId.startsWith(p.id.slice(0, 8))
+    );
+  }
+
+  // Fallback 2: pull from Supabase
+  if (!proposal && isSupabaseConfigured() && supabase) {
+    try {
+      const { data: rep } = await supabase.from('reports').select('*').eq('id', requestedId).eq('target_type', 'PHOTO_PROPOSAL').maybeSingle();
+      if (rep && rep.details) {
+        const parsed = typeof rep.details === 'string' ? JSON.parse(rep.details) : rep.details;
+        if (parsed) {
+          proposal = { ...parsed, id: rep.id, status: rep.status || parsed.status || 'PENDING' };
+          db.photoProposals.set(proposal.id, proposal);
+        }
+      }
+      if (!proposal) {
+        const { data: reps } = await supabase.from('reports').select('*').eq('target_type', 'PHOTO_PROPOSAL');
+        const match = reps?.find(r => r.id === requestedId || r.id.startsWith(requestedId) || requestedId.startsWith(r.id.slice(0, 8)));
+        if (match && match.details) {
+          const parsed = typeof match.details === 'string' ? JSON.parse(match.details) : match.details;
+          if (parsed) {
+            proposal = { ...parsed, id: match.id, status: match.status || parsed.status || 'PENDING' };
+            db.photoProposals.set(proposal.id, proposal);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Supabase Photo Proposal Lookup Error]', e);
+    }
+  }
+
+  if (!proposal) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Rasm so‘rovi topilmadi' });
+    return;
+  }
+
+  if (!canUserManageStoreProposals(user, proposal.storeId)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ushbu do‘kon/tashkilot rasmini tasdiqlash huquqingiz yo‘q' });
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  if (proposal.targetType === 'STORE') {
+    const store = db.stores.get(proposal.storeId);
+    if (store) {
+      store.photoUrl = proposal.photoUrl;
+      store.updatedAt = now;
+      db.stores.set(store.id, store);
+    }
+  } else if (proposal.targetType === 'PRODUCT' && proposal.variantId) {
+    const variant = db.variants.get(proposal.variantId);
+    if (variant) {
+      variant.photoUrl = proposal.photoUrl;
+      (variant as any).updatedAt = now;
+      db.variants.set(variant.id, variant);
+    }
+    for (const off of db.offers.values()) {
+      if (off.variantId === proposal.variantId) {
+        off.variant.photoUrl = proposal.photoUrl;
+        off.priceUpdatedAt = now;
+        db.offers.set(off.id, off);
+      }
+    }
+  }
+
+  proposal.status = 'APPROVED';
+  proposal.reviewedBy = `${user.fullName || user.email} (${user.role})`;
+  proposal.updatedAt = now;
+  db.photoProposals.set(proposal.id, proposal);
+
+  await persistPhotoProposalToSupabase(proposal);
+  await syncAllToSupabase(db);
+  db.saveToFile();
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: proposal.targetType === 'STORE'
+      ? 'Tashkilot rasmi muvaffaqiyatli tasdiqlandi va yangilandi!'
+      : 'Tovar rasmi muvaffaqiyatli tasdiqlandi va yangilandi!',
+    proposal
+  });
+});
+
+app.post('/api/v1/admin/photo-proposals/:id/reject', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+
+  const requestedId = req.params.id;
+  let proposal: any = db.photoProposals.get(requestedId);
+
+  // Fallback 1: match in memory by prefix
+  if (!proposal) {
+    proposal = Array.from(db.photoProposals.values()).find(
+      (p) => p.id === requestedId || p.id.startsWith(requestedId) || requestedId.startsWith(p.id) || requestedId.startsWith(p.id.slice(0, 8))
+    );
+  }
+
+  // Fallback 2: pull from Supabase
+  if (!proposal && isSupabaseConfigured() && supabase) {
+    try {
+      const { data: rep } = await supabase.from('reports').select('*').eq('id', requestedId).eq('target_type', 'PHOTO_PROPOSAL').maybeSingle();
+      if (rep && rep.details) {
+        const parsed = typeof rep.details === 'string' ? JSON.parse(rep.details) : rep.details;
+        if (parsed) {
+          proposal = { ...parsed, id: rep.id, status: rep.status || parsed.status || 'PENDING' };
+          db.photoProposals.set(proposal.id, proposal);
+        }
+      }
+      if (!proposal) {
+        const { data: reps } = await supabase.from('reports').select('*').eq('target_type', 'PHOTO_PROPOSAL');
+        const match = reps?.find(r => r.id === requestedId || r.id.startsWith(requestedId) || requestedId.startsWith(r.id.slice(0, 8)));
+        if (match && match.details) {
+          const parsed = typeof match.details === 'string' ? JSON.parse(match.details) : match.details;
+          if (parsed) {
+            proposal = { ...parsed, id: match.id, status: match.status || parsed.status || 'PENDING' };
+            db.photoProposals.set(proposal.id, proposal);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('[Supabase Photo Proposal Lookup Error]', e);
+    }
+  }
+
+  if (!proposal) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Rasm so‘rovi topilmadi' });
+    return;
+  }
+
+  const now = new Date().toISOString();
+  proposal.status = 'REJECTED';
+  proposal.reviewedBy = `${user.fullName || user.email} (${user.role})`;
+  proposal.reviewNotes = req.body?.notes || 'Moderator tomonidan qabul qilinmadi';
+  proposal.updatedAt = now;
+  db.photoProposals.set(proposal.id, proposal);
+
+  await persistPhotoProposalToSupabase(proposal);
+  db.saveToFile();
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: 'Rasm so‘rovi rad etildi.',
+    proposal
+  });
+});
+
+// ================= ROUTING =================
+app.post('/api/v1/routes', async (req, res) => {
+  const parsed = RouteRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Boshlanish va yakuniy nuqtalar kiritilishi shart' });
+    return;
+  }
+
+  try {
+    const route = await routingService.calculateRoute(parsed.data);
+    res.json(route);
+  } catch (err: any) {
+    res.status(503).json({ code: 'PROVIDER_UNAVAILABLE', message: 'Marshrut xizmati vaqtincha ishlamayapti' });
+  }
+});
+
+// ================= REVIEWS =================
+app.get('/api/v1/stores/:id/reviews', (req, res) => {
+  const storeReviews = Array.from(db.reviews.values()).filter(
+    (r) => r.storeId === req.params.id && r.status === 'PUBLISHED'
+  );
+  res.json({ reviews: storeReviews });
+});
+
+app.post('/api/v1/stores/:id/reviews', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Sharh qoldirish uchun tizimga kiring' });
+    return;
+  }
+
+  const storeId = req.params.id;
+  const store = db.stores.get(storeId);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  // Prevent merchant members from reviewing own store
+  for (const m of db.memberships.values()) {
+    if (m.userId === user.id && m.organizationId === store.organizationId) {
+      res.status(403).json({ code: 'FORBIDDEN', message: 'O‘z do‘koningizga sharh yoza olmaysiz' });
+      return;
+    }
+  }
+
+  // Check unique review per user per store
+  for (const r of db.reviews.values()) {
+    if (r.storeId === storeId && r.userId === user.id) {
+      res.status(409).json({ code: 'CONFLICT', message: 'Siz bu do‘konga allaqachon sharh qoldirgansiz' });
+      return;
+    }
+  }
+
+  const { rating, comment } = req.body;
+  if (!rating || rating < 1 || rating > 5) {
+    res.status(400).json({ code: 'INVALID_RATING', message: 'Baho 1 dan 5 gacha bo‘lishi shart' });
+    return;
+  }
+  if (!comment || comment.length < 10 || comment.length > 2000) {
+    res.status(400).json({ code: 'INVALID_COMMENT', message: 'Sharh 10 dan 2000 belgigacha bo‘lishi kerak' });
+    return;
+  }
+
+  const review = {
+    id: uuidv4(),
+    storeId,
+    userId: user.id,
+    userName: user.fullName,
+    rating: Math.round(rating),
+    comment: comment.trim(),
+    status: 'PUBLISHED' as const,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.reviews.set(review.id, review);
+
+  // Recalculate store rating
+  const pubReviews = Array.from(db.reviews.values()).filter((r) => r.storeId === storeId && r.status === 'PUBLISHED');
+  const sum = pubReviews.reduce((acc, r) => acc + r.rating, 0);
+  store.rating = pubReviews.length > 0 ? parseFloat((sum / pubReviews.length).toFixed(1)) : 0;
+  store.reviewCount = pubReviews.length;
+
+  res.status(201).json({ review, storeRating: store.rating });
+});
+
+// Merchant reply to review
+app.post('/api/v1/stores/:id/reviews/:reviewId/reply', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+
+  const review = db.reviews.get(req.params.reviewId);
+  if (!review || review.storeId !== req.params.id) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Sharh topilmadi' });
+    return;
+  }
+
+  const store = db.stores.get(review.storeId);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  // Validate user is owner or manager
+  let isAuthorized = false;
+  for (const m of db.memberships.values()) {
+    if (m.userId === user.id && m.organizationId === store.organizationId) {
+      isAuthorized = true;
+      break;
+    }
+  }
+  if (!isAuthorized && user.role !== 'SUPERADMIN') {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Faqat do‘kon xodimlari javob yoza oladi' });
+    return;
+  }
+
+  review.merchantReply = req.body.reply?.trim();
+  review.merchantRepliedAt = new Date().toISOString();
+  review.updatedAt = new Date().toISOString();
+
+  res.json({ review });
+});
+
+// ================= BOOKMARKS =================
+app.get('/api/v1/bookmarks', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const userBm = Array.from(db.bookmarks.values()).filter((b) => b.userId === user.id);
+  const stores = userBm.filter((b) => b.storeId).map((b) => db.stores.get(b.storeId!)).filter(Boolean);
+  res.json({ bookmarks: userBm, stores });
+});
+
+app.post('/api/v1/bookmarks', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const { storeId, offerId } = req.body;
+  const bm = {
+    id: uuidv4(),
+    userId: user.id,
+    storeId,
+    offerId,
+    createdAt: new Date().toISOString()
+  };
+  db.bookmarks.set(bm.id, bm);
+  res.status(201).json({ bookmark: bm });
+});
+
+app.delete('/api/v1/bookmarks/:id', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const bm = db.bookmarks.get(req.params.id);
+  if (bm && bm.userId !== user.id && !['ADMIN', 'SUPERADMIN'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ushbu xatcho‘pni o‘chirish huquqingiz yo‘q' });
+    return;
+  }
+  db.bookmarks.delete(req.params.id);
+  res.json({ success: true });
+});
+
+// ================= REPORTS / COMPLAINTS =================
+app.post('/api/v1/reports', (req, res) => {
+  const user = getCurrentUser(req);
+  const { storeId, offerId, reason, details } = req.body;
+
+  if (!storeId || !reason || !details) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Barcha maydonlar to‘ldirilishi shart' });
+    return;
+  }
+
+  const report = {
+    id: uuidv4(),
+    reporterUserId: user?.id,
+    storeId,
+    offerId,
+    reason,
+    details: details.trim(),
+    status: 'OPEN' as const,
+    createdAt: new Date().toISOString()
+  };
+
+  db.reports.set(report.id, report);
+  res.status(201).json({ report });
+});
+
+// ================= USER PERSONAL HUB (REVIEWS, REPORTS, INQUIRIES) =================
+app.get('/api/v1/user/reviews', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const userId = (['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role) && req.query.userId)
+    ? String(req.query.userId)
+    : user.id;
+
+  const reviews = Array.from(db.reviews.values())
+    .filter((r) => r.userId === userId)
+    .map((r) => {
+      const store = db.stores.get(r.storeId);
+      return {
+        ...r,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || 'Toshkent shahri'
+      };
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ items: reviews });
+});
+
+app.delete('/api/v1/user/reviews/:id', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const review = db.reviews.get(req.params.id);
+  if (!review) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Sharh topilmadi' });
+    return;
+  }
+  if (review.userId !== user.id && !['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ushbu sharhni o‘chirish huquqingiz yo‘q' });
+    return;
+  }
+  const storeId = review.storeId;
+  db.reviews.delete(req.params.id);
+
+  // Recalculate store rating
+  const store = db.stores.get(storeId);
+  if (store) {
+    const pubReviews = Array.from(db.reviews.values()).filter((r) => r.storeId === storeId && r.status === 'PUBLISHED');
+    const sum = pubReviews.reduce((acc, r) => acc + r.rating, 0);
+    store.rating = pubReviews.length > 0 ? parseFloat((sum / pubReviews.length).toFixed(1)) : 0;
+    store.reviewCount = pubReviews.length;
+  }
+  res.json({ success: true });
+});
+
+app.get('/api/v1/user/reports', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const userId = (['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role) && req.query.userId)
+    ? String(req.query.userId)
+    : user.id;
+
+  const reports = Array.from(db.reports.values())
+    .filter((r) => r.reporterUserId === userId)
+    .map((r) => {
+      const store = db.stores.get(r.storeId);
+      const offer = r.offerId ? db.offers.get(r.offerId) : null;
+      return {
+        ...r,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || 'Toshkent shahri',
+        productName: offer?.variant?.title
+      };
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ items: reports });
+});
+
+app.get('/api/v1/user/proposals', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+  const userId = (['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role) && req.query.userId)
+    ? String(req.query.userId)
+    : user.id;
+  const proposals = Array.from(db.itemProposals.values())
+    .filter((p) => p.userId === userId)
+    .map((p) => {
+      const store = db.stores.get(p.storeId);
+      const distinctUsers = new Set(
+        Array.from(db.itemProposals.values())
+          .filter((x) => x.storeId === p.storeId && x.consensusGroupKey === p.consensusGroupKey)
+          .map((x) => x.userId)
+      );
+      return {
+        ...p,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || 'Toshkent shahri',
+        storeSlug: (store as any)?.slug || store?.id,
+        consensusCount: distinctUsers.size
+      };
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ items: proposals, total: proposals.length });
+});
+
+app.get('/api/v1/user/inquiries', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kirish talab etiladi' });
+    return;
+  }
+  const userId = (['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role) && req.query.userId)
+    ? String(req.query.userId)
+    : user.id;
+  const inquiries = Array.from(db.inquiries.values())
+    .filter((inq: any) => inq.senderUserId === userId)
+    .map((inq: any) => {
+      const store = inq.storeId ? db.stores.get(inq.storeId) : null;
+      return {
+        ...inq,
+        storeName: inq.storeName || store?.name || 'Platforma ma‘muriyati',
+        storeAddress: store?.address || 'Toshkent shahri'
+      };
+    })
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ items: inquiries });
+});
+
+app.post('/api/v1/user/inquiries', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Murojaat yo‘llash uchun iltimos, tizimga kiring' });
+    return;
+  }
+  const { subject, message, storeId, category = 'SUPPORT' } = req.body;
+  if (!message || !message.trim()) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Murojaat matni kiritilishi shart' });
+    return;
+  }
+
+  let storeName: string | undefined;
+  let organizationId: string | undefined;
+  if (storeId) {
+    const store = db.stores.get(storeId);
+    if (store) {
+      storeName = store.name;
+      organizationId = store.organizationId;
+    }
+  }
+
+  const inqId = uuidv4();
+  const inq: any = {
+    id: inqId,
+    senderUserId: user.id,
+    senderName: user.fullName || 'Foydalanuvchi',
+    senderPhone: user.phone || '',
+    senderEmail: user.email,
+    storeId: storeId || undefined,
+    storeName: storeName || 'Platforma ma‘muriyati',
+    organizationId,
+    category,
+    subject: subject?.trim() || (storeName ? `${storeName} do‘koniga murojaat` : 'Foydalanuvchi murojaati'),
+    message: message.trim(),
+    priority: 'NORMAL',
+    status: 'PENDING',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.inquiries.set(inqId, inq);
+
+  // Notify Admin
+  db.notifications.set(uuidv4(), {
+    id: uuidv4(),
+    userId: SEED_IDS.adminUserId,
+    title: 'Yangi xaridor murojaati',
+    message: `${inq.senderName} (${inq.senderPhone}): "${inq.subject}" mavzusida yangi murojaat yo‘lladi.`,
+    type: 'INFO',
+    isRead: false,
+    createdAt: new Date().toISOString()
+  });
+
+  // If addressed to a specific store, also notify store members
+  if (organizationId) {
+    const members = Array.from(db.memberships.values()).filter(m => m.organizationId === organizationId);
+    for (const m of members) {
+      db.notifications.set(uuidv4(), {
+        id: uuidv4(),
+        userId: m.userId,
+        title: 'Do‘koningizga yangi xaridor xabari',
+        message: `${inq.senderName} do‘koningizga savol / murojaat yubordi: "${inq.subject}"`,
+        type: 'INFO',
+        isRead: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: inq.senderUserId,
+    actorEmail: inq.senderEmail,
+    action: 'CREATE_CUSTOMER_INQUIRY',
+    entityType: 'INQUIRY',
+    entityId: inqId,
+    diff: { storeId, subject: inq.subject },
+    timestamp: new Date().toISOString()
+  });
+
+  res.status(201).json({ success: true, inquiry: inq });
+});
+
+// ================= MERCHANT OPERATIONS =================
+app.get('/api/v1/owner/organization-types', (_req, res) => {
+  const defaultTypes = [
+    'RETAIL',
+    'PHARMACY',
+    'GAME_CLUB',
+    'GAS_STATION',
+    'BEAUTY_SALON',
+    'EDUCATION',
+    'RESTAURANT',
+    'AUTO_SERVICE',
+    'WHOLESALE',
+    'SERVICES',
+    'MIXED'
+  ];
+  res.json({ types: Array.from(new Set([...defaultTypes, ...Array.from(db.organizations.values()).map(org => org.type)])) });
+});
+
+app.post('/api/v1/owner/onboarding', (req, res) => {
+  const parsed = OwnerOnboardingSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Tashkilot va owner ma’lumotlarini to‘liq, to‘g‘ri kiriting. Parol kamida 8 belgi bo‘lsin.' });
+  try {
+    const result = createOwnerOrganization(db, parsed.data);
+    const token = createSignedSessionToken(result.user.id);
+    db.sessions.set(token, { userId: result.user.id, createdAt: new Date() });
+    res.cookie('session_token', token, { httpOnly: true, secure: isProduction, sameSite: isProduction ? 'none' : 'lax', maxAge: SESSION_TTL_MS });
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(201).json({ ...result, token, expiresAt: sessionExpiresAt(db.sessions.get(token)!) });
+  } catch (error) {
+    return res.status(409).json({ message: error instanceof Error ? error.message : 'Tashkilotni yaratib bo‘lmadi.' });
+  }
+});
+
+// Resolve the tenant from the real session, never from a demo organization.
+app.use('/api/v1/merchant', (req, res, next) => {
+  const user = getCurrentUser(req);
+  if (!user) return res.status(401).json({ message: 'Tizimga kiring.' });
+  let membership = Array.from(db.memberships.values()).find(item => item.userId === user.id && item.status === 'ACTIVE');
+  if (!membership && (user.role === 'OWNER' || user.role === 'OPERATOR' || user.role === 'MANAGER')) {
+    if (user.id === SEED_IDS.ownerUserId || user.id === SEED_IDS.operatorUserId) {
+      membership = {
+        id: 'seed-' + user.id + '-membership',
+        organizationId: SEED_IDS.navbahorOrgId,
+        userId: user.id,
+        role: user.role as any,
+        status: 'ACTIVE'
+      };
+      db.memberships.set(membership.id, membership);
+    } else {
+      const fallbackOrg = Array.from(db.organizations.values()).find(o => (o as any).ownerId === user.id || (o as any).userId === user.id);
+      if (fallbackOrg) {
+        membership = {
+          id: uuidv4(),
+          organizationId: fallbackOrg.id,
+          userId: user.id,
+          role: user.role as any,
+          status: 'ACTIVE'
+        };
+        db.memberships.set(membership.id, membership);
+      }
+    }
+  }
+  if (!membership) return res.status(403).json({ message: 'Hisobingizga tashkilot biriktirilmagan.' });
+  let stores = Array.from(db.stores.values()).filter(store => store.organizationId === membership.organizationId);
+  if (stores.length === 0) {
+    return res.status(403).json({ message: 'Tashkilotga tegishli do‘konlar topilmadi.' });
+  }
+  const requestedId = req.query.storeId || req.body?.storeId;
+  const store = requestedId ? stores.find(item => item.id === requestedId) : stores[0];
+  if (!store) return res.status(403).json({ message: 'Bu tashkilotga kirish huquqingiz yo‘q.' });
+  const resourceId = req.path.split('/')[2];
+  const collection = req.path.startsWith('/offers/') ? db.offers : req.path.startsWith('/inbox/') ? db.corrections : req.path.startsWith('/inquiries/') ? db.inquiries : null;
+  if (collection && resourceId) {
+    const resource = collection.get(resourceId);
+    if (!resource || !stores.some(item => item.id === resource.storeId)) return res.status(403).json({ message: 'Bu yozuvga kirish huquqingiz yo‘q.' });
+  }
+  req.query.storeId = store.id;
+  req.body = { ...req.body, storeId: store.id, organizationId: membership.organizationId, userId: user.id };
+  res.locals.organization = db.organizations.get(membership.organizationId) || ({ id: membership.organizationId, name: 'Tashkilot', type: 'RETAIL', status: 'ACTIVE' } as any);
+  if (res.locals.organization.status === 'SUSPENDED' || res.locals.organization.status === 'DELETED') {
+    return res.status(403).json({ code: 'ORGANIZATION_SUSPENDED', message: 'Tashkilot faoliyati to‘xtatilgan yoki o‘chirilgan.' });
+  }
+  if (store.status === 'SUSPENDED' || store.status === 'DELETED') {
+    return res.status(403).json({ code: 'STORE_SUSPENDED', message: 'Ushbu do‘kon faoliyati to‘xtatilgan.' });
+  }
+  if (req.method === 'DELETE' && user.role === 'OPERATOR') {
+    return res.status(403).json({ code: 'FORBIDDEN', message: 'Operator uchun ushbu amal taqiqlangan.' });
+  }
+  res.locals.stores = stores;
+  res.locals.store = store;
+  if (!isTradeOrganization(res.locals.organization?.type) && (req.path.startsWith('/stock-documents') || (req.path.startsWith('/offers') && req.method !== 'GET'))) {
+    return res.status(400).json({ message: 'Xizmat tashkilotida ombor amallari mavjud emas. Xizmatlar bo‘limidan foydalaning.' });
+  }
+  next();
+});
+
+app.get('/api/v1/merchant/context', (_req, res) => {
+  res.json({ organization: res.locals.organization, stores: res.locals.stores });
+});
+
+app.use('/api/v1/merchant/services', (_req, res, next) => {
+  if (isTradeOrganization(res.locals.organization?.type)) return res.status(400).json({ message: 'Bu tashkilot savdo rejimida ishlaydi.' });
+  next();
+});
+app.get('/api/v1/merchant/services', (_req, res) => {
+  res.json({ services: Array.from(db.offers.values()).filter(offer => offer.storeId === res.locals.store.id && offer.variant.kind === 'SERVICE' && offer.status !== 'INACTIVE') });
+});
+app.post('/api/v1/merchant/services', (req, res) => {
+  try { return res.status(201).json({ service: createService(db, res.locals.organization.id, res.locals.store.id, req.body) }); }
+  catch { return res.status(400).json({ message: 'Xizmat nomi, narxi va davomiyligini to‘g‘ri kiriting.' }); }
+});
+app.get('/api/v1/merchant/services/completions', (_req, res) => {
+  const completions = Array.from(db.stockDocuments.values()).filter(doc => doc.storeId === res.locals.store.id).map(serviceCompletionFromDocument).filter(Boolean);
+  completions.sort((a, b) => b!.createdAt.localeCompare(a!.createdAt));
+  res.json({ completions });
+});
+app.post('/api/v1/merchant/services/completions', (req, res) => {
+  const user = getCurrentUser(req)!;
+  try { return res.status(201).json({ completion: completeService(db, res.locals.organization.id, res.locals.store.id, user.id, req.body) }); }
+  catch (error) { return res.status(400).json({ message: error instanceof Error && !('issues' in error) ? error.message : 'Mijoz va to‘lov ma’lumotlarini to‘g‘ri kiriting.' }); }
+});
+
+app.get('/api/v1/merchant/dashboard', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const summary = db.getMerchantFinancialSummary(storeId);
+  const recentDocs = Array.from(db.stockDocuments.values())
+    .filter((d) => d.storeId === storeId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10);
+
+  res.json({ summary, recentDocs });
+});
+
+app.get('/api/v1/merchant/offers', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const offers = Array.from(db.offers.values()).filter((o) => o.storeId === storeId);
+  res.json({ offers });
+});
+
+// PATCH offer with optimistic locking version
+app.patch('/api/v1/merchant/offers/:id', (req, res) => {
+  const offer = db.offers.get(req.params.id);
+  if (!offer) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Taklif topilmadi' });
+    return;
+  }
+
+  const { price, minOrderQuantity, version } = req.body;
+
+  // Optimistic concurrency check
+  if (version !== undefined && offer.version !== version) {
+    res.status(409).json({ code: 'VERSION_CONFLICT', message: 'Ma‘lumot boshqa foydalanuvchi tomonidan o‘zgartirilgan' });
+    return;
+  }
+
+  if (price !== undefined) {
+    offer.price = new Decimal(price).toFixed(2);
+    offer.priceUpdatedAt = new Date().toISOString();
+  }
+  if (minOrderQuantity !== undefined) {
+    offer.minOrderQuantity = parseInt(minOrderQuantity, 10);
+  }
+
+  offer.version++;
+  res.json({ offer });
+});
+
+// POST new merchant offer
+app.post('/api/v1/merchant/offers', (req, res) => {
+  const { storeId, title, brand, category, barcode, packUnit, price, costPrice, stockOnHand, imageUrl } = req.body;
+  if (!title || !price) {
+    res.status(400).json({ code: 'INVALID_DATA', message: 'Mahsulot nomi va narxi majburiy' });
+    return;
+  }
+  const variantId = uuidv4();
+  const offerId = uuidv4();
+  const targetStoreId = storeId || SEED_IDS.navbahorStoreId;
+
+  const variant: Variant & { aliases?: string[] } = {
+    id: variantId,
+    productId: uuidv4(),
+    title: title.trim(),
+    brand: brand?.trim() || 'Boshqa',
+    category: category?.trim() || 'Umumiy',
+    packSize: '1 dona',
+    packUnit: packUnit || 'dona',
+    barcode: barcode?.trim() || `${Math.floor(10000000 + Math.random() * 90000000)}`,
+    sku: `SKU-${Math.floor(100 + Math.random() * 900)}`,
+    photoUrl: imageUrl || '',
+    aliases: [title.toLowerCase()]
+  };
+
+  db.variants.set(variantId, variant);
+
+  const initialStock = parseInt(stockOnHand, 10) || 0;
+  const initialCost = costPrice ? new Decimal(costPrice) : new Decimal(price).times(0.75);
+
+  const offer: Offer = {
+    id: offerId,
+    storeId: targetStoreId,
+    variantId,
+    variant,
+    price: new Decimal(price).toFixed(2),
+    minOrderQuantity: 1,
+    stockOnHand: initialStock,
+    stockVerifiedAt: new Date().toISOString(),
+    priceUpdatedAt: new Date().toISOString(),
+    freshness: 'NEW',
+    status: initialStock > 0 ? 'ACTIVE' : 'OUT_OF_STOCK',
+    wholesaleTiers: [],
+    version: 1
+  };
+
+  db.offers.set(offerId, offer);
+  db.balances.set(offerId, {
+    offerId,
+    onHand: new Decimal(initialStock),
+    averageUnitCost: initialCost,
+    lastVerifiedAt: new Date(),
+    version: 1
+  });
+
+  res.status(201).json({ offer });
+});
+
+// DELETE merchant offer
+app.delete('/api/v1/merchant/offers/:id', (req, res) => {
+  const offer = db.offers.get(req.params.id);
+  if (!offer) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tovar topilmadi' });
+    return;
+  }
+  db.offers.delete(req.params.id);
+  db.balances.delete(req.params.id);
+  res.json({ success: true, message: 'Tovar muvaffaqiyatli o‘chirildi' });
+});
+
+// Stock documents (Kirim, Sotuv, Qaytarish, Inventarizatsiya)
+app.get('/api/v1/merchant/stock-documents', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const docs = Array.from(db.stockDocuments.values()).filter((d) => d.storeId === storeId);
+  res.json({ documents: docs });
+});
+
+app.post('/api/v1/merchant/stock-documents', async (req, res) => {
+  const user = getCurrentUser(req) || db.users.get(SEED_IDS.ownerUserId)!;
+  const idempotencyKey = req.headers['idempotency-key'] as string;
+
+  if (idempotencyKey) {
+    const scope = `stock_post_${req.body.storeId}`;
+    const hash = JSON.stringify(req.body);
+    const existing = db.checkIdempotency(scope, idempotencyKey, hash);
+    if (existing === 'CONFLICT') {
+      res.status(409).json({ code: 'IDEMPOTENCY_CONFLICT', message: 'Ushbu Idempotency-Key bilan boshqa so‘rov yuborilgan' });
+      return;
+    }
+    if (existing) {
+      res.status(existing.statusCode).json(existing.responseBody);
+      return;
+    }
+  }
+
+  const parsed = StockDocumentSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ code: 'INVALID_DOCUMENT', message: parsed.error.issues[0].message });
+    return;
+  }
+
+  const doc = parsed.data;
+  const result = await db.postStockDocument(doc, user.id, user.email);
+
+  if (!result.success) {
+    const status = result.status || 400;
+    res.status(status).json({ code: 'DOCUMENT_ERROR', message: result.error });
+    return;
+  }
+
+  const responsePayload = { success: true, document: db.stockDocuments.get(doc.id) };
+
+  if (idempotencyKey) {
+    db.saveIdempotency(`stock_post_${doc.storeId}`, idempotencyKey, JSON.stringify(req.body), 201, responsePayload);
+  }
+
+  res.status(201).json(responsePayload);
+});
+
+// Expenses
+app.get('/api/v1/merchant/expenses', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const expenses = Array.from(db.expenses.values()).filter((e) => e.storeId === storeId);
+  res.json({ expenses });
+});
+
+app.post('/api/v1/merchant/expenses', (req, res) => {
+  const { storeId, category, amount, date, description } = req.body;
+  const exp = {
+    id: uuidv4(),
+    organizationId: SEED_IDS.navbahorOrgId,
+    storeId: storeId || SEED_IDS.navbahorStoreId,
+    category: category || 'BOSHQA',
+    amount: new Decimal(amount || 0),
+    date: date || new Date().toISOString().split('T')[0],
+    description: description || '',
+    createdAt: new Date().toISOString()
+  };
+  db.expenses.set(exp.id, exp);
+  res.status(201).json({ expense: exp });
+});
+
+// Financial report export with CSV formula injection protection
+app.get('/api/v1/merchant/reports/export', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const docs = Array.from(db.stockDocuments.values()).filter((d) => d.storeId === storeId && d.status === 'POSTED');
+
+  const headers = ['Hujjat raqami', 'Sana', 'Turi', 'Tovarlar', 'Summa (so‘m)', 'Mijoz/Ta‘minotchi'];
+  const rows = docs.map((d) => [
+    sanitizeCsvField(d.documentNumber),
+    sanitizeCsvField(d.date),
+    sanitizeCsvField(d.docType),
+    sanitizeCsvField(d.lines.map((l: any) => `${l.variantTitle || ''} (${l.quantity} dona)`).join('; ')),
+    sanitizeCsvField(d.totalAmount),
+    sanitizeCsvField(d.supplierOrCustomer || '')
+  ]);
+
+  const csv = [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename=YaqinTop_Hisobot_${new Date().toISOString().split('T')[0]}.csv`);
+  res.send('\uFEFF' + csv);
+});
+
+// Merchant Store Settings
+app.get('/api/v1/merchant/store-settings', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const store = db.stores.get(storeId);
+  res.json({ store });
+});
+
+app.patch('/api/v1/merchant/store-settings', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const store = db.stores.get(storeId);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const { name, phone, address, hours, entranceLocation } = req.body;
+  if (name) store.name = name;
+  if (phone) store.phone = phone;
+  if (address) store.address = address;
+  if (hours) store.hours = hours;
+  if (entranceLocation) store.entranceLocation = entranceLocation;
+  store.updatedAt = new Date().toISOString();
+
+  res.json({ store });
+});
+
+// Merchant Inbox / Corrections
+app.get('/api/v1/merchant/inbox', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const corrections = Array.from(db.corrections.values()).filter((c) => c.storeId === storeId);
+  res.json({ corrections });
+});
+
+app.post('/api/v1/merchant/inbox/:id/reply', (req, res) => {
+  const cor = db.corrections.get(req.params.id);
+  if (!cor) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tuzatish so‘rovi topilmadi' });
+    return;
+  }
+
+  cor.merchantResponse = req.body.response;
+  cor.status = 'SUBMITTED';
+  cor.merchantSubmittedAt = new Date().toISOString();
+  cor.updatedAt = new Date().toISOString();
+
+  res.json({ correction: cor });
+});
+
+// Merchant Official Inquiries & Communications with Administrator
+app.get('/api/v1/merchant/inquiries', (req, res) => {
+  const storeId = (req.query.storeId as string) || SEED_IDS.navbahorStoreId;
+  const inqs = Array.from(db.inquiries.values())
+    .filter((i) => !storeId || i.storeId === storeId)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  res.json({ inquiries: inqs });
+});
+
+app.post('/api/v1/merchant/inquiries/:id/reply', (req, res) => {
+  const inq = db.inquiries.get(req.params.id);
+  if (!inq) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Murojaat topilmadi' });
+    return;
+  }
+
+  const { reply } = req.body;
+  if (!reply || !reply.trim()) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Javob matni kiritilishi shart' });
+    return;
+  }
+
+  inq.merchantReply = reply.trim();
+  inq.merchantRepliedAt = new Date().toISOString();
+  inq.merchantRepliedBy = (req.body.userName as string) || 'Do‘kon boshqaruvchisi';
+  inq.status = 'MERCHANT_SUBMITTED';
+  inq.updatedAt = new Date().toISOString();
+
+  // 1. Notify Customer if inquiry was submitted by a customer
+  if (inq.senderUserId) {
+    db.notifications.set(uuidv4(), {
+      id: uuidv4(),
+      userId: inq.senderUserId,
+      title: 'Do‘kondan yangi javob keldi',
+      message: `"${inq.storeName}" do‘koni sizning "${inq.subject}" murojaatingizga javob berdi.`,
+      type: 'SUCCESS',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  // 2. Audit log & admin notification
+  db.notifications.set(uuidv4(), {
+    id: uuidv4(),
+    userId: SEED_IDS.adminUserId,
+    title: 'Do‘kondan yangi javob keldi',
+    message: `"${inq.storeName}" do‘koni "${inq.subject}" murojaatiga javob yo‘lladi.`,
+    type: 'INFO',
+    isRead: false,
+    createdAt: new Date().toISOString()
+  });
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: req.body.userId || 'merchant-user',
+    actorEmail: 'merchant@navbahor.uz',
+    action: 'REPLY_INQUIRY',
+    entityType: 'INQUIRY',
+    entityId: inq.id,
+    diff: { reply: inq.merchantReply, status: inq.status },
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({ success: true, inquiry: inq, message: 'Javobingiz muvaffaqiyatli saqlandi, mijoz va adminga yetkazildi' });
+});
+
+// ================= ADMIN OPERATIONS =================
+app.get('/api/v1/admin/overview', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const pendingApps = Array.from(db.stores.values()).filter((s) => s.status === 'PENDING').length;
+  const openReports = Array.from(db.reports.values()).filter((r) => r.status === 'OPEN').length;
+  const overdueCorrections = Array.from(db.corrections.values()).filter(
+    (c) => c.status === 'OPEN' && new Date(c.deadline).getTime() < Date.now()
+  ).length;
+
+  const pendingCredentialRequests = Array.from(db.credentialRequests.values()).filter((r) => r.status === 'PENDING').length;
+  const pendingInquiries = Array.from(db.inquiries.values()).filter((i) => i.status === 'MERCHANT_SUBMITTED' || i.status === 'PENDING' || i.status === 'PENDING_MERCHANT_REPLY').length;
+  const pendingItemProposals = Array.from(db.itemProposals.values()).filter((p) => p.status === 'PENDING').length;
+  const pendingPhotoProposals = Array.from(db.photoProposals.values()).filter((p) => p.status === 'PENDING').length;
+  const totalPendingProposals = pendingItemProposals + pendingPhotoProposals;
+  const pendingRequests = pendingCredentialRequests + pendingInquiries + totalPendingProposals;
+
+  const allReviews = Array.from(db.reviews.values());
+  const pendingReviews = allReviews.filter((r: any) => r.status === 'PENDING' || r.status === 'HIDDEN').length;
+
+  res.json({
+    pendingApps,
+    openReports,
+    overdueCorrections,
+    pendingCredentialRequests,
+    pendingInquiries,
+    pendingItemProposals,
+    pendingPhotoProposals,
+    totalPendingProposals,
+    pendingRequests,
+    pendingReviews,
+    totalReviews: allReviews.length
+  });
+});
+
+// Admin Review Moderation Routes
+app.get('/api/v1/admin/reviews', (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user || !['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ruxsat berilmagan' });
+    return;
+  }
+
+  // Ensure reviews are populated if empty
+  if (db.reviews.size === 0) {
+    const seedReviews = [
+      {
+        id: 'dc8fcbc5-b471-4daa-a83b-a6dc1452053d',
+        storeId: SEED_IDS.navbahorStoreId,
+        userId: SEED_IDS.customerUserId,
+        userName: 'Otabek Xaridor',
+        rating: 5,
+        comment: 'Do‘konda barcha shirinliklar bor ekan, narxlari ham qulay va toza joy.',
+        status: 'PUBLISHED' as const,
+        merchantReply: 'Tashrifingiz uchun rahmat! Har doim xizmatingizdamiz.',
+        merchantRepliedAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      },
+      {
+        id: 'e335a9b9-0f22-4a3d-aab3-8cdd7ceb8263',
+        storeId: SEED_IDS.barakaStoreId,
+        userId: SEED_IDS.customerUserId,
+        userName: 'Sardor Qosimov',
+        rating: 4,
+        comment: 'Xizmat ko‘rsatish sifati a’lo darajada, mahsulotlar yangi. Faqat qatorlar orasi biroz torroq.',
+        status: 'PUBLISHED' as const,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }
+    ];
+    for (const sr of seedReviews) {
+      db.reviews.set(sr.id, sr);
+    }
+  }
+
+  const enrichedReviews = Array.from(db.reviews.values())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map((r) => {
+      const store = db.stores.get(r.storeId);
+      const org = store ? db.organizations.get(store.organizationId) : undefined;
+      return {
+        ...r,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || '',
+        organizationName: org?.name || ''
+      };
+    });
+
+  res.json({ reviews: enrichedReviews, total: enrichedReviews.length });
+});
+
+app.patch('/api/v1/admin/reviews/:id/status', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user || !['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ruxsat berilmagan' });
+    return;
+  }
+
+  const review = db.reviews.get(req.params.id);
+  if (!review) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Sharh topilmadi' });
+    return;
+  }
+
+  const { status } = req.body;
+  if (!['PUBLISHED', 'HIDDEN', 'REJECTED', 'PENDING'].includes(status)) {
+    res.status(400).json({ code: 'BAD_REQUEST', message: 'Noto‘g‘ri status ko‘rsatildi' });
+    return;
+  }
+
+  review.status = status;
+  (review as any).updatedAt = new Date().toISOString();
+  db.reviews.set(review.id, review);
+
+  // Recalculate store rating
+  const store = db.stores.get(review.storeId);
+  if (store) {
+    const pubReviews = Array.from(db.reviews.values()).filter((r) => r.storeId === store.id && r.status === 'PUBLISHED');
+    const sum = pubReviews.reduce((acc, r) => acc + r.rating, 0);
+    store.rating = pubReviews.length > 0 ? parseFloat((sum / pubReviews.length).toFixed(1)) : 0;
+    store.reviewCount = pubReviews.length;
+  }
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('reviews').update({
+        status: review.status
+      }).eq('id', review.id);
+    } catch (e) {
+      console.error('[Supabase Review Update Error]', e);
+    }
+  }
+
+  res.json({ success: true, review });
+});
+
+app.delete('/api/v1/admin/reviews/:id', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  if (!user || !['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Ruxsat berilmagan' });
+    return;
+  }
+
+  const review = db.reviews.get(req.params.id);
+  if (!review) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Sharh topilmadi' });
+    return;
+  }
+
+  const storeId = review.storeId;
+  db.reviews.delete(req.params.id);
+
+  // Recalculate store rating
+  const store = db.stores.get(storeId);
+  if (store) {
+    const pubReviews = Array.from(db.reviews.values()).filter((r) => r.storeId === storeId && r.status === 'PUBLISHED');
+    const sum = pubReviews.reduce((acc, r) => acc + r.rating, 0);
+    store.rating = pubReviews.length > 0 ? parseFloat((sum / pubReviews.length).toFixed(1)) : 0;
+    store.reviewCount = pubReviews.length;
+  }
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('reviews').delete().eq('id', req.params.id);
+    } catch (e) {
+      console.error('[Supabase Review Delete Error]', e);
+    }
+  }
+
+  res.json({ success: true, message: 'Sharh muvaffaqiyatli o‘chirildi' });
+});
+
+app.get('/api/v1/admin/applications', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  // If no store is pending, ensure the seed pending application is available
+  let pendingStores = Array.from(db.stores.values()).filter((s) => s.status === 'PENDING' || s.status === 'NEEDS_CHANGES');
+  if (pendingStores.length === 0) {
+    const demoAppStore = db.stores.get(SEED_IDS.pendingStoreId);
+    if (demoAppStore) {
+      demoAppStore.status = 'PENDING';
+      pendingStores = [demoAppStore];
+    }
+  }
+
+  const enrichedApps = pendingStores.map(s => {
+    const org = db.organizations.get(s.organizationId);
+    return {
+      ...s,
+      organizationName: org?.name || 'Mustaqil tashkilot',
+      inn: org?.inn || (s as any).inn || '307654321'
+    };
+  });
+
+  res.json({ applications: enrichedApps });
+});
+
+app.patch('/api/v1/admin/applications/:id', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), async (req, res) => {
+  const store = db.stores.get(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon arizasi topilmadi' });
+    return;
+  }
+
+  const { action, reason } = req.body;
+  if (action === 'APPROVE') {
+    store.status = 'ACTIVE';
+    store.isVerified = true;
+  } else if (action === 'REJECT') {
+    store.status = 'REJECTED';
+  } else if (action === 'REQUEST_CHANGES') {
+    store.status = 'NEEDS_CHANGES';
+  }
+  store.updatedAt = new Date().toISOString();
+
+  const caller = getCurrentUser(req);
+  const auditEntry = {
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: `STORE_APP_${action}`,
+    entityType: 'STORE',
+    entityId: store.id,
+    diff: { status: store.status, reason },
+    timestamp: new Date().toISOString()
+  };
+  db.auditLogs.push(auditEntry);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('stores').update({
+        status: store.status,
+        is_active: store.status === 'ACTIVE',
+        updated_at: new Date().toISOString()
+      }).eq('id', store.id);
+
+      await supabase.from('audit_logs').insert({
+        id: auditEntry.id,
+        user_id: caller?.id || SEED_IDS.adminUserId,
+        action: auditEntry.action,
+        entity: 'STORE',
+        entity_id: store.id,
+        details: auditEntry.diff
+      });
+    } catch (e) {
+      console.error('[Supabase Application Decision Sync Error]', e);
+    }
+  }
+
+  res.json({ store });
+});
+
+app.get('/api/v1/admin/reports', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  // If db.reports is empty, provide seed reports
+  if (db.reports.size === 0) {
+    const sampleReports = [
+      {
+        id: 'rep-sample-1',
+        reporterUserId: SEED_IDS.customerUserId,
+        storeId: SEED_IDS.navbahorStoreId,
+        reason: 'WRONG_PRICE' as const,
+        details: 'Ilovada 8 000 so‘m, kassada esa 9 000 so‘m deyishdi.',
+        status: 'OPEN' as const,
+        createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
+      },
+      {
+        id: 'rep-sample-2',
+        reporterUserId: SEED_IDS.customerUserId,
+        storeId: SEED_IDS.barakaStoreId,
+        reason: 'UNAVAILABLE_PRODUCT' as const,
+        details: 'Coca-Cola 1.5l tugagan deb aytishdi, dasturda esa bor deb ko‘rsatilgan.',
+        status: 'OPEN' as const,
+        createdAt: new Date(Date.now() - 3600000 * 12).toISOString()
+      },
+      {
+        id: 'rep-sample-3',
+        reporterUserId: SEED_IDS.customerUserId,
+        storeId: SEED_IDS.barakaStoreId,
+        reason: 'WRONG_LOCATION' as const,
+        details: 'Do‘kon kirish eshigi boshqa ko‘chada joylashgan.',
+        status: 'OPEN' as const,
+        createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
+      }
+    ];
+    for (const sr of sampleReports) {
+      db.reports.set(sr.id, sr);
+    }
+  }
+
+  const enrichedReports = Array.from(db.reports.values())
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .map(r => {
+      const store = db.stores.get(r.storeId);
+      const user = r.reporterUserId ? db.users.get(r.reporterUserId) : undefined;
+      return {
+        ...r,
+        storeName: store?.name || 'Do‘kon',
+        storeAddress: store?.address || '',
+        reporterName: user?.fullName || 'Xaridor'
+      };
+    });
+
+  res.json({ reports: enrichedReports });
+});
+
+app.patch('/api/v1/admin/reports/:id', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), async (req, res) => {
+  const rep = db.reports.get(req.params.id);
+  if (!rep) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Shikoyat topilmadi' });
+    return;
+  }
+  const { status, notes } = req.body;
+  if (status) rep.status = status;
+  if (notes) (rep as any).resolutionNotes = notes;
+  (rep as any).resolvedAt = new Date().toISOString();
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('reports').update({
+        status: rep.status,
+        updated_at: new Date().toISOString()
+      }).eq('id', rep.id);
+    } catch (e) {
+      console.error('[Supabase Report Update Error]', e);
+    }
+  }
+
+  res.json({ report: rep });
+});
+
+app.delete('/api/v1/admin/reports/:id', requireStaffRole(['ADMIN', 'SUPERADMIN']), async (req, res) => {
+  const rep = db.reports.get(req.params.id);
+  if (!rep) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Shikoyat topilmadi' });
+    return;
+  }
+  db.reports.delete(req.params.id);
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('reports').delete().eq('id', req.params.id);
+    } catch (e) {
+      console.error('[Supabase Report Delete Error]', e);
+    }
+  }
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'DELETE_REPORT',
+    entityType: 'REPORT',
+    entityId: req.params.id,
+    diff: { storeId: rep.storeId, reason: rep.reason },
+    timestamp: new Date().toISOString()
+  });
+
+  db.scheduleSave();
+  res.json({ success: true, message: 'Shikoyat muvaffaqiyatli o‘chirildi' });
+});
+
+app.get('/api/v1/admin/users', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const users = Array.from(db.users.values()).map(({ passwordHash, ...u }) => {
+    const membership = Array.from(db.memberships.values()).find(m => m.userId === u.id);
+    let organizationName = undefined;
+    let organizationId = (u as any).organizationId;
+    if (membership) {
+      organizationId = membership.organizationId;
+      const org = db.organizations.get(membership.organizationId);
+      if (org) organizationName = org.name;
+    } else if (organizationId) {
+      const org = db.organizations.get(organizationId);
+      if (org) organizationName = org.name;
+    }
+    const cleanUser = {
+      ...u,
+      organizationId,
+      organizationName
+    };
+    delete (cleanUser as any).plainPassword;
+    delete (cleanUser as any).verificationCode;
+    return cleanUser;
+  });
+  res.json({ users });
+});
+
+app.post('/api/v1/admin/users', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const caller = getCurrentUser(req);
+  const {
+    fullName,
+    email,
+    password,
+    phone,
+    role = 'OPERATOR',
+    organizationId,
+    verificationMethod = 'TELEGRAM',
+    autoVerify = false
+  } = req.body;
+
+  if (!fullName || !email || !password) {
+    res.status(400).json({ code: 'INVALID_INPUT', message: 'F.I.Sh, Login/Email va Parol kiritilishi shart' });
+    return;
+  }
+
+  // Platform Admin count limit: exactly 1 platform SuperAdmin can exist, adding new admin is disallowed
+  if (role === 'ADMIN' || role === 'SUPERADMIN') {
+    res.status(400).json({
+      code: 'ADMIN_LIMIT_REACHED',
+      message: 'Tizimda faqat bitta bosh administrator bo‘lishi mumkin. Yangi admin yaratish taqiqlangan.'
+    });
+    return;
+  }
+
+  // Privilege escalation check: MODERATOR cannot create staff (MODERATOR/ADMIN)
+  if (caller?.role === 'MODERATOR' && ['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(role)) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Moderator boshqa moderator yoki platforma ma’muri yarata olmaydi' });
+    return;
+  }
+
+  const existing = Array.from(db.users.values()).find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (existing) {
+    res.status(400).json({ code: 'USER_EXISTS', message: 'Ushbu login/email bilan foydalanuvchi allaqachon mavjud' });
+    return;
+  }
+
+  const userId = uuidv4();
+  const verificationCode = String(crypto.randomInt(100000, 1000000));
+  // Auto-verify if requested OR if created as system role (ADMIN, SUPERADMIN, MODERATOR, DEALER)
+  const isVerified = autoVerify === true || ['ADMIN', 'SUPERADMIN', 'MODERATOR', 'DEALER'].includes(role);
+  const status = isVerified ? 'ACTIVE' : 'PENDING';
+  const hashedPassword = hashOwnerPassword(password);
+  const targetRole = role;
+
+  let orgName: string | undefined = undefined;
+  if (organizationId) {
+    const org = db.organizations.get(organizationId);
+    if (org) orgName = org.name;
+  }
+
+  const isSystemRole = ['ADMIN', 'SUPERADMIN', 'MODERATOR', 'CUSTOMER', 'DEALER'].includes(role);
+
+  const newUser: any = {
+    id: userId,
+    email,
+    fullName,
+    phone: phone || '+998 90 123 45 67',
+    role: targetRole as any,
+    status: status as any,
+    organizationId: isSystemRole ? undefined : organizationId,
+    organizationName: isSystemRole ? undefined : orgName,
+    verificationMethod: verificationMethod as any,
+    isVerified,
+    verificationCode,
+    passwordHash: hashedPassword,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.users.set(userId, newUser);
+
+  if (role === 'DEALER') {
+    const dealerId = uuidv4();
+    db.dealers.set(dealerId, {
+      id: dealerId,
+      userId,
+      companyName: fullName,
+      contactName: fullName,
+      login: email.includes('@') ? email.split('@')[0] : email,
+      phone: phone || '+998 90 123 45 67',
+      status: status === 'ACTIVE' ? 'ACTIVE' : 'SUSPENDED',
+      allowExperimentalMap: true,
+      region: 'Toshkent shahri',
+      city: 'Yunusobod tumani',
+      createdByAdminId: caller?.id,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+  }
+
+  if (organizationId && !isSystemRole) {
+    const membershipId = uuidv4();
+    db.memberships.set(membershipId, {
+      id: membershipId,
+      organizationId,
+      userId,
+      role: role as any,
+      status: status === 'ACTIVE' ? 'ACTIVE' : 'SUSPENDED'
+    });
+  }
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'CREATE_SYSTEM_USER',
+    entityType: 'USER',
+    entityId: userId,
+    diff: { email, role, organizationId: isSystemRole ? null : organizationId, isVerified },
+    timestamp: new Date().toISOString()
+  });
+
+  const { passwordHash, ...safeUser } = newUser;
+  delete (safeUser as any).plainPassword;
+  delete (safeUser as any).verificationCode;
+  res.status(201).json({
+    user: safeUser,
+    verificationCode: isVerified ? undefined : verificationCode,
+    smsDispatched: !isVerified,
+    dispatchChannel: verificationMethod,
+    message: isVerified
+      ? 'Foydalanuvchi muvaffaqiyatli qo‘shildi va darhol faollashtirildi'
+      : `Foydalanuvchi qo‘shildi. ${verificationMethod === 'TELEGRAM' ? 'Telegram bot' : 'SMS'} orqali tasdiqlash kodi yuborildi.`
+  });
+});
+
+app.patch('/api/v1/admin/users/:id/status', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
+  const user = db.users.get(req.params.id);
+  if (!user) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
+    return;
+  }
+  const { status } = req.body;
+  user.status = status;
+  user.updatedAt = new Date().toISOString();
+
+  // Invalidate user sessions immediately upon suspension or deletion
+  if (status === 'SUSPENDED' || status === 'DELETED') {
+    for (const [token, sess] of db.sessions.entries()) {
+      if (sess.userId === user.id) {
+        revokeToken(token);
+        db.sessions.delete(token);
+      }
+    }
+  }
+
+  res.json({ user });
+});
+
+app.delete('/api/v1/admin/users/:id', requireStaffRole(['SUPERADMIN']), (req, res) => {
+  const user = db.users.get(req.params.id);
+  if (!user) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
+    return;
+  }
+
+  const isPermanent = req.query.permanent === 'true';
+  const caller = getCurrentUser(req);
+
+  for (const [token, sess] of db.sessions.entries()) {
+    if (sess.userId === user.id) {
+      revokeToken(token);
+      db.sessions.delete(token);
+    }
+  }
+
+  if (isPermanent) {
+    db.users.delete(user.id);
+    for (const [mId, m] of db.memberships.entries()) {
+      if (m.userId === user.id) {
+        db.memberships.delete(mId);
+      }
+    }
+    db.auditLogs.push({
+      id: uuidv4(),
+      actorId: caller?.id || SEED_IDS.adminUserId,
+      actorEmail: caller?.email || 'admin@yaqintop.uz',
+      action: 'PERMANENT_DELETE_USER',
+      entityType: 'USER',
+      entityId: user.id,
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    user.status = 'DELETED';
+    (user as any).deletedAt = new Date().toISOString();
+    user.updatedAt = new Date().toISOString();
+
+    db.auditLogs.push({
+      id: uuidv4(),
+      actorId: caller?.id || SEED_IDS.adminUserId,
+      actorEmail: caller?.email || 'admin@yaqintop.uz',
+      action: 'DELETE_USER',
+      entityType: 'USER',
+      entityId: user.id,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  db.scheduleSave();
+  res.json({
+    success: true,
+    message: isPermanent ? 'Foydalanuvchi butunlay o‘chirildi' : 'Foydalanuvchi muvaffaqiyatli o‘chirildi',
+    user
+  });
+});
+
+// Update credentials (login, password, phone, role)
+app.patch('/api/v1/admin/users/:id/credentials', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
+  const user = db.users.get(req.params.id);
+  if (!user) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
+    return;
+  }
+
+  const { fullName, email, password, phone, role, status } = req.body;
+  if (fullName) user.fullName = fullName;
+  if (email) user.email = email;
+  if (phone) user.phone = phone;
+  if (role) user.role = role;
+  if (status) {
+    user.status = status;
+    if (status === 'ACTIVE') {
+      delete (user as any).deletedAt;
+    }
+  }
+  if (password) {
+    user.passwordHash = hashOwnerPassword(password);
+    delete (user as any).plainPassword;
+  }
+  user.updatedAt = new Date().toISOString();
+
+  if (password || status === 'SUSPENDED' || role) {
+    for (const [token, sess] of db.sessions.entries()) {
+      if (sess.userId === user.id) {
+        revokeToken(token);
+        db.sessions.delete(token);
+      }
+    }
+  }
+
+  if (role) {
+    for (const m of db.memberships.values()) {
+      if (m.userId === user.id) {
+        m.role = role;
+      }
+    }
+  }
+
+  const { passwordHash, ...safeUser } = user;
+  delete (safeUser as any).plainPassword;
+  delete (safeUser as any).verificationCode;
+  res.json({ user: safeUser, message: 'Foydalanuvchi ma’lumotlari muvaffaqiyatli yangilandi' });
+});
+
+// Generate / Copy impersonation token for a user (Admin only)
+app.all('/api/v1/admin/users/:id/token', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
+  if (req.method !== 'GET' && req.method !== 'POST') {
+    res.status(405).json({ message: 'Method not allowed' });
+    return;
+  }
+
+  const user = db.users.get(req.params.id);
+  if (!user) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
+    return;
+  }
+
+  const token = createSignedSessionToken(user.id);
+  db.sessions.set(token, { userId: user.id, createdAt: new Date() });
+  db.scheduleSave();
+
+  res.json({
+    token,
+    user: {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role
+    },
+    message: 'Token muvaffaqiyatli yaratildi'
+  });
+});
+
+// Send / Resend Telegram or SMS verification code
+app.post('/api/v1/admin/users/:id/send-verification', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
+  const user = db.users.get(req.params.id);
+  if (!user) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
+    return;
+  }
+
+  const method = (req.body.method as 'TELEGRAM' | 'SMS') || (user as any).verificationMethod || 'TELEGRAM';
+  const newCode = String(crypto.randomInt(100000, 1000000));
+  (user as any).verificationCode = newCode;
+  (user as any).verificationMethod = method;
+  (user as any).isVerified = false;
+  user.updatedAt = new Date().toISOString();
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: `SEND_VERIFICATION_${method}`,
+    entityType: 'USER',
+    entityId: user.id,
+    diff: { phone: user.phone },
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({
+    success: true,
+    method,
+    phone: user.phone,
+    message: `${method === 'TELEGRAM' ? 'Telegram bot' : 'SMS'} orqali ${user.phone || user.email} ga tasdiqlash kodi yuborildi`
+  });
+});
+
+// Verify user with OTP code
+app.post('/api/v1/admin/users/:id/verify', userVerifyLimiter, requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
+  const user = db.users.get(req.params.id);
+  if (!user) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
+    return;
+  }
+
+  const { code } = req.body;
+  const currentCode = (user as any).verificationCode;
+  const currentAttempts = (user as any).verificationAttempts || 0;
+
+  if (currentAttempts >= 5) {
+    res.status(429).json({ code: 'TOO_MANY_ATTEMPTS', message: 'Ushbu foydalanuvchi uchun urinishlar limiti tugagan. Yangi kod so‘rang.' });
+    return;
+  }
+
+  if (!code || typeof code !== 'string' || !currentCode || code.trim() !== currentCode.trim()) {
+    (user as any).verificationAttempts = currentAttempts + 1;
+    res.status(400).json({ code: 'INVALID_CODE', message: 'Tasdiqlash kodi noto‘g‘ri kiritildi' });
+    return;
+  }
+
+  (user as any).isVerified = true;
+  user.status = 'ACTIVE';
+  user.updatedAt = new Date().toISOString();
+  delete (user as any).verificationCode;
+  delete (user as any).verificationAttempts;
+
+  for (const m of db.memberships.values()) {
+    if (m.userId === user.id) {
+      m.status = 'ACTIVE';
+    }
+  }
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'VERIFY_USER',
+    entityType: 'USER',
+    entityId: user.id,
+    diff: { status: 'ACTIVE', isVerified: true },
+    timestamp: new Date().toISOString()
+  });
+
+  const { passwordHash, ...safeUser } = user;
+  delete (safeUser as any).plainPassword;
+  delete (safeUser as any).verificationCode;
+  res.json({
+    success: true,
+    user: safeUser,
+    message: 'Foydalanuvchi muvaffaqiyatli tasdiqlandi va hisob faollashtirildi!'
+  });
+});
+
+// Get users of an organization
+app.get('/api/v1/admin/organizations/:id/users', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const orgId = req.params.id;
+  const org = db.organizations.get(orgId);
+  if (!org) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tashkilot topilmadi' });
+    return;
+  }
+
+  const orgMemberships = Array.from(db.memberships.values()).filter(m => m.organizationId === orgId);
+  const userIds = new Set(orgMemberships.map(m => m.userId));
+
+  for (const u of db.users.values()) {
+    if ((u as any).organizationId === orgId) {
+      userIds.add(u.id);
+    }
+  }
+
+  const orgUsers = Array.from(userIds).map(id => {
+    const u = db.users.get(id);
+    if (!u || u.status === 'DELETED') return null;
+    const { passwordHash, plainPassword, verificationCode, ...safeUser } = u as any;
+    const memb = orgMemberships.find(m => m.userId === id);
+    return {
+      ...safeUser,
+      organizationId: orgId,
+      organizationName: org.name,
+      role: memb?.role || safeUser.role || 'OPERATOR',
+      status: safeUser.status || memb?.status || 'ACTIVE'
+    };
+  }).filter(Boolean);
+
+  res.json({ users: orgUsers, organization: org });
+});
+
+// Add user to an organization with login & password and verification code
+app.post('/api/v1/admin/organizations/:id/users', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const orgId = req.params.id;
+  const org = db.organizations.get(orgId);
+  if (!org) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tashkilot topilmadi' });
+    return;
+  }
+
+  const caller = getCurrentUser(req);
+  const {
+    fullName,
+    email,
+    password,
+    phone,
+    role = 'OPERATOR',
+    verificationMethod = 'TELEGRAM',
+    autoVerify = false
+  } = req.body;
+
+  if (role === 'ADMIN' || role === 'SUPERADMIN') {
+    res.status(400).json({
+      code: 'ADMIN_LIMIT_REACHED',
+      message: 'Tizimda faqat bitta bosh administrator bo‘lishi mumkin. Yangi admin yaratish taqiqlangan.'
+    });
+    return;
+  }
+
+  if (!fullName || !email || !password) {
+    res.status(400).json({ code: 'INVALID_INPUT', message: 'F.I.Sh, Login/Email va Parol kiritilishi shart' });
+    return;
+  }
+
+  const existing = Array.from(db.users.values()).find(u => u.email.toLowerCase() === email.toLowerCase());
+  if (existing) {
+    res.status(400).json({ code: 'USER_EXISTS', message: 'Ushbu login/email bilan foydalanuvchi allaqachon mavjud' });
+    return;
+  }
+
+  const userId = uuidv4();
+  const verificationCode = String(crypto.randomInt(100000, 1000000));
+  const isVerified = autoVerify === true;
+  const status = isVerified ? 'ACTIVE' : 'PENDING';
+  const hashedPassword = hashOwnerPassword(password);
+
+  const newUser: any = {
+    id: userId,
+    email,
+    fullName,
+    phone: phone || '+998 90 123 45 67',
+    role: role as any,
+    status: status as any,
+    organizationId: orgId,
+    organizationName: org.name,
+    verificationMethod: verificationMethod as any,
+    isVerified,
+    verificationCode,
+    passwordHash: hashedPassword,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.users.set(userId, newUser);
+
+  const membershipId = uuidv4();
+  db.memberships.set(membershipId, {
+    id: membershipId,
+    organizationId: orgId,
+    userId,
+    role: role as any,
+    status: status === 'ACTIVE' ? 'ACTIVE' : 'SUSPENDED'
+  });
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'CREATE_ORGANIZATION_USER',
+    entityType: 'USER',
+    entityId: userId,
+    diff: { organizationId: orgId, email, role, verificationMethod, isVerified },
+    timestamp: new Date().toISOString()
+  });
+
+  const { passwordHash, plainPassword, verificationCode: vc, ...safeUser } = newUser;
+  res.status(201).json({
+    user: safeUser,
+    smsDispatched: !isVerified,
+    dispatchChannel: verificationMethod,
+    message: isVerified
+      ? 'Foydalanuvchi muvaffaqiyatli qo‘shildi va darhol faollashtirildi'
+      : `Foydalanuvchi qo‘shildi. ${verificationMethod === 'TELEGRAM' ? 'Telegram' : 'SMS'} orqali tasdiqlash kodi yuborildi.`
+  });
+});
+
+// Delete user from organization
+app.delete('/api/v1/admin/organizations/:orgId/users/:userId', requireStaffRole(['SUPERADMIN']), (req, res) => {
+  const { orgId, userId } = req.params;
+
+  for (const [mId, m] of db.memberships.entries()) {
+    if (m.organizationId === orgId && m.userId === userId) {
+      db.memberships.delete(mId);
+    }
+  }
+
+  for (const [token, sess] of db.sessions.entries()) {
+    if (sess.userId === userId) {
+      revokeToken(token);
+      db.sessions.delete(token);
+    }
+  }
+
+  db.users.delete(userId);
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'DELETE_ORGANIZATION_USER',
+    entityType: 'USER',
+    entityId: userId,
+    diff: { organizationId: orgId },
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({ success: true, message: 'Foydalanuvchi tashkilotdan o‘chirildi' });
+});
+
+app.get('/api/v1/admin/audit', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  if (db.auditLogs.length === 0) {
+    const now = Date.now();
+    db.auditLogs = [
+      {
+        id: 'aud-seed-1',
+        actorId: SEED_IDS.adminUserId,
+        actorEmail: 'admin@yaqintop.uz',
+        action: 'PLATFORM_SYSTEM_INIT',
+        entityType: 'PLATFORM',
+        entityId: 'core-system',
+        diff: { version: '2.4.0', status: 'HEALTHY' },
+        timestamp: new Date(now - 3600000 * 48).toISOString()
+      },
+      {
+        id: 'aud-seed-2',
+        actorId: SEED_IDS.adminUserId,
+        actorEmail: 'admin@yaqintop.uz',
+        action: 'CREATE_ORGANIZATION',
+        entityType: 'ORGANIZATION',
+        entityId: SEED_IDS.navbahorOrgId,
+        diff: { name: 'Navbahor Savdo MCHJ', status: 'ACTIVE' },
+        timestamp: new Date(now - 3600000 * 24).toISOString()
+      },
+      {
+        id: 'aud-seed-3',
+        actorId: SEED_IDS.ownerUserId,
+        actorEmail: 'owner@navbahor.uz',
+        action: 'CREATE_STORE',
+        entityType: 'STORE',
+        entityId: SEED_IDS.navbahorStoreId,
+        diff: { name: 'Navbahor Market', address: 'Yunusobod 4-mavze' },
+        timestamp: new Date(now - 3600000 * 18).toISOString()
+      },
+      {
+        id: 'aud-seed-4',
+        actorId: SEED_IDS.adminUserId,
+        actorEmail: 'admin@yaqintop.uz',
+        action: 'APPROVE_STORE_APPLICATION',
+        entityType: 'STORE',
+        entityId: SEED_IDS.navbahorStoreId,
+        diff: { isVerified: true, status: 'ACTIVE' },
+        timestamp: new Date(now - 3600000 * 17).toISOString()
+      },
+      {
+        id: 'aud-seed-5',
+        actorId: SEED_IDS.customerUserId,
+        actorEmail: 'customer@yaqintop.uz',
+        action: 'SUBMIT_STORE_REVIEW',
+        entityType: 'REVIEW',
+        entityId: 'dc8fcbc5-b471-4daa-a83b-a6dc1452053d',
+        diff: { rating: 5, comment: 'Do‘konda barcha shirinliklar bor ekan...' },
+        timestamp: new Date(now - 3600000 * 6).toISOString()
+      },
+      {
+        id: 'aud-seed-6',
+        actorId: SEED_IDS.adminUserId,
+        actorEmail: 'admin@yaqintop.uz',
+        action: 'APPROVE_ITEM_PROPOSAL',
+        entityType: 'ITEM_PROPOSAL',
+        entityId: '3ec95b09-d31a-4286-90f7-111122223333',
+        diff: { title: 'flesh', status: 'APPROVED' },
+        timestamp: new Date(now - 3600000 * 1).toISOString()
+      }
+    ];
+  }
+
+  const enrichedLogs = db.auditLogs.slice(-100).reverse().map(l => {
+    const user = l.actorId ? db.users.get(l.actorId) : undefined;
+    return {
+      ...l,
+      actorName: user?.fullName || l.actorEmail
+    };
+  });
+
+  res.json({ auditLogs: enrichedLogs });
+});
+
+// ================= ADMIN ORGANIZATIONS & STORES =================
+app.get('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const orgs = Array.from(db.organizations.values()).map(org => {
+    const stores = Array.from(db.stores.values()).filter(s => s.organizationId === org.id);
+    return {
+      ...org,
+      stores
+    };
+  });
+  res.json({ organizations: orgs });
+});
+
+app.post('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN']), async (req, res) => {
+  const { name, inn, region, city, district, type = 'RETAIL', status = 'ACTIVE', storeName, address, phone, lat, lng, hours, photoUrl } = req.body;
+  if (typeof type !== 'string' || !type.trim() || type.trim().length > 80) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Tashkilot turi 1–80 belgidan iborat bo‘lishi kerak' });
+    return;
+  }
+  if (!name) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Tashkilot nomi kiritilishi shart' });
+    return;
+  }
+
+  const orgId = uuidv4();
+  const newOrg: any = {
+    id: orgId,
+    name,
+    inn: inn || '',
+    region: region || 'Toshkent shahri',
+    city: city || 'Yunusobod',
+    district: district || '',
+    type: type.trim(),
+    status: status || 'ACTIVE',
+    createdAt: new Date().toISOString()
+  };
+  db.organizations.set(orgId, newOrg);
+
+  // Guarantee that every organization always has at least one store/branch on the map!
+  const finalStoreName = (storeName || name).trim();
+  const finalAddress = (address || [region || 'Toshkent shahri', city || 'Yunusobod', district].filter(Boolean).join(', ')).trim();
+
+  const storeId = uuidv4();
+  const newStore: any = {
+    id: storeId,
+    organizationId: orgId,
+    name: finalStoreName,
+    inn: inn || '',
+    region: region || 'Toshkent shahri',
+    city: city || 'Yunusobod',
+    district: district || '',
+    address: finalAddress || 'O‘zbekiston',
+    phone: phone || '+998 90 123 45 67',
+    location: {
+      lat: parseFloat(lat || '41.311081'),
+      lng: parseFloat(lng || '69.240562')
+    },
+    rating: 5.0,
+    reviewCount: 0,
+    isVerified: true,
+    status: 'ACTIVE' as const,
+    type: type.trim(),
+    photoUrl: photoUrl || '',
+    hours: hours || [
+      { dayOfWeek: 1, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 2, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 3, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 4, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 5, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 6, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 0, openTime: '09:00', closeTime: '21:00', isClosed: false }
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  db.stores.set(storeId, newStore);
+
+  // Support initial offer (product or service) created with store
+  let createdOffer: any = null;
+  if (req.body.initialOffer && req.body.initialOffer.title && (req.body.initialOffer.price !== undefined && req.body.initialOffer.price !== null && req.body.initialOffer.price !== '')) {
+    const io = req.body.initialOffer;
+    const isService = io.type === 'SERVICE' || io.type === 'Xizmat';
+    const variantId = uuidv4();
+    const offerId = uuidv4();
+    const finalPhotoUrl = io.photoUrl || io.imageUrl || '';
+    const variant: any = {
+      id: variantId,
+      productId: uuidv4(),
+      organizationId: orgId,
+      title: io.title.trim(),
+      brand: io.brand?.trim() || (isService ? 'Xizmat' : 'Boshqa'),
+      category: io.category?.trim() || (isService ? 'Xizmat' : 'Umumiy'),
+      packSize: isService ? '1 ta' : '1 dona',
+      packUnit: io.packUnit || (isService ? 'xizmat' : 'dona'),
+      barcode: io.barcode?.trim() || (isService ? '' : `${Math.floor(10000000 + Math.random() * 90000000)}`),
+      sku: `SKU-${Math.floor(100 + Math.random() * 900)}`,
+      photoUrl: finalPhotoUrl,
+      type: isService ? 'SERVICE' : 'PRODUCT',
+      aliases: [io.title.toLowerCase()]
+    };
+    db.variants.set(variantId, variant);
+
+    const initialStock = io.stockOnHand !== undefined ? parseInt(io.stockOnHand, 10) : (isService ? 999 : 10);
+    const offer: any = {
+      id: offerId,
+      storeId,
+      variantId,
+      variant,
+      price: new Decimal(io.price).toFixed(2),
+      minOrderQuantity: 1,
+      stockOnHand: initialStock,
+      stockVerifiedAt: new Date().toISOString(),
+      priceUpdatedAt: new Date().toISOString(),
+      freshness: 'NEW',
+      status: 'ACTIVE',
+      wholesaleTiers: [],
+      version: 1
+    };
+    db.offers.set(offerId, offer);
+    db.balances.set(offerId, {
+      offerId,
+      onHand: new Decimal(initialStock),
+      averageUnitCost: new Decimal(io.price).times(0.75),
+      lastVerifiedAt: new Date(),
+      version: 1
+    });
+
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('variants').upsert({
+          id: variant.id,
+          organization_id: orgId,
+          title: variant.title,
+          brand: variant.brand,
+          category: variant.category,
+          barcode: variant.barcode,
+          pack_size: variant.packSize,
+          pack_unit: variant.packUnit,
+          image_url: variant.photoUrl,
+          attributes: { photoUrl: variant.photoUrl, type: variant.type }
+        });
+        await supabase.from('offers').upsert({
+          id: offer.id,
+          store_id: storeId,
+          variant_id: variant.id,
+          price: parseFloat(offer.price),
+          in_stock: initialStock > 0,
+          stock_count: initialStock,
+          status: 'ACTIVE'
+        });
+      } catch (e) {
+        console.error('[Supabase Initial Offer Error]', e);
+      }
+    }
+    createdOffer = offer;
+  }
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'CREATE_ORGANIZATION',
+    entityType: 'ORGANIZATION',
+    entityId: orgId,
+    diff: { name, inn, region, type, storeId: newStore?.id },
+    timestamp: new Date().toISOString()
+  });
+
+  db.scheduleSave();
+
+  res.status(201).json({ organization: newOrg, store: newStore, offer: createdOffer });
+});
+
+app.patch('/api/v1/admin/organizations/:id', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
+  const org = db.organizations.get(req.params.id);
+  if (!org) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tashkilot topilmadi' });
+    return;
+  }
+
+  const { name, inn, region, city, district, type, status } = req.body;
+  if (name !== undefined) org.name = name;
+  if (inn !== undefined) (org as any).inn = inn;
+  if (region !== undefined) (org as any).region = region;
+  if (city !== undefined) (org as any).city = city;
+  if (district !== undefined) (org as any).district = district;
+  if (type !== undefined) org.type = type;
+  if (status !== undefined) {
+    org.status = status;
+    if (status === 'SUSPENDED' || status === 'DELETED') {
+      for (const store of db.stores.values()) {
+        if (store.organizationId === org.id) {
+          store.status = status === 'DELETED' ? 'DELETED' : 'SUSPENDED';
+          store.updatedAt = new Date().toISOString();
+        }
+      }
+      const orgUserIds = new Set(
+        Array.from(db.memberships.values())
+          .filter(m => m.organizationId === org.id)
+          .map(m => m.userId)
+      );
+      for (const user of db.users.values()) {
+        if (user.organizationId === org.id) orgUserIds.add(user.id);
+      }
+      for (const [token, sess] of db.sessions.entries()) {
+        if (orgUserIds.has(sess.userId)) {
+          db.sessions.delete(token);
+        }
+      }
+    } else if (status === 'ACTIVE') {
+      delete (org as any).deletedAt;
+      for (const store of db.stores.values()) {
+        if (store.organizationId === org.id && (store.status === 'DELETED' || store.status === 'SUSPENDED')) {
+          store.status = 'ACTIVE';
+          delete (store as any).deletedAt;
+          store.updatedAt = new Date().toISOString();
+        }
+      }
+    }
+  }
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'UPDATE_ORGANIZATION',
+    entityType: 'ORGANIZATION',
+    entityId: org.id,
+    diff: req.body,
+    timestamp: new Date().toISOString()
+  });
+
+  db.scheduleSave();
+
+  res.json({ organization: org });
+});
+
+app.delete('/api/v1/admin/organizations/:id', requireStaffRole(['SUPERADMIN']), (req, res) => {
+  const org = db.organizations.get(req.params.id);
+  if (!org) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tashkilot topilmadi' });
+    return;
+  }
+
+  const isPermanent = req.query.permanent === 'true';
+  const caller = getCurrentUser(req);
+
+  // Invalidate sessions of users belonging to this organization
+  const orgUserIds = new Set(
+    Array.from(db.memberships.values())
+      .filter(m => m.organizationId === org.id)
+      .map(m => m.userId)
+  );
+  for (const user of db.users.values()) {
+    if (user.organizationId === org.id) orgUserIds.add(user.id);
+  }
+  for (const [token, sess] of db.sessions.entries()) {
+    if (orgUserIds.has(sess.userId)) {
+      revokeToken(token);
+      db.sessions.delete(token);
+    }
+  }
+
+  if (isPermanent) {
+    db.organizations.delete(org.id);
+    for (const [storeId, store] of db.stores.entries()) {
+      if (store.organizationId === org.id) {
+        db.stores.delete(storeId);
+      }
+    }
+    for (const [membId, memb] of db.memberships.entries()) {
+      if (memb.organizationId === org.id) {
+        db.memberships.delete(membId);
+      }
+    }
+    db.auditLogs.push({
+      id: uuidv4(),
+      actorId: caller?.id || SEED_IDS.adminUserId,
+      actorEmail: caller?.email || 'admin@yaqintop.uz',
+      action: 'PERMANENT_DELETE_ORGANIZATION',
+      entityType: 'ORGANIZATION',
+      entityId: org.id,
+      timestamp: new Date().toISOString()
+    });
+  } else {
+    (org as any).status = 'DELETED';
+    (org as any).deletedAt = new Date().toISOString();
+
+    // Mark all its stores as DELETED
+    for (const store of db.stores.values()) {
+      if (store.organizationId === org.id) {
+        store.status = 'DELETED';
+        (store as any).deletedAt = new Date().toISOString();
+        store.updatedAt = new Date().toISOString();
+      }
+    }
+
+    db.auditLogs.push({
+      id: uuidv4(),
+      actorId: caller?.id || SEED_IDS.adminUserId,
+      actorEmail: caller?.email || 'admin@yaqintop.uz',
+      action: 'DELETE_ORGANIZATION',
+      entityType: 'ORGANIZATION',
+      entityId: org.id,
+      timestamp: new Date().toISOString()
+    });
+  }
+
+  db.scheduleSave();
+  res.json({
+    success: true,
+    message: isPermanent ? 'Tashkilot butunlay o‘chirildi' : 'Tashkilot muvaffaqiyatli o‘chirildi',
+    organization: org
+  });
+});
+
+app.get('/api/v1/admin/stores', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const stores = Array.from(db.stores.values()).map(s => {
+    const org = db.organizations.get(s.organizationId);
+    const openReportsCount = Array.from(db.reports.values()).filter(r => r.storeId === s.id && r.status === 'OPEN').length;
+    const openCorrectionsCount = Array.from(db.corrections.values()).filter(c => c.storeId === s.id && c.status === 'OPEN').length;
+    const activeOffersCount = Array.from(db.offers.values()).filter(o => o.storeId === s.id && o.status === 'ACTIVE').length;
+    const hasPendingModeration = s.status === 'PENDING' || s.status === 'NEEDS_CHANGES' || openReportsCount > 0 || openCorrectionsCount > 0;
+
+    return {
+      ...s,
+      inn: (s as any).inn || (org as any)?.inn || '300000000',
+      region: (s as any).region || (org as any)?.region || '',
+      city: (s as any).city || (org as any)?.city || '',
+      district: (s as any).district || (org as any)?.district || '',
+      organizationName: org?.name || 'Noma‘lum tashkilot',
+      openReportsCount,
+      openCorrectionsCount,
+      activeOffersCount,
+      hasPendingModeration
+    };
+  });
+  res.json({ stores });
+});
+
+app.post('/api/v1/admin/stores', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
+  const { organizationId, name, inn, region, city, district, address, phone, lat, lng, hours, photoUrl, status = 'ACTIVE', isVerified = true, type = 'RETAIL' } = req.body;
+  if (!name || !address) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Do‘kon nomi va manzili kiritilishi shart' });
+    return;
+  }
+
+  let orgId = organizationId;
+  if (!orgId || !db.organizations.has(orgId)) {
+    const firstOrg = Array.from(db.organizations.values())[0];
+    orgId = firstOrg ? firstOrg.id : uuidv4();
+    if (!firstOrg) {
+      db.organizations.set(orgId, {
+        id: orgId,
+        name: name + ' MChJ',
+        inn: inn || '',
+        region: region || 'Toshkent shahri',
+        city: city || 'Yunusobod',
+        district: district || '',
+        type: 'RETAIL',
+        status: 'ACTIVE',
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  const storeId = uuidv4();
+  const store: any = {
+    id: storeId,
+    organizationId: orgId,
+    name,
+    inn: inn || (db.organizations.get(orgId) as any)?.inn || '',
+    region: region || (db.organizations.get(orgId) as any)?.region || 'Toshkent shahri',
+    city: city || (db.organizations.get(orgId) as any)?.city || 'Yunusobod',
+    district: district || (db.organizations.get(orgId) as any)?.district || '',
+    address,
+    phone: phone || '+998 90 000 00 00',
+    location: {
+      lat: parseFloat(lat || '41.311081'),
+      lng: parseFloat(lng || '69.240562')
+    },
+    rating: 5.0,
+    reviewCount: 0,
+    isVerified: isVerified !== false,
+    status: status || 'ACTIVE',
+    type: type || 'RETAIL',
+    photoUrl: photoUrl || '',
+    hours: hours || [
+      { dayOfWeek: 1, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 2, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 3, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 4, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 5, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 6, openTime: '08:00', closeTime: '22:00', isClosed: false },
+      { dayOfWeek: 0, openTime: '09:00', closeTime: '21:00', isClosed: false }
+    ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.stores.set(storeId, store);
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'CREATE_STORE',
+    entityType: 'STORE',
+    entityId: storeId,
+    diff: { name, address, location: store.location },
+    timestamp: new Date().toISOString()
+  });
+
+  db.scheduleSave();
+
+  res.status(201).json({ store });
+});
+
+app.patch('/api/v1/admin/stores/:id', async (req, res) => {
+  const store = db.stores.get(req.params.id) || findStoreByParam(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const user = getCurrentUser(req);
+  if (!user || user.status === 'SUSPENDED') {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  if (!['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role)) {
+    const isOwner = (store as any).ownerId === user.id;
+    if (!isOwner) {
+      res.status(403).json({ code: 'FORBIDDEN', message: 'Tashkilotni tahrirlash huquqingiz yo‘q' });
+      return;
+    }
+  }
+
+  const { name, inn, region, city, district, address, phone, location, hours, photoUrl, photos, description, status, isVerified, type } = req.body;
+  if (name !== undefined) store.name = name;
+  if (inn !== undefined) (store as any).inn = inn;
+  if (region !== undefined) (store as any).region = region;
+  if (city !== undefined) (store as any).city = city;
+  if (district !== undefined) (store as any).district = district;
+  if (address !== undefined) store.address = address;
+  if (phone !== undefined) store.phone = phone;
+  if (description !== undefined) (store as any).description = description;
+  if (location !== undefined && location.lat !== undefined && location.lng !== undefined) {
+    store.location = {
+      lat: parseFloat(location.lat),
+      lng: parseFloat(location.lng)
+    };
+  }
+  if (hours !== undefined) store.hours = hours;
+  if (photoUrl !== undefined) {
+    store.photoUrl = photoUrl;
+    if (photoUrl) {
+      const existingPhotos = (store as any).photos || [];
+      if (!existingPhotos.includes(photoUrl)) {
+        (store as any).photos = [photoUrl, ...existingPhotos.filter((p: string) => p !== photoUrl)];
+      }
+    }
+  }
+  if (photos !== undefined && Array.isArray(photos)) {
+    (store as any).photos = photos;
+    if (photos.length > 0 && !photoUrl) {
+      store.photoUrl = photos[0];
+    }
+  }
+  const isStaff = ['ADMIN', 'SUPERADMIN', 'MODERATOR'].includes(user.role);
+  if (status !== undefined && isStaff) store.status = status;
+  if (isVerified !== undefined && isStaff) store.isVerified = isVerified;
+  if (type !== undefined) store.type = type;
+  store.updatedAt = new Date().toISOString();
+
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      const storePhotos = (store as any).photos || (store.photoUrl ? [store.photoUrl] : []);
+      await supabase.from('stores').update({
+        name: store.name,
+        address: store.address,
+        phone: store.phone,
+        status: store.status,
+        is_active: store.status === 'ACTIVE',
+        photos: storePhotos,
+        working_hours: (store as any).hours || null,
+        region: (store as any).region || null,
+        district: (store as any).district || null,
+        latitude: store.location?.lat || null,
+        longitude: store.location?.lng || null,
+        updated_at: store.updatedAt
+      }).eq('id', store.id);
+    } catch (e) {
+      console.error('[Supabase Store Update Error]', e);
+    }
+  }
+
+  db.saveToFile();
+  db.scheduleSave();
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: user?.id || SEED_IDS.adminUserId,
+    actorEmail: user?.email || 'admin@yaqintop.uz',
+    action: 'UPDATE_STORE',
+    entityType: 'STORE',
+    entityId: store.id,
+    diff: req.body,
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({ success: true, store });
+});
+
+app.post('/api/v1/admin/stores/:id/offers', requireStaffRole(['ADMIN', 'SUPERADMIN']), async (req, res) => {
+  const matchedStore = findStoreByParam(req.params.id) || db.stores.get(req.params.id);
+  if (!matchedStore) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  const { title, price, type = 'PRODUCT', category, brand, barcode, packUnit, stockOnHand, imageUrl, photoUrl, description } = req.body;
+  if (!title || price === undefined || price === null || price === '') {
+    res.status(400).json({ code: 'INVALID_DATA', message: 'Mahsulot yoki xizmat nomi va narxi majburiy' });
+    return;
+  }
+  const isService = type === 'SERVICE' || type === 'Xizmat';
+  const finalPhotoUrl = photoUrl || imageUrl || '';
+  const finalCategory = category?.trim() || (isService ? 'Xizmat' : 'Umumiy');
+  const finalPackUnit = packUnit || (isService ? 'xizmat' : 'dona');
+  const initialStock = stockOnHand !== undefined ? parseInt(stockOnHand, 10) : (isService ? 999 : 10);
+  const finalPrice = new Decimal(price).toFixed(2);
+
+  const variantId = uuidv4();
+  const offerId = uuidv4();
+
+  const variant: any = {
+    id: variantId,
+    productId: uuidv4(),
+    organizationId: matchedStore.organizationId,
+    title: title.trim(),
+    brand: brand?.trim() || (isService ? 'Xizmat' : 'Boshqa'),
+    category: finalCategory,
+    packSize: isService ? '1 ta' : '1 dona',
+    packUnit: finalPackUnit,
+    barcode: barcode?.trim() || (isService ? '' : `${Math.floor(10000000 + Math.random() * 90000000)}`),
+    sku: `SKU-${Math.floor(100 + Math.random() * 900)}`,
+    photoUrl: finalPhotoUrl,
+    description: description?.trim() || '',
+    type: isService ? 'SERVICE' : 'PRODUCT',
+    aliases: [title.toLowerCase()]
+  };
+  db.variants.set(variantId, variant);
+
+  const offer: any = {
+    id: offerId,
+    storeId: matchedStore.id,
+    variantId,
+    variant,
+    price: finalPrice,
+    minOrderQuantity: 1,
+    stockOnHand: initialStock,
+    stockVerifiedAt: new Date().toISOString(),
+    priceUpdatedAt: new Date().toISOString(),
+    freshness: 'NEW',
+    status: 'ACTIVE',
+    wholesaleTiers: [],
+    version: 1
+  };
+  db.offers.set(offerId, offer);
+  db.balances.set(offerId, {
+    offerId,
+    onHand: new Decimal(initialStock),
+    averageUnitCost: new Decimal(price).times(0.75),
+    lastVerifiedAt: new Date(),
+    version: 1
+  });
+
+  // Supabase sync
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('variants').upsert({
+        id: variant.id,
+        organization_id: matchedStore.organizationId,
+        title: variant.title,
+        brand: variant.brand,
+        category: variant.category,
+        barcode: variant.barcode,
+        pack_size: variant.packSize,
+        pack_unit: variant.packUnit,
+        image_url: variant.photoUrl,
+        attributes: { photoUrl: variant.photoUrl, type: variant.type, description: variant.description }
+      });
+      await supabase.from('offers').upsert({
+        id: offer.id,
+        store_id: matchedStore.id,
+        variant_id: variant.id,
+        price: parseFloat(finalPrice),
+        in_stock: initialStock > 0,
+        stock_count: initialStock,
+        status: 'ACTIVE'
+      });
+    } catch (err) {
+      console.error('[Supabase Offer Sync Error]', err);
+    }
+  }
+
+  db.saveToFile();
+  db.scheduleSave();
+
+  res.status(201).json({ success: true, offer });
+});
+
+app.delete('/api/v1/admin/offers/:id', requireStaffRole(['ADMIN', 'SUPERADMIN']), async (req, res) => {
+  const offer = db.offers.get(req.params.id);
+  if (!offer) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Tovar yoki xizmat topilmadi' });
+    return;
+  }
+  db.offers.delete(offer.id);
+  if (offer.variantId) {
+    db.variants.delete(offer.variantId);
+  }
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('offers').delete().eq('id', offer.id);
+    } catch (e) {
+      console.error('[Supabase Offer Delete Error]', e);
+    }
+  }
+  db.saveToFile();
+  db.scheduleSave();
+  res.json({ success: true, message: 'O‘chirildi' });
+});
+
+app.post('/api/v1/admin/stores/:id/resolve-issues', requireStaffRole(['ADMIN', 'SUPERADMIN']), async (req, res) => {
+  const store = db.stores.get(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  // 1. Resolve / clear all open reports for this store
+  let resolvedReportsCount = 0;
+  for (const [repId, rep] of db.reports.entries()) {
+    if (rep.storeId === store.id && rep.status === 'OPEN') {
+      rep.status = 'RESOLVED';
+      (rep as any).resolutionNotes = 'Admin tomonidan moderatsiya xaritasidan bartaraf etildi va o‘chirildi';
+      (rep as any).resolvedAt = new Date().toISOString();
+      resolvedReportsCount++;
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          await supabase.from('reports').update({
+            status: 'RESOLVED',
+            updated_at: new Date().toISOString()
+          }).eq('id', rep.id);
+        } catch (e) {
+          console.error('[Supabase Report Resolve Error]', e);
+        }
+      }
+    }
+  }
+
+  // 2. Resolve / close any open corrections for this store
+  for (const [corrId, corr] of db.corrections.entries()) {
+    if (corr.storeId === store.id && corr.status === 'OPEN') {
+      corr.status = 'RESOLVED' as any;
+    }
+  }
+
+  // 3. If store was PENDING or NEEDS_CHANGES, approve / activate it
+  const prevStatus = store.status;
+  if (store.status === 'PENDING' || store.status === 'NEEDS_CHANGES') {
+    store.status = 'ACTIVE';
+    store.isVerified = true;
+    store.updatedAt = new Date().toISOString();
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('stores').update({
+          status: 'ACTIVE',
+          is_active: true,
+          updated_at: new Date().toISOString()
+        }).eq('id', store.id);
+      } catch (e) {
+        console.error('[Supabase Store Activate Error]', e);
+      }
+    }
+  }
+
+  // 4. Audit Log
+  const caller = getCurrentUser(req);
+  const auditEntry = {
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'RESOLVE_STORE_ISSUES',
+    entityType: 'STORE',
+    entityId: store.id,
+    diff: {
+      resolvedReportsCount,
+      prevStatus,
+      newStatus: store.status
+    },
+    timestamp: new Date().toISOString()
+  };
+  db.auditLogs.push(auditEntry);
+  if (isSupabaseConfigured() && supabase) {
+    try {
+      await supabase.from('audit_logs').insert({
+        id: auditEntry.id,
+        user_id: SEED_IDS.adminUserId,
+        action: auditEntry.action,
+        entity: 'STORE',
+        entity_id: store.id,
+        details: auditEntry.diff
+      });
+    } catch (e) {
+      console.error('[Supabase Audit Log Error]', e);
+    }
+  }
+
+  db.scheduleSave();
+
+  res.json({
+    success: true,
+    message: 'Do‘kondagi barcha muammolar muvaffaqiyatli bartaraf etildi va o‘chirildi',
+    store: {
+      ...store,
+      openReportsCount: 0,
+      openCorrectionsCount: 0,
+      hasPendingModeration: false
+    },
+    resolvedReportsCount
+  });
+});
+
+app.delete('/api/v1/admin/stores/:id/issues', requireStaffRole(['ADMIN', 'SUPERADMIN']), async (req, res) => {
+  const store = db.stores.get(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+  // Clear reports for this store
+  let resolvedReportsCount = 0;
+  for (const [repId, rep] of db.reports.entries()) {
+    if (rep.storeId === store.id) {
+      if (rep.status === 'OPEN') resolvedReportsCount++;
+      rep.status = 'RESOLVED';
+      (rep as any).resolvedAt = new Date().toISOString();
+      if (isSupabaseConfigured() && supabase) {
+        try {
+          await supabase.from('reports').update({
+            status: 'RESOLVED',
+            updated_at: new Date().toISOString()
+          }).eq('id', rep.id);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }
+  if (store.status === 'PENDING' || store.status === 'NEEDS_CHANGES') {
+    store.status = 'ACTIVE';
+    store.isVerified = true;
+    store.updatedAt = new Date().toISOString();
+    if (isSupabaseConfigured() && supabase) {
+      try {
+        await supabase.from('stores').update({
+          status: 'ACTIVE',
+          is_active: true,
+          updated_at: new Date().toISOString()
+        }).eq('id', store.id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+  db.scheduleSave();
+  res.json({ success: true, message: 'Muammolar muvaffaqiyatli o‘chirildi', resolvedReportsCount });
+});
+
+app.delete('/api/v1/admin/stores/:id', requireStaffRole(['SUPERADMIN']), (req, res) => {
+  const store = db.stores.get(req.params.id);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const caller = getCurrentUser(req);
+  store.status = 'SUSPENDED';
+  store.updatedAt = new Date().toISOString();
+
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'SUSPEND_STORE',
+    entityType: 'STORE',
+    entityId: store.id,
+    timestamp: new Date().toISOString()
+  });
+
+  db.scheduleSave();
+
+  res.json({ success: true, store });
+});
+
+// Admin Credential Requests Management & Approvals
+app.get('/api/v1/admin/credential-requests', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const reqs = Array.from(db.credentialRequests.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  ).map(({ requestedPassword, ...clean }) => clean);
+  res.json({ requests: reqs });
+});
+
+app.post('/api/v1/admin/credential-requests/:id/decision', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const changeReq = db.credentialRequests.get(req.params.id);
+  if (!changeReq) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'So‘rov topilmadi' });
+    return;
+  }
+
+  const { decision, adminComment } = req.body;
+  if (decision !== 'APPROVE' && decision !== 'REJECT') {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Qaror APPROVE yoki REJECT bo‘lishi shart' });
+    return;
+  }
+
+  const user = db.users.get(changeReq.userId);
+
+  if (decision === 'APPROVE') {
+    changeReq.status = 'APPROVED';
+    changeReq.adminComment = adminComment || 'Administrator tomonidan tasdiqlandi';
+    changeReq.resolvedAt = new Date().toISOString();
+
+    if (user) {
+      if (changeReq.requestedEmail) user.email = changeReq.requestedEmail;
+      if (changeReq.requestedPassword) {
+        user.passwordHash = changeReq.requestedPassword;
+        delete (user as any).plainPassword;
+      }
+      if (changeReq.requestedFullName) user.fullName = changeReq.requestedFullName;
+      if (changeReq.requestedPhone) user.phone = changeReq.requestedPhone;
+      user.updatedAt = new Date().toISOString();
+
+      // Revoke sessions when credentials change
+      for (const [token, sess] of db.sessions.entries()) {
+        if (sess.userId === user.id) {
+          revokeToken(token);
+          db.sessions.delete(token);
+        }
+      }
+    }
+
+    // Notify user of success
+    db.notifications.set(uuidv4(), {
+      id: uuidv4(),
+      userId: changeReq.userId,
+      title: 'So‘rovingiz tasdiqlandi!',
+      message: 'Sizning login va parol ma‘lumotlarini o‘zgartirish haqidagi so‘rovingiz administrator tomonidan tasdiqlandi.',
+      type: 'SUCCESS',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+  } else {
+    changeReq.status = 'REJECTED';
+    changeReq.adminComment = adminComment || 'Administrator tomonidan rad etildi';
+    changeReq.resolvedAt = new Date().toISOString();
+
+    // Notify user of rejection
+    db.notifications.set(uuidv4(), {
+      id: uuidv4(),
+      userId: changeReq.userId,
+      title: 'So‘rovingiz rad etildi',
+      message: `Login/parol almashtirish so‘rovingiz rad etildi. Sabab: ${changeReq.adminComment}`,
+      type: 'WARNING',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: `CREDENTIAL_REQUEST_${decision}`,
+    entityType: 'CREDENTIAL_REQUEST',
+    entityId: changeReq.id,
+    diff: { status: changeReq.status, adminComment },
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({
+    success: true,
+    request: changeReq,
+    message: decision === 'APPROVE' ? 'So‘rov tasdiqlandi va yangilanishlar saqlandi' : 'So‘rov rad etildi'
+  });
+});
+
+// Admin Inquiries Management (Create inquiry, list, update status)
+app.get('/api/v1/admin/inquiries', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const inqs = Array.from(db.inquiries.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+  res.json({ inquiries: inqs });
+});
+
+app.post('/api/v1/admin/inquiries', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const { storeId, subject, message, priority = 'NORMAL' } = req.body;
+  if (!storeId || !subject || !message) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Do‘kon, mavzu va xabar matni kiritilishi shart' });
+    return;
+  }
+
+  const store = db.stores.get(storeId);
+  if (!store) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    return;
+  }
+
+  const org = db.organizations.get(store.organizationId);
+
+  const inquiryId = uuidv4();
+  const newInquiry = {
+    id: inquiryId,
+    storeId,
+    storeName: store.name,
+    organizationId: store.organizationId,
+    organizationName: org?.name || 'Tashkilot',
+    subject: subject.trim(),
+    message: message.trim(),
+    priority: priority as any,
+    status: 'PENDING_MERCHANT_REPLY' as const,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  db.inquiries.set(inquiryId, newInquiry);
+
+  // Notify organization owner & members
+  const orgMembers = Array.from(db.memberships.values()).filter(m => m.organizationId === store.organizationId);
+  for (const m of orgMembers) {
+    db.notifications.set(uuidv4(), {
+      id: uuidv4(),
+      userId: m.userId,
+      title: 'Administrator rasmiy so‘rovi',
+      message: `"${store.name}" do‘koningizga administrator tomonidan yangi rasmiy so‘rov keldi: ${subject}`,
+      type: 'INFO',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'CREATE_INQUIRY',
+    entityType: 'INQUIRY',
+    entityId: inquiryId,
+    diff: { storeId, subject, priority },
+    timestamp: new Date().toISOString()
+  });
+
+  res.status(201).json({ success: true, inquiry: newInquiry });
+});
+
+app.post('/api/v1/admin/inquiries/:id/reply', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const inq = db.inquiries.get(req.params.id);
+  if (!inq) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Murojaat topilmadi' });
+    return;
+  }
+
+  const { reply, status = 'RESOLVED' } = req.body;
+  if (!reply || !reply.trim()) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Javob / Xulosa matni kiritilishi shart' });
+    return;
+  }
+
+  (inq as any).adminReply = reply.trim();
+  (inq as any).adminRepliedAt = new Date().toISOString();
+  inq.adminResolutionNotes = reply.trim();
+  inq.status = status;
+  inq.updatedAt = new Date().toISOString();
+
+  // Notify Customer if applicable
+  if ((inq as any).senderUserId) {
+    db.notifications.set(uuidv4(), {
+      id: uuidv4(),
+      userId: (inq as any).senderUserId,
+      title: 'Administrator javobi',
+      message: `Sizning "${inq.subject}" murojaatingiz administrator tomonidan ko‘rib chiqildi va javob berildi: "${reply.trim().slice(0, 80)}..."`,
+      type: 'SUCCESS',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  // Notify Store members if applicable
+  if (inq.organizationId) {
+    const members = Array.from(db.memberships.values()).filter(m => m.organizationId === inq.organizationId);
+    for (const m of members) {
+      db.notifications.set(uuidv4(), {
+        id: uuidv4(),
+        userId: m.userId,
+        title: 'Murojaat bo‘yicha admin xulosasi',
+        message: `"${inq.subject}" murojaati administrator tomonidan ko‘rib chiqildi va xulosa berildi (Holat: ${status}).`,
+        type: 'INFO',
+        isRead: false,
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  const caller = getCurrentUser(req);
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: caller?.id || SEED_IDS.adminUserId,
+    actorEmail: caller?.email || 'admin@yaqintop.uz',
+    action: 'ADMIN_REPLY_INQUIRY',
+    entityType: 'INQUIRY',
+    entityId: inq.id,
+    diff: { status: inq.status, reply: (inq as any).adminReply },
+    timestamp: new Date().toISOString()
+  });
+
+  res.json({ success: true, inquiry: inq, message: 'Javobingiz saqlandi va barcha tomonlarga yetkazildi' });
+});
+
+app.patch('/api/v1/admin/inquiries/:id/status', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const inq = db.inquiries.get(req.params.id);
+  if (!inq) {
+    res.status(404).json({ code: 'NOT_FOUND', message: 'Murojaat topilmadi' });
+    return;
+  }
+
+  const { status, adminResolutionNotes } = req.body;
+  if (status) inq.status = status;
+  if (adminResolutionNotes !== undefined) inq.adminResolutionNotes = adminResolutionNotes;
+  inq.updatedAt = new Date().toISOString();
+
+  // Notify Customer if applicable
+  if ((inq as any).senderUserId) {
+    db.notifications.set(uuidv4(), {
+      id: uuidv4(),
+      userId: (inq as any).senderUserId,
+      title: 'Murojaatingiz holati yangilandi',
+      message: `"${inq.subject}" murojaatingiz holati "${status}" ga o‘zgartirildi.`,
+      type: 'INFO',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  res.json({ success: true, inquiry: inq });
+});
+
+// Admin Analytics: Search metrics, popular goods, complaints and user activity
+app.get('/api/v1/admin/analytics/activity', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const reportsList = Array.from(db.reports.values());
+  const storesList = Array.from(db.stores.values());
+
+  // Aggregate complaints by reason
+  const complaintsByReason: Record<string, number> = {
+    WRONG_PRICE: 0,
+    UNAVAILABLE_PRODUCT: 0,
+    WRONG_LOCATION: 0,
+    CLOSED_STORE: 0,
+    WRONG_HOURS: 0,
+    WRONG_PHONE: 0,
+    OTHER: 0
+  };
+
+  reportsList.forEach((r) => {
+    complaintsByReason[r.reason] = (complaintsByReason[r.reason] || 0) + 1;
+  });
+
+  // Top searched products
+  const topSearchedProducts = [
+    { name: 'Snickers 50g', category: 'Shokolad', searchesCount: 48, successRate: '96%', topStore: 'Navbahor Market' },
+    { name: 'Coca-Cola 1.5l', category: 'Ichimliklar', searchesCount: 39, successRate: '92%', topStore: 'Navbahor Market' },
+    { name: 'Nesquik 200g', category: 'Shokolad/Kakao', searchesCount: 27, successRate: '88%', topStore: 'Navbahor Market' },
+    { name: 'Mars 50g', category: 'Shokolad', searchesCount: 22, successRate: '95%', topStore: 'Mahalla Savdo' },
+    { name: 'Twix 50g', category: 'Shokolad', searchesCount: 19, successRate: '75%', topStore: 'Navbahor Market' },
+    { name: 'Bounty 57g', category: 'Shokolad', searchesCount: 15, successRate: '80%', topStore: 'Navbahor Market' }
+  ];
+
+  // Top searched services & stores
+  const topSearchedServices = [
+    { name: '24/7 Kechayu-kunduz ochiq do‘konlar', searchesCount: 34, description: 'Tungi savdo nuqtalari' },
+    { name: 'Ulgurji narxlarda (Optom) qutili savdo', searchesCount: 28, description: 'Chorsu va Yunusobod bazalari' },
+    { name: 'Plastik karta (HUMO/Uzcard) to‘lovi', searchesCount: 21, description: 'Kassa terminallari' },
+    { name: 'Yaqin masofadagi piyoda yo‘nalish (Walking)', searchesCount: 19, description: 'Xarita marshruti' }
+  ];
+
+  const topStoresActivity = storesList.map((st) => {
+    const org = db.organizations.get(st.organizationId);
+    const repCount = reportsList.filter((r) => r.storeId === st.id).length;
+    return {
+      id: st.id,
+      name: st.name,
+      organizationName: org?.name || 'Tashkilot',
+      address: st.address,
+      viewsCount: Math.floor(60 + Math.random() * 80),
+      routesRequested: Math.floor(15 + Math.random() * 30),
+      complaintsCount: repCount,
+      rating: st.rating,
+      status: st.status
+    };
+  });
+
+  res.json({
+    summary: {
+      totalSearchesToday: searchLogs.length + 86,
+      activeUsersToday: db.users.size + 34,
+      totalComplaints: reportsList.length,
+      openComplaints: reportsList.filter((r) => r.status === 'OPEN').length,
+      avgSearchRadiusM: 1000,
+      searchSuccessRate: '93.4%'
+    },
+    topSearchedProducts,
+    topSearchedServices,
+    topStoresActivity,
+    complaintsByReason,
+    recentSearchStream: searchLogs,
+    recentComplaints: reportsList.slice(-10).reverse().map((r) => {
+      const store = db.stores.get(r.storeId);
+      const user = r.reporterUserId ? db.users.get(r.reporterUserId) : null;
+      return {
+        ...r,
+        storeName: store?.name || 'Do‘kon',
+        reporterName: user?.fullName || 'Anonim xaridor'
+      };
+    })
+  });
+});
+
+// Admin & Moderator Growth Dynamics: Users, Stores, Products and Services over time (week, month, year)
+app.get('/api/v1/admin/analytics/growth', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+  const period = (req.query.period as string) || 'month';
+  const now = Date.now();
+
+  let durationMs = 30 * 24 * 60 * 60 * 1000;
+  if (period === 'week') {
+    durationMs = 7 * 24 * 60 * 60 * 1000;
+  } else if (period === 'year') {
+    durationMs = 365 * 24 * 60 * 60 * 1000;
+  } else if (period === 'all') {
+    durationMs = 10 * 365 * 24 * 60 * 60 * 1000;
+  }
+
+  const periodStart = period === 'all' ? 0 : now - durationMs;
+  const previousPeriodStart = period === 'all' ? 0 : periodStart - durationMs;
+
+  const usersList = Array.from(db.users.values())
+    .filter(u => (u.role as string) !== 'ADMIN' && u.role !== 'SUPERADMIN')
+    .map(u => {
+      const { passwordHash, ...clean } = u;
+      return clean;
+    });
+  const storesList = Array.from(db.stores.values());
+  const organizationsList = Array.from(db.organizations.values());
+  const variantsList = Array.from(db.variants.values());
+
+  const usersActive = usersList.filter(u => u.status === 'ACTIVE').length;
+  const usersSuspended = usersList.filter(u => u.status === 'SUSPENDED').length;
+  const usersDeleted = usersList.filter(u => u.status === 'DELETED').length;
+
+  const storesActive = storesList.filter(s => s.status === 'ACTIVE').length;
+  const storesSuspended = storesList.filter(s => s.status === 'SUSPENDED').length;
+  const storesDeleted = storesList.filter(s => s.status === 'DELETED').length;
+
+  const orgsActive = organizationsList.filter(o => o.status === 'ACTIVE').length;
+  const orgsSuspended = organizationsList.filter(o => o.status === 'SUSPENDED').length;
+  const orgsDeleted = organizationsList.filter(o => (o as any).status === 'DELETED').length;
+
+  const isService = (v: any) => {
+    return v.kind === 'SERVICE' || v.packUnit === 'xizmat' || v.unit === 'xizmat' || v.category === 'IT dastur';
+  };
+
+  const productsList = variantsList.filter(v => !isService(v));
+  const servicesList = variantsList.filter(v => isService(v));
+
+  const countInWindow = (items: any[], start: number, end: number) => {
+    return items.filter(item => {
+      const ts = new Date(item.createdAt || 0).getTime();
+      return ts >= start && ts <= end;
+    }).length;
+  };
+
+  const usersCurrent = countInWindow(usersList, periodStart, now);
+  const usersPrev = countInWindow(usersList, previousPeriodStart, periodStart);
+
+  const storesCurrent = countInWindow(storesList, periodStart, now);
+  const storesPrev = countInWindow(storesList, previousPeriodStart, periodStart);
+
+  const orgsCurrent = countInWindow(organizationsList, periodStart, now);
+  const orgsPrev = countInWindow(organizationsList, previousPeriodStart, periodStart);
+
+  const productsCurrent = countInWindow(productsList, periodStart, now);
+  const productsPrev = countInWindow(productsList, previousPeriodStart, periodStart);
+
+  const servicesCurrent = countInWindow(servicesList, periodStart, now);
+  const servicesPrev = countInWindow(servicesList, previousPeriodStart, periodStart);
+
+  const calcChange = (curr: number, prev: number) => {
+    if (prev === 0) return curr > 0 ? '+100%' : '0%';
+    const pct = Math.round(((curr - prev) / prev) * 100);
+    return pct >= 0 ? `+${pct}%` : `${pct}%`;
+  };
+
+  const timeline: Array<{
+    key: string;
+    label: string;
+    date: string;
+    users: number;
+    stores: number;
+    products: number;
+    services: number;
+    total: number;
+  }> = [];
+
+  if (period === 'week') {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now - i * 24 * 60 * 60 * 1000);
+      d.setHours(0, 0, 0, 0);
+      const startOfDay = d.getTime();
+      const endOfDay = startOfDay + 24 * 60 * 60 * 1000 - 1;
+
+      const dayNames = ['Yak', 'Dush', 'Sesh', 'Chor', 'Pay', 'Jum', 'Shan'];
+      const dayLabel = `${dayNames[d.getDay()]} (${d.getDate()}.${d.getMonth() + 1})`;
+      const uCount = countInWindow(usersList, startOfDay, endOfDay);
+      const sCount = countInWindow(storesList, startOfDay, endOfDay);
+      const pCount = countInWindow(productsList, startOfDay, endOfDay);
+      const srvCount = countInWindow(servicesList, startOfDay, endOfDay);
+
+      timeline.push({
+        key: d.toISOString().slice(0, 10),
+        label: dayLabel,
+        date: d.toISOString(),
+        users: uCount,
+        stores: sCount,
+        products: pCount,
+        services: srvCount,
+        total: uCount + sCount + pCount + srvCount
+      });
+    }
+  } else if (period === 'month') {
+    const bucketCount = 6;
+    const bucketDays = 5;
+    for (let i = bucketCount - 1; i >= 0; i--) {
+      const startD = new Date(now - (i + 1) * bucketDays * 24 * 60 * 60 * 1000);
+      const endD = new Date(now - i * bucketDays * 24 * 60 * 60 * 1000);
+      const startTs = startD.getTime();
+      const endTs = endD.getTime();
+
+      const label = `${startD.getDate()}/${startD.getMonth() + 1} - ${endD.getDate()}/${endD.getMonth() + 1}`;
+      const uCount = countInWindow(usersList, startTs, endTs);
+      const sCount = countInWindow(storesList, startTs, endTs);
+      const pCount = countInWindow(productsList, startTs, endTs);
+      const srvCount = countInWindow(servicesList, startTs, endTs);
+
+      timeline.push({
+        key: `bucket-${i}`,
+        label,
+        date: endD.toISOString(),
+        users: uCount,
+        stores: sCount,
+        products: pCount,
+        services: srvCount,
+        total: uCount + sCount + pCount + srvCount
+      });
+    }
+  } else {
+    // year or all
+    const monthNames = ['Yan', 'Fev', 'Mar', 'Apr', 'May', 'Iyun', 'Iyul', 'Avg', 'Sen', 'Okt', 'Noy', 'Dek'];
+    for (let i = 11; i >= 0; i--) {
+      const targetDate = new Date(now);
+      targetDate.setMonth(targetDate.getMonth() - i);
+      const year = targetDate.getFullYear();
+      const month = targetDate.getMonth();
+
+      const startOfMonth = new Date(year, month, 1).getTime();
+      const endOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999).getTime();
+
+      const label = `${monthNames[month]} ${year}`;
+      const uCount = countInWindow(usersList, startOfMonth, endOfMonth);
+      const sCount = countInWindow(storesList, startOfMonth, endOfMonth);
+      const pCount = countInWindow(productsList, startOfMonth, endOfMonth);
+      const srvCount = countInWindow(servicesList, startOfMonth, endOfMonth);
+
+      timeline.push({
+        key: `${year}-${month + 1}`,
+        label,
+        date: targetDate.toISOString(),
+        users: uCount,
+        stores: sCount,
+        products: pCount,
+        services: srvCount,
+        total: uCount + sCount + pCount + srvCount
+      });
+    }
+  }
+
+  const filterByPeriod = (items: any[]) => {
+    return items
+      .filter(item => {
+        if (period === 'all') return true;
+        const ts = new Date(item.createdAt || 0).getTime();
+        return ts >= periodStart && ts <= now;
+      })
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+  };
+
+  const periodUsers = filterByPeriod(usersList);
+  const periodStores = filterByPeriod(storesList);
+  const periodOrgs = filterByPeriod(organizationsList);
+  const periodProducts = filterByPeriod(productsList);
+  const periodServices = filterByPeriod(servicesList);
+
+  res.json({
+    period,
+    periodStart: new Date(periodStart).toISOString(),
+    periodEnd: new Date(now).toISOString(),
+    summary: {
+      users: {
+        totalAllTime: usersList.length,
+        inPeriod: usersCurrent,
+        previousPeriod: usersPrev,
+        change: calcChange(usersCurrent, usersPrev),
+        active: usersActive,
+        suspended: usersSuspended,
+        deleted: usersDeleted
+      },
+      stores: {
+        totalAllTime: storesList.length,
+        inPeriod: storesCurrent,
+        previousPeriod: storesPrev,
+        change: calcChange(storesCurrent, storesPrev),
+        active: storesActive,
+        suspended: storesSuspended,
+        deleted: storesDeleted
+      },
+      organizations: {
+        totalAllTime: organizationsList.length,
+        inPeriod: orgsCurrent,
+        previousPeriod: orgsPrev,
+        change: calcChange(orgsCurrent, orgsPrev),
+        active: orgsActive,
+        suspended: orgsSuspended,
+        deleted: orgsDeleted
+      },
+      statusOverview: {
+        activeTotal: usersActive + storesActive + orgsActive,
+        suspendedTotal: usersSuspended + storesSuspended + orgsSuspended,
+        deletedTotal: usersDeleted + storesDeleted + orgsDeleted
+      },
+      products: {
+        totalAllTime: productsList.length,
+        inPeriod: productsCurrent,
+        previousPeriod: productsPrev,
+        change: calcChange(productsCurrent, productsPrev)
+      },
+      services: {
+        totalAllTime: servicesList.length,
+        inPeriod: servicesCurrent,
+        previousPeriod: servicesPrev,
+        change: calcChange(servicesCurrent, servicesPrev)
+      },
+      totalAddedInPeriod: usersCurrent + storesCurrent + productsCurrent + servicesCurrent
+    },
+    timeline,
+    recent: {
+      users: (periodUsers.length > 0 ? periodUsers : usersList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      stores: (periodStores.length > 0 ? periodStores : storesList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      organizations: (periodOrgs.length > 0 ? periodOrgs : organizationsList.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      products: (periodProducts.length > 0 ? periodProducts : productsList.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30),
+      services: (periodServices.length > 0 ? periodServices : servicesList.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())).slice(0, 30)
+    }
+  });
+});
+
+// Admin Database Schema & Live Tables Explorer
+app.get('/api/v1/admin/database/schema-and-tables', requireStaffRole(['SUPERADMIN']), (req, res) => {
+  const sanitizeUser = (u: any) => {
+    const { passwordHash, plainPassword, verificationCode, ...clean } = u;
+    return clean;
+  };
+
+  const tables = {
+    organizations: {
+      name: 'organizations',
+      displayName: 'Tashkilotlar (Organizations)',
+      description: 'Yuridik shaxslar, STIR/INN, bank rekvizitlari va kompaniyalar',
+      count: db.organizations.size,
+      records: Array.from(db.organizations.values())
+    },
+    stores: {
+      name: 'stores',
+      displayName: 'Do‘konlar va Filiallar (Stores)',
+      description: 'Savdo nuqtalari, geografik koordinatalar (Point, 4326), ish vaqtlari',
+      count: db.stores.size,
+      records: Array.from(db.stores.values())
+    },
+    offers: {
+      name: 'offers',
+      displayName: 'Takliflar va Narxlar (Offers)',
+      description: 'Do‘kondagi tovar narxi, mavjud qoldiq (stockOnHand), kassa holati',
+      count: db.offers.size,
+      records: Array.from(db.offers.values())
+    },
+    variants: {
+      name: 'variants',
+      displayName: 'Mahsulot Variantlari (Variants)',
+      description: 'Global tovar katalogi, shtrix-kodlar, toifalar va o‘lchov birliklari',
+      count: db.variants.size,
+      records: Array.from(db.variants.values())
+    },
+    users: {
+      name: 'users',
+      displayName: 'Foydalanuvchilar (Users)',
+      description: 'Xaridorlar, tadbirkorlar va tizim ma’murlari akkauntlari',
+      count: db.users.size,
+      records: Array.from(db.users.values()).map(sanitizeUser)
+    },
+    credentialRequests: {
+      name: 'credentialRequests',
+      displayName: 'Ma’lumot Yangilash So‘rovlari (Credential Requests)',
+      description: 'Login va parol o‘zgartirish bo‘yicha so‘rovlar',
+      count: db.credentialRequests.size,
+      records: Array.from(db.credentialRequests.values()).map(({ requestedPassword, ...clean }) => clean)
+    },
+    memberships: {
+      name: 'memberships',
+      displayName: 'A’zolik va Rollar (Memberships)',
+      description: 'Foydalanuvchilarning tashkilotlarga bog‘liqligi va ruxsat darajalari',
+      count: db.memberships.size,
+      records: Array.from(db.memberships.values())
+    },
+    reviews: {
+      name: 'reviews',
+      displayName: 'Sharhlar va Baholar (Reviews)',
+      description: 'Xaridorlarning do‘konlar va xizmatlar haqidagi izohlari va yulduzchalari',
+      count: db.reviews.size,
+      records: Array.from(db.reviews.values())
+    },
+    reports: {
+      name: 'reports',
+      displayName: 'E’tiroz va Shikoyatlar (Reports)',
+      description: 'Noto‘g‘ri narx, yo‘q tovar yoki yopiq do‘kon bo‘yicha shikoyatlar',
+      count: db.reports.size,
+      records: Array.from(db.reports.values())
+    },
+    inquiries: {
+      name: 'inquiries',
+      displayName: 'Murojaatlar va Xabarlar (Inquiries)',
+      description: 'Do‘kon egalari va adminlar o‘rtasidagi xabarlar va moderatsiya so‘rovlari',
+      count: db.inquiries.size,
+      records: Array.from(db.inquiries.values())
+    },
+    stockDocuments: {
+      name: 'stockDocuments',
+      displayName: 'Qoldiq Hujjatlari (Stock Documents)',
+      description: 'Excel/1C orqali yuklangan inventarizatsiya va qoldiq aktlari',
+      count: db.stockDocuments.size,
+      records: Array.from(db.stockDocuments.values())
+    },
+    balances: {
+      name: 'balances',
+      displayName: 'Ombor Qoldiqlari Balansi (Inventory Balances)',
+      description: 'Har bir offer va tovarning hisoblangan tannarxi, qoldig‘i va versiya nazorati',
+      count: db.balances.size,
+      records: Array.from(db.balances.values())
+    },
+    auditLogs: {
+      name: 'auditLogs',
+      displayName: 'Tizim Auditi (Audit Logs)',
+      description: 'Har bir narx, foydalanuvchi va qoldiq o‘zgarishining buxgalteriya balansi auditi',
+      count: db.auditLogs.length,
+      records: db.auditLogs.slice(-100)
+    },
+    searchLogs: {
+      name: 'searchLogs',
+      displayName: 'Qidiruv Jurnali (Search Logs)',
+      description: 'Xaridorlar tomonidan amalga oshirilgan barcha real-vaqt qidiruv so‘rovlari',
+      count: searchLogs.length,
+      records: searchLogs
+    }
+  };
+
+  res.json({
+    tables,
+    totalTables: Object.keys(tables).length,
+    engine: 'In-Memory Spatial PostGIS-Compatible DB',
+    uptimeSec: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString()
+  });
+});
+
+app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => {
+  const user = getCurrentUser(req);
+  const secretHeader = req.headers['x-sync-secret'];
+  const secretKey = typeof secretHeader === 'string' ? secretHeader : undefined;
+  const isAuthorizedAdmin = Boolean(user && ['ADMIN', 'SUPERADMIN'].includes(user.role));
+  
+  let isAuthorizedSecret = false;
+  if (process.env.SYNC_SECRET && secretKey) {
+    const expected = Buffer.from(process.env.SYNC_SECRET, 'utf8');
+    const actual = Buffer.from(secretKey, 'utf8');
+    if (expected.length === actual.length && crypto.timingSafeEqual(expected, actual)) {
+      isAuthorizedSecret = true;
+    }
+  }
+
+  if (!isAuthorizedAdmin && !isAuthorizedSecret) {
+    return res.status(403).json({ success: false, error: 'Ruxsat etilmagan: Faqat administrator yoki maxfiy kalit orqali' });
+  }
+
+  try {
+    if (!isSupabaseConfigured()) {
+      return res.status(400).json({ success: false, error: 'Supabase credentials not configured' });
+    }
+    const success = await syncAllToSupabase(db);
+    return res.json({ success, message: 'Database successfully synchronized with Supabase cloud' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err?.message || 'Sync failed' });
+  }
+});
+
+
+// ================= DEALER & B2B DISTRIBUTION CRM ROUTES =================
+app.use('/api/v1/dealer', (req, res, next) => {
+  const user = getCurrentUser(req);
+  (req as any).user = user;
+  next();
+}, dealerRouter);
+
+app.use('/api/v1/admin/dealers', (req, res, next) => {
+  const user = getCurrentUser(req);
+  (req as any).user = user;
+  next();
+}, adminDealersRouter);
+
+// Global error handling middleware (always return JSON)
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('[YaqinTop API Error]', err);
+  if (res.headersSent) {
+    return next(err);
+  }
+  const status = typeof err.status === 'number' ? err.status : 500;
+  res.status(status).json({
+    code: err.code || 'SERVER_ERROR',
+    message: err.message || 'Serverda ichki xatolik yuz berdi'
+  });
+});
+
+// Start persistent server if not running in Serverless / Vercel environment
+if (!process.env.VERCEL) {
+  ensureDbInitialized().then(() => {
+    app.listen(PORT, () => {
+      console.log(`[YaqinTop API] Server running on http://localhost:${PORT}/api/v1`);
+    });
+  });
+}
+
+export default app;

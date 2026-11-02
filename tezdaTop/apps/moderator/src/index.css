@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --color-forest: #116B50;
+    --color-pine: #172C28;
+    --color-sand: #F3F6F3;
+    --color-card: #FFFFFF;
+    --color-border: #DCE5DF;
+  }
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--color-sand);
+  color: var(--color-pine);
+  -webkit-font-smoothing: antialiased;
+}
+
+.custom-admin-marker, .custom-picker-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  background-color: #f3f6f3 !important;
+  font-family: inherit !important;
+  z-index: 1;
+}
+
+.dark .leaflet-container {
+  background-color: #121a16 !important;
+}
+
+.dark .leaflet-tile-pane {
+  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+}
+
+.dark .leaflet-popup-content-wrapper {
+  background-color: #16241E !important;
+  color: #E8F2EC !important;
+  border: 1px solid #2A3F36 !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+}
+
+.dark .leaflet-popup-tip {
+  background-color: #16241E !important;
+}
+

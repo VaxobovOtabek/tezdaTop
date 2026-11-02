@@ -1,0 +1,80 @@
+{
+  "rewrites": [
+    {
+      "source": "/customer/assets/:path*",
+      "destination": "/assets/:path*"
+    },
+    {
+      "source": "/customer/manifest.json",
+      "destination": "/manifest.json"
+    },
+    {
+      "source": "/customer/sw.js",
+      "destination": "/sw.js"
+    },
+    {
+      "source": "/customer/icons/:path*",
+      "destination": "/icons/:path*"
+    },
+    {
+      "source": "/customer/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/admin/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/moderator/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/owner/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/admin",
+      "destination": "https://tezda-admin.vercel.app/"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "https://tezda-admin.vercel.app/$1"
+    },
+    {
+      "source": "/admin/:path*",
+      "destination": "https://tezda-admin.vercel.app/:path*"
+    },
+    {
+      "source": "/moderator",
+      "destination": "https://tezda-moderator.vercel.app/"
+    },
+    {
+      "source": "/moderator/(.*)",
+      "destination": "https://tezda-moderator.vercel.app/$1"
+    },
+    {
+      "source": "/moderator/:path*",
+      "destination": "https://tezda-moderator.vercel.app/:path*"
+    },
+    {
+      "source": "/owner",
+      "destination": "https://tezda-merchant.vercel.app/"
+    },
+    {
+      "source": "/owner/(.*)",
+      "destination": "https://tezda-merchant.vercel.app/$1"
+    },
+    {
+      "source": "/owner/:path*",
+      "destination": "https://tezda-merchant.vercel.app/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://tez-api.vercel.app/api/:path*"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
