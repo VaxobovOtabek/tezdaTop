@@ -103,9 +103,16 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   for (const cand of candidateStores) {
     const storeOffers: { offer: Offer; score: number }[] = [];
     const offersInStore = offersByStore.get(cand.store.id) || [];
+    const seenVariantKeys = new Set<string>();
 
     for (const off of offersInStore) {
       if (off.status === 'INACTIVE') continue;
+
+      const vKey = off.variantId || off.variant?.id || off.id;
+      if (vKey) {
+        if (seenVariantKeys.has(vKey)) continue;
+        seenVariantKeys.add(vKey);
+      }
 
       if (query.inStock && off.variant.kind !== 'SERVICE' && (off.stockOnHand <= 0 || off.status === 'OUT_OF_STOCK')) {
         continue;

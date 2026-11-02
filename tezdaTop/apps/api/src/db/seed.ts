@@ -1,4 +1,10 @@
 import { v4 as uuidv4 } from 'uuid';
+import crypto from 'node:crypto';
+
+export function stableOfferId(storeId: string, variantId: string): string {
+  const hash = crypto.createHash('sha256').update('offer:' + storeId + ':' + variantId).digest('hex');
+  return hash.slice(0, 8) + '-' + hash.slice(8, 12) + '-4' + hash.slice(13, 16) + '-a' + hash.slice(17, 20) + '-' + hash.slice(20, 32);
+}
 import Decimal from 'decimal.js';
 import { db } from './in-memory-db.js';
 import { Store, Variant, Offer, User } from '@yaqintop/contracts';
@@ -598,8 +604,9 @@ export async function seedDatabase() {
 
   for (const od of offersData) {
     const variant = db.variants.get(od.variantId)!;
+    const offerId = stableOfferId(od.storeId, od.variantId);
     const off: Offer = {
-      id: od.id,
+      id: offerId,
       storeId: od.storeId,
       variantId: od.variantId,
       variant,

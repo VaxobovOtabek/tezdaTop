@@ -498,10 +498,15 @@ export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean
       }
     }
 
-    // 5. Offers
+    // 5. Offers (deduplicate by storeId + variantId to guarantee uniqueness)
     const { data: offers, error: offErr } = await supabase.from('offers').select('*');
     if (!offErr && offers && offers.length > 0) {
+      const seenStoreVariantPairs = new Set<string>();
       for (const o of offers) {
+        const pairKey = `${o.store_id}:::${o.variant_id}`;
+        if (seenStoreVariantPairs.has(pairKey)) continue;
+        seenStoreVariantPairs.add(pairKey);
+
         const stockOnHand = o.stock_on_hand ?? o.stock_count ?? (o.in_stock ? 10 : 0);
         const variant = db.variants.get(o.variant_id);
         const resolvedVariant = variant

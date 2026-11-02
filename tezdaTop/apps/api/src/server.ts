@@ -1268,10 +1268,40 @@ app.get('/api/v1/stores/:id', (req, res) => {
 app.get('/api/v1/stores/:id/offers', (req, res) => {
   const matchedStore = findStoreByParam(req.params.id);
   const storeId = matchedStore ? matchedStore.id : req.params.id;
-  const storeOffers = Array.from(db.offers.values()).filter(
-    (o) => o.storeId === storeId && o.status !== 'INACTIVE'
-  );
-  res.json({ offers: storeOffers });
+
+  // Deduplicate offers by variantId so store catalog never returns duplicates
+  const seenVariants = new Set<string>();
+  const uniqueOffers: any[] = [];
+  for (const o of db.offers.values()) {
+    if (o.storeId === storeId && o.status !== 'INACTIVE') {
+      const vKey = o.variantId || o.variant?.id || o.id;
+      if (vKey && !seenVariants.has(vKey)) {
+        seenVariants.add(vKey);
+        uniqueOffers.push(o);
+      }
+    }
+  }
+
+  // Optional Pagination / Limiter
+  const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
+  const limitParam = parseInt(req.query.limit as string, 10);
+  const limit = limitParam > 0 ? Math.min(limitParam, 100) : 0;
+
+  const total = uniqueOffers.length;
+  let pagedOffers = uniqueOffers;
+  if (limit > 0) {
+    const startIndex = (page - 1) * limit;
+    pagedOffers = uniqueOffers.slice(startIndex, startIndex + limit);
+  }
+
+  res.json({
+    offers: pagedOffers,
+    total,
+    page: limit > 0 ? page : 1,
+    limit: limit > 0 ? limit : total,
+    totalPages: limit > 0 ? Math.ceil(total / limit) : 1,
+    hasMore: limit > 0 ? (page * limit) < total : false
+  });
 });
 
 app.get('/api/v1/offers/:id/similar', (req, res) => {

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   MapPin,
   Clock,
@@ -40,6 +40,11 @@ export const OrganizationSidebarShowcase: React.FC<OrganizationSidebarShowcasePr
 }) => {
   const [internalSearch, setInternalSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [visibleLimit, setVisibleLimit] = useState(8);
+
+  useEffect(() => {
+    setVisibleLimit(8);
+  }, [internalSearch, selectedCategory]);
 
   const currentStore = selectedStoreItem?.store || selectedStoreItem;
   const currentOrg = selectedStoreItem?.organization;
@@ -55,18 +60,32 @@ export const OrganizationSidebarShowcase: React.FC<OrganizationSidebarShowcasePr
         : `Sizdan ${distanceM} m`
       : '';
 
+  // Deduplicate offers by variantId or id so the same item is never repeated
+  const deduplicatedOffers = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Offer[] = [];
+    for (const o of activeStoreOffers || []) {
+      const key = o.variantId || o.variant?.id || o.id;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        list.push(o);
+      }
+    }
+    return list;
+  }, [activeStoreOffers]);
+
   const categories = useMemo(() => {
     const set = new Set<string>();
-    activeStoreOffers.forEach((o) => {
+    deduplicatedOffers.forEach((o) => {
       if (o.variant?.category) {
         set.add(o.variant.category);
       }
     });
     return Array.from(set);
-  }, [activeStoreOffers]);
+  }, [deduplicatedOffers]);
 
   const filteredOffers = useMemo(() => {
-    return activeStoreOffers.filter((o) => {
+    return deduplicatedOffers.filter((o) => {
       const titleMatch = !internalSearch.trim() ||
         o.variant.title.toLowerCase().includes(internalSearch.toLowerCase().trim()) ||
         (o.variant.brand && o.variant.brand.toLowerCase().includes(internalSearch.toLowerCase().trim())) ||
@@ -74,7 +93,11 @@ export const OrganizationSidebarShowcase: React.FC<OrganizationSidebarShowcasePr
       const categoryMatch = selectedCategory === 'ALL' || o.variant.category === selectedCategory;
       return titleMatch && categoryMatch;
     });
-  }, [activeStoreOffers, internalSearch, selectedCategory]);
+  }, [deduplicatedOffers, internalSearch, selectedCategory]);
+
+  const visibleOffers = useMemo(() => {
+    return filteredOffers.slice(0, visibleLimit);
+  }, [filteredOffers, visibleLimit]);
 
   const storeTypeBadge =
     currentStore?.type === 'WHOLESALE'
@@ -239,7 +262,9 @@ export const OrganizationSidebarShowcase: React.FC<OrganizationSidebarShowcasePr
             </h3>
           </div>
           <span className="px-2.5 py-0.5 rounded-full bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold">
-            {activeStoreOffers.length} ta
+            {filteredOffers.length > visibleOffers.length
+              ? `${visibleOffers.length} / ${filteredOffers.length} ta`
+              : `${filteredOffers.length} ta`}
           </span>
         </div>
 
@@ -323,7 +348,42 @@ export const OrganizationSidebarShowcase: React.FC<OrganizationSidebarShowcasePr
           </div>
         ) : (
           <div className="flex flex-col gap-2">
-            {filteredOffers.map((offer) => {
+            {filteredOffers.length > 8 && (
+              <div className="flex items-center justify-between text-[11px] text-[#566A63] dark:text-[#8B9E95] px-1 mb-1">
+                <span>
+                  Ko‘rsatilmoqda: 1-{Math.min(visibleLimit, filteredOffers.length)} dan {filteredOffers.length} ta
+                </span>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px]">Limit:</span>
+                  {[8, 16, 32].map((cnt) => (
+                    <button
+                      key={cnt}
+                      type="button"
+                      onClick={() => setVisibleLimit(cnt)}
+                      className={`px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer transition ${
+                        visibleLimit === cnt
+                          ? 'bg-[#116B50] text-white'
+                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#203328]'
+                      }`}
+                    >
+                      {cnt}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setVisibleLimit(filteredOffers.length)}
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold cursor-pointer transition ${
+                      visibleLimit >= filteredOffers.length
+                        ? 'bg-[#116B50] text-white'
+                        : 'bg-[#F3F6F3] dark:bg-[#1A2822] hover:bg-[#E0EFE7] dark:hover:bg-[#203328]'
+                    }`}
+                  >
+                    Hammasi
+                  </button>
+                </div>
+              </div>
+            )}
+            {visibleOffers.map((offer) => {
               const formattedPrice = Number(offer.price).toLocaleString('uz-UZ');
               const thumbnail = getProductThumbnail(offer.variant);
 
@@ -390,6 +450,38 @@ export const OrganizationSidebarShowcase: React.FC<OrganizationSidebarShowcasePr
                 </div>
               );
             })}
+
+            {filteredOffers.length > 8 && (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-2 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#2A3F36] mt-1">
+                {visibleLimit < filteredOffers.length ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setVisibleLimit((prev) => Math.min(prev + 8, filteredOffers.length))}
+                      className="w-full sm:w-auto px-4 py-2 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] hover:bg-[#116B50] hover:text-white text-[#116B50] dark:text-[#4ADE80] text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <span>+8 ta ko‘proq ko‘rsatish</span>
+                      <span className="text-[11px] opacity-80">({filteredOffers.length - visibleLimit} ta qoldi)</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVisibleLimit(filteredOffers.length)}
+                      className="w-full sm:w-auto px-3 py-2 rounded-xl text-xs font-bold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80] transition cursor-pointer"
+                    >
+                      Barchasini ko‘rsatish ({filteredOffers.length})
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setVisibleLimit(8)}
+                    className="w-full sm:w-auto px-3 py-1.5 rounded-xl text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80] transition cursor-pointer"
+                  >
+                    Qisqartirish (8 taga qaytarish)
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

@@ -309,7 +309,17 @@ export function CustomerApp() {
       }
       if (offersRes.ok) {
         const offersData = await offersRes.json();
-        setActiveStoreOffers(offersData.offers || []);
+        const rawOffers = Array.isArray(offersData.offers) ? offersData.offers : [];
+        const seenOffers = new Set<string>();
+        const uniqueOffers: any[] = [];
+        for (const o of rawOffers) {
+          const key = o.variantId || o.variant?.id || o.id;
+          if (key && !seenOffers.has(key)) {
+            seenOffers.add(key);
+            uniqueOffers.push(o);
+          }
+        }
+        setActiveStoreOffers(uniqueOffers);
       }
     } catch (err) {
       console.error('Error loading store catalog:', err);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   ArrowLeft,
   PlusCircle,
@@ -193,6 +193,12 @@ export function StoreFullPageView({
   });
   const [productSearch, setProductSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(12);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [productSearch, selectedCategory, pageSize]);
   const [isFavorite, setIsFavorite] = useState(() => {
     try {
       if (!store?.id) return false;
@@ -769,25 +775,48 @@ export function StoreFullPageView({
     ? [activeStore.photoUrl, ...DEFAULT_STORE_IMAGES.slice(1)]
     : DEFAULT_STORE_IMAGES;
 
+  // Deduplicate offers by variantId or id so the same product is never shown twice
+  const deduplicatedOffers = useMemo(() => {
+    const seen = new Set<string>();
+    const list: Offer[] = [];
+    for (const o of offers || []) {
+      const key = o.variantId || o.variant?.id || o.id;
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        list.push(o);
+      }
+    }
+    return list;
+  }, [offers]);
+
   // Categories
-  const uniqueCategories = Array.from(
-    new Set(offers.map(o => o.variant?.category).filter(Boolean))
-  ) as string[];
+  const uniqueCategories = useMemo(() => {
+    return Array.from(
+      new Set(deduplicatedOffers.map(o => o.variant?.category).filter(Boolean))
+    ) as string[];
+  }, [deduplicatedOffers]);
 
   // Filtered Offers
-  const filteredOffers = offers.filter(offer => {
-    const q = productSearch.toLowerCase().trim();
-    const matchSearch =
-      !q ||
-      offer.variant.title.toLowerCase().includes(q) ||
-      (offer.variant.category && offer.variant.category.toLowerCase().includes(q)) ||
-      (offer.variant.barcode && offer.variant.barcode.includes(q));
+  const filteredOffers = useMemo(() => {
+    return deduplicatedOffers.filter(offer => {
+      const q = productSearch.toLowerCase().trim();
+      const matchSearch =
+        !q ||
+        offer.variant.title.toLowerCase().includes(q) ||
+        (offer.variant.category && offer.variant.category.toLowerCase().includes(q)) ||
+        (offer.variant.barcode && offer.variant.barcode.includes(q));
 
-    const matchCategory =
-      selectedCategory === 'ALL' || offer.variant.category === selectedCategory;
+      const matchCategory =
+        selectedCategory === 'ALL' || offer.variant.category === selectedCategory;
 
-    return matchSearch && matchCategory;
-  });
+      return matchSearch && matchCategory;
+    });
+  }, [deduplicatedOffers, productSearch, selectedCategory]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOffers.length / (pageSize || 12)));
+  const effectiveCurrentPage = Math.min(currentPage, totalPages);
+  const startIndex = (effectiveCurrentPage - 1) * (pageSize || 12);
+  const paginatedOffers = filteredOffers.slice(startIndex, startIndex + (pageSize || 12));
 
   const currentDayOfWeek = new Date().getDay();
   const todayHours = activeStore?.hours?.find((h: any) => h.dayOfWeek === currentDayOfWeek) || activeStore?.hours?.[0];
@@ -939,7 +968,7 @@ export function StoreFullPageView({
                       📸 {activeImageIndex + 1} / {storeImages.length}
                     </span>
                     <span className="text-[11px] sm:text-xs px-2 sm:px-3 py-0.5 sm:py-1 rounded-full bg-[#116B50]/90 text-white backdrop-blur-sm font-semibold flex items-center gap-1">
-                      <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {offers.length} ta
+                      <ShoppingBag className="w-3 h-3 sm:w-3.5 sm:h-3.5" /> {deduplicatedOffers.length} ta
                     </span>
                   </div>
 
@@ -1207,7 +1236,7 @@ export function StoreFullPageView({
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
           {[
-            { id: 'catalog', label: `${t('📦 Tovar va xizmatlar')} (${offers.length})` },
+            { id: 'catalog', label: `${t('📦 Tovar va xizmatlar')} (${deduplicatedOffers.length})` },
             { id: 'reviews', label: `${t('⭐ Izohlar & Baholar')} (${reviews.length})` },
             { id: 'about', label: t('ℹ️ Do‘kon & Ish vaqti') },
             { id: 'map', label: t('📍 Xaritadagi o‘rni') }
@@ -1228,7 +1257,7 @@ export function StoreFullPageView({
 
         {/* TAB 1: CATALOG OF GOODS & SERVICES */}
         {activeTab === 'catalog' && (
-          <div className="w-full shrink-0 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 shadow-sm">
+          <div id="catalog-items-section" className="w-full shrink-0 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl sm:rounded-3xl p-4 sm:p-5 md:p-6 flex flex-col gap-4 shadow-sm">
             {/* Header with Search & Filter */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
@@ -1288,7 +1317,7 @@ export function StoreFullPageView({
                       : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
                   }`}
                 >
-                  Barchasi ({offers.length})
+                  Barchasi ({deduplicatedOffers.length})
                 </button>
                 {uniqueCategories.map(cat => (
                   <button
@@ -1300,7 +1329,7 @@ export function StoreFullPageView({
                         : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
                     }`}
                   >
-                    {cat} ({offers.filter(o => o.variant?.category === cat).length})
+                    {cat} ({deduplicatedOffers.filter(o => o.variant?.category === cat).length})
                   </button>
                 ))}
               </div>
@@ -1469,6 +1498,51 @@ export function StoreFullPageView({
               </div>
             )}
 
+            {/* Catalog Limiter & Counters Bar */}
+            {filteredOffers.length > 0 && !loadingOffers && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2 border-b border-[#DCE5DF]/60 dark:border-[#2A3F36] text-xs text-[#566A63] dark:text-[#8B9E95]">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-[#172C28] dark:text-[#E8F2EC]">
+                    Jami: {filteredOffers.length} ta tovar
+                  </span>
+                  {filteredOffers.length > pageSize && (
+                    <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-[11px] font-semibold">
+                      {startIndex + 1} - {Math.min(startIndex + pageSize, filteredOffers.length)} ko‘rsatilmoqda
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 self-end sm:self-auto">
+                  <span className="text-[11px]">Har sahifada:</span>
+                  {[12, 24, 48].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => setPageSize(size)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                        pageSize === size
+                          ? 'bg-[#116B50] text-white shadow-xs'
+                          : 'bg-white dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#203328]'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setPageSize(9999)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition cursor-pointer ${
+                      pageSize >= 9999
+                        ? 'bg-[#116B50] text-white shadow-xs'
+                        : 'bg-white dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#203328]'
+                    }`}
+                  >
+                    Hammasi
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Catalog Grid / List */}
             {loadingOffers ? (
               <div className="py-8 sm:py-12 text-center text-sm text-[#566A63] dark:text-[#8B9E95] flex flex-col items-center gap-2">
@@ -1498,8 +1572,9 @@ export function StoreFullPageView({
                 )}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {filteredOffers.map((off) => {
+              <div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {paginatedOffers.map((off) => {
                   const isService = off.variant.kind === 'SERVICE';
                   const isAvailable = isService ? off.status === 'ACTIVE' : off.stockOnHand > 0;
                   const productPhoto = getProductThumbnail(off.variant);
@@ -1591,6 +1666,76 @@ export function StoreFullPageView({
                     </div>
                   );
                 })}
+                </div>
+
+                {/* Page-based Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-6 border-t border-[#DCE5DF]/70 dark:border-[#2A3F36] mt-6">
+                    <span className="text-xs text-[#566A63] dark:text-[#8B9E95] order-2 sm:order-1">
+                      Sahifa: <b className="text-[#172C28] dark:text-[#E8F2EC]">{effectiveCurrentPage}</b> / {totalPages} (jami {filteredOffers.length} ta)
+                    </span>
+
+                    <div className="flex items-center gap-1.5 order-1 sm:order-2 flex-wrap justify-center">
+                      <button
+                        type="button"
+                        disabled={effectiveCurrentPage <= 1}
+                        onClick={() => {
+                          setCurrentPage((p) => Math.max(1, p - 1));
+                          document.getElementById('catalog-items-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Oldingi</span>
+                      </button>
+
+                      {Array.from({ length: totalPages }, (_, idx) => idx + 1)
+                        .filter((page) => {
+                          if (totalPages <= 7) return true;
+                          if (page === 1 || page === totalPages) return true;
+                          return Math.abs(page - effectiveCurrentPage) <= 2;
+                        })
+                        .map((page, i, arr) => {
+                          const prev = arr[i - 1];
+                          const showEllipsis = prev && page - prev > 1;
+                          return (
+                            <React.Fragment key={page}>
+                              {showEllipsis && (
+                                <span className="px-1 text-xs text-[#566A63] dark:text-[#8B9E95]">...</span>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCurrentPage(page);
+                                  document.getElementById('catalog-items-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                }}
+                                className={`min-w-8 h-8 px-2 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                                  effectiveCurrentPage === page
+                                    ? 'bg-[#116B50] text-white shadow-xs'
+                                    : 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] border border-[#DCE5DF] dark:border-[#2A3F36] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
+
+                      <button
+                        type="button"
+                        disabled={effectiveCurrentPage >= totalPages}
+                        onClick={() => {
+                          setCurrentPage((p) => Math.min(totalPages, p + 1));
+                          document.getElementById('catalog-items-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        }}
+                        className="px-3 py-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer"
+                      >
+                        <span>Keyingi</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
