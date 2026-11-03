@@ -19,8 +19,9 @@ import { routingService } from './services/routing.service.js';
 import { sanitizeCsvField } from './services/ledger.service.js';
 import { getSupabaseUsage } from './services/supabase-usage.service.js';
 import { createOwnerOrganization, OwnerOnboardingSchema, verifyOwnerPassword, hashOwnerPassword } from './services/owner-onboarding.service.js';
-import { SESSION_TTL_MS, isSessionExpired, sessionExpiresAt, createSignedSessionToken, verifySignedSessionToken, revokeToken, isTokenRevoked } from './services/session.service.js';
+import { SESSION_TTL_MS, isSessionExpired, sessionExpiresAt, createSignedSessionToken, verifySignedSessionToken, revokeToken, isTokenRevoked, revokeUserSessions } from './services/session.service.js';
 import crypto from 'node:crypto';
+import { persistenceMiddleware } from './db/persistence-middleware.js';
 import { createService, completeService, serviceCompletionFromDocument } from './services/service-business.service.js';
 import {
   SearchQuerySchema,
@@ -49,48 +50,25 @@ export async function ensureDbInitialized() {
   if (!initPromise) {
     initPromise = (async () => {
       try {
-        const loaded = db.loadFromFile();
-
-        const isProdEnv = process.env.NODE_ENV === 'production' && !process.env.VERCEL;
-        const allowDemoSeed = !isProdEnv || process.env.ALLOW_DEMO_SEED === 'true';
-
+        if (isProduction && !process.env.SESSION_SECRET && !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('A backend session signing secret must be configured');
+        if (isProduction && process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim().length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters');
+        const loaded = !isSupabaseConfigured() && db.loadFromFile();
         if (isSupabaseConfigured()) {
-          console.log('[YaqinTop Supabase] Connecting to Supabase Cloud...');
-          const pulled = await syncAllFromSupabase(db);
-          if (!pulled || db.users.size === 0) {
-            if (!loaded || db.users.size === 0) {
-              if (allowDemoSeed) {
-                console.log('[YaqinTop DB] Seeding initial data...');
-                await seedDatabase();
-              } else {
-                console.warn('[YaqinTop DB] Production mode: Automatic demo seeding is disabled for security.');
-              }
-            }
-            if (db.users.size > 0) {
-              await syncAllToSupabase(db);
-            }
-          }
-        } else if (!loaded || db.users.size === 0) {
-          if (allowDemoSeed) {
-            await seedDatabase();
-            db.saveToFile();
-          } else {
-            console.warn('[YaqinTop DB] Production mode: Automatic demo seeding is disabled for security.');
-          }
+          await syncAllFromSupabase(db);
+        } else if (!loaded && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_SEED === 'true') {
+          await seedDatabase();
+          db.saveToFile();
         }
 
         isDbReady = true;
         console.log(`[YaqinTop DB] Ready with ${db.users.size} users, ${db.stores.size} stores, ${db.offers.size} offers.`);
       } catch (err) {
-        console.error('[YaqinTop DB Init Error]', err);
-        if (db.users.size === 0) {
-          await seedDatabase();
-        }
-        isDbReady = true;
+        isDbReady = false;
+        throw err;
       }
     })();
   }
-  await initPromise;
+  try { await initPromise; } catch (error) { initPromise = null; throw error; }
 }
 
 const ALLOWED_ORIGINS = new Set([
@@ -123,8 +101,7 @@ function isAllowedOrigin(origin: string): boolean {
   if (ALLOWED_ORIGINS.has(origin)) return true;
   try {
     const parsed = new URL(origin);
-    if (parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1') return true;
-    if (parsed.hostname === 'yaqintop.uz' || parsed.hostname.endsWith('.yaqintop.uz')) return true;
+
   } catch {
     return false;
   }
@@ -139,11 +116,11 @@ app.use(
       if (isAllowedOrigin(origin)) {
         return callback(null, true);
       }
-      return callback(new Error('CORS policy: Not allowed by CORS'));
+      return callback(Object.assign(new Error('CORS policy: Not allowed by CORS'), {status:403}));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-user-id', 'x-user-email', 'x-user-role', 'x-idempotency-key']
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'x-user-id', 'x-user-email', 'x-user-role', 'x-idempotency-key', 'idempotency-key']
   })
 );
 app.use(express.json({ limit: '10mb' }));
@@ -201,9 +178,17 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
     await ensureDbInitialized();
     next();
   } catch (err) {
-    console.error('[YaqinTop DB Init Error]', err);
-    next();
+    res.status(503).json({ code: 'DATABASE_UNAVAILABLE', message: 'Baza vaqtincha mavjud emas.' });
   }
+});
+
+app.use(persistenceMiddleware);
+app.set('json replacer', (key: string, value: unknown) => ['passwordHash', 'password_hash', 'plainPassword', 'verificationCode', 'requestedPassword'].includes(key) ? undefined : value);
+app.use((req, res, next) => {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.cookies?.session_token && req.headers.origin && !ALLOWED_ORIGINS.has(req.headers.origin)) {
+    return res.status(403).json({ code: 'CSRF_REJECTED', message: 'Ruxsat etilmagan manba.' });
+  }
+  next();
 });
 
 // Request tracking & audit middleware
@@ -213,11 +198,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 
   // Automatically persist database on disk whenever any mutation happens successfully
   if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
-    res.on('finish', () => {
-      if (res.statusCode >= 200 && res.statusCode < 400) {
-        db.scheduleSave();
-      }
-    });
+    // Persistence middleware commits before sending the response.
   }
 
   next();
@@ -230,6 +211,7 @@ function getCurrentUser(req: Request) {
   const cookieToken = req.cookies?.session_token?.trim();
   const token = bearerToken || cookieToken;
   if (!token) return null;
+  if (process.env.NODE_ENV !== 'test' && !verifySignedSessionToken(token)) return null;
   if (isTokenRevoked(token)) return null;
 
   // 1. In-memory session Map check
@@ -241,14 +223,14 @@ function getCurrentUser(req: Request) {
       return null;
     }
     const user = db.users.get(session.userId);
-    if (user && user.status !== 'SUSPENDED') return user;
+    if (user && user.status === 'ACTIVE') return user;
   }
 
   // 2. Stateless / serverless signed token verification (cross-container resilient)
   const verified = verifySignedSessionToken(token);
   if (verified) {
     const user = db.users.get(verified.userId);
-    if (user && user.status !== 'SUSPENDED') {
+    if (user && user.status === 'ACTIVE') {
       db.sessions.set(token, { userId: verified.userId, createdAt: new Date(verified.createdAt) });
       return user;
     }
@@ -259,7 +241,7 @@ function getCurrentUser(req: Request) {
     const cookieVerified = verifySignedSessionToken(cookieToken);
     if (cookieVerified) {
       const user = db.users.get(cookieVerified.userId);
-      if (user && user.status !== 'SUSPENDED') return user;
+      if (user && user.status === 'ACTIVE') return user;
     }
   }
 
@@ -284,6 +266,16 @@ export function requireStaffRole(allowedRoles: ('ADMIN' | 'SUPERADMIN' | 'MODERA
 }
 
 // ================= HEALTH CHECKS =================
+app.use('/api/v1/admin/users/:id', (req, res, next) => {
+  const target = db.users.get(req.params.id);
+  const actor = getCurrentUser(req);
+  if (target?.role === 'SUPERADMIN') {
+    if (actor?.role !== 'SUPERADMIN') return res.status(403).json({code:'FORBIDDEN',message:'Bosh administrator hisobiga ruxsat yo‘q.'});
+    const removing = req.method === 'DELETE' || (req.body?.role && req.body.role !== 'SUPERADMIN') || (req.body?.status && req.body.status !== 'ACTIVE');
+    if (removing && [...db.users.values()].filter(u => u.role === 'SUPERADMIN' && u.status === 'ACTIVE').length <= 1) return res.status(409).json({code:'LAST_ADMIN',message:'Yagona bosh administrator hisobini o‘chirib bo‘lmaydi.'});
+  }
+  next();
+});
 app.get('/api/v1/admin/supabase-usage', async (req: Request, res: Response) => {
   // Monitoring requires a real session, never the existing demo/header fallback.
   const token = req.cookies?.session_token || req.headers.authorization?.replace('Bearer ', '');
@@ -331,7 +323,7 @@ app.get('/api/v1', (req, res) => {
 });
 
 app.get('/api/v1/health/live', (req, res) => {
-  res.json({ status: 'live', timestamp: new Date().toISOString() });
+  res.json({ status: 'live', release: 'security-hardening-2026-11-03', timestamp: new Date().toISOString() });
 });
 
 app.get('/api/v1/health/ready', (req, res) => {
@@ -378,7 +370,7 @@ app.post('/api/v1/auth/login', authLoginLimiter, (req, res) => {
     return;
   }
 
-  if (matchedUser.status === 'SUSPENDED') {
+  if (matchedUser.status !== 'ACTIVE') {
     res.status(403).json({ code: 'FORBIDDEN', message: 'Foydalanuvchi hisobi to‘xtatilgan' });
     return;
   }
@@ -453,6 +445,7 @@ app.post('/api/v1/auth/token-login', (req, res) => {
   }
 
   const cleanToken = token.trim();
+  if (isTokenRevoked(cleanToken)) return res.status(401).json({ code: 'INVALID_TOKEN', message: 'Token bekor qilingan' });
   let user = null;
 
   // 1. In-memory session check
@@ -482,8 +475,8 @@ app.post('/api/v1/auth/token-login', (req, res) => {
     return;
   }
 
-  if (user.status === 'SUSPENDED') {
-    res.status(403).json({ code: 'FORBIDDEN', message: 'Foydalanuvchi hisobi to‘xtatilgan' });
+  if (user.status !== 'ACTIVE') {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Foydalanuvchi hisobi faol emas' });
     return;
   }
 
@@ -681,68 +674,9 @@ export interface SearchLogEntry {
   timestamp: string;
 }
 
-export const searchLogs: SearchLogEntry[] = [
-  {
-    id: 's-1',
-    query: 'Snickers 50g',
-    userType: 'CUSTOMER',
-    userName: 'Otabek Xaridor',
-    locationName: 'Yunusobod tumani',
-    radiusM: 1000,
-    resultsCount: 4,
-    timestamp: new Date(Date.now() - 12 * 60 * 1000).toISOString()
-  },
-  {
-    id: 's-2',
-    query: 'Coca-Cola 1.5l',
-    userType: 'CUSTOMER',
-    userName: 'Otabek Xaridor',
-    locationName: 'Yunusobod tumani',
-    radiusM: 1500,
-    resultsCount: 3,
-    timestamp: new Date(Date.now() - 28 * 60 * 1000).toISOString()
-  },
-  {
-    id: 's-3',
-    query: 'Nesquik kakao',
-    userType: 'GUEST',
-    userName: 'Mehmon foydalanuvchi #491',
-    locationName: 'Mirobod tumani',
-    radiusM: 1000,
-    resultsCount: 2,
-    timestamp: new Date(Date.now() - 45 * 60 * 1000).toISOString()
-  },
-  {
-    id: 's-4',
-    query: '24/7 ochiq market',
-    userType: 'GUEST',
-    userName: 'Mehmon foydalanuvchi #312',
-    locationName: 'Mirobod tumani',
-    radiusM: 3000,
-    resultsCount: 1,
-    timestamp: new Date(Date.now() - 65 * 60 * 1000).toISOString()
-  },
-  {
-    id: 's-5',
-    query: 'Ulgurji shokolad bloki',
-    userType: 'GUEST',
-    userName: 'Mehmon foydalanuvchi #108',
-    locationName: 'Shayxontohur tumani',
-    radiusM: 2000,
-    resultsCount: 2,
-    timestamp: new Date(Date.now() - 95 * 60 * 1000).toISOString()
-  },
-  {
-    id: 's-6',
-    query: 'Mars 50g',
-    userType: 'CUSTOMER',
-    userName: 'Otabek Xaridor',
-    locationName: 'Yunusobod tumani',
-    radiusM: 1000,
-    resultsCount: 3,
-    timestamp: new Date(Date.now() - 130 * 60 * 1000).toISOString()
-  }
-];
+export function getSearchLogs(): SearchLogEntry[] { return [...db.searchEvents.values()].sort((a,b)=>Date.parse(b.timestamp)-Date.parse(a.timestamp)); }
+function recordSearchLog(entry: SearchLogEntry) { db.searchEvents.set(entry.id,entry); if(db.searchEvents.size>1000) db.searchEvents.delete(getSearchLogs().at(-1)!.id); }
+
 
 // ================= SEARCH & MAP ROUTES =================
 app.post('/api/v1/search/products', (req, res) => {
@@ -756,7 +690,7 @@ app.post('/api/v1/search/products', (req, res) => {
     const result = searchProducts(parsed.data);
 
     if (parsed.data.q && parsed.data.q.trim()) {
-      searchLogs.unshift({
+      recordSearchLog({
         id: uuidv4(),
         query: parsed.data.q.trim(),
         userType: user ? 'CUSTOMER' : 'GUEST',
@@ -766,7 +700,7 @@ app.post('/api/v1/search/products', (req, res) => {
         resultsCount: result.totalOffers || result.items.length,
         timestamp: new Date().toISOString()
       });
-      if (searchLogs.length > 100) searchLogs.pop();
+
     }
 
     res.json(result);
@@ -1211,12 +1145,12 @@ function findStoreByParam(param: string): Store | undefined {
 app.get('/api/v1/stores/:slug/@:lat,:lng', (req: any, res: any) => {
   const param = `@${req.params.lat},${req.params.lng}`;
   const store = findStoreByParam(param) || findStoreByParam(req.params.slug);
-  if (!store || store.status === 'SUSPENDED') {
+  if (!store || store.status !== 'ACTIVE') {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
   }
   const org = db.organizations.get(store.organizationId);
-  if (!org || org.status === 'SUSPENDED') {
+  if (!org || org.status !== 'ACTIVE') {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
   }
@@ -1234,7 +1168,8 @@ app.get('/api/v1/stores/:slug/@:lat,:lng', (req: any, res: any) => {
 app.get('/api/v1/stores/:slug/@:lat,:lng/offers', (req: any, res: any) => {
   const param = `@${req.params.lat},${req.params.lng}`;
   const matchedStore = findStoreByParam(param) || findStoreByParam(req.params.slug);
-  const storeId = matchedStore ? matchedStore.id : req.params.slug;
+  if (!matchedStore || matchedStore.status !== 'ACTIVE' || db.organizations.get(matchedStore.organizationId)?.status !== 'ACTIVE') return res.status(404).json({code:'NOT_FOUND',message:'Do‘kon topilmadi'});
+  const storeId = matchedStore.id;
   const storeOffers = Array.from(db.offers.values()).filter(
     (o) => o.storeId === storeId && o.status !== 'INACTIVE'
   );
@@ -1243,12 +1178,12 @@ app.get('/api/v1/stores/:slug/@:lat,:lng/offers', (req: any, res: any) => {
 
 app.get('/api/v1/stores/:id', (req, res) => {
   const store = findStoreByParam(req.params.id);
-  if (!store || store.status === 'SUSPENDED') {
+  if (!store || store.status !== 'ACTIVE') {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
   }
   const org = db.organizations.get(store.organizationId);
-  if (!org || org.status === 'SUSPENDED') {
+  if (!org || org.status !== 'ACTIVE') {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
   }
@@ -1267,7 +1202,8 @@ app.get('/api/v1/stores/:id', (req, res) => {
 
 app.get('/api/v1/stores/:id/offers', (req, res) => {
   const matchedStore = findStoreByParam(req.params.id);
-  const storeId = matchedStore ? matchedStore.id : req.params.id;
+  if (!matchedStore || matchedStore.status !== 'ACTIVE' || db.organizations.get(matchedStore.organizationId)?.status !== 'ACTIVE') return res.status(404).json({code:'NOT_FOUND',message:'Do‘kon topilmadi'});
+  const storeId = matchedStore.id;
 
   // Deduplicate offers by variantId so store catalog never returns duplicates
   const seenVariants = new Set<string>();
@@ -1346,7 +1282,7 @@ app.post('/api/v1/stores/:storeId/proposals', async (req: Request, res: Response
 
   const { storeId } = req.params;
   const store = findStoreByParam(storeId) || db.stores.get(storeId);
-  if (!store || store.status === 'SUSPENDED') {
+  if (!store || store.status !== 'ACTIVE') {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
   }
@@ -1918,7 +1854,7 @@ app.post('/api/v1/stores/:storeId/photo-proposals', async (req: Request, res: Re
 
   const { storeId } = req.params;
   const store = findStoreByParam(storeId) || db.stores.get(storeId);
-  if (!store || store.status === 'SUSPENDED') {
+  if (!store || store.status !== 'ACTIVE') {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
   }
@@ -2634,7 +2570,7 @@ app.get('/api/v1/owner/organization-types', (_req, res) => {
   res.json({ types: Array.from(new Set([...defaultTypes, ...Array.from(db.organizations.values()).map(org => org.type)])) });
 });
 
-app.post('/api/v1/owner/onboarding', (req, res) => {
+app.post('/api/v1/owner/onboarding', authRegisterLimiter, (req, res) => {
   const parsed = OwnerOnboardingSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: 'Tashkilot va owner ma’lumotlarini to‘liq, to‘g‘ri kiriting. Parol kamida 8 belgi bo‘lsin.' });
   try {
@@ -2862,7 +2798,7 @@ app.get('/api/v1/merchant/stock-documents', (req, res) => {
 
 app.post('/api/v1/merchant/stock-documents', async (req, res) => {
   const user = getCurrentUser(req) || db.users.get(SEED_IDS.ownerUserId)!;
-  const idempotencyKey = req.headers['idempotency-key'] as string;
+  const idempotencyKey = (req.headers['idempotency-key'] || req.headers['x-idempotency-key']) as string;
 
   if (idempotencyKey) {
     const scope = `stock_post_${req.body.storeId}`;
@@ -3103,37 +3039,7 @@ app.get('/api/v1/admin/reviews', (req: Request, res: Response) => {
   }
 
   // Ensure reviews are populated if empty
-  if (db.reviews.size === 0) {
-    const seedReviews = [
-      {
-        id: 'dc8fcbc5-b471-4daa-a83b-a6dc1452053d',
-        storeId: SEED_IDS.navbahorStoreId,
-        userId: SEED_IDS.customerUserId,
-        userName: 'Otabek Xaridor',
-        rating: 5,
-        comment: 'Do‘konda barcha shirinliklar bor ekan, narxlari ham qulay va toza joy.',
-        status: 'PUBLISHED' as const,
-        merchantReply: 'Tashrifingiz uchun rahmat! Har doim xizmatingizdamiz.',
-        merchantRepliedAt: new Date().toISOString(),
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      },
-      {
-        id: 'e335a9b9-0f22-4a3d-aab3-8cdd7ceb8263',
-        storeId: SEED_IDS.barakaStoreId,
-        userId: SEED_IDS.customerUserId,
-        userName: 'Sardor Qosimov',
-        rating: 4,
-        comment: 'Xizmat ko‘rsatish sifati a’lo darajada, mahsulotlar yangi. Faqat qatorlar orasi biroz torroq.',
-        status: 'PUBLISHED' as const,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      }
-    ];
-    for (const sr of seedReviews) {
-      db.reviews.set(sr.id, sr);
-    }
-  }
+
 
   const enrichedReviews = Array.from(db.reviews.values())
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -3183,15 +3089,7 @@ app.patch('/api/v1/admin/reviews/:id/status', async (req: Request, res: Response
     store.reviewCount = pubReviews.length;
   }
 
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('reviews').update({
-        status: review.status
-      }).eq('id', review.id);
-    } catch (e) {
-      console.error('[Supabase Review Update Error]', e);
-    }
-  }
+
 
   res.json({ success: true, review });
 });
@@ -3221,13 +3119,7 @@ app.delete('/api/v1/admin/reviews/:id', async (req: Request, res: Response) => {
     store.reviewCount = pubReviews.length;
   }
 
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('reviews').delete().eq('id', req.params.id);
-    } catch (e) {
-      console.error('[Supabase Review Delete Error]', e);
-    }
-  }
+
 
   res.json({ success: true, message: 'Sharh muvaffaqiyatli o‘chirildi' });
 });
@@ -3235,13 +3127,7 @@ app.delete('/api/v1/admin/reviews/:id', async (req: Request, res: Response) => {
 app.get('/api/v1/admin/applications', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
   // If no store is pending, ensure the seed pending application is available
   let pendingStores = Array.from(db.stores.values()).filter((s) => s.status === 'PENDING' || s.status === 'NEEDS_CHANGES');
-  if (pendingStores.length === 0) {
-    const demoAppStore = db.stores.get(SEED_IDS.pendingStoreId);
-    if (demoAppStore) {
-      demoAppStore.status = 'PENDING';
-      pendingStores = [demoAppStore];
-    }
-  }
+
 
   const enrichedApps = pendingStores.map(s => {
     const org = db.organizations.get(s.organizationId);
@@ -3286,66 +3172,14 @@ app.patch('/api/v1/admin/applications/:id', requireStaffRole(['ADMIN', 'SUPERADM
   };
   db.auditLogs.push(auditEntry);
 
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('stores').update({
-        status: store.status,
-        is_active: store.status === 'ACTIVE',
-        updated_at: new Date().toISOString()
-      }).eq('id', store.id);
 
-      await supabase.from('audit_logs').insert({
-        id: auditEntry.id,
-        user_id: caller?.id || SEED_IDS.adminUserId,
-        action: auditEntry.action,
-        entity: 'STORE',
-        entity_id: store.id,
-        details: auditEntry.diff
-      });
-    } catch (e) {
-      console.error('[Supabase Application Decision Sync Error]', e);
-    }
-  }
 
   res.json({ store });
 });
 
 app.get('/api/v1/admin/reports', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
   // If db.reports is empty, provide seed reports
-  if (db.reports.size === 0) {
-    const sampleReports = [
-      {
-        id: 'rep-sample-1',
-        reporterUserId: SEED_IDS.customerUserId,
-        storeId: SEED_IDS.navbahorStoreId,
-        reason: 'WRONG_PRICE' as const,
-        details: 'Ilovada 8 000 so‘m, kassada esa 9 000 so‘m deyishdi.',
-        status: 'OPEN' as const,
-        createdAt: new Date(Date.now() - 3600000 * 5).toISOString()
-      },
-      {
-        id: 'rep-sample-2',
-        reporterUserId: SEED_IDS.customerUserId,
-        storeId: SEED_IDS.barakaStoreId,
-        reason: 'UNAVAILABLE_PRODUCT' as const,
-        details: 'Coca-Cola 1.5l tugagan deb aytishdi, dasturda esa bor deb ko‘rsatilgan.',
-        status: 'OPEN' as const,
-        createdAt: new Date(Date.now() - 3600000 * 12).toISOString()
-      },
-      {
-        id: 'rep-sample-3',
-        reporterUserId: SEED_IDS.customerUserId,
-        storeId: SEED_IDS.barakaStoreId,
-        reason: 'WRONG_LOCATION' as const,
-        details: 'Do‘kon kirish eshigi boshqa ko‘chada joylashgan.',
-        status: 'OPEN' as const,
-        createdAt: new Date(Date.now() - 3600000 * 24).toISOString()
-      }
-    ];
-    for (const sr of sampleReports) {
-      db.reports.set(sr.id, sr);
-    }
-  }
+
 
   const enrichedReports = Array.from(db.reports.values())
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
@@ -3374,16 +3208,7 @@ app.patch('/api/v1/admin/reports/:id', requireStaffRole(['ADMIN', 'SUPERADMIN', 
   if (notes) (rep as any).resolutionNotes = notes;
   (rep as any).resolvedAt = new Date().toISOString();
 
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('reports').update({
-        status: rep.status,
-        updated_at: new Date().toISOString()
-      }).eq('id', rep.id);
-    } catch (e) {
-      console.error('[Supabase Report Update Error]', e);
-    }
-  }
+
 
   res.json({ report: rep });
 });
@@ -3396,13 +3221,7 @@ app.delete('/api/v1/admin/reports/:id', requireStaffRole(['ADMIN', 'SUPERADMIN']
   }
   db.reports.delete(req.params.id);
 
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('reports').delete().eq('id', req.params.id);
-    } catch (e) {
-      console.error('[Supabase Report Delete Error]', e);
-    }
-  }
+
 
   const caller = getCurrentUser(req);
   db.auditLogs.push({
@@ -3586,6 +3405,7 @@ app.patch('/api/v1/admin/users/:id/status', requireStaffRole(['ADMIN', 'SUPERADM
 
   // Invalidate user sessions immediately upon suspension or deletion
   if (status === 'SUSPENDED' || status === 'DELETED') {
+    revokeUserSessions(user.id);
     for (const [token, sess] of db.sessions.entries()) {
       if (sess.userId === user.id) {
         revokeToken(token);
@@ -3666,6 +3486,9 @@ app.patch('/api/v1/admin/users/:id/credentials', requireStaffRole(['ADMIN', 'SUP
   if (fullName) user.fullName = fullName;
   if (email) user.email = email;
   if (phone) user.phone = phone;
+  const caller = getCurrentUser(req)!;
+  const validRoles = ['CUSTOMER','OWNER','MANAGER','OPERATOR','DEALER','DEALER_AGENT','MODERATOR','ADMIN','SUPERADMIN'];
+  if (role && (!validRoles.includes(role) || (caller.role !== 'SUPERADMIN' && (['SUPERADMIN','ADMIN'].includes(role) || ['SUPERADMIN','ADMIN'].includes(user.role))))) return res.status(403).json({code:'FORBIDDEN',message:'Rolni o‘zgartirishga ruxsat yo‘q.'});
   if (role) user.role = role;
   if (status) {
     user.status = status;
@@ -3679,7 +3502,8 @@ app.patch('/api/v1/admin/users/:id/credentials', requireStaffRole(['ADMIN', 'SUP
   }
   user.updatedAt = new Date().toISOString();
 
-  if (password || status === 'SUSPENDED' || role) {
+  if (password || status === 'SUSPENDED' || status === 'DELETED' || role) {
+    revokeUserSessions(user.id);
     for (const [token, sess] of db.sessions.entries()) {
       if (sess.userId === user.id) {
         revokeToken(token);
@@ -3988,71 +3812,7 @@ app.delete('/api/v1/admin/organizations/:orgId/users/:userId', requireStaffRole(
 });
 
 app.get('/api/v1/admin/audit', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
-  if (db.auditLogs.length === 0) {
-    const now = Date.now();
-    db.auditLogs = [
-      {
-        id: 'aud-seed-1',
-        actorId: SEED_IDS.adminUserId,
-        actorEmail: 'admin@yaqintop.uz',
-        action: 'PLATFORM_SYSTEM_INIT',
-        entityType: 'PLATFORM',
-        entityId: 'core-system',
-        diff: { version: '2.4.0', status: 'HEALTHY' },
-        timestamp: new Date(now - 3600000 * 48).toISOString()
-      },
-      {
-        id: 'aud-seed-2',
-        actorId: SEED_IDS.adminUserId,
-        actorEmail: 'admin@yaqintop.uz',
-        action: 'CREATE_ORGANIZATION',
-        entityType: 'ORGANIZATION',
-        entityId: SEED_IDS.navbahorOrgId,
-        diff: { name: 'Navbahor Savdo MCHJ', status: 'ACTIVE' },
-        timestamp: new Date(now - 3600000 * 24).toISOString()
-      },
-      {
-        id: 'aud-seed-3',
-        actorId: SEED_IDS.ownerUserId,
-        actorEmail: 'owner@navbahor.uz',
-        action: 'CREATE_STORE',
-        entityType: 'STORE',
-        entityId: SEED_IDS.navbahorStoreId,
-        diff: { name: 'Navbahor Market', address: 'Yunusobod 4-mavze' },
-        timestamp: new Date(now - 3600000 * 18).toISOString()
-      },
-      {
-        id: 'aud-seed-4',
-        actorId: SEED_IDS.adminUserId,
-        actorEmail: 'admin@yaqintop.uz',
-        action: 'APPROVE_STORE_APPLICATION',
-        entityType: 'STORE',
-        entityId: SEED_IDS.navbahorStoreId,
-        diff: { isVerified: true, status: 'ACTIVE' },
-        timestamp: new Date(now - 3600000 * 17).toISOString()
-      },
-      {
-        id: 'aud-seed-5',
-        actorId: SEED_IDS.customerUserId,
-        actorEmail: 'customer@yaqintop.uz',
-        action: 'SUBMIT_STORE_REVIEW',
-        entityType: 'REVIEW',
-        entityId: 'dc8fcbc5-b471-4daa-a83b-a6dc1452053d',
-        diff: { rating: 5, comment: 'Do‘konda barcha shirinliklar bor ekan...' },
-        timestamp: new Date(now - 3600000 * 6).toISOString()
-      },
-      {
-        id: 'aud-seed-6',
-        actorId: SEED_IDS.adminUserId,
-        actorEmail: 'admin@yaqintop.uz',
-        action: 'APPROVE_ITEM_PROPOSAL',
-        entityType: 'ITEM_PROPOSAL',
-        entityId: '3ec95b09-d31a-4286-90f7-111122223333',
-        diff: { title: 'flesh', status: 'APPROVED' },
-        timestamp: new Date(now - 3600000 * 1).toISOString()
-      }
-    ];
-  }
+
 
   const enrichedLogs = db.auditLogs.slice(-100).reverse().map(l => {
     const user = l.actorId ? db.users.get(l.actorId) : undefined;
@@ -4191,33 +3951,7 @@ app.post('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN']
       version: 1
     });
 
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('variants').upsert({
-          id: variant.id,
-          organization_id: orgId,
-          title: variant.title,
-          brand: variant.brand,
-          category: variant.category,
-          barcode: variant.barcode,
-          pack_size: variant.packSize,
-          pack_unit: variant.packUnit,
-          image_url: variant.photoUrl,
-          attributes: { photoUrl: variant.photoUrl, type: variant.type }
-        });
-        await supabase.from('offers').upsert({
-          id: offer.id,
-          store_id: storeId,
-          variant_id: variant.id,
-          price: parseFloat(offer.price),
-          in_stock: initialStock > 0,
-          stock_count: initialStock,
-          status: 'ACTIVE'
-        });
-      } catch (e) {
-        console.error('[Supabase Initial Offer Error]', e);
-      }
-    }
+
     createdOffer = offer;
   }
 
@@ -4545,20 +4279,7 @@ app.patch('/api/v1/admin/stores/:id', async (req, res) => {
   if (isSupabaseConfigured() && supabase) {
     try {
       const storePhotos = (store as any).photos || (store.photoUrl ? [store.photoUrl] : []);
-      await supabase.from('stores').update({
-        name: store.name,
-        address: store.address,
-        phone: store.phone,
-        status: store.status,
-        is_active: store.status === 'ACTIVE',
-        photos: storePhotos,
-        working_hours: (store as any).hours || null,
-        region: (store as any).region || null,
-        district: (store as any).district || null,
-        latitude: store.location?.lat || null,
-        longitude: store.location?.lng || null,
-        updated_at: store.updatedAt
-      }).eq('id', store.id);
+
     } catch (e) {
       console.error('[Supabase Store Update Error]', e);
     }
@@ -4645,33 +4366,7 @@ app.post('/api/v1/admin/stores/:id/offers', requireStaffRole(['ADMIN', 'SUPERADM
   });
 
   // Supabase sync
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('variants').upsert({
-        id: variant.id,
-        organization_id: matchedStore.organizationId,
-        title: variant.title,
-        brand: variant.brand,
-        category: variant.category,
-        barcode: variant.barcode,
-        pack_size: variant.packSize,
-        pack_unit: variant.packUnit,
-        image_url: variant.photoUrl,
-        attributes: { photoUrl: variant.photoUrl, type: variant.type, description: variant.description }
-      });
-      await supabase.from('offers').upsert({
-        id: offer.id,
-        store_id: matchedStore.id,
-        variant_id: variant.id,
-        price: parseFloat(finalPrice),
-        in_stock: initialStock > 0,
-        stock_count: initialStock,
-        status: 'ACTIVE'
-      });
-    } catch (err) {
-      console.error('[Supabase Offer Sync Error]', err);
-    }
-  }
+
 
   db.saveToFile();
   db.scheduleSave();
@@ -4689,13 +4384,7 @@ app.delete('/api/v1/admin/offers/:id', requireStaffRole(['ADMIN', 'SUPERADMIN'])
   if (offer.variantId) {
     db.variants.delete(offer.variantId);
   }
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('offers').delete().eq('id', offer.id);
-    } catch (e) {
-      console.error('[Supabase Offer Delete Error]', e);
-    }
-  }
+
   db.saveToFile();
   db.scheduleSave();
   res.json({ success: true, message: 'O‘chirildi' });
@@ -4716,16 +4405,7 @@ app.post('/api/v1/admin/stores/:id/resolve-issues', requireStaffRole(['ADMIN', '
       (rep as any).resolutionNotes = 'Admin tomonidan moderatsiya xaritasidan bartaraf etildi va o‘chirildi';
       (rep as any).resolvedAt = new Date().toISOString();
       resolvedReportsCount++;
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          await supabase.from('reports').update({
-            status: 'RESOLVED',
-            updated_at: new Date().toISOString()
-          }).eq('id', rep.id);
-        } catch (e) {
-          console.error('[Supabase Report Resolve Error]', e);
-        }
-      }
+
     }
   }
 
@@ -4742,17 +4422,7 @@ app.post('/api/v1/admin/stores/:id/resolve-issues', requireStaffRole(['ADMIN', '
     store.status = 'ACTIVE';
     store.isVerified = true;
     store.updatedAt = new Date().toISOString();
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('stores').update({
-          status: 'ACTIVE',
-          is_active: true,
-          updated_at: new Date().toISOString()
-        }).eq('id', store.id);
-      } catch (e) {
-        console.error('[Supabase Store Activate Error]', e);
-      }
-    }
+
   }
 
   // 4. Audit Log
@@ -4772,20 +4442,7 @@ app.post('/api/v1/admin/stores/:id/resolve-issues', requireStaffRole(['ADMIN', '
     timestamp: new Date().toISOString()
   };
   db.auditLogs.push(auditEntry);
-  if (isSupabaseConfigured() && supabase) {
-    try {
-      await supabase.from('audit_logs').insert({
-        id: auditEntry.id,
-        user_id: SEED_IDS.adminUserId,
-        action: auditEntry.action,
-        entity: 'STORE',
-        entity_id: store.id,
-        details: auditEntry.diff
-      });
-    } catch (e) {
-      console.error('[Supabase Audit Log Error]', e);
-    }
-  }
+
 
   db.scheduleSave();
 
@@ -4815,33 +4472,14 @@ app.delete('/api/v1/admin/stores/:id/issues', requireStaffRole(['ADMIN', 'SUPERA
       if (rep.status === 'OPEN') resolvedReportsCount++;
       rep.status = 'RESOLVED';
       (rep as any).resolvedAt = new Date().toISOString();
-      if (isSupabaseConfigured() && supabase) {
-        try {
-          await supabase.from('reports').update({
-            status: 'RESOLVED',
-            updated_at: new Date().toISOString()
-          }).eq('id', rep.id);
-        } catch (e) {
-          console.error(e);
-        }
-      }
+
     }
   }
   if (store.status === 'PENDING' || store.status === 'NEEDS_CHANGES') {
     store.status = 'ACTIVE';
     store.isVerified = true;
     store.updatedAt = new Date().toISOString();
-    if (isSupabaseConfigured() && supabase) {
-      try {
-        await supabase.from('stores').update({
-          status: 'ACTIVE',
-          is_active: true,
-          updated_at: new Date().toISOString()
-        }).eq('id', store.id);
-      } catch (e) {
-        console.error(e);
-      }
-    }
+
   }
   db.scheduleSave();
   res.json({ success: true, message: 'Muammolar muvaffaqiyatli o‘chirildi', resolvedReportsCount });
@@ -4911,6 +4549,7 @@ app.post('/api/v1/admin/credential-requests/:id/decision', requireStaffRole(['AD
       if (changeReq.requestedPhone) user.phone = changeReq.requestedPhone;
       user.updatedAt = new Date().toISOString();
 
+      revokeUserSessions(user.id);
       // Revoke sessions when credentials change
       for (const [token, sess] of db.sessions.entries()) {
         if (sess.userId === user.id) {
@@ -5147,22 +4786,10 @@ app.get('/api/v1/admin/analytics/activity', requireStaffRole(['ADMIN', 'SUPERADM
   });
 
   // Top searched products
-  const topSearchedProducts = [
-    { name: 'Snickers 50g', category: 'Shokolad', searchesCount: 48, successRate: '96%', topStore: 'Navbahor Market' },
-    { name: 'Coca-Cola 1.5l', category: 'Ichimliklar', searchesCount: 39, successRate: '92%', topStore: 'Navbahor Market' },
-    { name: 'Nesquik 200g', category: 'Shokolad/Kakao', searchesCount: 27, successRate: '88%', topStore: 'Navbahor Market' },
-    { name: 'Mars 50g', category: 'Shokolad', searchesCount: 22, successRate: '95%', topStore: 'Mahalla Savdo' },
-    { name: 'Twix 50g', category: 'Shokolad', searchesCount: 19, successRate: '75%', topStore: 'Navbahor Market' },
-    { name: 'Bounty 57g', category: 'Shokolad', searchesCount: 15, successRate: '80%', topStore: 'Navbahor Market' }
-  ];
+  const topSearchedProducts = [...getSearchLogs().reduce((groups,log)=>{const current=groups.get(log.query)||{name:log.query,category:'Qidiruv',searchesCount:0,successful:0};current.searchesCount++;if(log.resultsCount>0)current.successful++;groups.set(log.query,current);return groups;},new Map<string,any>()).values()].map(group=>({...group,successRate:Math.round(group.successful/group.searchesCount*100)+'%',topStore:''})).sort((a,b)=>b.searchesCount-a.searchesCount).slice(0,10);
 
   // Top searched services & stores
-  const topSearchedServices = [
-    { name: '24/7 Kechayu-kunduz ochiq do‘konlar', searchesCount: 34, description: 'Tungi savdo nuqtalari' },
-    { name: 'Ulgurji narxlarda (Optom) qutili savdo', searchesCount: 28, description: 'Chorsu va Yunusobod bazalari' },
-    { name: 'Plastik karta (HUMO/Uzcard) to‘lovi', searchesCount: 21, description: 'Kassa terminallari' },
-    { name: 'Yaqin masofadagi piyoda yo‘nalish (Walking)', searchesCount: 19, description: 'Xarita marshruti' }
-  ];
+  const topSearchedServices: {name:string;searchesCount:number;description:string}[] = [];
 
   const topStoresActivity = storesList.map((st) => {
     const org = db.organizations.get(st.organizationId);
@@ -5172,8 +4799,8 @@ app.get('/api/v1/admin/analytics/activity', requireStaffRole(['ADMIN', 'SUPERADM
       name: st.name,
       organizationName: org?.name || 'Tashkilot',
       address: st.address,
-      viewsCount: Math.floor(60 + Math.random() * 80),
-      routesRequested: Math.floor(15 + Math.random() * 30),
+      viewsCount: 0,
+      routesRequested: 0,
       complaintsCount: repCount,
       rating: st.rating,
       status: st.status
@@ -5182,18 +4809,18 @@ app.get('/api/v1/admin/analytics/activity', requireStaffRole(['ADMIN', 'SUPERADM
 
   res.json({
     summary: {
-      totalSearchesToday: searchLogs.length + 86,
-      activeUsersToday: db.users.size + 34,
+      totalSearchesToday: getSearchLogs().filter(log=>Date.parse(log.timestamp)>Date.now()-86400000).length,
+      activeUsersToday: new Set(getSearchLogs().filter(log=>log.userType==='CUSTOMER' && Date.parse(log.timestamp)>Date.now()-86400000).map(log=>log.userName)).size,
       totalComplaints: reportsList.length,
       openComplaints: reportsList.filter((r) => r.status === 'OPEN').length,
-      avgSearchRadiusM: 1000,
-      searchSuccessRate: '93.4%'
+      avgSearchRadiusM: getSearchLogs().length ? Math.round(getSearchLogs().reduce((sum,log)=>sum+log.radiusM,0)/getSearchLogs().length) : 0,
+      searchSuccessRate: getSearchLogs().length ? Math.round(getSearchLogs().filter(log=>log.resultsCount>0).length/getSearchLogs().length*100)+'%' : '0%'
     },
     topSearchedProducts,
     topSearchedServices,
     topStoresActivity,
     complaintsByReason,
-    recentSearchStream: searchLogs,
+    recentSearchStream: getSearchLogs(),
     recentComplaints: reportsList.slice(-10).reverse().map((r) => {
       const store = db.stores.get(r.storeId);
       const user = r.reporterUserId ? db.users.get(r.reporterUserId) : null;
@@ -5554,8 +5181,8 @@ app.get('/api/v1/admin/database/schema-and-tables', requireStaffRole(['SUPERADMI
       name: 'searchLogs',
       displayName: 'Qidiruv Jurnali (Search Logs)',
       description: 'Xaridorlar tomonidan amalga oshirilgan barcha real-vaqt qidiruv so‘rovlari',
-      count: searchLogs.length,
-      records: searchLogs
+      count: getSearchLogs().length,
+      records: getSearchLogs()
     }
   };
 
@@ -5573,7 +5200,7 @@ app.post('/api/v1/system/sync-supabase', async (req: Request, res: Response) => 
   const secretHeader = req.headers['x-sync-secret'];
   const secretKey = typeof secretHeader === 'string' ? secretHeader : undefined;
   const isAuthorizedAdmin = Boolean(user && ['ADMIN', 'SUPERADMIN'].includes(user.role));
-  
+
   let isAuthorizedSecret = false;
   if (process.env.SYNC_SECRET && secretKey) {
     const expected = Buffer.from(process.env.SYNC_SECRET, 'utf8');
@@ -5621,7 +5248,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   const status = typeof err.status === 'number' ? err.status : 500;
   res.status(status).json({
     code: err.code || 'SERVER_ERROR',
-    message: err.message || 'Serverda ichki xatolik yuz berdi'
+    message: status >= 500 ? 'Serverda ichki xatolik yuz berdi' : err.message
   });
 });
 

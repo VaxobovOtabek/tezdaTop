@@ -1,6 +1,7 @@
 import { beforeAll, afterAll, describe, expect, it, vi } from 'vitest';
 import type { Server } from 'node:http';
 import { db } from '../src/db/in-memory-db.js';
+import { hashOwnerPassword } from '../src/services/owner-onboarding.service.js';
 
 vi.mock('../src/db/supabase.js', () => ({
   isSupabaseConfigured: () => false,
@@ -26,7 +27,7 @@ beforeAll(async () => {
     fullName: 'Bosh Admin',
     role: 'ADMIN',
     status: 'ACTIVE',
-    passwordHash: 'AdminPass123!',
+    passwordHash: hashOwnerPassword('AdminPass123!'),
     createdAt: new Date()
   } as any);
 
@@ -37,7 +38,7 @@ beforeAll(async () => {
     fullName: 'Do‘kon Egasi',
     role: 'OWNER',
     status: 'ACTIVE',
-    passwordHash: 'OwnerPass123!',
+    passwordHash: hashOwnerPassword('OwnerPass123!'),
     createdAt: new Date()
   } as any);
 
@@ -48,7 +49,7 @@ beforeAll(async () => {
     fullName: 'Bloklangan Foydalanuvchi',
     role: 'CUSTOMER',
     status: 'SUSPENDED',
-    passwordHash: 'Pass123!',
+    passwordHash: hashOwnerPassword('Pass123!'),
     createdAt: new Date()
   } as any);
 

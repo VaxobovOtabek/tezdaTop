@@ -576,7 +576,7 @@ export const DEALER_DICTIONARY: Record<string, { uz: string; ru: string; en: str
     ru: 'Вы можете в любой момент нажать Ctrl + Alt + T на клавиатуре для быстрого ввода токена.',
     en: 'You can press Ctrl + Alt + T at any time to open quick token login.'
   },
-  'login_demo_hint': { uz: 'Demo hisob: Login: diller1, Parol: DemoPass123!', ru: 'Демо-аккаунт: Логин: diller1, Пароль: DemoPass123!', en: 'Demo account: Login: diller1, Password: DemoPass123!' }
+  'login_demo_hint': { uz: 'Kirish ma’lumotlarini administratordan oling.', ru: 'Получите данные для входа у администратора.', en: 'Ask your administrator for sign-in details.' }
 };
 
 export function useDealerI18n() {

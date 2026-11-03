@@ -105,17 +105,17 @@ MERCHANT_APP_URL=https://merchant.yaqintop.uz
 ADMIN_APP_URL=https://admin.yaqintop.uz
 
 # PostgreSQL + PostGIS Bazasi
-DATABASE_URL=postgresql://yaqintop:JudaKuchliParol123@postgres:5432/yaqintop_db
+DATABASE_URL=${DATABASE_URL}
 
 # Xavfsizlik va Sessiya
-SESSION_SECRET=kuchli_va_kamida_32_belgili_maxfiy_kalit_random_string_2026
+SESSION_SECRET=<SET_OUTSIDE_GIT>
 COOKIE_SECURE=true
 
 # MinIO / S3 Media Saqlash
 S3_ENDPOINT=http://minio:9000
 S3_BUCKET=yaqintop-media
 S3_ACCESS_KEY=yaqintop_minio_admin
-S3_SECRET_KEY=JudaMaxfiyMinioParoli2026
+S3_SECRET_KEY=<SET_OUTSIDE_GIT>
 S3_REGION=us-east-1
 
 # OSRM Geografik Marshrutlash

@@ -45,22 +45,9 @@ Bu quyidagi xizmatlarni ko‘taradi:
 
 ---
 
-## 3. Demo Hisoblar (Lokal sinov uchun)
-- **Xaridor (Customer):**
-  - Email: `customer@yaqintop.uz`
-  - Parol: `DemoPass123!`
-- **Do‘kon egasi (Merchant Owner):**
-  - Email: `owner@navbahor.uz`
-  - Parol: `DemoPass123!`
-- **Kassir / Operator (Merchant Operator):**
-  - Email: `operator@navbahor.uz`
-  - Parol: `DemoPass123!`
-- **Moderator (Platform Moderator):**
-  - Email: `moderator@yaqintop.uz`
-  - Parol: `DemoPass123!`
-- **Superadmin (Platform Superadmin):**
-  - Email: `admin@yaqintop.uz`
-  - Parol: `DemoPass123!`
+## 3. Hisoblarni boshqarish
+
+Login, parol va maxfiy kalitlarni Git yoki hujjatlarda saqlamang. Hisoblar administrator orqali yaratiladi. Production muhitida avtomatik demo seed o‘chirilgan.
 
 ---
 

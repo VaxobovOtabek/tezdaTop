@@ -1,16 +1,23 @@
 import crypto from 'node:crypto';
+import { db } from '../db/in-memory-db.js';
+
+const developmentSecret = crypto.randomBytes(48).toString('hex');
 
 export const SESSION_TTL_MS = 3 * 24 * 60 * 60 * 1000;
 function getSessionSecret(): string {
   const secret = process.env.SESSION_SECRET;
   if (secret && secret.trim()) {
+    if (process.env.NODE_ENV === 'production' && secret.trim().length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters');
     return secret.trim();
   }
-  // Safe fallback to prevent server crashes in serverless/production deployments when env var is not yet configured
-  if (process.env.SUPABASE_SERVICE_ROLE_KEY && process.env.SUPABASE_SERVICE_ROLE_KEY.trim()) {
-    return process.env.SUPABASE_SERVICE_ROLE_KEY.trim();
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (serviceKey && serviceKey.length >= 32) {
+    // A separate, deterministic signing key avoids production downtime when a
+    // deployment already has its backend service key but no SESSION_SECRET yet.
+    return crypto.createHmac('sha256', serviceKey).update('yaqintop/session-signing/v2').digest('hex');
   }
-  return 'yaqintop_secure_session_secret_2026_auth_token_key_min32chars';
+  if (process.env.NODE_ENV === 'production') throw new Error('SESSION_SECRET must be configured');
+  return developmentSecret;
 }
 
 // In-memory set of revoked session tokens (survives within process; invalidates signed tokens on logout/reset)
@@ -18,13 +25,23 @@ export const revokedTokens = new Set<string>();
 
 export function revokeToken(token: string) {
   if (token) {
-    revokedTokens.add(token.trim());
+    db.revocations.set(crypto.createHash('sha256').update(token.trim()).digest('hex'), Date.now() + SESSION_TTL_MS);
   }
 }
 
 export function isTokenRevoked(token: string): boolean {
   if (!token) return true;
-  return revokedTokens.has(token.trim());
+  const now = Date.now();
+  for (const [key, expiry] of db.revocations) if (expiry <= now) db.revocations.delete(key);
+  return revokedTokens.has(token.trim()) || db.revocations.has(crypto.createHash('sha256').update(token.trim()).digest('hex'));
+}
+
+export function revokeUserSessions(userId: string) {
+  const user = db.users.get(userId) as any;
+  if (user) user.tokenVersion = (user.tokenVersion || 0) + 1;
+  for (const [token, session] of db.sessions) {
+    if (session.userId === userId) { revokeToken(token); db.sessions.delete(token); }
+  }
 }
 
 export function sessionExpiresAt(session: { createdAt: Date | string }) {
@@ -37,7 +54,7 @@ export function isSessionExpired(session: { createdAt: Date | string }, now = Da
 }
 
 export function createSignedSessionToken(userId: string, createdAt = Date.now()): string {
-  const payload = `${userId}.${createdAt}`;
+  const payload = `${userId}.${createdAt}.${(db.users.get(userId) as any)?.tokenVersion || 0}.${crypto.randomBytes(16).toString('hex')}`;
   const hmac = crypto.createHmac('sha256', getSessionSecret()).update(payload).digest('base64url');
   return `yqt_${payload}.${hmac}`;
 }
@@ -55,11 +72,13 @@ export function verifySignedSessionToken(token: string, now = Date.now()): { use
   const signature = raw.slice(lastDot + 1);
 
   const parts = payload.split('.');
-  if (parts.length !== 2) return null;
+  if (parts.length !== 4) return null;
 
   const [userId, createdAtStr] = parts;
   const createdAt = Number(createdAtStr);
   if (!userId || !Number.isFinite(createdAt)) return null;
+  if (createdAt > now + 30_000) return null;
+  if (Number(parts[2]) !== ((db.users.get(userId) as any)?.tokenVersion || 0)) return null;
 
   // Check TTL (3 days)
   if (now - createdAt >= SESSION_TTL_MS) return null;

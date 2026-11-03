@@ -38,6 +38,7 @@ export const SEED_IDS = {
 };
 
 export async function seedDatabase() {
+  if (process.env.NODE_ENV === 'production') throw new Error('Demo data is disabled in production');
   console.log('Seeding YaqinTop database with synthetic Pilot Centre data...');
 
   const defaultHashedPassword = hashOwnerPassword('DemoPass123!');
@@ -815,7 +816,7 @@ export async function seedDatabase() {
     organizationId: SEED_IDS.navbahorOrgId,
     organizationName: 'Navbahor Savdo MCHJ',
     requestedEmail: 'sardor.operator@navbahor.uz',
-    requestedPassword: 'NewOperatorPass2026!',
+    requestedPassword: hashOwnerPassword('NewOperatorPass2026!'),
     requestedPhone: '+998903334455',
     reason: 'Rasmiy korporativ elektron pochtaga o‘tkazish',
     status: 'PENDING',

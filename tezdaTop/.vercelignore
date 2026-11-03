@@ -43,3 +43,11 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+
+# Never upload operational backups or credentials
+**/.local/
+**/*.enc
+**/*.enc.key
+**/.env
+**/.env.*
+!**/.env.example

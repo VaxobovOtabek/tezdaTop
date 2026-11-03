@@ -13,7 +13,7 @@ Token kiritilgach lokal backendni qayta ishga tushiring.
 
 ```text
 SUPABASE_PROJECT_REF=<loyiha ref>
-SUPABASE_ACCESS_TOKEN=<faqat lokal backend tokeni>
+SUPABASE_ACCESS_TOKEN=<SET_OUTSIDE_GIT>
 SUPABASE_USAGE_PLAN=free
 SUPABASE_DATABASE_LIMIT_MB=500
 ```

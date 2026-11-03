@@ -8,6 +8,16 @@ import { calculateDistanceMetres } from '../db/spatial.js';
 const routingProvider = new OSRMRoutingProvider();
 
 export class DealerService {
+  private static atomically<T>(operation: () => T): T {
+    const before = JSON.parse(JSON.stringify(db.exportSnapshot()));
+    try { return operation(); } catch (error) { db.restoreSnapshot(before); throw error; }
+  }
+  public static createSupplyOrder(dealerId: string, data: Parameters<typeof DealerService.createSupplyOrderInternal>[1]) {
+    return this.atomically(() => this.createSupplyOrderInternal(dealerId, data));
+  }
+  public static recordReturn(dealerId: string, data: Parameters<typeof DealerService.recordReturnInternal>[1]) {
+    return this.atomically(() => this.recordReturnInternal(dealerId, data));
+  }
   /**
    * Resolve dealer by user ID
    */
@@ -142,7 +152,7 @@ export class DealerService {
       type?: string;
     }
   ) {
-    if (!data.name || !data.address || data.lat === undefined || data.lng === undefined) {
+    if (!data.name || !data.address || !Number.isFinite(data.lat) || !Number.isFinite(data.lng) || Math.abs(data.lat) > 90 || Math.abs(data.lng) > 180) {
       throw new Error('Do‘kon nomi, manzili va xaritadagi koordinatalari kiritilishi shart');
     }
 
@@ -176,6 +186,7 @@ export class DealerService {
       updatedAt: new Date().toISOString()
     };
 
+    db.organizations.set(newStore.organizationId, { id:newStore.organizationId,name:newStore.name,inn:data.inn,type:newStore.type || 'RETAIL',status:'ACTIVE',createdAt:newStore.createdAt });
     db.stores.set(storeId, newStore);
 
     const dsId = uuidv4();
@@ -266,7 +277,7 @@ export class DealerService {
   /**
    * Create Supply Order (Nakladnoy) & synchronize B2C inventory
    */
-  public static createSupplyOrder(
+  private static createSupplyOrderInternal(
     dealerId: string,
     data: {
       storeId: string;
@@ -288,6 +299,20 @@ export class DealerService {
       throw new Error('Ushbu do‘kon mijozlar bazangizda topilmadi. Avval uni biriktiring.');
     }
 
+    if (dealerStore.status !== 'ACTIVE' || !db.stores.has(data.storeId)) throw new Error('Faol mijoz do‘koni topilmadi');
+    if (!['CASH','TRANSFER','CARD','DEBT','PARTIAL'].includes(data.paymentType)) throw new Error('To‘lov turi noto‘g‘ri');
+    const seenProducts = new Set<string>();
+    let validatedTotal = new Decimal(0);
+    for (const item of data.items) {
+      const product = db.dealerProducts.get(item.productId);
+      if (!product || product.dealerId !== dealerId || seenProducts.has(item.productId)) throw new Error('Mahsulot noto‘g‘ri yoki takrorlangan');
+      seenProducts.add(item.productId);
+      const quantity = new Decimal(item.quantity); const price = new Decimal(item.unitPrice ?? product.wholesalePrice);
+      if (!quantity.isFinite() || quantity.lte(0) || !price.isFinite() || price.lt(0) || product.stockQuantity.lt(quantity)) throw new Error('Miqdor, narx yoki ombor qoldig‘i noto‘g‘ri');
+      validatedTotal = validatedTotal.plus(quantity.times(price));
+    }
+    const payment = new Decimal(data.paidAmount ?? 0);
+    if (!payment.isFinite() || payment.lt(0) || payment.gt(validatedTotal)) throw new Error('To‘lov summasi noto‘g‘ri');
     const store = db.stores.get(data.storeId);
     let totalAmountDec = new Decimal(0);
     const orderItems: DBSupplyOrder['items'] = [];
@@ -301,12 +326,12 @@ export class DealerService {
       }
 
       const qtyDec = new Decimal(item.quantity);
-      const priceDec = new Decimal(item.unitPrice || prod.wholesalePrice);
+      const priceDec = new Decimal(item.unitPrice ?? prod.wholesalePrice);
       const subtotalDec = qtyDec.times(priceDec);
       totalAmountDec = totalAmountDec.plus(subtotalDec);
 
       // Decrement dealer warehouse stock (floor at 0)
-      prod.stockQuantity = Decimal.max(0, prod.stockQuantity.minus(qtyDec));
+      prod.stockQuantity = prod.stockQuantity.minus(qtyDec);
 
       orderItems.push({
         id: uuidv4(),
@@ -343,6 +368,7 @@ export class DealerService {
           db.variants.set(newVarId, matchedVariant);
         }
 
+        prod.globalProductId = matchedVariant.id;
         // Find or create Offer for store
         let offer = Array.from(db.offers.values()).find(
           o => o.storeId === data.storeId && o.variantId === matchedVariant!.id
@@ -356,6 +382,7 @@ export class DealerService {
           offer.stockVerifiedAt = new Date().toISOString();
           const bal = db.balances.get(offer.id);
           if (bal) {
+            bal.averageUnitCost = bal.onHand.times(bal.averageUnitCost).plus(qtyDec.times(priceDec)).div(bal.onHand.plus(qtyDec));
             bal.onHand = bal.onHand.plus(qtyDec);
             bal.version += 1;
             bal.lastVerifiedAt = new Date();
@@ -386,9 +413,7 @@ export class DealerService {
             version: 1
           });
         }
-      } catch (syncErr) {
-        console.warn('[Dealer B2C Sync Warning]', syncErr);
-      }
+      } catch (syncErr) { throw syncErr; }
     }
 
     const paidDec = new Decimal(Math.min(data.paidAmount || 0, totalAmountDec.toNumber()));
@@ -472,7 +497,7 @@ export class DealerService {
       comment?: string;
     }
   ) {
-    if (!data.storeId || !data.amount || data.amount <= 0) {
+    if (!data.storeId || !Number.isFinite(data.amount) || data.amount <= 0) {
       throw new Error('Do‘kon va to‘lov summasi to‘g‘ri kiritilishi shart');
     }
 
@@ -485,6 +510,7 @@ export class DealerService {
     }
 
     const amountDec = new Decimal(data.amount);
+    if (amountDec.gt(dealerStore.currentDebtBalance)) throw new Error('To‘lov mavjud qarzdan katta');
     dealerStore.currentDebtBalance = Decimal.max(0, dealerStore.currentDebtBalance.minus(amountDec));
 
     const txId = uuidv4();
@@ -513,7 +539,7 @@ export class DealerService {
   /**
    * Return of unsold or damaged goods (Vozvrat)
    */
-  public static recordReturn(
+  private static recordReturnInternal(
     dealerId: string,
     data: {
       storeId: string;
@@ -534,35 +560,31 @@ export class DealerService {
     }
 
     let returnTotalDec = new Decimal(0);
-
+    const seen = new Set<string>();
+    const returnedItems: { productId: string; quantity: string; amount: string }[] = [];
     for (const item of data.items) {
       const prod = db.dealerProducts.get(item.productId);
-      if (!prod || prod.dealerId !== dealerId) continue;
-
-      const qtyDec = new Decimal(item.quantity);
-      const priceDec = new Decimal(item.unitPrice || prod.wholesalePrice);
-      const subtotalDec = qtyDec.times(priceDec);
-      returnTotalDec = returnTotalDec.plus(subtotalDec);
-
-      // Restore dealer stock
-      prod.stockQuantity = prod.stockQuantity.plus(qtyDec);
-
-      // Deduct from store B2C balance if applicable
-      try {
-        const offer = Array.from(db.offers.values()).find(
-          o => o.storeId === data.storeId && o.variantId === prod.globalProductId
-        );
-        if (offer) {
-          const bal = db.balances.get(offer.id);
-          if (bal) {
-            bal.onHand = Decimal.max(0, bal.onHand.minus(qtyDec));
-            offer.stockOnHand = Math.max(0, Number(bal.onHand.toString()));
-            if (bal.onHand.isZero()) offer.status = 'OUT_OF_STOCK';
-          }
-        }
-      } catch (e) {
-        // ignore
+      const quantity = new Decimal(item.quantity);
+      if (!prod || prod.dealerId !== dealerId || seen.has(item.productId) || !quantity.isFinite() || quantity.lte(0)) throw new Error('Qaytarish miqdori yoki mahsulot noto‘g‘ri');
+      seen.add(item.productId);
+      const supplied = [...db.supplyOrders.values()].filter(o => o.dealerId === dealerId && o.storeId === data.storeId && o.status === 'DELIVERED').flatMap(o => o.items).filter(line => line.productId === item.productId);
+      let remaining = quantity; let amount = new Decimal(0);
+      const allocations: { line: any; quantity: Decimal }[] = [];
+      for (const line of supplied) {
+        const available = line.quantity.minus((line as any).returnedQuantity || 0);
+        const take = Decimal.min(available, remaining);
+        if (take.gt(0)) { allocations.push({line,quantity:take}); amount = amount.plus(take.times(line.unitPrice)); remaining = remaining.minus(take); }
+        if (remaining.isZero()) break;
       }
+      if (remaining.gt(0)) throw new Error('Qaytarish yetkazib berilgan qoldiqdan oshdi');
+      const offer = [...db.offers.values()].find(o => o.storeId === data.storeId && o.variantId === prod.globalProductId);
+      const balance = offer && db.balances.get(offer.id);
+      if (balance && balance.onHand.lt(quantity)) throw new Error('Do‘konda qaytarish uchun qoldiq yetarli emas');
+      for (const allocation of allocations) allocation.line.returnedQuantity = new Decimal(allocation.line.returnedQuantity || 0).plus(allocation.quantity);
+      prod.stockQuantity = prod.stockQuantity.plus(quantity);
+      if (balance && offer) { balance.onHand = balance.onHand.minus(quantity); balance.version++; offer.stockOnHand = balance.onHand.toNumber(); if (balance.onHand.isZero()) offer.status = 'OUT_OF_STOCK'; }
+      returnTotalDec = returnTotalDec.plus(amount);
+      returnedItems.push({productId:prod.id,quantity:quantity.toString(),amount:amount.toString()});
     }
 
     dealerStore.currentDebtBalance = Decimal.max(0, dealerStore.currentDebtBalance.minus(returnTotalDec));
@@ -573,6 +595,7 @@ export class DealerService {
       dealerId,
       storeId: data.storeId,
       type: 'RETURN',
+      items: returnedItems,
       amount: returnTotalDec,
       balanceAfter: dealerStore.currentDebtBalance,
       comment: data.comment || `Vozvrat: Yaroqsiz yoki sotilmagan tovarlar qaytarib olindi`,

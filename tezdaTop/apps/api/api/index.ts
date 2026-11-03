@@ -19,8 +19,7 @@ export default async function handler(req: Request, res: Response) {
     if (!res.headersSent) {
       return res.status(500).json({
         code: 'SERVER_ERROR',
-        message: 'Serverda xatolik yuz berdi',
-        error: err?.message || String(err)
+        message: 'Serverda xatolik yuz berdi'
       });
     }
   }

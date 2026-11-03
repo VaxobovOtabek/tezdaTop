@@ -31,10 +31,7 @@ export function hashOwnerPassword(password: string) {
 export function verifyOwnerPassword(password: string, stored: string) {
   if (!stored || !password) return false;
   if (!stored.startsWith('scrypt:')) {
-    const bufStored = Buffer.from(stored, 'utf-8');
-    const bufPass = Buffer.from(password, 'utf-8');
-    if (bufStored.length !== bufPass.length) return false;
-    return timingSafeEqual(bufStored, bufPass);
+    return false;
   }
   const [, salt, digest] = stored.split(':');
   if (!salt || !digest) return false;

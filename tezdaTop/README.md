@@ -86,12 +86,9 @@ pnpm dev:landing
 
 ---
 
-## Demo Hisoblar (Lokal sinov uchun)
-- **Xaridor:** `customer@yaqintop.uz` / `DemoPass123!`
-- **Do‘kon egasi:** `owner@navbahor.uz` / `DemoPass123!`
-- **Kassir / Operator:** `operator@navbahor.uz` / `DemoPass123!`
-- **Moderator:** `moderator@yaqintop.uz` / `DemoPass123!`
-- **Superadmin:** `admin@yaqintop.uz` / `DemoPass123!`
+## Hisob xavfsizligi
+
+Kirish ma’lumotlarini hujjatlar yoki Git orqali tarqatmang. Production hisoblari administrator tomonidan alohida yaratiladi; demo ma’lumotlar avtomatik yuklanmaydi. Maxfiy qiymatlar lokal, Git e’tiborsiz qoldiradigan sozlamalarda yoki hostingning Secret maydonlarida saqlanadi.
 
 ---
 

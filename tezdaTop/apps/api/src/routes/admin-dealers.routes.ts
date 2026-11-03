@@ -4,6 +4,7 @@ import { db, DBDealer } from '../db/in-memory-db.js';
 import { hashOwnerPassword } from '../services/owner-onboarding.service.js';
 import { User } from '@yaqintop/contracts';
 import { DealerService } from '../services/dealer.service.js';
+import { revokeUserSessions } from '../services/session.service.js';
 
 export const adminDealersRouter: Router = Router();
 
@@ -91,7 +92,7 @@ adminDealersRouter.post('/', (req: Request, res: Response) => {
     status: 'ACTIVE',
     isVerified: true,
     passwordHash: hashOwnerPassword(password),
-    plainPassword: password,
+
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -146,6 +147,7 @@ adminDealersRouter.patch('/:id', (req: Request, res: Response) => {
       user.status = status === 'ACTIVE' ? 'ACTIVE' : 'SUSPENDED';
       // Invalidate sessions if suspended
       if (user.status === 'SUSPENDED') {
+        revokeUserSessions(user.id);
         for (const [token, sess] of db.sessions.entries()) {
           if (sess.userId === user.id) db.sessions.delete(token);
         }
@@ -167,7 +169,8 @@ adminDealersRouter.patch('/:id', (req: Request, res: Response) => {
     const user = db.users.get(dealer.userId);
     if (user) {
       user.passwordHash = hashOwnerPassword(newPassword);
-      user.plainPassword = newPassword;
+      delete user.plainPassword;
+      revokeUserSessions(user.id);
     }
   }
 

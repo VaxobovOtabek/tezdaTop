@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'node:os';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import Decimal from 'decimal.js';
@@ -177,6 +178,7 @@ export interface DBDebtTransaction {
   storeId: string;
   supplyOrderId?: string | null;
   type: 'SUPPLY' | 'PAYMENT' | 'RETURN';
+  items?: { productId: string; quantity: string; amount: string }[];
   amount: Decimal;
   balanceAfter: Decimal;
   comment: string;
@@ -214,29 +216,16 @@ export class InMemoryDatabase {
   public idempotencyRecords: Map<string, DBIdempotencyRecord> = new Map();
 
   // Persistent file storage configuration (use /tmp on Serverless / Vercel)
-  private dataDir = process.env.VERCEL ? path.resolve('/tmp', 'data') : path.resolve(process.cwd(), 'data');
-  private dataFilePath = process.env.VERCEL ? path.resolve('/tmp', 'data', 'yaqintop_db.json') : path.resolve(process.cwd(), 'data', 'yaqintop_db.json');
+  private dataDir = process.env.VERCEL ? path.join(os.tmpdir(), 'yaqintop-data') : path.resolve(process.cwd(), 'data');
+  private dataFilePath = path.join(this.dataDir, 'yaqintop_db.json');
   private saveTimeout: NodeJS.Timeout | null = null;
 
-  public scheduleSave() {
-    if (this.saveTimeout) clearTimeout(this.saveTimeout);
-    this.saveTimeout = setTimeout(async () => {
-      this.saveToFile();
-      try {
-        syncAllToSupabase(this).catch(e => console.error('[Supabase Sync Error]', e));
-      } catch (e) {
-        // ignore if not configured
-      }
-    }, 150);
-  }
+  public persistenceManaged = false;
+  public revocations: Map<string, number> = new Map();
+  public searchEvents: Map<string, any> = new Map();
 
-  public saveToFile(): boolean {
-    try {
-      if (!fs.existsSync(this.dataDir)) {
-        fs.mkdirSync(this.dataDir, { recursive: true });
-      }
-
-      const serialized = {
+  public exportSnapshot(): Record<string, any> {
+    return {
         organizations: Array.from(this.organizations.entries()),
         memberships: Array.from(this.memberships.entries()),
         users: Array.from(this.users.entries()),
@@ -299,30 +288,15 @@ export class InMemoryDatabase {
           amount: v.amount ? v.amount.toString() : '0',
           balanceAfter: v.balanceAfter ? v.balanceAfter.toString() : '0'
         }]),
+        revocations: Array.from(this.revocations.entries()),
+        searchEvents: Array.from(this.searchEvents.entries()),
         auditLogs: this.auditLogs,
         idempotencyRecords: Array.from(this.idempotencyRecords.entries())
       };
 
-      fs.writeFileSync(this.dataFilePath, JSON.stringify(serialized, null, 2), 'utf-8');
-      return true;
-    } catch (err) {
-      console.error('[YaqinTop DB] Failed to save database to disk:', err);
-      return false;
-    }
   }
 
-  public loadFromFile(): boolean {
-    try {
-      if (!fs.existsSync(this.dataFilePath)) {
-        return false;
-      }
-
-      const content = fs.readFileSync(this.dataFilePath, 'utf-8');
-      if (!content || !content.trim()) return false;
-
-      const data = JSON.parse(content);
-      if (!data || typeof data !== 'object') return false;
-
+  public restoreSnapshot(data: Record<string, any>) {
       if (Array.isArray(data.organizations)) this.organizations = new Map(data.organizations);
       if (Array.isArray(data.memberships)) this.memberships = new Map(data.memberships);
       if (Array.isArray(data.users)) this.users = new Map(data.users);
@@ -403,6 +377,55 @@ export class InMemoryDatabase {
       }
       if (Array.isArray(data.auditLogs)) this.auditLogs = data.auditLogs;
       if (Array.isArray(data.idempotencyRecords)) this.idempotencyRecords = new Map(data.idempotencyRecords);
+
+    this.revocations = new Map(data.revocations || []);
+    this.searchEvents = new Map(data.searchEvents || []);
+  }
+
+  public scheduleSave() {
+    if (this.persistenceManaged || process.env.NODE_ENV === 'test') return;
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(async () => {
+      this.saveToFile();
+      try {
+        syncAllToSupabase(this).catch(e => console.error('[Supabase Sync Error]', e));
+      } catch (e) {
+        // ignore if not configured
+      }
+    }, 150);
+  }
+
+  public saveToFile(): boolean {
+    if (this.persistenceManaged) return true;
+    try {
+      if (!fs.existsSync(this.dataDir)) {
+        fs.mkdirSync(this.dataDir, { recursive: true });
+      }
+
+      const serialized = this.exportSnapshot();
+
+      fs.writeFileSync(`${this.dataFilePath}.tmp`, JSON.stringify(serialized, null, 2), { encoding: 'utf-8', mode: 0o600 });
+      fs.renameSync(`${this.dataFilePath}.tmp`, this.dataFilePath);
+      return true;
+    } catch (err) {
+      console.error('[YaqinTop DB] Failed to save database to disk:', err);
+      return false;
+    }
+  }
+
+  public loadFromFile(): boolean {
+    try {
+      if (!fs.existsSync(this.dataFilePath)) {
+        return false;
+      }
+
+      const content = fs.readFileSync(this.dataFilePath, 'utf-8');
+      if (!content || !content.trim()) return false;
+
+      const data = JSON.parse(content);
+      if (!data || typeof data !== 'object') return false;
+
+      this.restoreSnapshot(data);
 
       return true;
     } catch (err) {
@@ -489,6 +512,8 @@ export class InMemoryDatabase {
       return { success: false, error: 'Do‘kon ushbu tashkilotga tegishli emas', status: 403 };
     }
 
+    if (new Set(doc.lines.map(line => line.variantId)).size !== doc.lines.length) return {success:false,error:'Bir hujjatda mahsulot takrorlanishi mumkin emas',status:400};
+    if (this.stockDocuments.has(doc.id)) return {success:false,error:'Ushbu hujjat avval o‘tkazilgan',status:409};
     // Resolve offer IDs for document lines
     const offerMap = new Map<string, Offer>();
     for (const line of doc.lines) {
@@ -543,11 +568,11 @@ export class InMemoryDatabase {
       // Validate all lines have valid numeric quantities and costs
       for (const line of doc.lines) {
         const q = new Decimal(line.quantity || '0');
-        if (q.isNegative() || (q.isZero() && doc.docType !== 'ADJUSTMENT')) {
+        if (!q.isFinite() || q.isNegative() || (q.isZero() && doc.docType !== 'ADJUSTMENT')) {
           return { success: false, error: 'Hujjat qatorida miqdor musbat bo‘lishi shart', status: 400 };
         }
         const cost = new Decimal(line.unitPriceOrCost || '0');
-        if (cost.isNegative()) {
+        if (!cost.isFinite() || cost.isNegative()) {
           return { success: false, error: 'Narx yoki tannarx manfiy bo‘lishi mumkin emas', status: 400 };
         }
       }

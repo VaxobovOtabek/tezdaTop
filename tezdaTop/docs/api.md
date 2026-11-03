@@ -21,10 +21,10 @@
 
 ## 2. Autentifikatsiya (/api/v1/auth)
 - `POST /api/v1/auth/login`:
-  - Body: `{ "email": "customer@yaqintop.uz", "password": "DemoPass123!" }`
+  - Body: `{ "email": "customer@yaqintop.uz", "password": "<USER_PASSWORD>" }`
   - Javob: `{ "user": { ... }, "token": "uuid" }` + HttpOnly seans cookie.
 - `POST /api/v1/auth/register`:
-  - Body: `{ "email": "...", "fullName": "...", "password": "...", "phone": "..." }`
+  - Body: `{ "email": "...", "fullName": "...", "password": "<USER_PASSWORD>", "phone": "..." }`
 - `GET /api/v1/auth/me`: Joriy tizimga kirgan foydalanuvchi ma’lumotlari.
 - `POST /api/v1/auth/logout`: Seansni yakunlash.
 

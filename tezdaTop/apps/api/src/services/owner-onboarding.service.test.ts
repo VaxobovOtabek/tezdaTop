@@ -35,11 +35,11 @@ describe('owner tashkilot yaratishi', () => {
     expect(database.users.size).toBe(0);
     expect(database.organizations.size).toBe(0);
   });
-  it('keeps new passwords hashed and supports existing login credentials', () => {
+  it('keeps passwords hashed and rejects legacy plaintext credentials', () => {
     const hash = hashOwnerPassword(input.password);
     expect(hash).not.toContain(input.password);
     expect(verifyOwnerPassword('wrong-password', hash)).toBe(false);
-    expect(verifyOwnerPassword('legacy-password', 'legacy-password')).toBe(true);
+    expect(verifyOwnerPassword('legacy-password', 'legacy-password')).toBe(false);
   });
   it('allows creating organization without INN (optional INN)', () => {
     const database = fixture();

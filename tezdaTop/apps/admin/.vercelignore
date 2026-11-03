@@ -6,3 +6,11 @@ dist/
 !.env.example
 *.md
 !README.md
+
+# Never upload operational backups or credentials
+**/.local/
+**/*.enc
+**/*.enc.key
+**/.env
+**/.env.*
+!**/.env.example

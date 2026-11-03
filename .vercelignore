@@ -16,3 +16,11 @@ tezdaTop/infra/
 tezdaTop/**/test/
 tezdaTop/**/tests/
 tezdaTop/**/data/*.json
+
+# Never upload operational backups or credentials
+**/.local/
+**/*.enc
+**/*.enc.key
+**/.env
+**/.env.*
+!**/.env.example

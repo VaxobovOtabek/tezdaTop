@@ -7,3 +7,11 @@ SUPABASE-MONITORING.md
 tsconfig.tsbuildinfo
 vitest.config.ts
 *.log
+
+# Never upload operational backups or credentials
+**/.local/
+**/*.enc
+**/*.enc.key
+**/.env
+**/.env.*
+!**/.env.example
