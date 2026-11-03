@@ -59,10 +59,10 @@ export function createSignedSessionToken(userId: string, createdAt = Date.now())
   return `yqt_${payload}.${hmac}`;
 }
 
-export function verifySignedSessionToken(token: string, now = Date.now()): { userId: string; createdAt: number } | null {
+export function verifySignedSessionToken(token: string, now = Date.now(), persistedState?: { tokenVersion: number; revoked: boolean }): { userId: string; createdAt: number } | null {
   if (!token || typeof token !== 'string') return null;
   if (!token.startsWith('yqt_')) return null;
-  if (isTokenRevoked(token)) return null;
+  if (persistedState ? persistedState.revoked : isTokenRevoked(token)) return null;
 
   const raw = token.slice(4);
   const lastDot = raw.lastIndexOf('.');
@@ -78,7 +78,7 @@ export function verifySignedSessionToken(token: string, now = Date.now()): { use
   const createdAt = Number(createdAtStr);
   if (!userId || !Number.isFinite(createdAt)) return null;
   if (createdAt > now + 30_000) return null;
-  if (Number(parts[2]) !== ((db.users.get(userId) as any)?.tokenVersion || 0)) return null;
+  if (Number(parts[2]) !== (persistedState?.tokenVersion ?? ((db.users.get(userId) as any)?.tokenVersion || 0))) return null;
 
   // Check TTL (3 days)
   if (now - createdAt >= SESSION_TTL_MS) return null;

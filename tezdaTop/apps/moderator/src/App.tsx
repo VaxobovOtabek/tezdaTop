@@ -1,6 +1,8 @@
+import type { EnrichedStore } from './components/AdminMapHub';
+import { apiFetch, getSessionToken, adminResourcePlan, AdminResourceCache } from '@yaqintop/ui';
 import { MaskedUserPassword } from '@yaqintop/ui';
 import { useCachedSession, clearSessionCache, TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   TrendingUp,
   Truck,
@@ -61,19 +63,21 @@ import {
 } from 'lucide-react';
 import { Button, Tag, Modal, Input, YaqinTopLogo } from '@yaqintop/ui';
 import { Report, Store as StoreType, User } from '@yaqintop/contracts';
-import { ApiExplorer } from './components/ApiExplorer';
-import { SupabaseUsagePanel } from './components/SupabaseUsagePanel';
-import { AdminMapHub, EnrichedStore } from './components/AdminMapHub';
-import { RolesGuideMatrix } from './components/RolesGuideMatrix';
-import { RequestsInquiriesHub } from './components/RequestsInquiriesHub';
-import { AnalyticsActivityHub } from './components/AnalyticsActivityHub';
-import { GrowthDynamicsHub } from './components/GrowthDynamicsHub';
-import { ArchitectureAndDbViewer } from './components/ArchitectureAndDbViewer';
+const ApiExplorer = React.lazy(() => import('./components/ApiExplorer').then(m => ({ default: m.ApiExplorer })));
+const SupabaseUsagePanel = React.lazy(() => import('./components/SupabaseUsagePanel').then(m => ({ default: m.SupabaseUsagePanel })));
+const AdminMapHub = React.lazy(() => import('./components/AdminMapHub').then(m => ({ default: m.AdminMapHub })));
+const RolesGuideMatrix = React.lazy(() => import('./components/RolesGuideMatrix').then(m => ({ default: m.RolesGuideMatrix })));
+const RequestsInquiriesHub = React.lazy(() => import('./components/RequestsInquiriesHub').then(m => ({ default: m.RequestsInquiriesHub })));
+const AnalyticsActivityHub = React.lazy(() => import('./components/AnalyticsActivityHub').then(m => ({ default: m.AnalyticsActivityHub })));
+const GrowthDynamicsHub = React.lazy(() => import('./components/GrowthDynamicsHub').then(m => ({ default: m.GrowthDynamicsHub })));
+const ArchitectureAndDbViewer = React.lazy(() => import('./components/ArchitectureAndDbViewer').then(m => ({ default: m.ArchitectureAndDbViewer })));
 const AdminDealersHub = React.lazy(() => import('./components/AdminDealersHub').then(m => ({ default: m.AdminDealersHub })));
-import { LocationPickerModal } from './components/LocationPickerModal';
-import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
-import { UnifiedLoginModal } from './components/UnifiedLoginModal';
-import { ReviewsModerationHub } from './components/ReviewsModerationHub';
+const LocationPickerModal = React.lazy(() => import('./components/LocationPickerModal').then(m => ({ default: m.LocationPickerModal })));
+const UnifiedUserProfileModal = React.lazy(() => import('./components/UnifiedUserProfileModal').then(m => ({ default: m.UnifiedUserProfileModal })));
+const UnifiedLoginModal = React.lazy(() => import('./components/UnifiedLoginModal').then(m => ({ default: m.UnifiedLoginModal })));
+const ReviewsModerationHub = React.lazy(() => import('./components/ReviewsModerationHub').then(m => ({ default: m.ReviewsModerationHub })));
+
+const AdminTabSkeleton = () => <div role="status" className="p-4 sm:p-6 space-y-4 animate-pulse"><div className="h-7 bg-[#E0EFE7]/70 dark:bg-[#1E362A] rounded-xl w-48" /><div className="h-80 bg-[#F3F8F5] dark:bg-[#16241E] rounded-2xl" /></div>;
 
 // Helper for strictly validating and formatting Uzbek phone numbers
 export const formatUzPhone = (value: string): string => {
@@ -111,6 +115,7 @@ interface OrganizationItem {
   status: 'ACTIVE' | 'SUSPENDED' | 'DELETED';
   createdAt: string;
   stores?: StoreType[];
+  userCount?: number;
 }
 
 const CITY_OPTIONS = [
@@ -186,6 +191,19 @@ export function ModeratorApp() {
 
   // Current User Session State (Loads from localStorage or null for guest)
   const [currentUser, setCurrentUser] = useCachedSession();
+  const sessionToken = getSessionToken();
+  const [dataLoading, setDataLoading] = useState(false);
+  const [dataError, setDataError] = useState<string | null>(null);
+  const loadRevision = useRef(0);
+  const resourceCache = useRef(new AdminResourceCache());
+  const cacheSession = useRef('');
+  useEffect(() => {
+    const invalidate = (event: Event) => resourceCache.current.invalidateMutation((event as CustomEvent<{ path: string }>).detail.path);
+    window.addEventListener('yaqintop-api-mutation', invalidate);
+    return () => window.removeEventListener('yaqintop-api-mutation', invalidate);
+  }, []);
+  const [organizationPage, setOrganizationPage] = useState<OrganizationItem[]>([]);
+  const [orgTotal, setOrgTotal] = useState(0);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
@@ -200,7 +218,9 @@ export function ModeratorApp() {
     totalPendingProposals: 0,
     pendingRequests: 0,
     pendingReviews: 0,
-    totalReviews: 0
+    totalReviews: 0,
+    totalStores: 0, activeStores: 0, moderationStores: 0,
+    applicationCount: 0, totalReports: 0, totalUsers: 0, ownerCount: 0, auditTotal: 0
   });
   const [organizations, setOrganizations] = useState<OrganizationItem[]>([]);
   const [stores, setStores] = useState<EnrichedStore[]>([]);
@@ -435,112 +455,76 @@ export function ModeratorApp() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const loadData = async () => {
-    try {
-      const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
-      const authHeaders: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
-      const [overRes, orgRes, storeRes, appRes, repRes, usersRes, auditRes, itemPropRes, photoPropRes, credReqRes, revRes] = await Promise.all([
-        fetch('/api/v1/admin/overview', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/organizations', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/stores', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/applications', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/reports', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/users', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/audit', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/item-proposals', { credentials: 'include', headers: authHeaders }).catch(() => null),
-        fetch('/api/v1/admin/photo-proposals', { credentials: 'include', headers: authHeaders }).catch(() => null),
-        fetch('/api/v1/admin/credential-requests', { credentials: 'include', headers: authHeaders }).catch(() => null),
-        fetch('/api/v1/admin/reviews', { credentials: 'include', headers: authHeaders }).catch(() => null)
-      ]);
+  const [debouncedOrgSearch, setDebouncedOrgSearch] = useState(orgSearch);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedOrgSearch(orgSearch), 300);
+    return () => clearTimeout(timer);
+  }, [orgSearch]);
+  const resourcePlanKey = JSON.stringify(adminResourcePlan(activeTab, {
+    orgPage, orgLimit: ORG_PAGE_SIZE, orgSearch: debouncedOrgSearch, orgStatus: orgStatusFilter,
+    region: orgRegionFilter, city: orgCityFilter, orgSubTab: activeOrgSubTab,
+    needsOrganizationOptions: activeTab === 'map-hub' || isAddUserModalOpen || isAddStoreModalOpen
+  }));
 
-      let extraPendingProps = 0;
-      let extraPendingPhotos = 0;
-      let extraPendingCreds = 0;
-      let extraPendingRevs = 0;
-
-      if (itemPropRes && itemPropRes.ok) {
-        const d = await itemPropRes.json();
-        const items = d.items || d.proposals || [];
-        extraPendingProps = items.filter((p: any) => p.status === 'PENDING').length;
-      }
-      if (photoPropRes && photoPropRes.ok) {
-        const d = await photoPropRes.json();
-        const items = d.items || [];
-        extraPendingPhotos = items.filter((p: any) => p.status === 'PENDING').length;
-      }
-      if (credReqRes && credReqRes.ok) {
-        const d = await credReqRes.json();
-        const reqs = d.requests || [];
-        extraPendingCreds = reqs.filter((r: any) => r.status === 'PENDING').length;
-      }
-      if (revRes && revRes.ok) {
-        const d = await revRes.json();
-        const revs = d.reviews || [];
-        extraPendingRevs = revs.filter((r: any) => r.status === 'PENDING' || r.status === 'HIDDEN').length;
-      }
-
-      if (overRes.ok) {
-        const stats = await overRes.json();
-        const calculatedPendingRequests = Math.max(
-          stats.pendingRequests || 0,
-          extraPendingProps + extraPendingPhotos + extraPendingCreds
-        );
-        setOverviewStats({
-          ...stats,
-          pendingRequests: calculatedPendingRequests,
-          pendingItemProposals: Math.max(stats.pendingItemProposals || 0, extraPendingProps),
-          pendingPhotoProposals: Math.max(stats.pendingPhotoProposals || 0, extraPendingPhotos),
-          pendingCredentialRequests: Math.max(stats.pendingCredentialRequests || 0, extraPendingCreds),
-          pendingReviews: Math.max(stats.pendingReviews || 0, extraPendingRevs)
-        });
-      } else {
-        setOverviewStats(prev => ({
-          ...prev,
-          pendingRequests: extraPendingProps + extraPendingPhotos + extraPendingCreds,
-          pendingItemProposals: extraPendingProps,
-          pendingPhotoProposals: extraPendingPhotos,
-          pendingCredentialRequests: extraPendingCreds,
-          pendingReviews: extraPendingRevs
-        }));
-      }
-      if (orgRes.ok) {
-        const d = await orgRes.json();
-        setOrganizations(d.organizations || []);
-      }
-      if (storeRes.ok) {
-        const d = await storeRes.json();
-        setStores(d.stores || []);
-      }
-      if (appRes.ok) {
-        const d = await appRes.json();
-        setApplications(d.applications || []);
-      }
-      if (repRes.ok) {
-        const d = await repRes.json();
-        setReports(d.reports || []);
-      }
-      if (usersRes.ok) {
-        const d = await usersRes.json();
-        setUsers(d.users || []);
-      }
-      if (auditRes.ok) {
-        const d = await auditRes.json();
-        setAuditLogs(d.auditLogs || []);
-      }
-    } catch (err) {
-      console.error(err);
+  const loadData = useCallback(async (signal?: AbortSignal, force = false) => {
+    if (!currentUser || !['ADMIN','SUPERADMIN','MODERATOR'].includes(currentUser.role)) return;
+    const identity = `${currentUser.id}:${sessionToken}`;
+    if (force || cacheSession.current !== identity) {
+      resourceCache.current.clear(); cacheSession.current = identity;
     }
-  };
+    const revision = ++loadRevision.current;
+    setDataLoading(true);
+    setDataError(null);
+    try {
+      const { data, errors } = await resourceCache.current.load(JSON.parse(resourcePlanKey));
+      if (signal?.aborted || revision !== loadRevision.current) return;
+      const labels: Record<string,string> = {"overview":"Umumiy holat","organizations":"Tashkilotlar","stores":"Do‘konlar","applications":"Arizalar","reports":"Shikoyatlar","users":"Foydalanuvchilar","audit":"Audit","itemProposals":"Tovar takliflari","photoProposals":"Rasm takliflari","credentialRequests":"Hisob so‘rovlari","reviews":"Sharhlar"};
+      const problems = errors.map(error => (labels[String(error.resource)] || 'Tashkilotlar') + ': ' + error.message);
+      const updateList = (key: keyof typeof data, field: string, update: (items: any[]) => void) => {
+        if (!data[key]) return;
+        if (Array.isArray(data[key][field])) update(data[key][field]);
+        else problems.push(labels[key] + ': Ma’lumot formati noto‘g‘ri.');
+      };
+      updateList('organizations','organizations',setOrganizations);
+      if (data.organizationPage && Array.isArray(data.organizationPage.organizations) && Number.isInteger(data.organizationPage.page) && Number.isFinite(data.organizationPage.total)) {
+        setOrganizationPage(data.organizationPage.organizations);
+        setOrgTotal(data.organizationPage.total || 0);
+        if (data.organizationPage.page !== orgPage) setOrgPage(data.organizationPage.page);
+      }
+      updateList('stores','stores',setStores);
+      updateList('applications','applications',setApplications);
+      updateList('reports','reports',setReports);
+      updateList('users','users',setUsers);
+      updateList('audit','auditLogs',setAuditLogs);
+      if (data.overview) {
+        setOverviewStats(previous => ({ ...previous, ...data.overview }));
+        if (activeTab === 'overview' && Array.isArray(data.overview.latestAudit)) setAuditLogs(data.overview.latestAudit);
+      }
+      setDataError(problems.length ? problems.join(' · ') : null);
+    } catch (error: any) {
+      if (!signal?.aborted && revision === loadRevision.current) setDataError(error.message || 'Ma’lumotlarni yuklab bo‘lmadi.');
+    } finally {
+      if (!signal?.aborted && revision === loadRevision.current) setDataLoading(false);
+    }
+  }, [currentUser?.id, currentUser?.role, sessionToken, resourcePlanKey, activeTab, orgPage]);
 
   useEffect(() => {
-    loadData();
-  }, []);
+    const controller = new AbortController();
+    if (currentUser && ['ADMIN','SUPERADMIN','MODERATOR'].includes(currentUser.role)) void loadData(controller.signal, false);
+    else {
+      ++loadRevision.current;
+      resourceCache.current.clear(); cacheSession.current = ''; setOrganizationPage([]); setOrgTotal(0);
+      setOrganizations([]); setStores([]); setApplications([]); setReports([]); setUsers([]); setAuditLogs([]);
+      setDataError(null); setDataLoading(false);
+    }
+    return () => controller.abort();
+  }, [loadData, currentUser?.id]);
 
   // Handle Application decision
   const handleAppDecision = async (action: 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES') => {
     if (!selectedApp) return;
     try {
-      const res = await fetch(`/api/v1/admin/applications/${selectedApp.id}`, {
+      const res = await apiFetch(`/api/v1/admin/applications/${selectedApp.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action })
@@ -565,7 +549,7 @@ export function ModeratorApp() {
   const handleResolveReport = async (status: 'RESOLVED' | 'DISMISSED') => {
     if (!selectedReport) return;
     try {
-      const res = await fetch(`/api/v1/admin/reports/${selectedReport.id}`, {
+      const res = await apiFetch(`/api/v1/admin/reports/${selectedReport.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status, notes: resolutionNotes })
@@ -585,7 +569,7 @@ export function ModeratorApp() {
   const handleDeleteReport = async (reportId: string) => {
     if (!window.confirm('Haqiqatan ham ushbu shikoyatni o‘chirib tashlamoqchimisiz?')) return;
     try {
-      const res = await fetch(`/api/v1/admin/reports/${reportId}`, {
+      const res = await apiFetch(`/api/v1/admin/reports/${reportId}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -603,7 +587,7 @@ export function ModeratorApp() {
   // Resolve Store Issues directly from map or cards
   const handleResolveStoreIssues = async (store: EnrichedStore) => {
     try {
-      const res = await fetch(`/api/v1/admin/stores/${store.id}/resolve-issues`, {
+      const res = await apiFetch(`/api/v1/admin/stores/${store.id}/resolve-issues`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' }
       });
@@ -631,7 +615,7 @@ export function ModeratorApp() {
   // Quick Application Decision
   const handleQuickAppDecision = async (appId: string, action: 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES') => {
     try {
-      const res = await fetch(`/api/v1/admin/applications/${appId}`, {
+      const res = await apiFetch(`/api/v1/admin/applications/${appId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action })
@@ -655,7 +639,7 @@ export function ModeratorApp() {
   const handleToggleUserStatus = async (user: User) => {
     const newStatus = user.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     try {
-      const res = await fetch(`/api/v1/admin/users/${user.id}/status`, {
+      const res = await apiFetch(`/api/v1/admin/users/${user.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -687,7 +671,7 @@ export function ModeratorApp() {
       const url = isAlreadyDeleted
         ? `/api/v1/admin/users/${user.id}?permanent=true`
         : `/api/v1/admin/users/${user.id}`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -709,7 +693,7 @@ export function ModeratorApp() {
   // Handle User restore
   const handleRestoreUser = async (user: User) => {
     try {
-      const res = await fetch(`/api/v1/admin/users/${user.id}/credentials`, {
+      const res = await apiFetch(`/api/v1/admin/users/${user.id}/credentials`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'ACTIVE' })
@@ -730,7 +714,7 @@ export function ModeratorApp() {
   const handleToggleOrgStatus = async (org: any) => {
     const nextStatus = org.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     try {
-      const res = await fetch(`/api/v1/admin/organizations/${org.id}`, {
+      const res = await apiFetch(`/api/v1/admin/organizations/${org.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus })
@@ -764,7 +748,7 @@ export function ModeratorApp() {
       const url = isAlreadyDeleted
         ? `/api/v1/admin/organizations/${org.id}?permanent=true`
         : `/api/v1/admin/organizations/${org.id}`;
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -785,7 +769,7 @@ export function ModeratorApp() {
   // Handle Organization restore
   const handleRestoreOrg = async (org: any) => {
     try {
-      const res = await fetch(`/api/v1/admin/organizations/${org.id}`, {
+      const res = await apiFetch(`/api/v1/admin/organizations/${org.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'ACTIVE' })
@@ -805,7 +789,7 @@ export function ModeratorApp() {
   const loadOrgUsers = async (orgId: string) => {
     setIsLoadingOrgUsers(true);
     try {
-      const res = await fetch(`/api/v1/admin/organizations/${orgId}/users`);
+      const res = await apiFetch(`/api/v1/admin/organizations/${orgId}/users`);
       if (res.ok) {
         const d = await res.json();
         setOrgUsersList(d.users || []);
@@ -854,7 +838,7 @@ export function ModeratorApp() {
 
     try {
       const endpoint = isSystemRole ? '/api/v1/admin/users' : `/api/v1/admin/organizations/${orgId}/users`;
-      const res = await fetch(endpoint, {
+      const res = await apiFetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -891,7 +875,7 @@ export function ModeratorApp() {
 
   const handleSendVerificationCode = async (user: User, method: 'TELEGRAM' | 'SMS') => {
     try {
-      const res = await fetch(`/api/v1/admin/users/${user.id}/send-verification`, {
+      const res = await apiFetch(`/api/v1/admin/users/${user.id}/send-verification`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ method })
@@ -917,7 +901,7 @@ export function ModeratorApp() {
     if (!userToVerify) return;
 
     try {
-      const res = await fetch(`/api/v1/admin/users/${userToVerify.id}/verify`, {
+      const res = await apiFetch(`/api/v1/admin/users/${userToVerify.id}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ code: verificationOtpInput })
@@ -960,7 +944,7 @@ export function ModeratorApp() {
     if (!userToEdit) return;
 
     try {
-      const res = await fetch(`/api/v1/admin/users/${userToEdit.id}/credentials`, {
+      const res = await apiFetch(`/api/v1/admin/users/${userToEdit.id}/credentials`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editCredentialsForm)
@@ -987,7 +971,7 @@ export function ModeratorApp() {
     if (!window.confirm(`${user.fullName} ni tashkilotdan o‘chirishni tasdiqlaysizmi?`)) return;
 
     try {
-      const res = await fetch(`/api/v1/admin/organizations/${orgId}/users/${user.id}`, {
+      const res = await apiFetch(`/api/v1/admin/organizations/${orgId}/users/${user.id}`, {
         method: 'DELETE'
       });
       if (res.ok) {
@@ -1029,7 +1013,7 @@ export function ModeratorApp() {
         photoUrl: ''
       } : undefined;
 
-      const res = await fetch('/api/v1/admin/organizations', {
+      const res = await apiFetch('/api/v1/admin/organizations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1129,7 +1113,7 @@ export function ModeratorApp() {
         isClosed: false
       }));
 
-      const res = await fetch('/api/v1/admin/stores', {
+      const res = await apiFetch('/api/v1/admin/stores', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1249,7 +1233,7 @@ export function ModeratorApp() {
         isClosed: false
       }));
 
-      const res = await fetch(`/api/v1/admin/stores/${editStoreForm.id}`, {
+      const res = await apiFetch(`/api/v1/admin/stores/${editStoreForm.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1289,7 +1273,7 @@ export function ModeratorApp() {
   const handleToggleStoreStatus = async (store: StoreType) => {
     const nextStatus = store.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
     try {
-      const res = await fetch(`/api/v1/admin/stores/${store.id}`, {
+      const res = await apiFetch(`/api/v1/admin/stores/${store.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: nextStatus })
@@ -1303,43 +1287,9 @@ export function ModeratorApp() {
     }
   };
 
-  // Filtered organizations
-  const filteredOrgs = organizations.filter(org => {
-    const q = orgSearch.toLowerCase().trim();
-    const matchSearch =
-      !q ||
-      org.name.toLowerCase().includes(q) ||
-      (org.inn && org.inn.includes(q)) ||
-      (org.type && org.type.toLowerCase().includes(q)) ||
-      (org.region && org.region.toLowerCase().includes(q)) ||
-      (org.city && org.city.toLowerCase().includes(q));
-
-    const matchStatus =
-      orgStatusFilter === 'ALL'
-        ? org.status !== 'DELETED'
-        : orgStatusFilter === 'ACTIVE'
-        ? org.status === 'ACTIVE'
-        : orgStatusFilter === 'SUSPENDED'
-        ? org.status === 'SUSPENDED'
-        : org.status === 'DELETED';
-
-    const orgStores = stores.filter(s => s.organizationId === org.id);
-    const matchRegion =
-      orgRegionFilter === 'Barcha viloyatlar' ||
-      org.region === orgRegionFilter ||
-      (orgRegionFilter === 'Toshkent shahri' && (!org.region || org.region.includes('Toshkent'))) ||
-      orgStores.some(s => s.region === orgRegionFilter || (orgRegionFilter === 'Toshkent shahri' && (!s.region || s.region.includes('Toshkent'))));
-
-    const matchCity =
-      orgCityFilter === 'Barcha tumanlar' ||
-      (org.city && (org.city === orgCityFilter || org.city.toLowerCase().includes(orgCityFilter.toLowerCase()))) ||
-      orgStores.some(s => s.city === orgCityFilter || (s.address && s.address.toLowerCase().includes(orgCityFilter.toLowerCase())));
-
-    return matchSearch && matchStatus && matchRegion && matchCity;
-  });
-
-  const totalOrgPages = Math.max(1, Math.ceil(filteredOrgs.length / ORG_PAGE_SIZE));
-  const paginatedOrgs = filteredOrgs.slice((orgPage - 1) * ORG_PAGE_SIZE, orgPage * ORG_PAGE_SIZE);
+  // The API filters and pages the organization table; options remain separate.
+  const totalOrgPages = Math.max(1, Math.ceil(orgTotal / ORG_PAGE_SIZE));
+  const paginatedOrgs = organizationPage;
 
   // Filtered stores
   const filteredStores = stores.filter(s => {
@@ -1542,7 +1492,7 @@ export function ModeratorApp() {
                 label: t('nav_map_hub', 'Xarita & Moderatsiya markazi'),
                 icon: MapPin,
                 isSpecial: true,
-                badge: stores.filter(s => (s.openReportsCount || 0) > 0 || s.status === 'PENDING').length || undefined
+                badge: overviewStats.moderationStores || undefined
               },
               {
                 id: 'requests-inquiries',
@@ -1570,14 +1520,8 @@ export function ModeratorApp() {
                 icon: Truck,
                 isSpecial: true
               },
-              {
-                id: 'dealers',
-                label: t('nav_dealers', 'Dillerlar & Distribyutorlar'),
-                icon: Truck,
-                isSpecial: true
-              },
               { id: 'roles-guide', label: t('nav_roles_guide', 'Rollar & Yo‘riqnoma'), icon: Shield },
-              { id: 'organizations', label: t('nav_organizations', 'Tashkilotlar va Do‘konlar'), icon: Building2, count: stores.length },
+              { id: 'organizations', label: t('nav_organizations', 'Tashkilotlar va Do‘konlar'), icon: Building2, count: overviewStats.totalStores },
               { id: 'api-explorer', label: t('nav_api_explorer', 'API Explorer (Postman)'), icon: Terminal, adminOnly: true },
               { id: 'applications', label: t('nav_applications', 'Do‘kon arizalari'), icon: Store, badge: overviewStats.pendingApps || undefined },
               { id: 'reports', label: t('nav_reports', 'Shikoyatlar navbati'), icon: AlertTriangle, badge: overviewStats.openReports || undefined },
@@ -1652,7 +1596,7 @@ export function ModeratorApp() {
                 label: t('nav_map_hub', 'Xarita & Moderatsiya markazi'),
                 icon: MapPin,
                 isSpecial: true,
-                badge: stores.filter(s => (s.openReportsCount || 0) > 0 || s.status === 'PENDING').length || undefined
+                badge: overviewStats.moderationStores || undefined
               },
               {
                 id: 'requests-inquiries',
@@ -1675,7 +1619,7 @@ export function ModeratorApp() {
                 adminOnly: true
               },
               { id: 'roles-guide', label: t('nav_roles_guide', 'Rollar & Yo‘riqnoma'), icon: Shield },
-              { id: 'organizations', label: t('nav_organizations', 'Tashkilotlar va Do‘konlar'), icon: Building2, count: stores.length },
+              { id: 'organizations', label: t('nav_organizations', 'Tashkilotlar va Do‘konlar'), icon: Building2, count: overviewStats.totalStores },
               { id: 'api-explorer', label: t('nav_api_explorer', 'API Explorer (Postman)'), icon: Terminal, adminOnly: true },
               { id: 'applications', label: t('nav_applications', 'Do‘kon arizalari'), icon: Store, badge: overviewStats.pendingApps || undefined },
               { id: 'reports', label: t('nav_reports', 'Shikoyatlar navbati'), icon: AlertTriangle, badge: overviewStats.openReports || undefined },
@@ -1731,7 +1675,13 @@ export function ModeratorApp() {
         </aside>
 
         {/* Content Area */}
-        <main className="flex-1 min-w-0 w-full p-3 sm:p-5 md:p-8 pb-24 lg:pb-8 overflow-y-auto overflow-x-hidden">
+        <main aria-busy={dataLoading} className="flex-1 min-w-0 w-full p-3 sm:p-5 md:p-8 pb-24 lg:pb-8 overflow-y-auto overflow-x-hidden">
+          {dataLoading && <div role="status" className="mb-4 text-sm text-[#566A63] dark:text-[#8B9E95]">Ma’lumotlar yuklanmoqda…</div>}
+          {dataError && <div role="alert" className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
+            <p>Ma’lumotlarning ayrim qismlarini yuklab bo‘lmadi. {dataError}</p>
+            <button type="button" className="mt-2 font-semibold underline" disabled={dataLoading} onClick={()=>void loadData(undefined, true)}>Qayta yuklash</button>
+          </div>}
+          <React.Suspense fallback={<AdminTabSkeleton />}>
           {/* GROWTH DYNAMICS TAB */}
           {activeTab === 'growth-dynamics' && (
             <GrowthDynamicsHub
@@ -1830,7 +1780,7 @@ export function ModeratorApp() {
 
                   <div className="flex items-center gap-2.5 shrink-0">
                     <button
-                      onClick={loadData}
+                      onClick={()=>void loadData(undefined, true)}
                       className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-2 border border-white/20 shadow-sm backdrop-blur-sm"
                     >
                       <RefreshCw className="w-4 h-4" />
@@ -1879,10 +1829,10 @@ export function ModeratorApp() {
                     <Store className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#172C28] dark:text-white mt-2">
-                    {stores.length} {t('ta', 'ta')}
+                    {overviewStats.totalStores} {t('ta', 'ta')}
                   </div>
                   <div className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold mt-1">
-                    {stores.filter(s => s.status === 'ACTIVE').length} {t('admin_active_branches', 'faol filial')}
+                    {overviewStats.activeStores} {t('admin_active_branches', 'faol filial')}
                   </div>
                 </div>
 
@@ -1896,13 +1846,13 @@ export function ModeratorApp() {
                     <Clock className="w-4 h-4 text-amber-500 group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#8A4B08] dark:text-amber-400 mt-2 flex items-center gap-1.5">
-                    <span>{applications.length} {t('ta', 'ta')}</span>
-                    {applications.length > 0 && (
+                    <span>{overviewStats.applicationCount} {t('ta', 'ta')}</span>
+                    {overviewStats.applicationCount > 0 && (
                       <span className="min-w-4 h-4 px-1 bg-amber-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
                     )}
                   </div>
                   <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    {applications.length > 0 ? t('admin_pending_check', 'Tekshirish kutilmoqda') : t('admin_all_reviewed', 'Hammasi ko‘rilgan')}
+                    {overviewStats.applicationCount > 0 ? t('admin_pending_check', 'Tekshirish kutilmoqda') : t('admin_all_reviewed', 'Hammasi ko‘rilgan')}
                   </div>
                 </div>
 
@@ -1916,13 +1866,13 @@ export function ModeratorApp() {
                     <AlertTriangle className="w-4 h-4 text-rose-500 group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#B42318] dark:text-rose-400 mt-2 flex items-center gap-1.5">
-                    <span>{reports.filter(r => r.status === 'OPEN').length} {t('ta', 'ta')}</span>
-                    {reports.filter(r => r.status === 'OPEN').length > 0 && (
+                    <span>{overviewStats.openReports} {t('ta', 'ta')}</span>
+                    {overviewStats.openReports > 0 && (
                       <span className="min-w-4 h-4 px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center animate-pulse">!</span>
                     )}
                   </div>
                   <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    {reports.length} {t('admin_total_complaints', 'jami shikoyat')}
+                    {overviewStats.totalReports} {t('admin_total_complaints', 'jami shikoyat')}
                   </div>
                 </div>
 
@@ -1956,10 +1906,10 @@ export function ModeratorApp() {
                     <Users className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition" />
                   </div>
                   <div className="text-2xl font-black text-[#172C28] dark:text-white mt-2">
-                    {users.length} {t('nafar', 'nafar')}
+                    {overviewStats.totalUsers} {t('nafar', 'nafar')}
                   </div>
                   <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-1">
-                    {users.filter(u => u.role === 'OWNER').length} {t('admin_store_owners', 'do‘kon egasi')}
+                    {overviewStats.ownerCount} {t('admin_store_owners', 'do‘kon egasi')}
                   </div>
                 </div>
 
@@ -1983,7 +1933,7 @@ export function ModeratorApp() {
               </div>
 
               {/* Action Required Banner (If any item is waiting) */}
-              {(applications.length > 0 || reports.filter(r => r.status === 'OPEN').length > 0 || (overviewStats.pendingRequests || 0) > 0) ? (
+              {(overviewStats.applicationCount > 0 || overviewStats.openReports > 0 || (overviewStats.pendingRequests || 0) > 0) ? (
                 <div className="p-5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md">
@@ -1994,15 +1944,15 @@ export function ModeratorApp() {
                         {t('Diqqat! Moderatsiya navbatida ko‘rib chiqilishi kerak bo‘lgan amallar mavjud:')}
                       </h3>
                       <div className="text-xs text-amber-800 dark:text-amber-300/90 mt-0.5 flex flex-wrap gap-x-4 gap-y-1">
-                        {applications.length > 0 && <span>• <strong>{applications.length} ta</strong> {t('do‘kon arizasi')}</span>}
-                        {reports.filter(r => r.status === 'OPEN').length > 0 && <span>• <strong>{reports.filter(r => r.status === 'OPEN').length} ta</strong> {t('xaridor shikoyati')}</span>}
+                        {overviewStats.applicationCount > 0 && <span>• <strong>{overviewStats.applicationCount} ta</strong> {t('do‘kon arizasi')}</span>}
+                        {overviewStats.openReports > 0 && <span>• <strong>{overviewStats.openReports} ta</strong> {t('xaridor shikoyati')}</span>}
                         {(overviewStats.pendingRequests || 0) > 0 && <span>• <strong>{overviewStats.pendingRequests} ta</strong> {t('tovar/rasm taklifi')}</span>}
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {applications.length > 0 && (
+                    {overviewStats.applicationCount > 0 && (
                       <button
                         onClick={() => setActiveTab('applications')}
                         className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition shadow-sm"
@@ -2010,7 +1960,7 @@ export function ModeratorApp() {
                         {t('Arizalarni ochish →')}
                       </button>
                     )}
-                    {reports.filter(r => r.status === 'OPEN').length > 0 && (
+                    {overviewStats.openReports > 0 && (
                       <button
                         onClick={() => setActiveTab('reports')}
                         className="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs transition shadow-sm"
@@ -2167,7 +2117,7 @@ export function ModeratorApp() {
                     onClick={() => setActiveTab('audit')}
                     className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline"
                   >
-                    Barcha audit tarixini ko‘rish ({auditLogs.length} ta) →
+                    Barcha audit tarixini ko‘rish ({overviewStats.auditTotal} ta) →
                   </button>
                 </div>
 
@@ -2356,7 +2306,7 @@ export function ModeratorApp() {
                   }`}
                 >
                   <Building2 className="w-4 h-4" />
-                  <span>Ro‘yxatdan o‘tgan Tashkilotlar ({filteredOrgs.length})</span>
+                  <span>Ro‘yxatdan o‘tgan Tashkilotlar ({orgTotal})</span>
                 </button>
                 <button
                   onClick={() => setActiveOrgSubTab('stores')}
@@ -2367,7 +2317,7 @@ export function ModeratorApp() {
                   }`}
                 >
                   <Store className="w-4 h-4" />
-                  <span>Filiallar va Do‘konlar ({filteredStores.length})</span>
+                  <span>Filiallar va Do‘konlar ({activeOrgSubTab === 'stores' ? filteredStores.length : overviewStats.totalStores})</span>
                 </button>
               </div>
 
@@ -2390,8 +2340,8 @@ export function ModeratorApp() {
                       <tbody className="divide-y divide-[#DCE5DF]/60 dark:divide-[#22332C]">
                         {paginatedOrgs.length > 0 ? (
                           paginatedOrgs.map((org) => {
-                            const orgStores = stores.filter(s => s.organizationId === org.id);
-                            const orgUsersCount = users.filter(u => u.organizationId === org.id && u.status !== 'DELETED').length;
+                            const orgStores = org.stores || [];
+                            const orgUsersCount = org.userCount ?? 0;
 
                             return (
                               <tr
@@ -2446,7 +2396,7 @@ export function ModeratorApp() {
                                     className="inline-flex items-center gap-1 font-semibold text-[#116B50] dark:text-[#4ADE80] hover:underline"
                                     title="Xodimlarni ko‘rish"
                                   >
-                                    👥 {orgUsersCount || 1} ta xodim
+                                    👥 {orgUsersCount} ta xodim
                                   </button>
                                 </td>
 
@@ -2485,7 +2435,7 @@ export function ModeratorApp() {
                                       title="Xodimlarni boshqarish"
                                     >
                                       <Users className="w-3.5 h-3.5" />
-                                      <span>Xodimlar ({orgUsersCount || 1})</span>
+                                      <span>Xodimlar ({orgUsersCount})</span>
                                     </button>
 
                                     {/* Add User to this Org */}
@@ -2536,7 +2486,7 @@ export function ModeratorApp() {
                         ) : (
                           <tr>
                             <td colSpan={6} className="py-12 text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
-                              Mos keladigan tashkilot topilmadi
+                              {dataLoading ? 'Tashkilotlar yuklanmoqda…' : dataError ? 'Tashkilotlar ro‘yxati yuklanmadi. Yuqoridagi xabarni tekshiring.' : 'Mos keladigan tashkilot topilmadi'}
                             </td>
                           </tr>
                         )}
@@ -2549,11 +2499,11 @@ export function ModeratorApp() {
                     <div>
                       Ko‘rsatilmoqda:{' '}
                       <strong className="text-[#172C28] dark:text-white">
-                        {filteredOrgs.length === 0 ? 0 : (orgPage - 1) * ORG_PAGE_SIZE + 1} -{' '}
-                        {Math.min(orgPage * ORG_PAGE_SIZE, filteredOrgs.length)}
+                        {orgTotal === 0 ? 0 : (orgPage - 1) * ORG_PAGE_SIZE + 1} -{' '}
+                        {Math.min(orgPage * ORG_PAGE_SIZE, orgTotal)}
                       </strong>{' '}
                       /{' '}
-                      <strong className="text-[#172C28] dark:text-white">{filteredOrgs.length}</strong> ta tashkilot (sahifada 20 ta)
+                      <strong className="text-[#172C28] dark:text-white">{orgTotal}</strong> ta tashkilot (sahifada 20 ta)
                     </div>
 
                     <div className="flex items-center gap-1.5">
@@ -2566,7 +2516,7 @@ export function ModeratorApp() {
                         <span>Oldingi</span>
                       </button>
 
-                      {Array.from({ length: totalOrgPages }, (_, i) => i + 1).map((num) => (
+                      {Array.from({ length: Math.min(7, totalOrgPages) }, (_, i) => Math.max(1, Math.min(orgPage - 3, totalOrgPages - 6)) + i).map((num) => (
                         <button
                           key={num}
                           onClick={() => setOrgPage(num)}
@@ -2857,7 +2807,7 @@ export function ModeratorApp() {
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={loadData}
+                    onClick={()=>void loadData(undefined, true)}
                     className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
                   >
                     <RefreshCw className="w-4 h-4" />
@@ -3037,7 +2987,7 @@ export function ModeratorApp() {
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={loadData}
+                    onClick={()=>void loadData(undefined, true)}
                     className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
                   >
                     <RefreshCw className="w-4 h-4" />
@@ -3712,7 +3662,7 @@ export function ModeratorApp() {
 
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={loadData}
+                    onClick={()=>void loadData(undefined, true)}
                     className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
                   >
                     <RefreshCw className="w-4 h-4" />
@@ -3982,6 +3932,7 @@ export function ModeratorApp() {
               <span className="truncate">Barchasi</span>
             </button>
           </nav>
+          </React.Suspense>
         </main>
       </div>
       )}
@@ -5427,7 +5378,7 @@ export function ModeratorApp() {
       </Modal>
 
           {/* Leaflet Interactive Location Picker Modal */}
-          <LocationPickerModal
+          {isLocationPickerOpen && <React.Suspense fallback={null}><LocationPickerModal
             isOpen={isLocationPickerOpen}
             onClose={() => setIsLocationPickerOpen(false)}
             initialLat={
@@ -5453,12 +5404,12 @@ export function ModeratorApp() {
             }
             isDarkMode={isDarkMode}
             onSelectLocation={handleLocationPicked}
-          />
+          /></React.Suspense>}
         </>
       )}
 
       {/* Admin User Profile Modal */}
-      <UnifiedUserProfileModal
+      {isProfileModalOpen && <React.Suspense fallback={null}><UnifiedUserProfileModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
         currentUser={currentUser}
@@ -5476,10 +5427,10 @@ export function ModeratorApp() {
         onUserUpdated={(updated) => {
           setCurrentUser(updated);
         }}
-      />
+      /></React.Suspense>}
 
       {/* Admin Login Modal */}
-      <UnifiedLoginModal
+      {isLoginModalOpen && <React.Suspense fallback={null}><UnifiedLoginModal
         isOpen={isLoginModalOpen}
         onClose={() => setIsLoginModalOpen(false)}
         appTitle="YaqinTop Moderatsiya"
@@ -5487,7 +5438,7 @@ export function ModeratorApp() {
           setCurrentUser(user);
           showToast(`Xush kelibsiz, ${user.fullName}!`);
         }}
-      />
+      /></React.Suspense>}
 
       {/* Global Token Quick Login (Ctrl + Alt + T) */}
       <TokenQuickLoginModal />

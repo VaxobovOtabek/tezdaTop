@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import L from 'leaflet';
 import { matchesRegion, normalizeArea, mapViewport } from './map-geography';
@@ -133,7 +134,7 @@ export function AdminMapHub({
   const loadOffers = async (storeId: string) => {
     setIsLoadingOffers(true);
     try {
-      const res = await fetch(`/api/v1/stores/${storeId}/offers`);
+      const res = await apiFetch(`/api/v1/stores/${storeId}/offers`);
       if (res.ok) {
         const data = await res.json();
         setStoreOffers(data.offers || []);
@@ -156,7 +157,7 @@ export function AdminMapHub({
   const handleDeleteOffer = async (offerId: string) => {
     if (!window.confirm('Haqiqatan ham ushbu tovar/xizmatni o‘chirmoqchimisiz?')) return;
     try {
-      const res = await fetch(`/api/v1/admin/offers/${offerId}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/v1/admin/offers/${offerId}`, { method: 'DELETE' });
       if (res.ok) {
         showToast('Tovar/xizmat muvaffaqiyatli o‘chirildi');
         if (selectedStore?.id) loadOffers(selectedStore.id);
@@ -239,7 +240,7 @@ export function AdminMapHub({
     }
     setIsSubmittingOffer(true);
     try {
-      const res = await fetch(`/api/v1/admin/stores/${selectedStore.id}/offers`, {
+      const res = await apiFetch(`/api/v1/admin/stores/${selectedStore.id}/offers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -924,7 +925,7 @@ export function AdminMapHub({
                           if (onResolveStoreIssues) {
                             await onResolveStoreIssues(selectedStore);
                           } else {
-                            await fetch(`/api/v1/admin/stores/${selectedStore.id}/resolve-issues`, {
+                            await apiFetch(`/api/v1/admin/stores/${selectedStore.id}/resolve-issues`, {
                               method: 'POST',
                               headers: { 'Content-Type': 'application/json' }
                             });
@@ -968,7 +969,7 @@ export function AdminMapHub({
                             if (onResolveStoreIssues) {
                               await onResolveStoreIssues(selectedStore);
                             } else {
-                              await fetch(`/api/v1/admin/applications/${selectedStore.id}`, {
+                              await apiFetch(`/api/v1/admin/applications/${selectedStore.id}`, {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ action: 'APPROVE' })

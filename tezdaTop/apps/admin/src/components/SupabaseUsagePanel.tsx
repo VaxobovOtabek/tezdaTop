@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useEffect, useState } from 'react';
 import { Database, RefreshCw, ExternalLink, Activity, AlertTriangle } from 'lucide-react';
 
@@ -23,7 +24,7 @@ export function SupabaseUsagePanel() {
       setLoading(true); setError('');
       try {
         const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
-        const response = await fetch(`/api/v1/admin/supabase-usage?period=${period}`, {
+        const response = await apiFetch(`/api/v1/admin/supabase-usage?period=${period}`, {
           credentials: 'include', headers: token ? { Authorization: `Bearer ${token}` } : {}, signal: controller.signal
         });
         const result = await response.json();

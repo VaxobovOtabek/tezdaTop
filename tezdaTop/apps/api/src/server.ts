@@ -1,3 +1,5 @@
+import { adminReadMiddleware } from './routes/admin-read.routes.js';
+import { organizationListOptions, paginateOrganizations } from './services/organization-list.service.js';
 import { dealerRouter } from './routes/dealer.routes.js';
 import { adminDealersRouter } from './routes/admin-dealers.routes.js';
 import dotenv from 'dotenv';
@@ -171,6 +173,9 @@ const authLoginLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 30, messa
 const authRegisterLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 15, message: 'Ro‘yxatdan o‘tish urinishlari ko‘payib ketdi. Iltimos, keyinroq urinib ko‘ring.', keyPrefix: 'register' });
 const userVerifyLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 10, message: 'Tasdiqlash kodi kiritish urinishlari ko‘payib ketdi.', keyPrefix: 'verify' });
 
+
+// Read-only admin endpoints use independent, table-specific queries.
+app.use(adminReadMiddleware);
 
 // Ensure DB is initialized before handling requests (for Serverless / Vercel support)
 app.use(async (req: Request, res: Response, next: NextFunction) => {
@@ -3026,7 +3031,16 @@ app.get('/api/v1/admin/overview', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODE
     totalPendingProposals,
     pendingRequests,
     pendingReviews,
-    totalReviews: allReviews.length
+    totalReviews: allReviews.length,
+    totalStores: db.stores.size,
+    activeStores: [...db.stores.values()].filter(s => s.status === 'ACTIVE').length,
+    moderationStores: [...db.stores.values()].filter(s => ['PENDING','NEEDS_CHANGES'].includes(s.status)).length,
+    applicationCount: [...db.stores.values()].filter(s => ['PENDING','NEEDS_CHANGES'].includes(s.status)).length,
+    totalUsers: db.users.size,
+    ownerCount: [...db.users.values()].filter(u => u.role === 'OWNER').length,
+    totalReports: db.reports.size,
+    latestAudit: db.auditLogs.slice(-5).reverse(),
+    auditTotal: db.auditLogs.length
   });
 });
 
@@ -3827,14 +3841,11 @@ app.get('/api/v1/admin/audit', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERAT
 
 // ================= ADMIN ORGANIZATIONS & STORES =================
 app.get('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
-  const orgs = Array.from(db.organizations.values()).map(org => {
-    const stores = Array.from(db.stores.values()).filter(s => s.organizationId === org.id);
-    return {
-      ...org,
-      stores
-    };
-  });
-  res.json({ organizations: orgs });
+  try {
+    const options = organizationListOptions(req.query);
+    const users = [...db.users.values()].map((user: any) => ({ ...user, organizationId: [...db.memberships.values()].find(m => m.userId === user.id)?.organizationId || user.organizationId }));
+    res.json(paginateOrganizations([...db.organizations.values()], [...db.stores.values()], users, options));
+  } catch (error: any) { res.status(error.status || 400).json({ message: error.message }); }
 });
 
 app.post('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN']), async (req, res) => {

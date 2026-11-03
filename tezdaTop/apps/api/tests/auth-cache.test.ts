@@ -35,6 +35,17 @@ afterEach(() => {
 });
 
 describe('cached login', () => {
+  it('restores a new login in the same window without a page reload', async () => {
+    useCachedSession();
+    await vi.advanceTimersByTimeAsync(0);
+    hook.setUser.mockClear();
+    const deadline = Date.now() + ttl;
+    vi.mocked(fetch).mockResolvedValue({ ok: true, status: 200, json: async () => ({ user, expiresAt: deadline }) } as Response);
+    saveCachedSession(user, 'new-login-token', deadline);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(hook.setUser).toHaveBeenCalledWith(user);
+    expect(fetch).toHaveBeenCalledWith('/api/v1/auth/me', expect.objectContaining({ headers: { Authorization: 'Bearer new-login-token' } }));
+  });
   it('restores a verified session after F5 without extending its original deadline', async () => {
     const deadline = Date.now() + ttl;
     saveCachedSession(user, 'test-token', deadline);

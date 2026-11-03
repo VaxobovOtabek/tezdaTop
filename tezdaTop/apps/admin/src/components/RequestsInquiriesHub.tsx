@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   Key,
@@ -87,10 +88,10 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
     try {
       const authHeaders = getHubAuthHeaders();
       const [credRes, inqRes, propRes, photoRes] = await Promise.all([
-        fetch('/api/v1/admin/credential-requests', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/inquiries', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/item-proposals', { credentials: 'include', headers: authHeaders }),
-        fetch('/api/v1/admin/photo-proposals', { credentials: 'include', headers: authHeaders })
+        apiFetch('/api/v1/admin/credential-requests', { credentials: 'include', headers: authHeaders }),
+        apiFetch('/api/v1/admin/inquiries', { credentials: 'include', headers: authHeaders }),
+        apiFetch('/api/v1/admin/item-proposals', { credentials: 'include', headers: authHeaders }),
+        apiFetch('/api/v1/admin/photo-proposals', { credentials: 'include', headers: authHeaders })
       ]);
 
       if (credRes.ok) {
@@ -133,7 +134,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
     if (!selectedReqForAction) return;
 
     try {
-      const res = await fetch(`/api/v1/admin/credential-requests/${selectedReqForAction.id}/decision`, {
+      const res = await apiFetch(`/api/v1/admin/credential-requests/${selectedReqForAction.id}/decision`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -163,7 +164,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
   const handleApproveProposal = async (id: string, title: string) => {
     setIsProcessingProposal(true);
     try {
-      const res = await fetch(`/api/v1/admin/item-proposals/${id}/approve`, {
+      const res = await apiFetch(`/api/v1/admin/item-proposals/${id}/approve`, {
         method: 'POST',
         credentials: 'include',
         headers: getHubAuthHeaders()
@@ -185,7 +186,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
   const handleApprovePhotoProposal = async (id: string, label: string) => {
     setIsProcessingProposal(true);
     try {
-      const res = await fetch(`/api/v1/admin/photo-proposals/${id}/approve`, {
+      const res = await apiFetch(`/api/v1/admin/photo-proposals/${id}/approve`, {
         method: 'POST',
         credentials: 'include',
         headers: getHubAuthHeaders()
@@ -207,7 +208,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
   const handleRejectPhotoProposal = async (id: string, label: string) => {
     setIsProcessingProposal(true);
     try {
-      const res = await fetch(`/api/v1/admin/photo-proposals/${id}/reject`, {
+      const res = await apiFetch(`/api/v1/admin/photo-proposals/${id}/reject`, {
         method: 'POST',
         credentials: 'include',
         headers: getHubAuthHeaders()
@@ -229,7 +230,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
   const handleRejectProposal = async (id: string, title: string) => {
     setIsProcessingProposal(true);
     try {
-      const res = await fetch(`/api/v1/admin/item-proposals/${id}/reject`, {
+      const res = await apiFetch(`/api/v1/admin/item-proposals/${id}/reject`, {
         method: 'POST',
         credentials: 'include',
         headers: getHubAuthHeaders()
@@ -256,7 +257,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
     }
 
     try {
-      const res = await fetch('/api/v1/admin/inquiries', {
+      const res = await apiFetch('/api/v1/admin/inquiries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getHubAuthHeaders() },
         credentials: 'include',
@@ -300,7 +301,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
 
     setIsSubmittingReply(true);
     try {
-      const res = await fetch(`/api/v1/admin/inquiries/${selectedInqForReply.id}/reply`, {
+      const res = await apiFetch(`/api/v1/admin/inquiries/${selectedInqForReply.id}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...getHubAuthHeaders() },
         credentials: 'include',
@@ -329,7 +330,7 @@ export function RequestsInquiriesHub({ stores, isDarkMode, onShowToast, onStatsU
   // Toggle Inquiry Status (e.g. RESOLVED)
   const handleUpdateInquiryStatus = async (inquiryId: string, status: 'RESOLVED' | 'CLOSED' | 'PENDING_MERCHANT_REPLY') => {
     try {
-      const res = await fetch(`/api/v1/admin/inquiries/${inquiryId}/status`, {
+      const res = await apiFetch(`/api/v1/admin/inquiries/${inquiryId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', ...getHubAuthHeaders() },
         credentials: 'include',

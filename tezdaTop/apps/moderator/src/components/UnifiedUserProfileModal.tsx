@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   User,
@@ -55,8 +56,8 @@ export function UnifiedUserProfileModal({
     setIsLoadingFeed(true);
     try {
       const [reqRes, notifRes] = await Promise.all([
-        fetch('/api/v1/auth/my-requests', { credentials: 'include' }),
-        fetch('/api/v1/auth/notifications', { credentials: 'include' })
+        apiFetch('/api/v1/auth/my-requests', { credentials: 'include' }),
+        apiFetch('/api/v1/auth/notifications', { credentials: 'include' })
       ]);
 
       if (reqRes.ok) {
@@ -97,7 +98,7 @@ export function UnifiedUserProfileModal({
     setStatusMsg(null);
 
     try {
-      const res = await fetch(`/api/v1/admin/users/${currentUser.id}/credentials`, {
+      const res = await apiFetch(`/api/v1/admin/users/${currentUser.id}/credentials`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -132,7 +133,7 @@ export function UnifiedUserProfileModal({
 
   const markNotificationRead = async (id: string) => {
     try {
-      await fetch(`/api/v1/auth/notifications/${id}/read`, {
+      await apiFetch(`/api/v1/auth/notifications/${id}/read`, {
         method: 'PATCH',
         credentials: 'include'
       });

@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useState, useEffect, useRef } from 'react';
 import {
   Send,
@@ -423,7 +424,7 @@ export function ApiExplorer() {
         options.body = reqBody;
       }
 
-      const response = await fetch(reqUrl, options);
+      const response = await apiFetch(reqUrl, options);
       const endTime = performance.now();
       const duration = Math.round(endTime - startTime);
 

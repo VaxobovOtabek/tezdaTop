@@ -137,10 +137,12 @@ export function useCachedSession(meUrl = '/api/v1/auth/me') {
     const changed = () => {
       revision++;
       scheduleExpiry();
+      // Token login may update the cache without calling a consumer's setter.
       if (!localStorage.getItem(EXPIRY_KEY)) setCurrentUser(null);
+      else void restore();
     };
 
-    const storageChanged = () => { changed(); void restore(); };
+    const storageChanged = changed;
 
     scheduleExpiry();
     void restore();

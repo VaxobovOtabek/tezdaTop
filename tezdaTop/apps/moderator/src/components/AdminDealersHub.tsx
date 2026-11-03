@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   Truck,
@@ -81,7 +82,7 @@ export function AdminDealersHub({ isDarkMode, onShowToast }: AdminDealersHubProp
   const fetchDealers = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/v1/admin/dealers', {
+      const res = await apiFetch('/api/v1/admin/dealers', {
         headers: getAuthHeaders()
       });
       if (res.ok) {
@@ -110,7 +111,7 @@ export function AdminDealersHub({ isDarkMode, onShowToast }: AdminDealersHubProp
 
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/v1/admin/dealers', {
+      const res = await apiFetch('/api/v1/admin/dealers', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -163,7 +164,7 @@ export function AdminDealersHub({ isDarkMode, onShowToast }: AdminDealersHubProp
         body.newPassword = editPassword.trim();
       }
 
-      const res = await fetch(`/api/v1/admin/dealers/${selectedDealer.id}`, {
+      const res = await apiFetch(`/api/v1/admin/dealers/${selectedDealer.id}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',

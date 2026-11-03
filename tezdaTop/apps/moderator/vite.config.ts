@@ -6,6 +6,14 @@ export default defineConfig(({ command }) => ({
   envDir: path.resolve(__dirname, '../../'),
   base: command === 'build' ? '/moderator/' : '/',
   plugins: [react()],
+  build: {
+    chunkSizeWarningLimit: 800,
+    rollupOptions: { output: { manualChunks: {
+      'vendor-react': ['react', 'react-dom'],
+      'vendor-leaflet': ['leaflet'],
+      'vendor-icons': ['lucide-react']
+    } } }
+  },
   resolve: {
     alias: {
       '@yaqintop/contracts': path.resolve(__dirname, '../../packages/contracts/src/index.ts'),

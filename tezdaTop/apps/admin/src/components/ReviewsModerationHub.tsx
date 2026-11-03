@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   MessageSquare,
@@ -74,7 +75,7 @@ export function ReviewsModerationHub({
   const loadReviews = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/v1/admin/reviews', {
+      const res = await apiFetch('/api/v1/admin/reviews', {
         credentials: 'include',
         headers: getReviewAuthHeaders()
       });
@@ -101,7 +102,7 @@ export function ReviewsModerationHub({
   const handleUpdateStatus = async (reviewId: string, newStatus: 'PUBLISHED' | 'HIDDEN' | 'REJECTED') => {
     setUpdatingReviewId(reviewId);
     try {
-      const res = await fetch(`/api/v1/admin/reviews/${reviewId}/status`, {
+      const res = await apiFetch(`/api/v1/admin/reviews/${reviewId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -138,7 +139,7 @@ export function ReviewsModerationHub({
     if (!reviewToDelete) return;
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/v1/admin/reviews/${reviewToDelete.id}`, {
+      const res = await apiFetch(`/api/v1/admin/reviews/${reviewToDelete.id}`, {
         method: 'DELETE',
         credentials: 'include',
         headers: getReviewAuthHeaders()

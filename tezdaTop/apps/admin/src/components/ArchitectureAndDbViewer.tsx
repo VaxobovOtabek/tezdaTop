@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   Cpu,
@@ -445,7 +446,7 @@ export function ArchitectureAndDbViewer() {
   const fetchDatabaseState = async () => {
     setLoadingDb(true);
     try {
-      const res = await fetch('/api/v1/admin/database/schema-and-tables');
+      const res = await apiFetch('/api/v1/admin/database/schema-and-tables');
       if (res.ok) {
         const data = await res.json();
         setDbData(data);

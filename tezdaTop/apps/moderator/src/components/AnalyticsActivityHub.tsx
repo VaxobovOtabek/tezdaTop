@@ -1,3 +1,4 @@
+import { apiFetch } from '@yaqintop/ui';
 import React, { useState, useEffect } from 'react';
 import {
   TrendingUp,
@@ -36,7 +37,7 @@ export function AnalyticsActivityHub({ isDarkMode, onShowToast }: AnalyticsActiv
   const loadAnalytics = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/v1/admin/analytics/activity');
+      const res = await apiFetch('/api/v1/admin/analytics/activity');
       if (res.ok) {
         const d = await res.json();
         setData(d);
