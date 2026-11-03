@@ -1,3 +1,4 @@
+import { prepareAdminOrganizationExtras } from './services/admin-organization.service.js';
 import { adminReadMiddleware } from './routes/admin-read.routes.js';
 import { organizationListOptions, paginateOrganizations } from './services/organization-list.service.js';
 import { dealerRouter } from './routes/dealer.routes.js';
@@ -3859,6 +3860,18 @@ app.post('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN']
     return;
   }
 
+  let extras: ReturnType<typeof prepareAdminOrganizationExtras>;
+  try { extras = prepareAdminOrganizationExtras(db, req.body); }
+  catch (error: any) { return void res.status(error.status || 400).json({ code: 'INVALID_INPUT', message: error.message }); }
+  // Validate an optional offer before creating any of the linked records.
+  if (req.body.initialOffer) {
+    const io = req.body.initialOffer;
+    const price = Number(io.price), stock = Number(io.stockOnHand ?? (io.type === 'SERVICE' ? 999 : 10));
+    if (typeof io.title !== 'string' || !io.title.trim() || io.price === '' || io.price == null || !Number.isFinite(price) || price < 0 || !Number.isSafeInteger(stock) || stock < 0) {
+      return void res.status(400).json({ code: 'INVALID_INPUT', message: 'Tovar yoki xizmat nomi, narxi va miqdorini tekshiring.' });
+    }
+  }
+
   const orgId = uuidv4();
   const newOrg: any = {
     id: orgId,
@@ -3897,8 +3910,8 @@ app.post('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN']
     isVerified: true,
     status: 'ACTIVE' as const,
     type: type.trim(),
-    photoUrl: photoUrl || '',
-    hours: hours || [
+    photoUrl: extras.photoUrl,
+    hours: extras.hours || [
       { dayOfWeek: 1, openTime: '08:00', closeTime: '22:00', isClosed: false },
       { dayOfWeek: 2, openTime: '08:00', closeTime: '22:00', isClosed: false },
       { dayOfWeek: 3, openTime: '08:00', closeTime: '22:00', isClosed: false },
@@ -3966,6 +3979,17 @@ app.post('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN']
     createdOffer = offer;
   }
 
+  let createdOwner: any = undefined;
+  if (extras.owner) {
+    const userId = uuidv4(), membershipId = uuidv4(), now = new Date().toISOString();
+    const owner = { ...extras.owner, id: userId, role: 'OWNER', status: 'ACTIVE', isVerified: true,
+      organizationId: orgId, organizationName: newOrg.name, createdAt: now, updatedAt: now };
+    db.users.set(userId, owner as any);
+    db.memberships.set(membershipId, { id: membershipId, organizationId: orgId, userId, role: 'OWNER', status: 'ACTIVE' });
+    const { passwordHash, ...safeOwner } = owner;
+    createdOwner = safeOwner;
+  }
+
   const caller = getCurrentUser(req);
   db.auditLogs.push({
     id: uuidv4(),
@@ -3974,13 +3998,13 @@ app.post('/api/v1/admin/organizations', requireStaffRole(['ADMIN', 'SUPERADMIN']
     action: 'CREATE_ORGANIZATION',
     entityType: 'ORGANIZATION',
     entityId: orgId,
-    diff: { name, inn, region, type, storeId: newStore?.id },
+    diff: { name, inn, region, type, storeId: newStore?.id, ownerId: createdOwner?.id },
     timestamp: new Date().toISOString()
   });
 
   db.scheduleSave();
 
-  res.status(201).json({ organization: newOrg, store: newStore, offer: createdOffer });
+  res.status(201).json({ organization: newOrg, store: newStore, offer: createdOffer, owner: createdOwner });
 });
 
 app.patch('/api/v1/admin/organizations/:id', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {

@@ -1,3 +1,4 @@
+import { OrganizationPhotoField, OrganizationScheduleFields, OrganizationOwnerFields, buildOrganizationHours } from '@yaqintop/ui';
 import { apiFetch, getSessionToken, adminResourcePlan, AdminResourceCache } from '@yaqintop/ui';
 import { MaskedUserPassword } from '@yaqintop/ui';
 import { useCachedSession, clearSessionCache, TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
@@ -362,6 +363,10 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
     setIsAddingOrganizationType(false);
   };
   const [showNewOrgInn, setShowNewOrgInn] = useState(false);
+  const [showNewOrgStoreName, setShowNewOrgStoreName] = useState(false);
+  const [newOrgPhotoBusy, setNewOrgPhotoBusy] = useState(false);
+  const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+  const orgSubmitLock = useRef(false);
   const [newOrgForm, setNewOrgForm] = useState({
     name: '',
     inn: '',
@@ -374,10 +379,13 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
     phone: '+998 90 ',
     lat: '41.311081',
     lng: '69.240562',
-    photoUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=60',
+    photoUrl: '',
     openTime: '08:00',
     closeTime: '22:00',
     isVerified: true,
+    workingDays: [1, 2, 3, 4, 5, 6, 0],
+    is24Hours: false,
+    includeOwner: false, ownerFullName: '', ownerPhone: '', ownerLogin: '', ownerPassword: '',
     includeInitialOffer: false,
     initialOfferTitle: '',
     initialOfferType: 'PRODUCT' as 'PRODUCT' | 'SERVICE',
@@ -1030,6 +1038,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
   // Create Organization & Store
   const handleCreateOrganization = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (orgSubmitLock.current || newOrgPhotoBusy) return;
     if (isAddingOrganizationType) {
       showToast('Yangi turni avval Qo‘shish tugmasi bilan tasdiqlang yoki bekor qiling');
       return;
@@ -1039,13 +1048,16 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
       return;
     }
 
+    if (!newOrgForm.is24Hours && !newOrgForm.workingDays.length) {
+      showToast('Kamida bitta ish kunini belgilang yoki 24/7 ni tanlang'); return;
+    }
+    if (newOrgForm.includeInitialOffer && (!newOrgForm.initialOfferTitle.trim() || newOrgForm.initialOfferPrice === '')) {
+      showToast('Tovar yoki xizmat nomi va narxini kiriting'); return;
+    }
+    orgSubmitLock.current = true;
+    setIsCreatingOrg(true);
     try {
-      const hours = [1, 2, 3, 4, 5, 6, 0].map(day => ({
-        dayOfWeek: day,
-        openTime: newOrgForm.openTime,
-        closeTime: newOrgForm.closeTime,
-        isClosed: false
-      }));
+      const hours = buildOrganizationHours(newOrgForm);
 
       const initialOffer = (newOrgForm.includeInitialOffer && newOrgForm.initialOfferTitle.trim() && newOrgForm.initialOfferPrice) ? {
         title: newOrgForm.initialOfferTitle.trim(),
@@ -1067,13 +1079,17 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
           district: newOrgForm.district,
           type: newOrgForm.type,
           status: 'ACTIVE',
-          storeName: newOrgForm.storeName || newOrgForm.name,
+          storeName: showNewOrgStoreName ? newOrgForm.storeName.trim() || undefined : undefined,
           address: newOrgForm.address,
           phone: newOrgForm.phone,
           lat: newOrgForm.lat,
           lng: newOrgForm.lng,
           photoUrl: newOrgForm.photoUrl,
           hours,
+          owner: newOrgForm.includeOwner ? {
+            fullName: newOrgForm.ownerFullName, email: newOrgForm.ownerLogin,
+            phone: newOrgForm.ownerPhone, password: newOrgForm.ownerPassword
+          } : undefined,
           initialOffer
         })
       });
@@ -1082,6 +1098,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
         showToast('Yangi tashkilot va filial kartaga muvaffaqiyatli qo‘shildi!');
         setIsAddOrgModalOpen(false);
         setShowNewOrgInn(false);
+        setShowNewOrgStoreName(false);
         setNewOrgForm({
           name: '',
           inn: '',
@@ -1094,10 +1111,13 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
           phone: '+998 90 ',
           lat: '41.311081',
           lng: '69.240562',
-          photoUrl: 'https://images.unsplash.com/photo-1578916171728-46686eac8d58?w=500&auto=format&fit=crop&q=60',
+          photoUrl: '',
           openTime: '08:00',
           closeTime: '22:00',
           isVerified: true,
+          workingDays: [1, 2, 3, 4, 5, 6, 0],
+          is24Hours: false,
+          includeOwner: false, ownerFullName: '', ownerPhone: '', ownerLogin: '', ownerPassword: '',
           includeInitialOffer: false,
           initialOfferTitle: '',
           initialOfferType: 'PRODUCT',
@@ -1112,6 +1132,8 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
       }
     } catch {
       showToast('Server bilan aloqa xatosi');
+    } finally {
+      orgSubmitLock.current = false; setIsCreatingOrg(false);
     }
   };
 
@@ -4119,14 +4141,19 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
               )}
             </div>
             <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Do‘kon / Filial nomi</label>
+              <button type="button" aria-expanded={showNewOrgStoreName} onClick={() => { setShowNewOrgStoreName(open => !open); setNewOrgForm(form => ({ ...form, storeName: '' })); }} className="font-semibold text-[#116B50] dark:text-[#4ADE80] py-1">
+                {showNewOrgStoreName ? '− Do‘kon / Filial nomini yopish' : '+ Do‘kon / Filial nomini kiritish'}
+              </button>
+              {showNewOrgStoreName && <label className="mt-1 block font-semibold">Do‘kon / Filial nomi (ixtiyoriy)
               <input
                 type="text"
+                aria-label="Do‘kon / Filial nomi"
                 value={newOrgForm.storeName}
                 onChange={(e) => setNewOrgForm({ ...newOrgForm, storeName: e.target.value })}
                 placeholder="Masalan: Korzinka - Chilonzor filiali"
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
               />
+              </label>}
             </div>
           </div>
 
@@ -4158,16 +4185,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                 className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs font-mono text-[#172C28] dark:text-[#E8F2EC]"
               />
             </div>
-            <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Do‘kon rasmi URL</label>
-              <input
-                type="url"
-                value={newOrgForm.photoUrl}
-                onChange={(e) => setNewOrgForm({ ...newOrgForm, photoUrl: e.target.value })}
-                placeholder="https://..."
-                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
-              />
-            </div>
+            <OrganizationPhotoField value={newOrgForm.photoUrl} onChange={photoUrl => setNewOrgForm(form => ({ ...form, photoUrl }))} onBusyChange={setNewOrgPhotoBusy} />
           </div>
 
           {/* Geolocation Coordinates */}
@@ -4185,20 +4203,6 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                 <Map className="w-3.5 h-3.5" />
                 <span>🗺️ Kartadan belgilash</span>
               </button>
-            </div>
-
-            {/* Quick district presets */}
-            <div className="flex flex-wrap gap-1.5 mb-2.5">
-              {DISTRICT_PRESETS.map((p) => (
-                <button
-                  key={p.name}
-                  type="button"
-                  onClick={() => setNewOrgForm({ ...newOrgForm, lat: String(p.lat), lng: String(p.lng) })}
-                  className="px-2 py-1 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#273B32] rounded-md text-[10px] font-semibold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80]"
-                >
-                  📍 {p.name}
-                </button>
-              ))}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
@@ -4227,27 +4231,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
             </div>
           </div>
 
-          {/* Working Hours */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Ochilish vaqti</label>
-              <input
-                type="time"
-                value={newOrgForm.openTime}
-                onChange={(e) => setNewOrgForm({ ...newOrgForm, openTime: e.target.value })}
-                className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E]"
-              />
-            </div>
-            <div>
-              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Yopilish vaqti</label>
-              <input
-                type="time"
-                value={newOrgForm.closeTime}
-                onChange={(e) => setNewOrgForm({ ...newOrgForm, closeTime: e.target.value })}
-                className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E]"
-              />
-            </div>
-          </div>
+          <OrganizationScheduleFields value={newOrgForm} onChange={patch => setNewOrgForm(form => ({ ...form, ...patch }))} />
 
           {/* Initial Product / Service (Tovar yoki Usluga) */}
           <div className="p-3 bg-[#F3F6F3] dark:bg-[#1A2822] rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-2.5">
@@ -4329,12 +4313,14 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
             )}
           </div>
 
+          <OrganizationOwnerFields value={newOrgForm} onChange={patch => setNewOrgForm(form => ({ ...form, ...patch }))} />
+
           <div className="flex justify-end gap-2 pt-2 border-t border-[#DCE5DF] dark:border-[#22332C]">
             <Button variant="secondary" type="button" onClick={() => setIsAddOrgModalOpen(false)}>
               Bekor qilish
             </Button>
-            <Button variant="primary" type="submit">
-              Kartaga qo‘shish
+            <Button variant="primary" type="submit" disabled={isCreatingOrg || newOrgPhotoBusy}>
+              {isCreatingOrg ? 'Saqlanmoqda…' : 'Kartaga qo‘shish'}
             </Button>
           </div>
         </form>
