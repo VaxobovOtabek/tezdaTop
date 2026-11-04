@@ -8,3 +8,12 @@ scratch
 .turbo
 dist
 coverage
+
+# Android build uchun lokal muhit (mashinaga xos, Git'ga tushmaydi)
+.android-sdk/
+.gradle-home/
+.pnpm-home/
+.pnpm-store/
+.tmp/
+tezdaTop/scripts/build-android.ps1
+tezdaTop/apps/customer/scripts/generate-android-assets.py

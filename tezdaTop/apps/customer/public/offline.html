@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#116B50" />
+    <title>YaqinTop — ulanish yo‘q</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { height: 100%; margin: 0; }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px 24px;
+        font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        color: #fff;
+        background: linear-gradient(180deg, #116b50 0%, #094734 100%);
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+      }
+      .card { max-width: 360px; text-align: center; }
+      .logo {
+        width: 88px;
+        height: 88px;
+        margin: 0 auto 20px;
+        border-radius: 22px;
+        background: linear-gradient(180deg, #0fb165 0%, #077d5b 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
+      }
+      .logo svg { width: 56px; height: 56px; }
+      h1 { font-size: 21px; margin: 0 0 10px; font-weight: 800; letter-spacing: -0.3px; }
+      p { margin: 0 0 24px; font-size: 14.5px; line-height: 1.55; color: rgba(255, 255, 255, 0.82); }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 14px;
+        padding: 14px 28px;
+        font-family: inherit;
+        font-size: 15px;
+        font-weight: 700;
+        color: #0a4b39;
+        background: #ffffff;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+      }
+      button:active { transform: scale(0.98); }
+      .hint { margin-top: 18px; font-size: 12.5px; color: rgba(255, 255, 255, 0.55); }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <div class="logo" aria-hidden="true">
+        <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <path d="M 327,360 L 451,360 L 511.5,489 L 573,360 L 695,360 L 567,580 L 567,741 L 453,741 L 453,580 Z" fill="#FFFFFF" />
+        </svg>
+      </div>
+      <h1>Internet aloqasi yo‘q</h1>
+      <p>YaqinTop atrofdagi do‘konlarni ko‘rsatish uchun internetga ulanadi. Wi‑Fi yoki mobil internetni tekshirib, qaytadan urinib ko‘ring.</p>
+      <button type="button" onclick="retry()">Qaytadan urinish</button>
+      <div class="hint">YaqinTop — yaqiningizdagi tovar va do‘konlar</div>
+    </main>
+    <script>
+      function retry() {
+        window.location.href = 'https://yaqintop.uz/customer/';
+      }
+      window.addEventListener('online', retry);
+    </script>
+  </body>
+</html>

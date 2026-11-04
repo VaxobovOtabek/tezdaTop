@@ -1,0 +1,8 @@
+# Capacitor native loyihasi `npx cap add android` / `cap sync` bilan generatsiya qilinadi.
+# Repoga commit qilinmaydi — kerak bo'lsa istalgan mashinada qayta yaratiladi:
+#   pnpm --filter @yaqintop/customer build
+#   pnpm --filter @yaqintop/customer android:sync
+/android/
+
+# Veb build natijasi (assets sifatida android ichiga ko'chiriladi)
+/dist/
