@@ -1347,7 +1347,7 @@ export function ModeratorApp() {
     <div className={`min-h-screen flex flex-col font-sans antialiased transition-colors overflow-x-hidden w-full max-w-full ${isDarkMode ? 'dark bg-[#0E1713] text-[#E8F2EC]' : 'bg-[#F3F6F3] text-[#172C28]'}`}>
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#172C28] dark:bg-[#1E3328] text-white dark:text-[#E8F2EC] px-5 py-3 rounded-xl shadow-2xl text-sm font-medium border border-transparent dark:border-[#2E483A]">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[10100] bg-[#172C28] dark:bg-[#1E3328] text-white dark:text-[#E8F2EC] px-5 py-3 rounded-xl shadow-2xl text-sm font-medium border border-transparent dark:border-[#2E483A]">
           {toastMessage}
         </div>
       )}

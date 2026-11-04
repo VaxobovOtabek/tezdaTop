@@ -7,6 +7,7 @@ import {
   TrendingUp,
   Truck,
   LayoutDashboard,
+  Boxes,
   Store,
   Building2,
   MapPin,
@@ -78,6 +79,7 @@ const RequestsInquiriesHub = React.lazy(() => import('./components/RequestsInqui
 const ReviewsModerationHub = React.lazy(() => import('./components/ReviewsModerationHub').then(m => ({ default: m.ReviewsModerationHub })));
 const AnalyticsActivityHub = React.lazy(() => import('./components/AnalyticsActivityHub').then(m => ({ default: m.AnalyticsActivityHub })));
 const SupabaseUsagePanel = React.lazy(() => import('./components/SupabaseUsagePanel').then(m => ({ default: m.SupabaseUsagePanel })));
+const AdminCategoriesHub = React.lazy(() => import('./components/AdminCategoriesHub').then(m => ({ default: m.AdminCategoriesHub })));
 const RolesGuideMatrix = React.lazy(() => import('./components/RolesGuideMatrix').then(m => ({ default: m.RolesGuideMatrix })));
 
 const AdminTabSkeleton: React.FC = () => (
@@ -182,7 +184,7 @@ export interface AdminPortalAppProps {
     | 'overview'
     | 'growth-dynamics'
     | 'supabase-usage'
-    | 'map-hub'
+    | 'categories' | 'map-hub'
     | 'analytics'
     | 'architecture-db'
     | 'roles-guide'
@@ -219,7 +221,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'growth-dynamics' | 'supabase-usage' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries' | 'dealers' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
+    'overview' | 'growth-dynamics' | 'supabase-usage' | 'categories' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries' | 'dealers' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
   >(initialTab || (portalMode === 'moderator' ? 'map-hub' : 'overview'));
 
   // Current User Session State (Loads from localStorage or null for guest)
@@ -282,7 +284,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
 
   // Auto-switch restricted tabs if Moderator logs in
   useEffect(() => {
-    if (currentUser?.role === 'MODERATOR' && (activeTab === 'architecture-db' || activeTab === 'api-explorer')) {
+    if (currentUser?.role === 'MODERATOR' && (activeTab === 'architecture-db' || activeTab === 'api-explorer' || activeTab === 'categories')) {
       setActiveTab('overview');
     }
   }, [currentUser?.role, activeTab]);
@@ -1390,7 +1392,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
     <div className={`min-h-screen flex flex-col font-sans antialiased transition-colors overflow-x-hidden w-full max-w-full ${isDarkMode ? 'dark bg-[#0E1713] text-[#E8F2EC]' : 'bg-[#F3F6F3] text-[#172C28]'}`}>
       {/* Toast */}
       {toastMessage && (
-        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 bg-[#172C28] dark:bg-[#1E3328] text-white dark:text-[#E8F2EC] px-5 py-3 rounded-xl shadow-2xl text-sm font-medium border border-transparent dark:border-[#2E483A]">
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[10100] bg-[#172C28] dark:bg-[#1E3328] text-white dark:text-[#E8F2EC] px-5 py-3 rounded-xl shadow-2xl text-sm font-medium border border-transparent dark:border-[#2E483A]">
           {toastMessage}
         </div>
       )}
@@ -1563,6 +1565,13 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                 icon: TrendingUp,
                 isSpecial: true
               },
+              {
+                id: 'categories',
+                label: t('nav_categories', 'Kategoriyalar & Tovarlar'),
+                icon: Boxes,
+                isSpecial: true,
+                adminOnly: true
+              },
               { id: 'supabase-usage', label: t('nav_supabase_limits', 'Supabase limitlari'), icon: Database, adminOnly: true },
               {
                 id: 'map-hub',
@@ -1662,6 +1671,13 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
             {[
               { id: 'overview', label: t('nav_overview', 'Umumiy holat'), icon: LayoutDashboard },
               {
+                id: 'categories',
+                label: t('nav_categories', 'Kategoriyalar & Tovarlar'),
+                icon: Boxes,
+                isSpecial: true,
+                adminOnly: true
+              },
+              {
                 id: 'growth-dynamics',
                 label: t('nav_growth_dynamics', 'Tizimga Qo‘shilish Dinamikasi'),
                 icon: TrendingUp,
@@ -1759,6 +1775,14 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
             <button type="button" className="mt-2 font-semibold underline" disabled={dataLoading} onClick={()=>void loadData(undefined, true)}>Qayta yuklash</button>
           </div>}
           <React.Suspense fallback={<AdminTabSkeleton />}>
+          {/* CATEGORIES & PRODUCTS HUB TAB (ADMIN ONLY) */}
+          {activeTab === 'categories' && currentUser?.role !== 'MODERATOR' && (
+            <AdminCategoriesHub
+              isDarkMode={isDarkMode}
+              onShowToast={(msg: string) => showToast(msg)}
+            />
+          )}
+
           {/* GROWTH DYNAMICS TAB */}
           {activeTab === 'growth-dynamics' && (
             <GrowthDynamicsHub

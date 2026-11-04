@@ -1,5 +1,5 @@
 import { apiFetch } from '@yaqintop/ui';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import L from 'leaflet';
 import { matchesRegion, normalizeArea, mapViewport } from './map-geography';
 import 'leaflet/dist/leaflet.css';
@@ -171,6 +171,93 @@ export function AdminMapHub({
   };
 
   // Add Offer Modal (Tovar / Usluga)
+  // Edit Offer Modal state
+  const [isEditOfferModalOpen, setIsEditOfferModalOpen] = useState(false);
+  const [isSubmittingEditOffer, setIsSubmittingEditOffer] = useState(false);
+  const [editingOfferId, setEditingOfferId] = useState<string | null>(null);
+  const [isAddingNewEditCategory, setIsAddingNewEditCategory] = useState(false);
+  const [newEditCategoryName, setNewEditCategoryName] = useState('');
+  const [editOfferForm, setEditOfferForm] = useState({
+    type: 'PRODUCT' as 'PRODUCT' | 'SERVICE',
+    title: '',
+    category: 'Oziq-ovqat',
+    price: '',
+    packUnit: 'dona',
+    stockOnHand: '10',
+    barcode: '',
+    brand: '',
+    photoUrl: '',
+    description: ''
+  });
+
+  const handleOpenEditOffer = (off: any) => {
+    const v = off.variant || {};
+    const isSvc = v.type === 'SERVICE';
+    setEditingOfferId(off.id);
+    setIsAddingNewEditCategory(false);
+    setNewEditCategoryName('');
+    setEditOfferForm({
+      type: isSvc ? 'SERVICE' : 'PRODUCT',
+      title: v.title || '',
+      category: v.category || 'Umumiy',
+      price: off.price ? off.price.toString() : '',
+      packUnit: v.packUnit || (isSvc ? 'xizmat' : 'dona'),
+      stockOnHand: (off.stockOnHand ?? 10).toString(),
+      barcode: v.barcode || '',
+      brand: v.brand || '',
+      photoUrl: v.photoUrl || '',
+      description: v.description || ''
+    });
+    setIsEditOfferModalOpen(true);
+  };
+
+  const handleSubmitEditOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingOfferId) return;
+    if (!editOfferForm.title.trim()) {
+      showToast('Tovar yoki xizmat nomini kiriting');
+      return;
+    }
+    if (!editOfferForm.price) {
+      showToast('Narxni kiriting');
+      return;
+    }
+
+    setIsSubmittingEditOffer(true);
+    try {
+      const res = await apiFetch(`/api/v1/admin/offers/${editingOfferId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editOfferForm.title.trim(),
+          type: editOfferForm.type,
+          category: editOfferForm.category,
+          price: parseFloat(editOfferForm.price),
+          packUnit: editOfferForm.packUnit,
+          stockOnHand: parseInt(editOfferForm.stockOnHand || '10', 10),
+          barcode: editOfferForm.barcode.trim(),
+          brand: editOfferForm.brand.trim(),
+          photoUrl: editOfferForm.photoUrl,
+          description: editOfferForm.description.trim()
+        })
+      });
+
+      if (res.ok) {
+        showToast('Tovar/xizmat ma’lumotlari va rasmi muvaffaqiyatli yangilandi!');
+        setIsEditOfferModalOpen(false);
+        if (selectedStore?.id) loadOffers(selectedStore.id);
+        onStoreCreatedOrUpdated?.();
+      } else {
+        const err = await res.json();
+        showToast(err.message || 'Xatolik yuz berdi');
+      }
+    } catch {
+      showToast('Server bilan aloqa xatosi');
+    } finally {
+      setIsSubmittingEditOffer(false);
+    }
+  };
+
   const [isAddOfferModalOpen, setIsAddOfferModalOpen] = useState(false);
   const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
   const [newOfferForm, setNewOfferForm] = useState({
@@ -185,6 +272,97 @@ export function AdminMapHub({
     photoUrl: '',
     description: ''
   });
+
+  const [availableCategories, setAvailableCategories] = useState<string[]>([
+    'Fastfud',
+    'Oziq-ovqat',
+    'Ichimliklar',
+    'Shirinliklar',
+    'Non mahsulotlari',
+    'Sut mahsulotlari',
+    'Go‘sht mahsulotlari',
+    'Meva va sabzavotlar',
+    'Maishiy kimyo',
+    'Xo‘jalik mollari',
+    'Kiyim-kechak',
+    'Elektronika',
+    'Avtomobil mollari',
+    'Dori-darmon',
+    'Kanselyariya',
+    'Xizmat'
+  ]);
+  const [isAddingNewCategory, setIsAddingNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await apiFetch('/api/v1/admin/categories');
+      if (res.ok) {
+        const data = await res.json();
+        const incomingNames: string[] = [];
+        if (Array.isArray(data.categories)) {
+          for (const item of data.categories) {
+            const name = typeof item === 'string' ? item : item?.name;
+            if (name && typeof name === 'string' && name.trim()) incomingNames.push(name.trim());
+          }
+        }
+        if (Array.isArray(data.items)) {
+          for (const item of data.items) {
+            const name = typeof item === 'string' ? item : item?.name;
+            if (name && typeof name === 'string' && name.trim()) incomingNames.push(name.trim());
+          }
+        }
+        if (incomingNames.length > 0) {
+          setAvailableCategories(prev => {
+            const set = new Set([...incomingNames, ...prev]);
+            return Array.from(set).sort((a, b) => String(a || '').localeCompare(String(b || ''), 'uz'));
+          });
+        }
+      }
+    } catch {
+      // Keep existing presets
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
+
+  useEffect(() => {
+    if (isAddOfferModalOpen) {
+      loadCategories();
+    }
+  }, [isAddOfferModalOpen, loadCategories]);
+
+  useEffect(() => {
+    if (storeOffers && storeOffers.length > 0) {
+      const existingOfferCats = storeOffers
+        .map(o => o.variant?.category)
+        .filter((c): c is string => Boolean(c && typeof c === 'string' && c.trim()));
+      if (existingOfferCats.length > 0) {
+        setAvailableCategories(prev => {
+          const set = new Set([...existingOfferCats, ...prev]);
+          return Array.from(set).sort((a, b) => String(a || '').localeCompare(String(b || ''), 'uz'));
+        });
+      }
+    }
+  }, [storeOffers]);
+
+  const handleAddNewCategory = () => {
+    const trimmed = newCategoryName.trim();
+    if (!trimmed) {
+      showToast('Kategoriya nomini kiriting');
+      return;
+    }
+    setAvailableCategories(prev => {
+      const set = new Set([trimmed, ...prev]);
+      return Array.from(set).sort((a, b) => String(a || '').localeCompare(String(b || ''), 'uz'));
+    });
+    setNewOfferForm(prev => ({ ...prev, category: trimmed }));
+    setNewCategoryName('');
+    setIsAddingNewCategory(false);
+    showToast(`"${trimmed}" kategoriyasi tanlandi`);
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>, callback: (url: string) => void) => {
     const file = e.target.files?.[0];
@@ -289,7 +467,7 @@ export function AdminMapHub({
     'Barcha tumanlar',
     ...Array.from(new Set(stores.filter(st => matchesRegion(st, selectedRegion))
       .flatMap(st => [st.district, st.city]).filter((name): name is string => !!name?.trim())))
-      .sort((a, b) => a.localeCompare(b, 'uz'))
+      .sort((a, b) => String(a || '').localeCompare(String(b || ''), 'uz'))
   ], [stores, selectedRegion]);
 
   const filteredStores = useMemo(() => stores.filter((st) => {
@@ -1150,14 +1328,24 @@ export function AdminMapHub({
                             </div>
                           </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteOffer(off.id)}
-                            title="O‘chirish"
-                            className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition shrink-0 cursor-pointer"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditOffer(off)}
+                              title="Tahrirlash va Rasm"
+                              className="p-1 text-gray-400 hover:text-emerald-600 rounded-lg hover:bg-emerald-50 dark:hover:bg-emerald-950/40 transition shrink-0 cursor-pointer"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteOffer(off.id)}
+                              title="O‘chirish"
+                              className="p-1 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 transition shrink-0 cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
@@ -1320,17 +1508,83 @@ export function AdminMapHub({
               </div>
             </div>
 
-            {/* Category & Stock */}
+                        {/* Category & Stock */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Kategoriya</label>
-                <input
-                  type="text"
-                  value={newOfferForm.category}
-                  onChange={(e) => setNewOfferForm({ ...newOfferForm, category: e.target.value })}
-                  placeholder={newOfferForm.type === 'SERVICE' ? 'Avtoservis, Go‘zallik, Ta’mirlash' : 'Oziq-ovqat, Ichimliklar'}
-                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
-                />
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">Kategoriya *</label>
+                  {!isAddingNewCategory && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingNewCategory(true)}
+                      className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <span>+ Yangi kategoriya</span>
+                    </button>
+                  )}
+                </div>
+
+                {!isAddingNewCategory ? (
+                  <select
+                    value={newOfferForm.category}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW__') {
+                        setIsAddingNewCategory(true);
+                      } else {
+                        setNewOfferForm({ ...newOfferForm, category: e.target.value });
+                      }
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] font-medium"
+                  >
+                    {newOfferForm.category && !availableCategories.includes(newOfferForm.category) && (
+                      <option value={newOfferForm.category}>{newOfferForm.category}</option>
+                    )}
+                    {availableCategories.map(cat => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="__NEW__" className="font-bold text-[#116B50]">
+                      ➕ Yangi kategoriya yozish...
+                    </option>
+                  </select>
+                ) : (
+                  <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-800 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Yangi kategoriya:</span>
+                      <button
+                        type="button"
+                        onClick={() => { setIsAddingNewCategory(false); setNewCategoryName(''); }}
+                        className="text-[10px] text-gray-500 hover:text-red-500 font-bold cursor-pointer"
+                      >
+                        ✕ Bekor qilish
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={newCategoryName}
+                        onChange={(e) => setNewCategoryName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddNewCategory();
+                          }
+                        }}
+                        placeholder="Masalan: Fastfood, Burgerlar..."
+                        className="flex-1 p-2 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-xs text-[#172C28] dark:text-[#E8F2EC]"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleAddNewCategory}
+                        className="px-3 py-2 bg-[#116B50] hover:bg-[#0d533e] text-white rounded-lg text-xs font-bold shrink-0 transition shadow-xs cursor-pointer"
+                      >
+                        Qo‘shish
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

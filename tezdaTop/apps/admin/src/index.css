@@ -54,3 +54,41 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   background-color: #16241E !important;
 }
 
+/* Custom sleek scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(17, 107, 80, 0.25);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(17, 107, 80, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(74, 222, 128, 0.25);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(74, 222, 128, 0.5);
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+

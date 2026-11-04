@@ -16,6 +16,10 @@ export function apiFetch(input: RequestInfo | URL, init: RequestInit = {}): Prom
     const token = getSessionToken();
     if (token) headers.set('Authorization', `Bearer ${token}`);
   }
+  const hasBody = init.body !== undefined && init.body !== null;
+  if (hasBody && typeof init.body === 'string' && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
   return fetch(input, { ...init, headers, ...(isOwnApi ? { credentials: init.credentials ?? request?.credentials ?? 'include' } : {}) }).then(response => {
     const method = (init.method || request?.method || 'GET').toUpperCase();
     if (isOwnApi && response.ok && !['GET','HEAD','OPTIONS'].includes(method) && typeof window !== 'undefined' && typeof window.dispatchEvent === 'function') {

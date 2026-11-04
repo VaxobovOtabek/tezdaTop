@@ -196,7 +196,14 @@ export function LocationPickerModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/60 backdrop-blur-sm animate-in fade-in">
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[10050] flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
       <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] w-full max-w-4xl rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Modal Header */}
         <div className="px-5 py-4 border-b border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-between bg-white dark:bg-[#14201A]">
