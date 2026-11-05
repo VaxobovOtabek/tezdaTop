@@ -28,6 +28,26 @@ self.addEventListener('fetch', (event) => {
   // Do not intercept or cache dynamic API requests
   if (url.pathname.includes('/api/')) return;
 
+  // Blazingly fast Cache-First strategy for OpenStreetMap tiles (loads in <1ms from disk)
+  if (url.hostname.includes('tile.openstreetmap.org') || url.hostname.includes('openstreetmap')) {
+    event.respondWith(
+      caches.open('yaqintop-map-tiles-v1').then(async (tileCache) => {
+        const cached = await tileCache.match(event.request);
+        if (cached) return cached;
+        try {
+          const networkResponse = await fetch(event.request);
+          if (networkResponse && (networkResponse.status === 200 || networkResponse.type === 'opaque')) {
+            tileCache.put(event.request, networkResponse.clone());
+          }
+          return networkResponse;
+        } catch (err) {
+          return new Response('', { status: 408 });
+        }
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((networkResponse) => {

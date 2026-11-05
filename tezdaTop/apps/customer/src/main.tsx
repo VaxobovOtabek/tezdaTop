@@ -63,6 +63,14 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 }
 
+// Remove launch splash screen as React initializes
+try {
+  const splash = document.getElementById('pwa-launch-splash');
+  if (splash && splash.parentNode) {
+    splash.remove();
+  }
+} catch {}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <LanguageProvider>

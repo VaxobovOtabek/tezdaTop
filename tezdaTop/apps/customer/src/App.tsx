@@ -54,7 +54,13 @@ import { getProductThumbnail, DEFAULT_PRODUCT_THUMBNAIL } from './utils/product-
 const isLocalEnv = typeof window !== 'undefined' && (
   window.location.hostname === 'localhost' ||
   window.location.hostname === '127.0.0.1' ||
-  window.location.hostname === '0.0.0.0'
+  window.location.hostname === '0.0.0.0' ||
+  window.location.hostname.startsWith('192.168.') ||
+  window.location.hostname.startsWith('10.') ||
+  window.location.hostname.startsWith('172.') ||
+  window.location.hostname.endsWith('.local') ||
+  window.location.port === '3000' ||
+  Boolean((import.meta as any).env?.DEV)
 );
 
 export function CustomerApp() {
@@ -1042,8 +1048,8 @@ export function CustomerApp() {
       )}
 
       {/* Top Header */}
-      <header className="h-[58px] sm:h-[68px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-2.5 sm:px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
-        <div className="flex items-center gap-1.5 sm:gap-3 min-w-0 flex-1">
+      <header className="h-[58px] sm:h-[68px] bg-white dark:bg-[#14201A] border-b border-[#DCE5DF] dark:border-[#22332C] px-3 sm:px-4 md:px-8 flex items-center justify-between sticky top-0 z-30 transition-colors">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
           <div
             onClick={() => {
               setSearchQuery('');
@@ -1054,7 +1060,7 @@ export function CustomerApp() {
             className="flex items-center gap-1.5 cursor-pointer select-none shrink-0 group"
             title="Qidiruv bosh sahifasiga qaytish"
           >
-            <YaqinTopLogo className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl shadow-2xs shrink-0 group-hover:scale-105 transition" />
+            <YaqinTopLogo className="w-8 h-8 rounded-xl shadow-2xs shrink-0 group-hover:scale-105 transition" />
             <span className="font-extrabold text-lg sm:text-2xl tracking-tight text-[#172C28] dark:text-white hidden min-[420px]:inline">
               YaqinTop
             </span>
@@ -1063,7 +1069,7 @@ export function CustomerApp() {
           {/* Uzbekistan Region & District Selector Trigger */}
           <button
             onClick={() => setIsLocationModalOpen(true)}
-            className="flex items-center gap-1 sm:gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 border border-[#DCE5DF] dark:border-[#263D33] text-[11px] sm:text-xs font-semibold text-[#116B50] dark:text-[#4ADE80] bg-[#F3F8F5] dark:bg-[#162720] hover:bg-[#E2EFE7] dark:hover:bg-[#1E362C] rounded-xl transition cursor-pointer group shadow-2xs max-w-[125px] min-[360px]:max-w-[145px] sm:max-w-[190px] shrink-1"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 border border-[#DCE5DF] dark:border-[#263D33] text-xs font-semibold text-[#116B50] dark:text-[#4ADE80] bg-[#F3F8F5] dark:bg-[#162720] hover:bg-[#E2EFE7] dark:hover:bg-[#1E362C] rounded-xl transition cursor-pointer group shadow-2xs max-w-[135px] min-[360px]:max-w-[155px] sm:max-w-[190px] shrink-1"
             title="Hududni o‘zgartirish (O‘zbekiston viloyatlari va tumanlari)"
           >
             <MapPin className="w-3.5 h-3.5 text-[#116B50] dark:text-[#4ADE80] shrink-0 group-hover:scale-110 transition-transform" />
@@ -1155,11 +1161,11 @@ export function CustomerApp() {
           {deferredPrompt && !isAppInstalled && (
             <button
               onClick={handleInstallClick}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-[#116B50] hover:bg-[#0E5842] text-white text-xs font-bold transition shadow-sm shrink-0 cursor-pointer animate-pulse"
+              className="flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-3 sm:py-2 rounded-xl bg-[#116B50] hover:bg-[#0E5842] text-white text-xs font-bold transition shadow-sm shrink-0 cursor-pointer"
               title="YaqinTop ilovasini telefoningizga o‘rnatish"
             >
-              <Smartphone className="w-3.5 h-3.5 shrink-0" />
-              <span className="hidden min-[380px]:inline">{t('install', 'O‘rnatish')}</span>
+              <Smartphone className="w-4 h-4 shrink-0" />
+              <span className="hidden md:inline">{t('install', 'O‘rnatish')}</span>
             </button>
           )}
 
@@ -1170,18 +1176,18 @@ export function CustomerApp() {
           <button
             onClick={toggleDarkMode}
             title={isDarkMode ? "Yorug' tema" : "Qorong'i tema"}
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center justify-center shadow-2xs shrink-0"
+            className="w-9 h-9 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition flex items-center justify-center shadow-2xs shrink-0"
           >
-            {isDarkMode ? <Sun className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" /> : <Moon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#116B50]" />}
+            {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-[#116B50]" />}
           </button>
 
           {/* User Profile / Guest Button */}
           {currentUser ? (
             <button
               onClick={() => setIsProfileModalOpen(true)}
-              className="flex items-center gap-1.5 px-2 py-1 sm:px-3 sm:py-1.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition text-xs font-bold shadow-2xs shrink-0"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] transition text-xs font-bold shadow-2xs shrink-0"
             >
-              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#116B50] text-white text-[9px] sm:text-[10px] font-bold flex items-center justify-center shrink-0">
+              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-[#116B50] text-white text-[10px] font-bold flex items-center justify-center shrink-0">
                 {currentUser.fullName ? currentUser.fullName.slice(0, 2).toUpperCase() : 'US'}
               </div>
               <span className="hidden sm:inline">{currentUser.fullName.split(' ')[0]}</span>
@@ -1192,7 +1198,7 @@ export function CustomerApp() {
                 setAuthErrorBanner(null);
                 setIsLoginModalOpen(true);
               }}
-              className="flex items-center gap-1 sm:gap-1.5 text-xs font-bold px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
+              className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 sm:px-3.5 sm:py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white transition shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
               title="Tizimga kirish"
             >
               <LogIn className="w-3.5 h-3.5 shrink-0" />
@@ -1952,12 +1958,12 @@ export function CustomerApp() {
         >
           {/* Mobile Floating Search Bar Overlay (Only on mobile when in search view) */}
           {view === 'search' && (
-            <div className="md:hidden absolute top-2 left-2 right-2 z-20 flex flex-col gap-1.5 pointer-events-none">
-              <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-2 rounded-2xl border border-[#DCE5DF] dark:border-[#273B32] shadow-xl pointer-events-auto flex flex-col gap-1.5">
+            <div className="md:hidden absolute top-3 left-3 right-3 sm:left-4 sm:right-4 z-20 flex flex-col gap-2 pointer-events-none">
+              <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-2.5 sm:p-3 rounded-2xl border border-[#DCE5DF] dark:border-[#273B32] shadow-xl pointer-events-auto flex flex-col gap-2">
                 {/* Search input & Action Button */}
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-2">
                   <div className="relative flex-1">
-                    <div className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95] pointer-events-none">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95] pointer-events-none">
                       <Search className="w-4 h-4" />
                     </div>
                     <input
@@ -1966,7 +1972,7 @@ export function CustomerApp() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && doSearch()}
                       placeholder={t('cust_search_input')}
-                      className="w-full h-10 pl-8 pr-7 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-1 focus:ring-[#116B50]"
+                      className="w-full h-11 pl-9 pr-8 bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-sm text-[#172C28] dark:text-[#E8F2EC] focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
                     />
                     {searchQuery && (
                       <button
@@ -1974,23 +1980,23 @@ export function CustomerApp() {
                           setSearchQuery('');
                           doSearch();
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white"
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white p-1"
                       >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="w-4 h-4" />
                       </button>
                     )}
                   </div>
                   <button
                     onClick={() => doSearch()}
-                    className="h-10 px-3.5 bg-[#116B50] hover:bg-[#0d533e] active:scale-95 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm shrink-0 transition"
+                    className="h-11 px-4 bg-[#116B50] hover:bg-[#0d533e] active:scale-95 text-white text-xs sm:text-sm font-bold rounded-xl flex items-center gap-1.5 shadow-sm shrink-0 transition"
                   >
-                    <Search className="w-3.5 h-3.5" />
+                    <Search className="w-4 h-4" />
                     <span>Izlash</span>
                   </button>
                   <button
                     onClick={() => setIsFilterModalOpen(true)}
                     title="Filtrlar"
-                    className="h-10 px-2.5 bg-white dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl flex items-center justify-center shadow-sm shrink-0 hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328] transition"
+                    className="h-11 w-11 bg-white dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#2A3F36] text-[#172C28] dark:text-[#E8F2EC] rounded-xl flex items-center justify-center shadow-sm shrink-0 hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328] transition"
                   >
                     <Filter className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
                   </button>
@@ -1998,20 +2004,20 @@ export function CustomerApp() {
 
                 {/* Quick filter badges */}
                 <div
-                  className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none no-scrollbar text-[11px]"
+                  className="flex items-center gap-2 overflow-x-auto pb-0.5 scrollbar-none no-scrollbar text-xs"
                   style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
                 >
                   <button
                     onClick={() => setIsFilterModalOpen(true)}
-                    className="px-2.5 py-1 rounded-lg bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] border border-[#116B50]/30 font-bold whitespace-nowrap flex items-center gap-1 shrink-0"
+                    className="px-3 py-1.5 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] border border-[#116B50]/30 font-bold whitespace-nowrap flex items-center gap-1.5 shrink-0"
                   >
-                    <MapPin className="w-3 h-3" />
+                    <MapPin className="w-3.5 h-3.5" />
                     {radiusM >= 1000 ? `${(radiusM / 1000).toFixed(1)} km` : `${radiusM} m`} ▾
                   </button>
 
                   <button
                     onClick={() => setOpenNow(!openNow)}
-                    className={`px-2.5 py-1 rounded-lg border font-semibold whitespace-nowrap shrink-0 transition ${
+                    className={`px-3 py-1.5 rounded-xl border font-semibold whitespace-nowrap shrink-0 transition ${
                       openNow
                         ? 'bg-[#116B50] text-white border-[#116B50]'
                         : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
@@ -2022,7 +2028,7 @@ export function CustomerApp() {
 
                   <button
                     onClick={() => setInStock(!inStock)}
-                    className={`px-2.5 py-1 rounded-lg border font-semibold whitespace-nowrap shrink-0 transition ${
+                    className={`px-3 py-1.5 rounded-xl border font-semibold whitespace-nowrap shrink-0 transition ${
                       inStock
                         ? 'bg-[#116B50] text-white border-[#116B50]'
                         : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
@@ -2033,7 +2039,7 @@ export function CustomerApp() {
 
                   <button
                     onClick={() => setFreshOnly(!freshOnly)}
-                    className={`px-2.5 py-1 rounded-lg border font-semibold whitespace-nowrap shrink-0 transition ${
+                    className={`px-3 py-1.5 rounded-xl border font-semibold whitespace-nowrap shrink-0 transition ${
                       freshOnly
                         ? 'bg-[#116B50] text-white border-[#116B50]'
                         : 'bg-[#F9FAF9] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border-[#DCE5DF] dark:border-[#2A3F36]'
@@ -2045,7 +2051,7 @@ export function CustomerApp() {
                   <select
                     value={selectedSort}
                     onChange={(e: any) => setSelectedSort(e.target.value)}
-                    className="px-2 py-1 bg-[#F9FAF9] dark:bg-[#1A2822] text-[#116B50] dark:text-[#4ADE80] font-bold text-[11px] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-lg outline-none shrink-0"
+                    className="px-2.5 py-1.5 bg-[#F9FAF9] dark:bg-[#1A2822] text-[#116B50] dark:text-[#4ADE80] font-bold text-xs border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl outline-none shrink-0"
                   >
                     <option value="relevance">{t('sort_relevance', 'Eng mos')}</option>
                     <option value="distance">{t('sort_distance', 'Eng yaqin')}</option>
@@ -2099,14 +2105,14 @@ export function CustomerApp() {
             onToast={showToast}
           />
 
-          {/* Mobile Floating View Switcher Pills (positioned above card carousel on 390x844) */}
+          {/* Mobile Floating View Switcher Pills */}
           {view === 'search' && (
-            <div className={`md:hidden fixed ${results.length > 0 && mobileTab === 'xarita' ? 'bottom-[195px]' : 'bottom-20'} left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all`}>
+            <div className={`md:hidden fixed ${(results.length > 0 && mobileTab === 'xarita') || (!results.length && Boolean(selectedNearbyStore)) ? 'bottom-[205px]' : 'bottom-[76px]'} left-1/2 -translate-x-1/2 z-30 pointer-events-auto transition-all duration-200`}>
               {mobileTab === 'xarita' ? (
                 <button
                   type="button"
                   onClick={() => setMobileTab('royxat')}
-                  className="px-4 py-2 bg-[#172C28] dark:bg-[#142A1F] hover:bg-black text-white rounded-full shadow-2xl flex items-center gap-2 text-xs font-bold border border-white/20 active:scale-95 transition backdrop-blur-md cursor-pointer"
+                  className="px-4 py-2.5 bg-[#172C28] dark:bg-[#142A1F] hover:bg-black text-white rounded-full shadow-2xl flex items-center gap-2 text-xs sm:text-sm font-bold border border-white/20 active:scale-95 transition backdrop-blur-md cursor-pointer"
                 >
                   <Layers className="w-4 h-4 text-[#4ADE80]" />
                   <span>Ro‘yxat ({results.length > 0 ? results.length : nearbyStores.length})</span>
@@ -2115,7 +2121,7 @@ export function CustomerApp() {
                 <button
                   type="button"
                   onClick={() => setMobileTab('xarita')}
-                  className="px-4 py-2 bg-[#116B50] hover:bg-[#0D533E] text-white rounded-full shadow-2xl flex items-center gap-2 text-xs font-bold border border-white/20 active:scale-95 transition backdrop-blur-md cursor-pointer"
+                  className="px-4 py-2.5 bg-[#116B50] hover:bg-[#0D533E] text-white rounded-full shadow-2xl flex items-center gap-2 text-xs sm:text-sm font-bold border border-white/20 active:scale-95 transition backdrop-blur-md cursor-pointer"
                 >
                   <MapPin className="w-4 h-4 text-white" />
                   <span>Xaritada ko‘rish</span>
@@ -2138,10 +2144,10 @@ export function CustomerApp() {
               navigateTo('/');
             }
           }}
-          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80] min-w-0"
+          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80] min-w-0"
           title="Lending sahifasiga o‘tish"
         >
-          <Compass className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+          <Compass className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80]" />
           <span>Lending</span>
         </a>
 
@@ -2156,7 +2162,7 @@ export function CustomerApp() {
               setMobileTab(mobileTab === 'xarita' ? 'royxat' : 'xarita');
             }
           }}
-          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold min-w-0 ${
+          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
             view === 'search' || view === 'route'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
@@ -2164,12 +2170,12 @@ export function CustomerApp() {
         >
           {view === 'search' && mobileTab === 'royxat' ? (
             <>
-              <MapPin className="w-4 h-4" />
+              <MapPin className="w-5 h-5" />
               <span>Xarita</span>
             </>
           ) : (
             <>
-              <Search className="w-4 h-4" />
+              <Search className="w-5 h-5" />
               <span>Izlash</span>
             </>
           )}
@@ -2177,37 +2183,37 @@ export function CustomerApp() {
 
         <button
           onClick={() => navigateTo('/sevimlilar')}
-          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold min-w-0 ${
+          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
             view === 'hub' && hubSection === 'favorites'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
           }`}
         >
-          <Heart className="w-4 h-4" />
+          <Heart className="w-5 h-5" />
           <span>Sevimlilar</span>
         </button>
 
         <button
           onClick={() => navigateTo('/ariza')}
-          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold min-w-0 ${
+          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
             view === 'hub' && hubSection === 'inquiries'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
           }`}
         >
-          <AlertTriangle className="w-4 h-4" />
+          <AlertTriangle className="w-5 h-5" />
           <span>Arizalar</span>
         </button>
 
         <button
           onClick={() => navigateTo('/tarix')}
-          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold min-w-0 ${
+          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
             view === 'hub' && hubSection === 'history'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
           }`}
         >
-          <Clock className="w-4 h-4" />
+          <Clock className="w-5 h-5" />
           <span>Tarix</span>
         </button>
 
@@ -2216,10 +2222,10 @@ export function CustomerApp() {
             if (currentUser) setIsProfileModalOpen(true);
             else setIsLoginModalOpen(true);
           }}
-          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[10px] font-semibold text-[#566A63] dark:text-[#8B9E95] min-w-0"
+          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] min-w-0"
         >
-          <div className="w-4 h-4 rounded-full border border-current flex items-center justify-center text-[9px] font-bold">
-            {currentUser?.fullName ? currentUser.fullName[0] : '○'}
+          <div className="w-5 h-5 rounded-full bg-[#116B50] text-white text-[9px] font-bold flex items-center justify-center">
+            {currentUser?.fullName ? currentUser.fullName[0].toUpperCase() : '○'}
           </div>
           <span>Profil</span>
         </button>

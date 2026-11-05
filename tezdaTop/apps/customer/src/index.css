@@ -137,6 +137,11 @@ html, body {
   z-index: 1;
 }
 
+.leaflet-tile {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
 .leaflet-control-attribution {
   display: none !important;
 }
@@ -146,7 +151,7 @@ html, body {
   border: none !important;
 }
 
-/* Prevent black focus bounding box / rectangle on Leaflet SVG paths and layers */
+/* Prevent black focus bounding box and ensure non-interactive layers never intercept touches */
 .search-radius-circle,
 .pointer-events-none,
 .leaflet-overlay-pane,
@@ -164,6 +169,7 @@ html, body {
   -webkit-focus-ring-color: transparent !important;
   box-shadow: none !important;
   pointer-events: none !important;
+  touch-action: none !important;
   -webkit-tap-highlight-color: transparent !important;
 }
 
@@ -211,7 +217,7 @@ html, body {
 }
 
 .dark .leaflet-tile-pane {
-  filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+  filter: brightness(0.72) invert(0.92) contrast(1.15) hue-rotate(185deg) saturate(0.35);
 }
 
 .dark .leaflet-popup-content-wrapper {

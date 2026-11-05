@@ -15,7 +15,11 @@ export const isLocalEnvironment = (): boolean => {
     host === 'localhost' ||
     host === '127.0.0.1' ||
     host === '0.0.0.0' ||
+    host.startsWith('192.168.') ||
+    host.startsWith('10.') ||
+    host.startsWith('172.') ||
     host.endsWith('.local') ||
+    window.location.port === '3000' ||
     !!(import.meta as any).env?.DEV
   );
 };

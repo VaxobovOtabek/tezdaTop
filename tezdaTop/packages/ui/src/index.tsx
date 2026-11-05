@@ -178,14 +178,14 @@ export function Modal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-[#142E27]/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-[#142E27]/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className={`w-full ${maxWidth} max-h-[92vh] overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar bg-white dark:bg-[#14201A] rounded-2xl sm:rounded-[20px] p-4 sm:p-6 shadow-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-4 text-[#172C28] dark:text-[#E8F2EC] ${className}`}
+        className={`w-full ${maxWidth} max-w-[calc(100vw-32px)] max-h-[92vh] overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar bg-white dark:bg-[#14201A] rounded-2xl sm:rounded-[24px] p-5 sm:p-6 shadow-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-4 text-[#172C28] dark:text-[#E8F2EC] ${className}`}
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         <div className="flex items-center justify-between pb-3 border-b border-[#DCE5DF] dark:border-[#22332C] gap-2">

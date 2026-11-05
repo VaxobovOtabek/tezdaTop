@@ -74,12 +74,15 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersLayerRef = useRef<L.LayerGroup | null>(null);
   const radiusCircleRef = useRef<L.Circle | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
   const routeMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const cardListRef = useRef<HTMLDivElement | null>(null);
+  const prevRadiusRef = useRef<number>(radiusM);
+  const [currentZoom, setCurrentZoom] = useState<number>(15);
 
   // Global handlers for Leaflet popups
   useEffect(() => {
@@ -140,10 +143,26 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         attributionControl: false
       });
 
-      // Standard OpenStreetMap tiles
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19
+      // Fast, resilient OpenStreetMap tiles with keepBuffer & fast update settings
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        subdomains: ['a', 'b', 'c'],
+        maxZoom: 19,
+        keepBuffer: 12,
+        updateWhenIdle: false,
+        updateInterval: 100,
+        crossOrigin: true
       }).addTo(map);
+
+      map.on('zoomend', () => {
+        setCurrentZoom(map.getZoom());
+      });
+      setCurrentZoom(map.getZoom());
+
+      map.on('click', () => {
+        if (window.innerWidth < 768) {
+          onSelectNearbyStore?.(null as any);
+        }
+      });
 
       const markersLayer = L.layerGroup().addTo(map);
       const routeMarkersLayer = L.layerGroup().addTo(map);
@@ -191,9 +210,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       userMarkerRef.current = null;
       radiusCircleRef.current = null;
       routePolylineRef.current = null;
+      tileLayerRef.current = null;
       setMapReady(false);
     };
   }, []);
+
 
   // Whenever view or results count change, re-invalidate map size (without moving view)
   useEffect(() => {
@@ -246,21 +267,21 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         userMarkerRef.current = marker;
       }
 
-      // Radius circle (Qidiruv maydoni)
-      const strokeColor = isDarkMode ? '#4ADE80' : '#059669';
-      const fillColor = isDarkMode ? '#22C55E' : '#10B981';
+      // Radius circle (Qidiruv maydoni chegarasi - no green wash/fill to avoid blurring the map)
+      const strokeColor = isDarkMode ? '#4ADE80' : '#10B981';
 
       if (radiusCircleRef.current) {
         radiusCircleRef.current.setLatLng([userLocation.lat, userLocation.lng]);
         radiusCircleRef.current.setRadius(radiusM);
         radiusCircleRef.current.setStyle({
           color: strokeColor,
-          weight: 2.5,
-          opacity: 0.9,
+          weight: 2,
+          opacity: 0.85,
           dashArray: '6, 6',
-          fillColor: fillColor,
-          fillOpacity: isDarkMode ? 0.22 : 0.16,
+          fill: false,
+          fillOpacity: 0,
           interactive: false,
+          bubblingMouseEvents: false,
           className: 'search-radius-circle pointer-events-none'
         });
         const elem = radiusCircleRef.current.getElement() as SVGElement | null;
@@ -271,18 +292,20 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           if (elem.style) {
             elem.style.setProperty('outline', 'none', 'important');
             elem.style.setProperty('pointer-events', 'none', 'important');
+            elem.style.setProperty('touch-action', 'none', 'important');
           }
         }
       } else {
         const circle = L.circle([userLocation.lat, userLocation.lng], {
           radius: radiusM,
           color: strokeColor,
-          weight: 2.5,
-          opacity: 0.9,
+          weight: 2,
+          opacity: 0.85,
           dashArray: '6, 6',
-          fillColor: fillColor,
-          fillOpacity: isDarkMode ? 0.22 : 0.16,
+          fill: false,
+          fillOpacity: 0,
           interactive: false,
+          bubblingMouseEvents: false,
           className: 'search-radius-circle pointer-events-none'
         }).addTo(map);
 
@@ -294,14 +317,17 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           if (elem.style) {
             elem.style.setProperty('outline', 'none', 'important');
             elem.style.setProperty('pointer-events', 'none', 'important');
+            elem.style.setProperty('touch-action', 'none', 'important');
           }
         }
 
         radiusCircleRef.current = circle;
       }
 
-      // Auto fit search circle into screen view only when radius/location explicitly changes
-      if (view !== 'route' && radiusCircleRef.current && mapContainerRef.current && mapContainerRef.current.clientWidth > 0) {
+      // Auto fit search circle into screen view only when radius explicitly changes
+      const isRadiusChanged = prevRadiusRef.current !== radiusM;
+      if (isRadiusChanged && view !== 'route' && radiusCircleRef.current && mapContainerRef.current && mapContainerRef.current.clientWidth > 0) {
+        prevRadiusRef.current = radiusM;
         map.fitBounds(radiusCircleRef.current.getBounds(), {
           padding: [50, 50],
           maxZoom: 16,
@@ -316,13 +342,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   // Update theme styling on circle when isDarkMode changes WITHOUT moving or zooming the map
   useEffect(() => {
     if (!radiusCircleRef.current) return;
-    const strokeColor = isDarkMode ? '#4ADE80' : '#059669';
-    const fillColor = isDarkMode ? '#22C55E' : '#10B981';
+    const strokeColor = isDarkMode ? '#4ADE80' : '#10B981';
     radiusCircleRef.current.setStyle({
       color: strokeColor,
-      fillColor: fillColor,
-      fillOpacity: isDarkMode ? 0.22 : 0.16,
+      weight: 2,
+      opacity: 0.85,
+      dashArray: '6, 6',
+      fill: false,
+      fillOpacity: 0,
       interactive: false,
+      bubblingMouseEvents: false,
       className: 'search-radius-circle pointer-events-none'
     });
     const elem = radiusCircleRef.current.getElement() as SVGElement | null;
@@ -333,6 +362,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       if (elem.style) {
         elem.style.setProperty('outline', 'none', 'important');
         elem.style.setProperty('pointer-events', 'none', 'important');
+        elem.style.setProperty('touch-action', 'none', 'important');
       }
     }
   }, [isDarkMode]);
@@ -347,238 +377,345 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
     if (view === 'route') return;
 
+    const isZoomedIn = currentZoom >= 17;
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const placedBadgePositions: { x: number; y: number }[] = [];
+
     // Case 1: Product search active
     if (results.length > 0) {
-      results.forEach((item) => {
+      // Prioritize selected item so its badge is always placed and on top
+      const sortedResults = [...results].sort((a, b) => {
+        if (selectedResult?.store?.id === a.store?.id) return -1;
+        if (selectedResult?.store?.id === b.store?.id) return 1;
+        return 0;
+      });
+
+      sortedResults.forEach((item) => {
         const latLng = getStoreLatLng(item?.store);
         if (!latLng) return;
 
         const isSelected = selectedResult?.store?.id === item.store?.id;
+        const pt = map.latLngToContainerPoint(latLng);
+
+        let showFullName = false;
+        if (isSelected) {
+          showFullName = true;
+          placedBadgePositions.push({ x: pt.x, y: pt.y });
+        } else if (isZoomedIn) {
+          // Collision avoidance: do not show label if closer than 100px horizontally and 28px vertically
+          const collides = placedBadgePositions.some(
+            (p) => Math.abs(pt.x - p.x) < 100 && Math.abs(pt.y - p.y) < 28
+          );
+          if (!collides) {
+            showFullName = true;
+            placedBadgePositions.push({ x: pt.x, y: pt.y });
+          }
+        }
         const formattedPrice = Number(item.bestOffer?.price || 0).toLocaleString('uz-UZ');
 
-        const bgStyle = isSelected
-          ? 'background: #116B50; color: #ffffff; border: 2px solid #ffffff; box-shadow: 0 10px 18px -2px rgba(17,107,80,0.5);'
-          : item.isOpenNow
-          ? isDarkMode
-            ? 'background: #16241E; color: #E8F2EC; border: 2px solid #22C55E; box-shadow: 0 4px 8px rgba(0,0,0,0.4);'
-            : 'background: #ffffff; color: #172C28; border: 2px solid #116B50; box-shadow: 0 4px 8px rgba(0,0,0,0.15);'
-          : isDarkMode
-          ? 'background: #1F2937; color: #9CA3AF; border: 2px solid #4B5563; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'
-          : 'background: #F3F4F6; color: #6B7280; border: 2px solid #9CA3AF; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+        let markerIcon: L.DivIcon;
 
-        const arrowColor = isSelected
-          ? '#116B50'
-          : item.isOpenNow
-          ? (isDarkMode ? '#22C55E' : '#116B50')
-          : '#9CA3AF';
+        if (!showFullName) {
+          // Compact dot pin when zoomed out
+          const dotColor = isSelected
+            ? '#116B50'
+            : item.isOpenNow
+            ? (isDarkMode ? '#22C55E' : '#116B50')
+            : '#9CA3AF';
 
-        const customIcon = L.divIcon({
-          className: 'custom-store-pin',
-          html: `
-            <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none;">
-              <div style="${bgStyle} padding: 4px 9px; border-radius: 9999px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
-                <span style="max-width: 95px; overflow: hidden; text-overflow: ellipsis; opacity: 0.92; font-weight: 600;">${item.store.name}</span>
-                <span style="opacity: 0.5;">·</span>
-                <span>${formattedPrice} so‘m</span>
+          markerIcon = L.divIcon({
+            className: 'custom-store-pin',
+            html: `
+              <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; cursor: pointer; pointer-events: auto;">
+                <div style="width: 13px; height: 13px; border-radius: 9999px; background: ${dotColor}; border: 2.5px solid #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.35); transition: transform 0.15s ease-out;"></div>
               </div>
-              <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid ${arrowColor}; margin-top: -1px;"></div>
-            </div>
-          `,
-          iconSize: [0, 0],
-          iconAnchor: [0, 0],
-          popupAnchor: [0, -36]
-        });
+            `,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+            popupAnchor: [0, -18]
+          });
+        } else {
+          // Full label badge when zoomed in or selected
+          const bgStyle = isSelected
+            ? 'background: #116B50; color: #ffffff; border: 2px solid #ffffff; box-shadow: 0 8px 18px -2px rgba(17,107,80,0.5);'
+            : item.isOpenNow
+            ? isDarkMode
+              ? 'background: #16241E; color: #E8F2EC; border: 2px solid #22C55E; box-shadow: 0 4px 8px rgba(0,0,0,0.4);'
+              : 'background: #ffffff; color: #172C28; border: 2px solid #116B50; box-shadow: 0 4px 8px rgba(0,0,0,0.15);'
+            : isDarkMode
+            ? 'background: #1F2937; color: #9CA3AF; border: 2px solid #4B5563; box-shadow: 0 4px 6px rgba(0,0,0,0.3);'
+            : 'background: #F3F4F6; color: #6B7280; border: 2px solid #9CA3AF; box-shadow: 0 4px 6px rgba(0,0,0,0.1);';
+
+          const arrowColor = isSelected
+            ? '#116B50'
+            : item.isOpenNow
+            ? (isDarkMode ? '#22C55E' : '#116B50')
+            : '#9CA3AF';
+
+          markerIcon = L.divIcon({
+            className: 'custom-store-pin',
+            html: `
+              <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none;">
+                <div style="${bgStyle} padding: 4px 8px; border-radius: 9999px; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+                  <span style="max-width: 90px; overflow: hidden; text-overflow: ellipsis; opacity: 0.95; font-weight: 600;">${item.store.name}</span>
+                  <span style="opacity: 0.5;">·</span>
+                  <span>${formattedPrice} so‘m</span>
+                </div>
+                <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid ${arrowColor}; margin-top: -1px;"></div>
+              </div>
+            `,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+            popupAnchor: [0, -32]
+          });
+        }
 
         const marker = L.marker(latLng, {
-          icon: customIcon,
-          zIndexOffset: isSelected ? 500 : 100,
+          icon: markerIcon,
+          zIndexOffset: isSelected ? 1000 : (showFullName ? 200 : 50),
           title: `${item.store.name} — ${item.bestOffer?.variant?.title || 'Mahsulot'}: ${formattedPrice} so‘m`,
           keyboard: true
         });
 
-        const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
-        const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
-        const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
-        const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
-        const productThumb = getProductThumbnail(item.bestOffer?.variant);
+        // Desktop gets the full popup; mobile uses the dedicated bottom card to prevent clutter
+        if (!isMobile) {
+          const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
+          const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
+          const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
+          const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
+          const productThumb = getProductThumbnail(item.bestOffer?.variant);
 
-        const popupContent = `
-          <div style="min-width: 200px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
-            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 2px;">
-              <div style="font-weight: 700; font-size: 14px; color: ${popupTitle};">
-                ${item.store.name}
-              </div>
-              <span style="font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: ${item.isOpenNow ? (isDarkMode ? '#1E362A' : '#E0EFE7') : '#FEE2E2'}; color: ${item.isOpenNow ? (isDarkMode ? '#4ADE80' : '#116B50') : '#B42318'}; white-space: nowrap;">
-                ${item.isOpenNow ? 'Ochiq' : 'Yopiq'}
-              </span>
-            </div>
-            <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;">📍 ${item.store.address || 'Toshkent shahri'}</span>
-              <span style="font-weight: 600; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; white-space: nowrap;" title="Siz turgan nuqtadan to‘g‘ridan-to‘g‘ri masofa">
-                📍 ${item.distanceM === 0 ? 'Siz turgan joyda' : (item.distanceM >= 1000 ? (item.distanceM / 1000).toFixed(1) + ' km' : item.distanceM + ' m')}
-              </span>
-            </div>
-            <div id="btn-popup-prod-box-${item.store.id}" style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;" title="Tovar ma‘lumotlari va muqobillarini ko‘rish">
-              <img id="btn-popup-thumb-${item.store.id}" src="${productThumb}" alt="${item.bestOffer?.variant?.title || 'Mahsulot'}" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; background: #fff; flex-shrink: 0; border: 1px solid ${popupBorder}; cursor: pointer;" />
-              <div style="min-width: 0; flex: 1;">
-                <div id="btn-prod-${item.store.id}" style="font-size: 12px; font-weight: 700; color: #116B50; cursor: pointer; text-decoration: underline; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                  ${item.bestOffer?.variant?.title || 'Mahsulot'} ↗
+          const popupContent = `
+            <div style="min-width: 200px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 2px;">
+                <div style="font-weight: 700; font-size: 14px; color: ${popupTitle};">
+                  ${item.store.name}
                 </div>
-                <div style="font-size: 13px; font-weight: 800; color: #116B50;">
-                  ${formattedPrice} so‘m <span style="font-size: 10px; font-weight: normal; color: ${popupMuted};">/ ${item.bestOffer?.variant?.packUnit || 'dona'}</span>
+                <span style="font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: ${item.isOpenNow ? (isDarkMode ? '#1E362A' : '#E0EFE7') : '#FEE2E2'}; color: ${item.isOpenNow ? (isDarkMode ? '#4ADE80' : '#116B50') : '#B42318'}; white-space: nowrap;">
+                  ${item.isOpenNow ? 'Ochiq' : 'Yopiq'}
+                </span>
+              </div>
+              <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;">📍 ${item.store.address || 'Toshkent shahri'}</span>
+                <span style="font-weight: 600; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; white-space: nowrap;" title="Siz turgan nuqtadan to‘g‘ridan-to‘g‘ri masofa">
+                  📍 ${item.distanceM === 0 ? 'Siz turgan joyda' : (item.distanceM >= 1000 ? (item.distanceM / 1000).toFixed(1) + ' km' : item.distanceM + ' m')}
+                </span>
+              </div>
+              <div id="btn-popup-prod-box-${item.store.id}" style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;" title="Tovar ma‘lumotlari va muqobillarini ko‘rish">
+                <img id="btn-popup-thumb-${item.store.id}" src="${productThumb}" alt="${item.bestOffer?.variant?.title || 'Mahsulot'}" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; background: #fff; flex-shrink: 0; border: 1px solid ${popupBorder}; cursor: pointer;" />
+                <div style="min-width: 0; flex: 1;">
+                  <div id="btn-prod-${item.store.id}" style="font-size: 12px; font-weight: 700; color: #116B50; cursor: pointer; text-decoration: underline; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                    ${item.bestOffer?.variant?.title || 'Mahsulot'} ↗
+                  </div>
+                  <div style="font-size: 13px; font-weight: 800; color: #116B50;">
+                    ${formattedPrice} so‘m <span style="font-size: 10px; font-weight: normal; color: ${popupMuted};">/ ${item.bestOffer?.variant?.packUnit || 'dona'}</span>
+                  </div>
                 </div>
               </div>
+              <div style="display: flex; gap: 6px;">
+                <button id="btn-detail-${item.store.id}" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                  Do‘kon
+                </button>
+                <button id="btn-route-${item.store.id}" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer;">
+                  Marshrut
+                </button>
+              </div>
             </div>
-            <div style="display: flex; gap: 6px;">
-              <button id="btn-detail-${item.store.id}" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; cursor: pointer;">
-                Do‘kon
-              </button>
-              <button id="btn-route-${item.store.id}" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer;">
-                Marshrut
-              </button>
-            </div>
-          </div>
-        `;
+          `;
 
-        marker.bindPopup(popupContent, { offset: [0, -20] });
+          marker.bindPopup(popupContent, { offset: [0, -20] });
+          marker.on('popupopen', () => {
+            const detailBtn = document.getElementById(`btn-detail-${item.store.id}`);
+            const routeBtn = document.getElementById(`btn-route-${item.store.id}`);
+            const prodBtn = document.getElementById(`btn-prod-${item.store.id}`);
+            const thumbBtn = document.getElementById(`btn-popup-thumb-${item.store.id}`);
+            const prodBox = document.getElementById(`btn-popup-prod-box-${item.store.id}`);
+            if (prodBox) prodBox.onclick = (e) => {
+              e.stopPropagation();
+              onOpenProductModal?.(item);
+            };
+            if (detailBtn) detailBtn.onclick = (e) => { e.stopPropagation(); onOpenDetail(item); };
+            if (routeBtn) routeBtn.onclick = (e) => { e.stopPropagation(); onNavigate(item); };
+            if (thumbBtn) thumbBtn.onclick = (e) => {
+              e.stopPropagation();
+              onOpenProductModal?.(item);
+            };
+            if (prodBtn) prodBtn.onclick = (e) => {
+              e.stopPropagation();
+              if (onOpenProductModal) {
+                onOpenProductModal(item);
+              } else if (onOpenProduct) {
+                onOpenProduct(item.bestOffer?.variant?.id || item.bestOffer?.variant?.sku || '');
+              }
+            };
+          });
+        }
+
         marker.on('click', () => onSelectStore(item));
-        marker.on('popupopen', () => {
-          const detailBtn = document.getElementById(`btn-detail-${item.store.id}`);
-          const routeBtn = document.getElementById(`btn-route-${item.store.id}`);
-          const prodBtn = document.getElementById(`btn-prod-${item.store.id}`);
-          const thumbBtn = document.getElementById(`btn-popup-thumb-${item.store.id}`);
-          const prodBox = document.getElementById(`btn-popup-prod-box-${item.store.id}`);
-          if (prodBox) prodBox.onclick = (e) => {
-            e.stopPropagation();
-            onOpenProductModal?.(item);
-          };
-          if (detailBtn) detailBtn.onclick = (e) => { e.stopPropagation(); onOpenDetail(item); };
-          if (routeBtn) routeBtn.onclick = (e) => { e.stopPropagation(); onNavigate(item); };
-          if (thumbBtn) thumbBtn.onclick = (e) => {
-            e.stopPropagation();
-            onOpenProductModal?.(item);
-          };
-          if (prodBtn) prodBtn.onclick = (e) => {
-            e.stopPropagation();
-            if (onOpenProductModal) {
-              onOpenProductModal(item);
-            } else if (onOpenProduct) {
-              onOpenProduct(item.bestOffer?.variant?.id || item.bestOffer?.variant?.sku || '');
-            }
-          };
-        });
-
         markersLayer.addLayer(marker);
       });
     } else {
-      nearbyStores.forEach(item => {
+      // Case 2: Nearby stores browse mode
+      // Prioritize selected item so its badge is always placed and on top
+      const sortedNearby = [...nearbyStores].sort((a, b) => {
+        if (selectedNearbyStore?.store?.id === a.store?.id) return -1;
+        if (selectedNearbyStore?.store?.id === b.store?.id) return 1;
+        return 0;
+      });
+
+      sortedNearby.forEach(item => {
         const latLng = getStoreLatLng(item.store);
         if (!latLng) return;
         const isSelected = selectedNearbyStore?.store?.id === item.store?.id;
+        const pt = map.latLngToContainerPoint(latLng);
+
+        let showFullName = false;
+        if (isSelected) {
+          showFullName = true;
+          placedBadgePositions.push({ x: pt.x, y: pt.y });
+        } else if (isZoomedIn) {
+          // Collision avoidance: do not show label if closer than 110px horizontally and 28px vertically
+          const collides = placedBadgePositions.some(
+            (p) => Math.abs(pt.x - p.x) < 110 && Math.abs(pt.y - p.y) < 28
+          );
+          if (!collides) {
+            showFullName = true;
+            placedBadgePositions.push({ x: pt.x, y: pt.y });
+          }
+        }
         const storeName = (item.organization?.name || item.store.name || '').replace(/"/g, '&quot;');
-        const badgeBg = isSelected
-          ? '#116B50'
-          : (isDarkMode ? '#16241E' : '#ffffff');
-        const badgeColor = isSelected
-          ? '#ffffff'
-          : (isDarkMode ? '#E8F2EC' : '#172C28');
-        const borderColor = isSelected
-          ? '#ffffff'
-          : '#116B50';
-        const shadow = isSelected
-          ? '0 6px 16px rgba(17,107,80,0.5)'
-          : '0 3px 10px rgba(0,0,0,0.18)';
 
-        const pinHtml = `
-          <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none;">
-            <div style="display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; border: 2px solid ${borderColor}; box-shadow: ${shadow}; white-space: nowrap;">
-              <span style="display: flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 9999px; background: ${isSelected ? '#ffffff' : '#116B50'}; color: ${isSelected ? '#116B50' : '#ffffff'}; font-size: 10px;">🏢</span>
-              <span style="max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${storeName}</span>
-            </div>
-            <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 6px solid ${borderColor}; margin-top: -1px;"></div>
-          </div>
-        `;
+        let markerIcon: L.DivIcon;
 
-        const marker = L.marker(latLng, {
-          icon: L.divIcon({
+        if (!showFullName) {
+          // Dot marker when zoomed out
+          const dotColor = isSelected
+            ? '#116B50'
+            : (item.isOpenNow ?? true)
+            ? (isDarkMode ? '#22C55E' : '#116B50')
+            : '#9CA3AF';
+
+          markerIcon = L.divIcon({
             className: 'custom-store-pin',
-            html: pinHtml,
+            html: `
+              <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; cursor: pointer; pointer-events: auto;">
+                <div style="width: 14px; height: 14px; border-radius: 9999px; background: ${dotColor}; border: 2.5px solid #ffffff; box-shadow: 0 2px 6px rgba(0,0,0,0.35); transition: transform 0.15s ease-out;"></div>
+              </div>
+            `,
             iconSize: [0, 0],
             iconAnchor: [0, 0],
-            popupAnchor: [0, -36]
-          }),
-          zIndexOffset: isSelected ? 500 : 100,
+            popupAnchor: [0, -18]
+          });
+        } else {
+          // Full pill badge when zoomed in or selected
+          const badgeBg = isSelected
+            ? '#116B50'
+            : (isDarkMode ? '#16241E' : '#ffffff');
+          const badgeColor = isSelected
+            ? '#ffffff'
+            : (isDarkMode ? '#E8F2EC' : '#172C28');
+          const borderColor = isSelected
+            ? '#ffffff'
+            : '#116B50';
+          const shadow = isSelected
+            ? '0 6px 16px rgba(17,107,80,0.5)'
+            : '0 3px 10px rgba(0,0,0,0.18)';
+
+          markerIcon = L.divIcon({
+            className: 'custom-store-pin',
+            html: `
+              <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, 0); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none;">
+                <div style="display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 9999px; font-size: 11px; font-weight: 700; background: ${badgeBg}; color: ${badgeColor}; border: 2px solid ${borderColor}; box-shadow: ${shadow}; white-space: nowrap;">
+                  <span style="display: flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 9999px; background: ${isSelected ? '#ffffff' : '#116B50'}; color: ${isSelected ? '#116B50' : '#ffffff'}; font-size: 9px;">🏢</span>
+                  <span style="max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${storeName}</span>
+                </div>
+                <div style="width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-top: 5px solid ${borderColor}; margin-top: -1px;"></div>
+              </div>
+            `,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+            popupAnchor: [0, -32]
+          });
+        }
+
+        const marker = L.marker(latLng, {
+          icon: markerIcon,
+          zIndexOffset: isSelected ? 1000 : (showFullName ? 200 : 50),
           title: `${item.organization?.name || item.store.name} — tovar va xizmatlarni ko‘rish`,
           keyboard: true
         });
 
-        const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
-        const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
-        const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
-        const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
-        const storeType = item.store?.type === 'WHOLESALE' ? 'Ulgurji savdo' : 'Chakana do‘kon';
-        const isOpen = item.isOpenNow ?? true;
-        const openStatusHtml = isOpen
-          ? `<span style="color: ${isDarkMode ? '#4ADE80' : '#116B50'}; font-weight: 700; font-size: 11px;">● Ochiq</span>`
-          : `<span style="color: #EF4444; font-weight: 700; font-size: 11px;">○ Yopiq</span>`;
-        const distanceHtml = item.distanceM
-          ? `<span style="color: ${popupMuted}; font-size: 11px;"> · ${item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${item.distanceM} m`}</span>`
-          : '';
+        // Desktop gets the full popup; mobile uses the dedicated bottom card
+        if (!isMobile) {
+          const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
+          const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
+          const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
+          const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
+          const storeType = item.store?.type === 'WHOLESALE' ? 'Ulgurji savdo' : 'Chakana do‘kon';
+          const isOpen = item.isOpenNow ?? true;
+          const openStatusHtml = isOpen
+            ? `<span style="color: ${isDarkMode ? '#4ADE80' : '#116B50'}; font-weight: 700; font-size: 11px;">● Ochiq</span>`
+            : `<span style="color: #EF4444; font-weight: 700; font-size: 11px;">○ Yopiq</span>`;
+          const distanceHtml = item.distanceM
+            ? `<span style="color: ${popupMuted}; font-size: 11px;"> · ${item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${item.distanceM} m`}</span>`
+            : '';
 
-        const popupContent = `
-          <div style="min-width: 220px; max-width: 280px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
-            <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
-              <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${isDarkMode ? '#1E362A' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; padding: 2px 6px; border-radius: 4px;">
-                ${storeType}
-              </span>
-              <div>${openStatusHtml}${distanceHtml}</div>
+          const popupContent = `
+            <div style="min-width: 220px; max-width: 280px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
+                <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${isDarkMode ? '#1E362A' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; padding: 2px 6px; border-radius: 4px;">
+                  ${storeType}
+                </span>
+                <div>${openStatusHtml}${distanceHtml}</div>
+              </div>
+              <div style="font-weight: 800; font-size: 14px; color: ${popupTitle}; margin-bottom: 3px; line-height: 1.25;">
+                ${storeName}
+              </div>
+              <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 3px;">
+                <span>📍</span> <span>${item.store.address || 'Toshkent shahri'}</span>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button id="btn-nearby-detail-${item.store.id}" onclick="window.__yaqintop_open_nearby_detail && window.__yaqintop_open_nearby_detail('${item.store.id}')" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                  <span>🏢</span> <span>Sahifasiga o‘tish</span>
+                </button>
+                <button id="btn-nearby-route-${item.store.id}" onclick="window.__yaqintop_route_nearby && window.__yaqintop_route_nearby('${item.store.id}')" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                  <span>🧭</span> <span>Marshrut</span>
+                </button>
+              </div>
             </div>
-            <div style="font-weight: 800; font-size: 14px; color: ${popupTitle}; margin-bottom: 3px; line-height: 1.25;">
-              ${storeName}
-            </div>
-            <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 3px;">
-              <span>📍</span> <span>${item.store.address || 'Toshkent shahri'}</span>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button id="btn-nearby-detail-${item.store.id}" onclick="window.__yaqintop_open_nearby_detail && window.__yaqintop_open_nearby_detail('${item.store.id}')" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                <span>🏢</span> <span>Sahifasiga o‘tish</span>
-              </button>
-              <button id="btn-nearby-route-${item.store.id}" onclick="window.__yaqintop_route_nearby && window.__yaqintop_route_nearby('${item.store.id}')" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                <span>🧭</span> <span>Marshrut</span>
-              </button>
-            </div>
-          </div>
-        `;
+          `;
 
-        marker.bindPopup(popupContent, { offset: [0, -20] });
+          marker.bindPopup(popupContent, { offset: [0, -20] });
+          marker.on('popupopen', () => {
+            const detailBtn = document.getElementById(`btn-nearby-detail-${item.store.id}`);
+            const routeBtn = document.getElementById(`btn-nearby-route-${item.store.id}`);
+            if (detailBtn) detailBtn.onclick = (e) => {
+              e.stopPropagation();
+              onOpenNearbyDetail?.(item);
+            };
+            if (routeBtn) routeBtn.onclick = (e) => {
+              e.stopPropagation();
+              onNavigate?.({ store: item.store, distanceM: item.distanceM || 0 });
+            };
+          });
+
+          if (isSelected) {
+            setTimeout(() => {
+              try {
+                marker.openPopup();
+              } catch {}
+            }, 30);
+          }
+        }
+
         marker.on('click', () => {
           onSelectNearbyStore?.(item);
         });
-        marker.on('popupopen', () => {
-          const detailBtn = document.getElementById(`btn-nearby-detail-${item.store.id}`);
-          const routeBtn = document.getElementById(`btn-nearby-route-${item.store.id}`);
-          if (detailBtn) detailBtn.onclick = (e) => {
-            e.stopPropagation();
-            onOpenNearbyDetail?.(item);
-          };
-          if (routeBtn) routeBtn.onclick = (e) => {
-            e.stopPropagation();
-            onNavigate?.({ store: item.store, distanceM: item.distanceM || 0 });
-          };
-        });
-
-        if (isSelected) {
-          setTimeout(() => {
-            try {
-              marker.openPopup();
-            } catch {}
-          }, 30);
-        }
 
         markersLayer.addLayer(marker);
       });
     }
-  }, [results, nearbyStores, selectedResult, selectedNearbyStore, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail]);
+  }, [results, nearbyStores, selectedResult, selectedNearbyStore, currentZoom, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail]);
 
   // Center selected result or nearby store on change
   useEffect(() => {
@@ -839,25 +976,25 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
 
       {/* Floating Map Controls (Top Right: Recenter, Radius, Fit & Zoom) */}
-      <div className="absolute right-3 md:right-4 top-32 md:top-4 flex flex-col gap-2 z-20">
+      <div className="absolute right-3 md:right-4 top-36 md:top-4 flex flex-col gap-2 z-20">
         <button
           onClick={handleRecenter}
           title="Mening joylashuvim (GPS)"
-          className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-red-500 shadow-md hover:bg-[#FEE2E2] dark:hover:bg-[#2A1D1D] transition active:scale-95 text-xs font-bold"
+          className="w-9 h-9 sm:w-10 sm:h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-red-500 shadow-md hover:bg-[#FEE2E2] dark:hover:bg-[#2A1D1D] transition active:scale-95 text-xs font-bold"
         >
           <Crosshair className="w-4 h-4" />
         </button>
         <button
           onClick={handleFitRadius}
           title="Qidiruv maydonini to'liq ko'rsatish"
-          className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-[#116B50] dark:text-[#4ADE80] shadow-md hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition active:scale-95 text-xs font-bold"
+          className="w-9 h-9 sm:w-10 sm:h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-[#116B50] dark:text-[#4ADE80] shadow-md hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A] transition active:scale-95 text-xs font-bold"
         >
           <CircleDot className="w-4 h-4" />
         </button>
         <button
           onClick={handleFitBounds}
           title="Barcha do'konlarni ko'rsatish"
-          className="w-10 h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-[#172C28] dark:text-[#E8F2EC] shadow-md hover:bg-[#F3F6F3] dark:hover:bg-[#1F2F27] transition active:scale-95 text-xs font-bold"
+          className="w-9 h-9 sm:w-10 sm:h-10 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md rounded-xl border border-[#DCE5DF] dark:border-[#273B32] flex items-center justify-center text-[#172C28] dark:text-[#E8F2EC] shadow-md hover:bg-[#F3F6F3] dark:hover:bg-[#1F2F27] transition active:scale-95 text-xs font-bold"
         >
           <Maximize2 className="w-4 h-4" />
         </button>
@@ -865,14 +1002,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           <button
             onClick={handleZoomIn}
             title="Kattalashtirish"
-            className="w-10 h-10 flex items-center justify-center text-[#172C28] dark:text-[#E8F2EC] font-bold text-lg hover:bg-[#F3F6F3] dark:hover:bg-[#1F2F27] transition border-b border-[#DCE5DF] dark:border-[#273B32]"
+            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-[#172C28] dark:text-[#E8F2EC] font-bold text-lg hover:bg-[#F3F6F3] dark:hover:bg-[#1F2F27] transition border-b border-[#DCE5DF] dark:border-[#273B32]"
           >
             +
           </button>
           <button
             onClick={handleZoomOut}
             title="Kichiklashtirish"
-            className="w-10 h-10 flex items-center justify-center text-[#172C28] dark:text-[#E8F2EC] font-bold text-lg hover:bg-[#F3F6F3] dark:hover:bg-[#1F2F27] transition"
+            className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-[#172C28] dark:text-[#E8F2EC] font-bold text-lg hover:bg-[#F3F6F3] dark:hover:bg-[#1F2F27] transition"
           >
             −
           </button>
@@ -881,19 +1018,19 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       {/* Mobile Floating Card for Selected Nearby Store (when user taps store pin on map) */}
       {!results.length && selectedNearbyStore && view !== 'route' && (
-        <div className="absolute bottom-20 md:hidden left-3 right-3 z-30 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border-2 border-[#116B50] dark:border-[#4ADE80] rounded-2xl p-3.5 shadow-xl pointer-events-auto flex flex-col gap-2.5">
+        <div className="absolute bottom-[72px] md:hidden left-3 right-3 z-30 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
+          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#116B50]/30 dark:border-[#4ADE80]/30 rounded-2xl p-3.5 sm:p-4 shadow-xl pointer-events-auto flex flex-col gap-2.5">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 mb-1">
-                  <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-[10px] font-black uppercase tracking-wider">
+                  <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-[11px] font-black uppercase tracking-wider">
                     {selectedNearbyStore.store?.type === 'WHOLESALE' ? 'Ulgurji' : 'Do‘kon'}
                   </span>
                   <span className={selectedNearbyStore.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] text-xs font-bold' : 'text-red-500 text-xs font-bold'}>
                     {selectedNearbyStore.isOpenNow ? '● Ochiq' : '○ Yopiq'}
                   </span>
                 </div>
-                <h3 className="font-extrabold text-sm text-[#172C28] dark:text-[#E8F2EC] truncate">
+                <h3 className="font-extrabold text-base text-[#172C28] dark:text-[#E8F2EC] truncate">
                   {selectedNearbyStore.organization?.name || selectedNearbyStore.store?.name}
                 </h3>
                 <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 truncate">
@@ -907,26 +1044,26 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               </div>
               <button
                 onClick={() => onSelectNearbyStore?.(null as any)}
-                className="text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white p-1 rounded-lg"
+                className="text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition"
                 title="Yopish"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex items-center gap-2 pt-1.5 border-t border-[#DCE5DF]/60 dark:border-[#273B32]">
+            <div className="flex items-center gap-2 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#273B32]">
               <button
                 onClick={() => onOpenNearbyDetail?.(selectedNearbyStore)}
-                className="flex-1 py-2 px-3 rounded-xl bg-[#116B50] active:scale-95 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
+                className="flex-1 min-h-[44px] py-2.5 px-3 rounded-xl bg-[#116B50] active:scale-95 text-white text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
               >
-                <StoreIcon className="w-3.5 h-3.5" />
+                <StoreIcon className="w-4 h-4" />
                 <span>Sahifasiga o‘tish</span>
               </button>
               <button
                 onClick={() => onNavigate?.({ store: selectedNearbyStore.store, distanceM: selectedNearbyStore.distanceM || 0 })}
-                className="py-2 px-3.5 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] active:scale-95 text-[#116B50] dark:text-[#4ADE80] text-xs font-bold transition flex items-center gap-1.5"
+                className="min-h-[44px] py-2.5 px-3.5 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] active:scale-95 text-[#116B50] dark:text-[#4ADE80] text-xs sm:text-sm font-bold transition flex items-center gap-1.5"
               >
-                <Navigation className="w-3.5 h-3.5" />
+                <Navigation className="w-4 h-4" />
                 <span>Marshrut</span>
               </button>
             </div>
@@ -936,7 +1073,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       {/* Bottom Information & Store Cards Carousel Bar (Search Results Mode) */}
       {results.length > 0 && view !== 'route' && (
-        <div className="absolute bottom-20 md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-10 pointer-events-none">
+        <div className="absolute bottom-[72px] md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-10 pointer-events-none">
           <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] rounded-2xl p-3 shadow-xl pointer-events-auto flex flex-col gap-2.5 max-w-full">
             {/* Top Info Strip */}
             <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#DCE5DF]/60 dark:border-[#273B32]">

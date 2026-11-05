@@ -166,6 +166,17 @@
           }
         </style>
       </div>
+      <script>
+        // Automatic failsafe: dismiss splash if React hydration takes > 3.5s
+        setTimeout(function() {
+          var splash = document.getElementById('pwa-launch-splash');
+          if (splash && splash.parentNode) {
+            splash.style.transition = 'opacity 0.3s ease';
+            splash.style.opacity = '0';
+            setTimeout(function() { if (splash && splash.parentNode) splash.parentNode.removeChild(splash); }, 300);
+          }
+        }, 3500);
+      </script>
     </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
