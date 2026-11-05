@@ -92,6 +92,22 @@ Kirish ma’lumotlarini hujjatlar yoki Git orqali tarqatmang. Production hisobla
 
 ---
 
+## 📱 Android ilova
+
+Xaridor ilovasi uchun native Android qobiq (Capacitor 8) tayyor:
+`apps/customer/android`. Batafsil qo‘llanma — **[apps/customer/ANDROID.md](./apps/customer/ANDROID.md)**.
+
+```bash
+pnpm --filter @yaqintop/customer build
+pnpm --filter @yaqintop/customer android:sync
+pnpm --filter @yaqintop/customer android:apk
+```
+
+Tayyor fayllar: `apps/customer/android/app/build/outputs/apk/{debug,release}/`.
+Play Store uchun `.aab`: `pnpm --filter @yaqintop/customer android:aab`.
+
+---
+
 ## 🚀 Production Serverga Deploy Qilish
 Serverga (VPS, Ubuntu, Docker, Nginx, SSL, PM2) to‘liq o‘rnatish va ishga tushirish bo‘yicha qadamma-qadam qo‘llanma:
 👉 **[DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md)** faylida batafsil yoritilgan.
