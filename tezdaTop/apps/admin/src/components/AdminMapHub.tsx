@@ -1715,6 +1715,338 @@ export function AdminMapHub({
         </Modal>
       )}
 
+      {/* EDIT OFFER MODAL */}
+      {isEditOfferModalOpen && (
+        <Modal
+          isOpen={isEditOfferModalOpen}
+          onClose={() => setIsEditOfferModalOpen(false)}
+          title={`"${editOfferForm.title || 'Tovar/Xizmat'}" ma’lumotlarini tahrirlash`}
+        >
+          <form onSubmit={handleSubmitEditOffer} className="flex flex-col gap-4 text-xs">
+            {/* Type selector: Tovar vs Usluga */}
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Turi *</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditOfferForm(prev => ({ ...prev, type: 'PRODUCT', packUnit: prev.type === 'SERVICE' ? 'dona' : prev.packUnit }))}
+                  className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                    editOfferForm.type === 'PRODUCT'
+                      ? 'border-[#116B50] bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] ring-1 ring-[#116B50]'
+                      : 'border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#566A63]'
+                  }`}
+                >
+                  <Package className="w-4 h-4" />
+                  <span>📦 Tovar (Mahsulot)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditOfferForm(prev => ({ ...prev, type: 'SERVICE', packUnit: prev.type === 'PRODUCT' ? 'xizmat' : prev.packUnit }))}
+                  className={`p-2.5 rounded-xl border text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer ${
+                    editOfferForm.type === 'SERVICE'
+                      ? 'border-[#116B50] bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] ring-1 ring-[#116B50]'
+                      : 'border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-[#566A63]'
+                  }`}
+                >
+                  <Wrench className="w-4 h-4" />
+                  <span>🛠️ Xizmat (Usluga)</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Title */}
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">
+                {editOfferForm.type === 'SERVICE' ? 'Xizmat nomi *' : 'Tovar / Mahsulot nomi *'}
+              </label>
+              <input
+                type="text"
+                required
+                value={editOfferForm.title || ''}
+                onChange={(e) => setEditOfferForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder={editOfferForm.type === 'SERVICE' ? 'Masalan: Avtomobil diagnostikasi yoki Soch turmagi' : 'Masalan: Flesh 0.5l yoki Qora non'}
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+
+            {/* Price & Unit */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Narxi (so‘m) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="100"
+                  required
+                  value={editOfferForm.price || ''}
+                  onChange={(e) => setEditOfferForm(prev => ({ ...prev, price: e.target.value }))}
+                  placeholder="Masalan: 15000"
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">Birligi</label>
+                <select
+                  value={editOfferForm.packUnit || ''}
+                  onChange={(e) => setEditOfferForm(prev => ({ ...prev, packUnit: e.target.value }))}
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                >
+                  {editOfferForm.type === 'SERVICE' ? (
+                    <>
+                      <option value="xizmat">xizmat</option>
+                      <option value="soat">soat</option>
+                      <option value="kun">kun</option>
+                      <option value="oy">oy</option>
+                      <option value="dona">dona</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="dona">dona</option>
+                      <option value="kg">kg</option>
+                      <option value="litr">litr</option>
+                      <option value="metr">metr</option>
+                      <option value="paket">paket</option>
+                      <option value="quti">quti</option>
+                    </>
+                  )}
+                </select>
+              </div>
+            </div>
+
+            {/* Category & Stock */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="font-semibold text-[#172C28] dark:text-[#E8F2EC]">Kategoriya *</label>
+                  {!isAddingNewEditCategory && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingNewEditCategory(true)}
+                      className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-0.5 cursor-pointer"
+                    >
+                      <span>+ Yangi kategoriya</span>
+                    </button>
+                  )}
+                </div>
+
+                {!isAddingNewEditCategory ? (
+                  <select
+                    value={editOfferForm.category || ''}
+                    onChange={(e) => {
+                      if (e.target.value === '__NEW__') {
+                        setIsAddingNewEditCategory(true);
+                      } else {
+                        setEditOfferForm(prev => ({ ...prev, category: e.target.value }));
+                      }
+                    }}
+                    className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] font-medium"
+                  >
+                    {editOfferForm.category && !availableCategories.includes(editOfferForm.category) && (
+                      <option value={editOfferForm.category}>{editOfferForm.category}</option>
+                    )}
+                    {availableCategories.map(cat => (
+                      <option key={cat} value={cat}>
+                        {cat}
+                      </option>
+                    ))}
+                    <option value="__NEW__" className="font-bold text-[#116B50]">
+                      ➕ Yangi kategoriya yozish...
+                    </option>
+                  </select>
+                ) : (
+                  <div className="flex flex-col gap-1.5 p-2 rounded-xl bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-300 dark:border-emerald-800 animate-in fade-in">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300">Yangi kategoriya:</span>
+                      <button
+                        type="button"
+                        onClick={() => { setIsAddingNewEditCategory(false); setNewEditCategoryName(''); }}
+                        className="text-[10px] text-gray-500 hover:text-red-500 font-bold cursor-pointer"
+                      >
+                        ✕ Bekor qilish
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="text"
+                        autoFocus
+                        value={newEditCategoryName}
+                        onChange={(e) => setNewEditCategoryName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newEditCategoryName.trim()) {
+                              const trimmed = newEditCategoryName.trim();
+                              if (!availableCategories.includes(trimmed)) {
+                                setAvailableCategories(prev => [...prev, trimmed]);
+                              }
+                              setEditOfferForm(prev => ({ ...prev, category: trimmed }));
+                              setNewEditCategoryName('');
+                              setIsAddingNewEditCategory(false);
+                            }
+                          }
+                        }}
+                        placeholder="Masalan: Fastfood, Burgerlar..."
+                        className="flex-1 p-2 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#14201A] text-xs text-[#172C28] dark:text-[#E8F2EC]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (newEditCategoryName.trim()) {
+                            const trimmed = newEditCategoryName.trim();
+                            if (!availableCategories.includes(trimmed)) {
+                              setAvailableCategories(prev => [...prev, trimmed]);
+                            }
+                            setEditOfferForm(prev => ({ ...prev, category: trimmed }));
+                            setNewEditCategoryName('');
+                            setIsAddingNewEditCategory(false);
+                          }
+                        }}
+                        className="px-3 py-2 bg-[#116B50] hover:bg-[#0d533e] text-white rounded-lg text-xs font-bold shrink-0 transition shadow-xs cursor-pointer"
+                      >
+                        Qo‘shish
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">
+                  {editOfferForm.type === 'SERVICE' ? 'Mavjudligi' : 'Soni / Qoldiq (dona)'}
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editOfferForm.stockOnHand || ''}
+                  onChange={(e) => setEditOfferForm(prev => ({ ...prev, stockOnHand: e.target.value }))}
+                  placeholder="10"
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] font-mono"
+                />
+              </div>
+            </div>
+
+            {/* Barcode & Brand (Optional) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">
+                  Shtrix-kod (ixtiyoriy)
+                </label>
+                <input
+                  type="text"
+                  value={editOfferForm.barcode || ''}
+                  onChange={(e) => setEditOfferForm(prev => ({ ...prev, barcode: e.target.value }))}
+                  placeholder="47800..."
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">
+                  Brend / Ishlab chiqaruvchi
+                </label>
+                <input
+                  type="text"
+                  value={editOfferForm.brand || ''}
+                  onChange={(e) => setEditOfferForm(prev => ({ ...prev, brand: e.target.value }))}
+                  placeholder="Masalan: Nestle, Artel"
+                  className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                />
+              </div>
+            </div>
+
+            {/* Description (Optional) */}
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">
+                Tavsif yoki qo‘shimcha ma’lumot (ixtiyoriy)
+              </label>
+              <textarea
+                rows={2}
+                value={editOfferForm.description || ''}
+                onChange={(e) => setEditOfferForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Mahsulot yoki xizmat haqida qisqacha ma’lumot..."
+                className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+              />
+            </div>
+
+            {/* Photo Section */}
+            <div>
+              <label className="font-semibold block mb-1 text-[#172C28] dark:text-[#E8F2EC]">
+                Rasmi (Foto)
+              </label>
+              {editOfferForm.photoUrl ? (
+                <div className="relative w-full h-32 rounded-xl overflow-hidden border border-[#DCE5DF] dark:border-[#273B32] bg-[#E2EEE4] dark:bg-[#182C22] group">
+                  <img src={editOfferForm.photoUrl} alt="Offer preview" className="w-full h-full object-cover" />
+                  <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2">
+                    <label className="px-3 py-1.5 rounded-xl bg-white text-[#172C28] text-xs font-bold hover:bg-gray-100 transition cursor-pointer flex items-center gap-1">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Almashtirish</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handlePhotoUpload(e, (url) => setEditOfferForm(prev => ({ ...prev, photoUrl: url })))}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditOfferForm(prev => ({ ...prev, photoUrl: '' }))}
+                      className="px-3 py-1.5 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 transition flex items-center gap-1 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>O‘chirish</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  <label className="w-full h-20 rounded-xl border-2 border-dashed border-[#116B50]/60 dark:border-[#4ADE80]/60 bg-[#E0EFE7]/30 dark:bg-[#1A2822] hover:bg-[#E0EFE7]/70 flex flex-col items-center justify-center gap-1 cursor-pointer transition p-2 text-center group">
+                    <Upload className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] group-hover:scale-110 transition" />
+                    <span className="font-bold text-xs text-[#116B50] dark:text-[#4ADE80]">
+                      Qurilmadan rasm yuklash (kamera / fayl)
+                    </span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handlePhotoUpload(e, (url) => setEditOfferForm(prev => ({ ...prev, photoUrl: url })))}
+                    />
+                  </label>
+
+                  <div className="flex items-center gap-2">
+                    <div className="h-px flex-1 bg-[#DCE5DF] dark:bg-[#273B32]" />
+                    <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">yoki havola</span>
+                    <div className="h-px flex-1 bg-[#DCE5DF] dark:bg-[#273B32]" />
+                  </div>
+
+                  <input
+                    type="url"
+                    placeholder="https://example.com/photo.jpg"
+                    value={editOfferForm.photoUrl || ''}
+                    onChange={(e) => setEditOfferForm(prev => ({ ...prev, photoUrl: e.target.value }))}
+                    className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-xs"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-[#DCE5DF] dark:border-[#22332C]">
+              <Button variant="secondary" type="button" onClick={() => setIsEditOfferModalOpen(false)}>
+                Bekor qilish
+              </Button>
+              <Button
+                variant="primary"
+                type="submit"
+                disabled={isSubmittingEditOffer}
+                className="bg-[#116B50] hover:bg-[#0d533e]"
+              >
+                {isSubmittingEditOffer ? 'Saqlanmoqda...' : 'O‘zgarishlarni saqlash'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
       {/* Floating Toast Notification */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#172C28] text-white px-4 py-2.5 rounded-xl shadow-2xl border border-emerald-500/40 text-xs font-bold animate-in fade-in flex items-center gap-2">
