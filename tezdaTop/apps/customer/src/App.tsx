@@ -1169,15 +1169,15 @@ export function CustomerApp() {
               />
             )}
 
-            {/* Top Floating Bar: Reopen Trigger + SearchToolbar in single flex container (NEVER overlaps) */}
+            {/* Desktop Top Floating Bar: Reopen Trigger + SearchToolbar in single flex container (NEVER overlaps) */}
             {view === 'search' && (
               <div
-                className={`flex absolute top-2.5 sm:top-4 z-20 items-center gap-1.5 sm:gap-2.5 transition-all duration-300 pointer-events-none left-2.5 sm:left-4 right-2.5 sm:right-16 md:right-20 ${
-                  isDrawerOpen ? 'md:left-[388px] lg:left-[408px]' : ''
+                className={`hidden md:flex absolute top-4 z-20 items-center gap-2.5 transition-all duration-300 pointer-events-none right-16 md:right-20 ${
+                  isDrawerOpen ? 'left-[388px] lg:left-[408px]' : 'left-4'
                 }`}
               >
                 {!isDrawerOpen && (
-                  <div className="pointer-events-auto shrink-0 hidden md:block">
+                  <div className="pointer-events-auto shrink-0">
                     <ResultsDrawerTrigger
                       count={(results.length > 0 ? results : nearbyStores).length}
                       onOpen={() => setIsDrawerOpen(true)}
@@ -1226,46 +1226,49 @@ export function CustomerApp() {
 
             {/* Mobile Top Search Bar (<768px) - Matching Pill Reference */}
             {view === 'search' && (
-              <div className="md:hidden absolute top-3 left-3 right-3 z-20 pointer-events-auto flex items-center gap-2">
+              <div className="md:hidden absolute top-2.5 left-2.5 right-2.5 z-20 pointer-events-auto flex items-center gap-1.5">
                 {/* Location Pill */}
                 <button
                   type="button"
                   onClick={() => setIsLocationModalOpen(true)}
-                  className="h-12 px-3 rounded-full bg-white dark:bg-[#14201A] border border-[#CBD5E1] dark:border-[#273B32] shadow-md flex items-center gap-1.5 text-[#087F5B] dark:text-[#4ADE80] text-xs font-bold shrink-0 active:scale-95 transition"
+                  className="h-11 px-2.5 rounded-full bg-white dark:bg-[#14201A] border border-[#CBD5E1] dark:border-[#273B32] shadow-md flex items-center gap-1 text-[#087F5B] dark:text-[#4ADE80] text-xs font-bold shrink-0 active:scale-95 transition cursor-pointer"
                   title="Hududni tanlash"
                 >
-                  <MapPin className="w-3.5 h-3.5" />
-                  <span className="max-w-[65px] truncate">{selectedLocationName.split(',')[0]}</span>
+                  <div className="w-5 h-5 rounded-full bg-[#E8F5EE] dark:bg-[#1E362A] flex items-center justify-center shrink-0">
+                    <MapPin className="w-3 h-3 text-[#087F5B] dark:text-[#4ADE80]" />
+                  </div>
+                  <span className="max-w-[48px] min-[390px]:max-w-[62px] truncate">{selectedLocationName.split(',')[0]}</span>
                 </button>
 
                 {/* Main Search Pill matching Reference */}
-                <div className="flex-1 flex items-center gap-2 p-1 pl-1.5 pr-1.5 rounded-full bg-white dark:bg-[#14201A] border-2 border-[#CBD5E1] dark:border-[#2E4237] shadow-md focus-within:border-[#087F5B] transition-all">
+                <div className="flex-1 min-w-0 h-11 flex items-center gap-1.5 p-1 pl-1 pr-1.5 rounded-full bg-white dark:bg-[#14201A] border-2 border-[#CBD5E1] dark:border-[#2E4237] shadow-md focus-within:border-[#087F5B] transition-all">
                   <button
                     type="button"
                     onClick={() => doSearch()}
-                    className="w-10 h-10 rounded-full bg-[#087F5B] active:scale-95 text-white flex items-center justify-center shrink-0 shadow-xs"
+                    className="w-8 h-8 rounded-full bg-[#087F5B] hover:bg-[#065F46] active:scale-95 text-white flex items-center justify-center shrink-0 shadow-xs cursor-pointer"
                     title="Qidirish"
                   >
-                    <Search className={`w-4 h-4 text-white stroke-[2.5] ${isSearching ? 'animate-spin' : ''}`} />
+                    <Search className={`w-3.5 h-3.5 text-white stroke-[2.5] ${isSearching ? 'animate-spin' : ''}`} />
                   </button>
 
                   <div className="flex-1 flex flex-col justify-center min-w-0 px-1">
-                    <span className="text-[10px] font-black text-[#1E293B] dark:text-[#E2E8F0] tracking-wider uppercase leading-none truncate">
+                    <span className="text-[8px] min-[380px]:text-[9px] font-black text-[#1E293B] dark:text-[#E2E8F0] tracking-wider uppercase leading-none truncate">
                       QAYSI MAHSULOT YOKI XIZMAT?
                     </span>
-                    <div className="relative flex items-center mt-0.5">
+                    <div className="relative flex items-center mt-0.5 min-w-0 w-full">
                       <input
                         type="text"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-                        placeholder="Masalan: Burger, lavash, dorixona"
-                        className="w-full bg-transparent text-xs font-medium text-[#1E293B] dark:text-white placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none pr-5 leading-tight"
+                        placeholder="Burger, lavash, dorixona..."
+                        className="w-full min-w-0 bg-transparent text-xs font-medium text-[#1E293B] dark:text-white placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none pr-4 leading-tight truncate"
                       />
                       {searchQuery && (
                         <button
                           onClick={handleClearSearch}
                           className="absolute right-0 text-[#94A3B8] hover:text-red-500 p-0.5"
+                          title="Tozalash"
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -1275,10 +1278,10 @@ export function CustomerApp() {
 
                   <button
                     onClick={() => setIsFilterModalOpen(true)}
-                    className="w-9 h-9 rounded-2xl bg-[#F1F5F9] dark:bg-[#1E2D25] text-[#64748B] dark:text-[#94A3B8] hover:text-[#172B26] dark:hover:text-white flex items-center justify-center shrink-0 active:scale-95 transition"
+                    className="w-7 h-7 rounded-full bg-[#F1F5F9] dark:bg-[#1E2D25] text-[#64748B] dark:text-[#94A3B8] hover:text-[#172B26] dark:hover:text-white flex items-center justify-center shrink-0 active:scale-95 transition cursor-pointer"
                     title="Filtrlar"
                   >
-                    <SlidersHorizontal className="w-4 h-4 stroke-[2]" />
+                    <SlidersHorizontal className="w-3.5 h-3.5 stroke-[2]" />
                   </button>
                 </div>
               </div>
