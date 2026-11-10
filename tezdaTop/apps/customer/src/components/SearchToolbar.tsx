@@ -113,15 +113,9 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
           <Search className={`w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-white stroke-[2.5] ${isSearching ? 'animate-spin' : ''}`} />
         </button>
 
-        {/* Center Text Area: Title + Input */}
-        <div className="flex-1 flex flex-col justify-center min-w-0 px-1 sm:px-2">
-          <label
-            htmlFor="toolbar-search-input"
-            className="text-[8px] sm:text-[10px] md:text-[11px] font-black text-[#1E293B] dark:text-[#E2E8F0] tracking-wider uppercase leading-none cursor-text select-none truncate"
-          >
-            QAYSI MAHSULOT YOKI XIZMAT?
-          </label>
-          <div className="relative flex items-center mt-0.5 sm:mt-1 min-w-0 w-full">
+        {/* Center Text Area: Input */}
+        <div className="flex-1 flex items-center min-w-0 px-1 sm:px-2">
+          <div className="relative flex items-center min-w-0 w-full">
             <input
               id="toolbar-search-input"
               type="text"
