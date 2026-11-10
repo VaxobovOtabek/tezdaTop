@@ -43,15 +43,12 @@ import { ResultsDrawer, ResultsDrawerTrigger } from './components/ResultsDrawer'
 import { SearchStatusBar } from './components/SearchStatusBar';
 import { MobileBottomSheet } from './components/MobileBottomSheet';
 import { InteractiveMap } from './components/InteractiveMap';
-import { StoreFullPageView } from './components/StoreFullPageView';
-import { UserPersonalHubView } from './components/UserPersonalHubView';
+const StoreFullPageView = React.lazy(() => import('./components/StoreFullPageView').then(m => ({ default: m.StoreFullPageView })));
+const UserPersonalHubView = React.lazy(() => import('./components/UserPersonalHubView').then(m => ({ default: m.UserPersonalHubView })));
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
-import { ProductsCatalogView, CatalogProduct } from './components/ProductsCatalogView';
-import { ProductDetailPageView, DetailedProduct, AlternativeProduct } from './components/ProductDetailPageView';
 import { UzbekistanRegionPickerModal, detectNearestUzbekistanLocation } from './components/UzbekistanRegionPickerModal';
 import { ProductQuickDetailModal } from './components/ProductQuickDetailModal';
-import { OrganizationSidebarShowcase } from './components/OrganizationSidebarShowcase';
 import { getStoreBannerImage } from './utils/store-images';
 import { apiUrl } from './config/api.js';
 const LandingApp = React.lazy(() => import('@yaqintop/landing-app').then(m => ({ default: m.LandingApp })));
@@ -364,8 +361,8 @@ export function CustomerApp() {
   };
 
   // Handler to show product availability on map
-  const handleShowProductOnMap = (product: CatalogProduct, targetStoreId?: string) => {
-    const mappedResults: StoreSearchResult[] = product.stores.map((s) => ({
+  const handleShowProductOnMap = (product: any, targetStoreId?: string) => {
+    const mappedResults: StoreSearchResult[] = (product.stores || []).map((s: any) => ({
       store: {
         id: s.storeId,
         organizationId: '',
@@ -612,7 +609,7 @@ export function CustomerApp() {
         (err) => {
           console.warn('Geolocation access not granted or unavailable:', err);
         },
-        { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 }
+        { enableHighAccuracy: false, timeout: 3000, maximumAge: 600000 }
       );
     }
   }, []);
@@ -740,8 +737,22 @@ export function CustomerApp() {
     doSearch('');
   };
 
-  // Debounced Search Effect (350ms delay prevents excessive per-character API hammering)
+  const isFirstSearchRef = useRef(true);
+
+  // Debounced Search Effect (Immediate on first load, 350ms delay when user types)
   useEffect(() => {
+    if (isFirstSearchRef.current) {
+      isFirstSearchRef.current = false;
+      if (searchCategory === 'organizations') {
+        loadNearbyStores(undefined, searchQuery.trim());
+      } else if (searchQuery.trim()) {
+        doSearch();
+      } else {
+        loadNearbyStores();
+      }
+      return;
+    }
+
     const timer = setTimeout(() => {
       if (searchCategory === 'organizations') {
         setResults([]);
@@ -1092,52 +1103,56 @@ export function CustomerApp() {
       {/* Main Container */}
       <main className="flex-1 relative overflow-hidden h-[calc(100dvh-60px)] w-full">
         {view === 'hub' ? (
-          <UserPersonalHubView
-            activeSection={hubSection}
-            onNavigateSection={(sec) => {
-              setHubSection(sec);
-              const pathToMap: Record<string, string> = {
-                favorites: '/sevimlilar',
-                reviews: '/sharhlarim',
-                proposals: '/takliflarim',
-                inquiries: '/ariza',
-                history: '/tarix'
-              };
-              navigateTo(pathToMap[sec] || '/sevimlilar');
-            }}
-            onBackToSearch={() => navigateTo(customerHomePath)}
-            onOpenStore={(storeId) => {
-              loadStoreCatalog(storeId);
-              navigateTo(`/dokon/${storeId}`);
-            }}
-            onGetRoute={(store) => {
-              fetchRoute(store, 'walking');
-            }}
-            onSearchQuery={(q) => {
-              setSearchQuery(q);
-              navigateTo(customerHomePath);
-              doSearch(q);
-            }}
-            isDarkMode={isDarkMode}
-            currentUser={currentUser}
-            onShowToast={showToast}
-          />
+          <React.Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-[#F3F6F3] dark:bg-[#0E1713]"><div className="w-8 h-8 border-3 border-[#087F5B] border-t-transparent rounded-full animate-spin" /></div>}>
+            <UserPersonalHubView
+              activeSection={hubSection}
+              onNavigateSection={(sec) => {
+                setHubSection(sec);
+                const pathToMap: Record<string, string> = {
+                  favorites: '/sevimlilar',
+                  reviews: '/sharhlarim',
+                  proposals: '/takliflarim',
+                  inquiries: '/ariza',
+                  history: '/tarix'
+                };
+                navigateTo(pathToMap[sec] || '/sevimlilar');
+              }}
+              onBackToSearch={() => navigateTo(customerHomePath)}
+              onOpenStore={(storeId) => {
+                loadStoreCatalog(storeId);
+                navigateTo(`/dokon/${storeId}`);
+              }}
+              onGetRoute={(store) => {
+                fetchRoute(store, 'walking');
+              }}
+              onSearchQuery={(q) => {
+                setSearchQuery(q);
+                navigateTo(customerHomePath);
+                doSearch(q);
+              }}
+              isDarkMode={isDarkMode}
+              currentUser={currentUser}
+              onShowToast={showToast}
+            />
+          </React.Suspense>
         ) : view === 'detail' && (selectedResult || selectedNearbyStore || activeStoreDetail) ? (
-          <StoreFullPageView
-            store={selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail}
-            organization={activeStoreDetail?.organization || selectedNearbyStore?.organization || (selectedResult?.store as any)?.organization}
-            offers={activeStoreOffers}
-            loadingOffers={storeOffersLoading}
-            isDarkMode={isDarkMode}
-            userLocation={userLocation}
-            matchedOffer={selectedResult?.bestOffer?.id !== 'default' ? selectedResult?.bestOffer : null}
-            currentUser={currentUser}
-            onRequireAuth={(msg) => requireAuth(msg || 'Ushbu amalni bajarish')}
-            onBack={() => navigateTo(customerHomePath)}
-            onGetRoute={(mode) => fetchRoute((selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail), mode)}
-            onReportError={() => requireAuth('Murojaat yuborish', () => setIsReportModalOpen(true))}
-            onShowToast={showToast}
-          />
+          <React.Suspense fallback={<div className="h-full w-full flex items-center justify-center bg-[#F3F6F3] dark:bg-[#0E1713]"><div className="w-8 h-8 border-3 border-[#087F5B] border-t-transparent rounded-full animate-spin" /></div>}>
+            <StoreFullPageView
+              store={selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail}
+              organization={activeStoreDetail?.organization || selectedNearbyStore?.organization || (selectedResult?.store as any)?.organization}
+              offers={activeStoreOffers}
+              loadingOffers={storeOffersLoading}
+              isDarkMode={isDarkMode}
+              userLocation={userLocation}
+              matchedOffer={selectedResult?.bestOffer?.id !== 'default' ? selectedResult?.bestOffer : null}
+              currentUser={currentUser}
+              onRequireAuth={(msg) => requireAuth(msg || 'Ushbu amalni bajarish')}
+              onBack={() => navigateTo(customerHomePath)}
+              onGetRoute={(mode) => fetchRoute((selectedResult?.store || selectedNearbyStore?.store || activeStoreDetail), mode)}
+              onReportError={() => requireAuth('Murojaat yuborish', () => setIsReportModalOpen(true))}
+              onShowToast={showToast}
+            />
+          </React.Suspense>
         ) : (
           <div className="relative flex-1 w-full h-full overflow-hidden">
             {/* Desktop Left Results Drawer */}
