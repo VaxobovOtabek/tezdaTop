@@ -1169,15 +1169,15 @@ export function CustomerApp() {
               />
             )}
 
-            {/* Desktop Top Floating Bar: Reopen Trigger + SearchToolbar in single flex container (NEVER overlaps) */}
+            {/* Top Floating Bar: Reopen Trigger + SearchToolbar in single flex container (NEVER overlaps) */}
             {view === 'search' && (
               <div
-                className={`hidden md:flex absolute top-4 z-20 items-center gap-2.5 transition-all duration-300 pointer-events-none right-16 md:right-20 ${
-                  isDrawerOpen ? 'left-[388px] lg:left-[408px]' : 'left-4'
+                className={`flex absolute top-3 sm:top-4 z-20 items-center gap-2 sm:gap-2.5 transition-all duration-300 pointer-events-none left-3 sm:left-4 right-3 sm:right-16 md:right-20 ${
+                  isDrawerOpen ? 'md:left-[388px] lg:left-[408px]' : ''
                 }`}
               >
                 {!isDrawerOpen && (
-                  <div className="pointer-events-auto shrink-0">
+                  <div className="pointer-events-auto shrink-0 hidden md:block">
                     <ResultsDrawerTrigger
                       count={(results.length > 0 ? results : nearbyStores).length}
                       onOpen={() => setIsDrawerOpen(true)}
@@ -1185,7 +1185,7 @@ export function CustomerApp() {
                   </div>
                 )}
 
-                <div className="pointer-events-auto min-w-0 flex-1 max-w-[980px] xl:max-w-[1140px]">
+                <div className="pointer-events-auto min-w-0 flex-1 max-w-full">
                   <SearchToolbar
                     selectedLocationName={selectedLocationName}
                     onOpenLocationPicker={() => setIsLocationModalOpen(true)}
@@ -1204,6 +1204,7 @@ export function CustomerApp() {
                       doSearch(searchQuery);
                     }}
                     isSearching={isSearching}
+                    isDrawerOpen={isDrawerOpen}
                     onOpenFilter={() => setIsFilterModalOpen(true)}
                   />
                 </div>

@@ -979,7 +979,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
 
       {/* Floating Map Controls (Top Right: Recenter, Radius, Fit & Zoom) */}
-      <div className="absolute right-3 md:right-4 top-36 md:top-4 flex flex-col gap-2 z-20">
+      <div className="absolute right-3 md:right-4 top-20 sm:top-24 md:top-4 flex flex-col gap-2 z-20">
         <button
           onClick={handleRecenter}
           title="Mening joylashuvim (GPS)"
