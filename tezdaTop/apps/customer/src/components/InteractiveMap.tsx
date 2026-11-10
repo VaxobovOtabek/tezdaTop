@@ -1056,7 +1056,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
       {/* Mobile Floating Card for Selected Nearby Store (when user taps store pin on map) */}
       {!results.length && selectedNearbyStore && view !== 'route' && (
-        <div className="absolute bottom-[72px] md:hidden left-3 right-3 z-30 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
+        <div className="absolute bottom-[140px] md:hidden left-3 right-3 z-30 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
           <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#116B50]/30 dark:border-[#4ADE80]/30 rounded-2xl p-3.5 sm:p-4 shadow-xl pointer-events-auto flex flex-col gap-2.5">
             <div className="flex items-start justify-between gap-2">
               <div className="min-w-0 flex-1">
