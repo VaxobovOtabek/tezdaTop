@@ -2734,7 +2734,7 @@ app.post('/api/v1/merchant/offers', (req, res) => {
   }
   const variantId = uuidv4();
   const offerId = uuidv4();
-  const targetStoreId = storeId || SEED_IDS.navbahorStoreId;
+  const targetStoreId = storeId || res.locals.store?.id || SEED_IDS.navbahorStoreId;
 
   const variant: Variant & { aliases?: string[] } = {
     id: variantId,
@@ -2803,7 +2803,11 @@ app.get('/api/v1/merchant/stock-documents', (req, res) => {
 });
 
 app.post('/api/v1/merchant/stock-documents', async (req, res) => {
-  const user = getCurrentUser(req) || db.users.get(SEED_IDS.ownerUserId)!;
+  const user = getCurrentUser(req) || res.locals.user || (process.env.NODE_ENV !== 'production' ? db.users.get(SEED_IDS.ownerUserId) : null);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
   const idempotencyKey = (req.headers['idempotency-key'] || req.headers['x-idempotency-key']) as string;
 
   if (idempotencyKey) {
@@ -2855,8 +2859,8 @@ app.post('/api/v1/merchant/expenses', (req, res) => {
   const { storeId, category, amount, date, description } = req.body;
   const exp = {
     id: uuidv4(),
-    organizationId: SEED_IDS.navbahorOrgId,
-    storeId: storeId || SEED_IDS.navbahorStoreId,
+    organizationId: (storeId && db.stores.get(storeId)?.organizationId) || res.locals.organization?.id || SEED_IDS.navbahorOrgId,
+    storeId: storeId || res.locals.store?.id || SEED_IDS.navbahorStoreId,
     category: category || 'BOSHQA',
     amount: new Decimal(amount || 0),
     date: date || new Date().toISOString().split('T')[0],

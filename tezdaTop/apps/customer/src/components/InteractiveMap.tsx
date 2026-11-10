@@ -80,7 +80,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const userMarkerRef = useRef<L.Marker | null>(null);
   const routePolylineRef = useRef<L.Polyline | null>(null);
   const routeMarkersLayerRef = useRef<L.LayerGroup | null>(null);
-  const cardListRef = useRef<HTMLDivElement | null>(null);
   const prevRadiusRef = useRef<number>(radiusM);
   const [currentZoom, setCurrentZoom] = useState<number>(15);
 
@@ -267,8 +266,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         userMarkerRef.current = marker;
       }
 
-      // Radius circle (Qidiruv maydoni chegarasi - no green wash/fill to avoid blurring the map)
+      // Radius circle (Qidiruv maydoni chegarasi va ichki chiroyli nozik rangi)
       const strokeColor = isDarkMode ? '#4ADE80' : '#10B981';
+      const fillColor = isDarkMode ? '#22C55E' : '#10B981';
+      const fillOpacity = isDarkMode ? 0.16 : 0.11;
 
       if (radiusCircleRef.current) {
         radiusCircleRef.current.setLatLng([userLocation.lat, userLocation.lng]);
@@ -278,8 +279,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           weight: 2,
           opacity: 0.85,
           dashArray: '6, 6',
-          fill: false,
-          fillOpacity: 0,
+          fill: true,
+          fillColor: fillColor,
+          fillOpacity: fillOpacity,
           interactive: false,
           bubblingMouseEvents: false,
           className: 'search-radius-circle pointer-events-none'
@@ -302,8 +304,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           weight: 2,
           opacity: 0.85,
           dashArray: '6, 6',
-          fill: false,
-          fillOpacity: 0,
+          fill: true,
+          fillColor: fillColor,
+          fillOpacity: fillOpacity,
           interactive: false,
           bubblingMouseEvents: false,
           className: 'search-radius-circle pointer-events-none'
@@ -512,12 +515,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
                   </div>
                 </div>
               </div>
-              <div style="display: flex; gap: 6px;">
-                <button id="btn-detail-${item.store.id}" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 6px; padding: 6px 8px; font-size: 11px; font-weight: 600; cursor: pointer;">
-                  Do‘kon
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button id="btn-detail-${item.store.id}" style="background: #087F5B; color: white; border: none; border-radius: 10px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                  <span>🏪</span> <span style="white-space: nowrap;">Sahifasiga o‘tish</span>
                 </button>
-                <button id="btn-route-${item.store.id}" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 6px; padding: 6px 10px; font-size: 11px; font-weight: 600; cursor: pointer;">
-                  Marshrut
+                <button id="btn-route-${item.store.id}" style="background: ${isDarkMode ? '#1E2923' : '#FFFFFF'}; color: ${isDarkMode ? '#E8F2EC' : '#172B26'}; border: 1px solid ${isDarkMode ? '#2E483A' : '#E2E8F0'}; border-radius: 10px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                  <span style="color: #087F5B;">🧭</span> <span style="white-space: nowrap;">Marshrut</span>
                 </button>
               </div>
             </div>
@@ -660,26 +663,29 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
             ? `<span style="color: ${popupMuted}; font-size: 11px;"> · ${item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${item.distanceM} m`}</span>`
             : '';
 
+          const distanceLabel = item.distanceM
+            ? (item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${Math.round(item.distanceM)} m`)
+            : '445 m';
+
           const popupContent = `
-            <div style="min-width: 220px; max-width: 280px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 4px;">
-                <span style="font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; background: ${isDarkMode ? '#1E362A' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; padding: 2px 6px; border-radius: 4px;">
-                  ${storeType}
-                </span>
-                <div>${openStatusHtml}${distanceHtml}</div>
+            <div style="min-width: 240px; max-width: 290px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
+              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+                <div style="font-weight: 800; font-size: 15px; color: ${popupTitle}; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  ${storeName}
+                </div>
+                <div style="background: ${isDarkMode ? '#1E362A' : '#E8F5EE'}; color: ${isDarkMode ? '#4ADE80' : '#087F5B'}; font-size: 11px; font-weight: 800; padding: 2.5px 8px; border-radius: 9999px; white-space: nowrap; display: flex; align-items: center; gap: 3px;">
+                  <span>📍</span> <span>${distanceLabel}</span>
+                </div>
               </div>
-              <div style="font-weight: 800; font-size: 14px; color: ${popupTitle}; margin-bottom: 3px; line-height: 1.25;">
-                ${storeName}
+              <div style="font-size: 11.5px; color: ${popupMuted}; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 4px; line-height: 1.35;">
+                <span style="flex-shrink: 0;">📍</span> <span>${item.store.address || 'Guliston, Sirdaryo'}</span>
               </div>
-              <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 3px;">
-                <span>📍</span> <span>${item.store.address || 'Toshkent shahri'}</span>
-              </div>
-              <div style="display: flex; gap: 6px;">
-                <button id="btn-nearby-detail-${item.store.id}" onclick="window.__yaqintop_open_nearby_detail && window.__yaqintop_open_nearby_detail('${item.store.id}')" style="flex: 1; background: #116B50; color: white; border: none; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                  <span>🏢</span> <span>Sahifasiga o‘tish</span>
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                <button id="btn-nearby-detail-${item.store.id}" onclick="window.__yaqintop_open_nearby_detail && window.__yaqintop_open_nearby_detail('${item.store.id}')" style="background: #087F5B; color: white; border: none; border-radius: 10px; padding: 8px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                  <span>🏪</span> <span style="white-space: nowrap;">Sahifasiga o‘tish</span>
                 </button>
-                <button id="btn-nearby-route-${item.store.id}" onclick="window.__yaqintop_route_nearby && window.__yaqintop_route_nearby('${item.store.id}')" style="background: ${isDarkMode ? '#23382F' : '#E0EFE7'}; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; border: none; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                  <span>🧭</span> <span>Marshrut</span>
+                <button id="btn-nearby-route-${item.store.id}" onclick="window.__yaqintop_route_nearby && window.__yaqintop_route_nearby('${item.store.id}')" style="background: ${isDarkMode ? '#1E2923' : '#FFFFFF'}; color: ${isDarkMode ? '#E8F2EC' : '#172B26'}; border: 1px solid ${isDarkMode ? '#2E483A' : '#E2E8F0'}; border-radius: 10px; padding: 8px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                  <span style="color: #087F5B;">🧭</span> <span style="white-space: nowrap;">Marshrut</span>
                 </button>
               </div>
             </div>
@@ -873,10 +879,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     mapInstanceRef.current?.zoomOut();
   };
 
-  // Find lowest price
-  const lowestPriceOffer = results.length > 0
-    ? [...results].sort((a, b) => Number(a.bestOffer.price) - Number(b.bestOffer.price))[0]
-    : null;
+  
 
   return (
     <div className="relative w-full h-full min-h-0 flex-1 flex flex-col overflow-hidden">
@@ -1071,130 +1074,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       )}
 
-      {/* Bottom Information & Store Cards Carousel Bar (Search Results Mode) */}
-      {results.length > 0 && view !== 'route' && (
-        <div className="absolute bottom-[72px] md:bottom-4 left-3 md:left-4 right-3 md:right-4 z-10 pointer-events-none">
-          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#DCE5DF] dark:border-[#273B32] rounded-2xl p-3 shadow-xl pointer-events-auto flex flex-col gap-2.5 max-w-full">
-            {/* Top Info Strip */}
-            <div className="flex items-center justify-between text-xs pb-1.5 border-b border-[#DCE5DF]/60 dark:border-[#273B32]">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="font-bold text-[#172C28] dark:text-[#E8F2EC] flex items-center gap-1.5">
-                  <StoreIcon className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
-                  {results.length} ta do‘kon topildi
-                </span>
-                {lowestPriceOffer && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#E0EFE7] dark:bg-[#1C3328] text-[#116B50] dark:text-[#4ADE80] font-semibold text-[11px]">
-                    ✨ Eng arzon: {Number(lowestPriceOffer.bestOffer.price).toLocaleString('uz-UZ')} so‘m ({lowestPriceOffer.store.name})
-                  </span>
-                )}
-              </div>
-              <span className="text-[11px] text-[#566A63] dark:text-[#8B9E95] hidden lg:inline-block">
-                Tanlash uchun xaritadagi pin yoki kartochkani bosing
-              </span>
-            </div>
-
-            {/* Horizontal Scrollable Store Cards */}
-            <div
-              ref={cardListRef}
-              className="flex items-center gap-2.5 overflow-x-auto pb-1 scrollbar-none no-scrollbar"
-              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-            >
-              {results.map((item) => {
-                const isSelected = selectedResult?.store.id === item.store.id;
-                const formattedPrice = Number(item.bestOffer.price).toLocaleString('uz-UZ');
-
-                return (
-                  <div
-                    key={item.store.id}
-                    onClick={() => onSelectStore(item)}
-                    className={`shrink-0 w-[240px] md:w-[280px] p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
-                      isSelected
-                        ? 'bg-[#F4FAF6] dark:bg-[#1B2F25] border-2 border-[#116B50] dark:border-[#4ADE80] shadow-sm'
-                        : 'bg-white dark:bg-[#16241E] border-[#DCE5DF] dark:border-[#273B32] hover:border-[#116B50]/50 dark:hover:border-[#4ADE80]/50'
-                    }`}
-                  >
-                    <div
-                      role="button"
-                      tabIndex={0}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onOpenProductModal?.(item);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          onOpenProductModal?.(item);
-                        }
-                      }}
-                      title="Tovar ma‘lumotlari va muqobillarini ko‘rish uchun bosing"
-                      aria-label={`${item.bestOffer.variant.title} tovar ma‘lumotlari`}
-                      className="flex items-center gap-2 p-1 -m-1 rounded-lg hover:bg-[#E0EFE7]/40 dark:hover:bg-[#1E362A]/60 transition-all cursor-pointer group"
-                    >
-                      <div className="relative w-9 h-9 rounded-lg bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#273B32] group-hover:border-[#116B50]/60 overflow-hidden shrink-0 flex items-center justify-center p-0.5 transition-all">
-                        <img
-                          src={getProductThumbnail(item.bestOffer.variant)}
-                          alt=""
-                          loading="lazy"
-                          className="w-full h-full object-cover rounded-md group-hover:scale-105 transition-transform"
-                          onError={(e) => {
-                            (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_THUMBNAIL;
-                          }}
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-start justify-between gap-1">
-                          <div className="truncate flex-1">
-                            <h4 className="font-bold text-xs text-[#172C28] dark:text-[#E8F2EC] truncate">{item.store.name}</h4>
-                            <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] group-hover:text-[#116B50] dark:group-hover:text-[#4ADE80] transition-colors truncate">{item.bestOffer.variant.title}</div>
-                          </div>
-                          <span className="shrink-0 text-xs font-extrabold text-[#116B50] dark:text-[#4ADE80]">
-                            {formattedPrice} <span className="text-[10px] font-normal text-[#566A63] dark:text-[#8B9E95]">so‘m</span>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between mt-2 pt-1.5 border-t border-[#DCE5DF]/50 dark:border-[#273B32] text-[11px]">
-                      <div className="flex items-center gap-1.5 text-[#566A63] dark:text-[#8B9E95]">
-                        <span className={item.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] font-semibold' : 'text-[#B42318] dark:text-[#F87171]'}>
-                          {item.isOpenNow ? '● Ochiq' : '○ Yopiq'}
-                        </span>
-                        <span>·</span>
-                        <span title="Siz turgan nuqtadan hisoblangan masofa">
-                          📍 {item.distanceM === 0 ? 'Siz turgan joyda' : (item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${item.distanceM} m`)}
-                        </span>
-                      </div>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenDetail(item);
-                          }}
-                          className="px-2 py-0.5 rounded bg-[#116B50] text-white text-[10px] font-semibold hover:bg-[#0d533e] transition"
-                        >
-                          Do‘kon
-                        </button>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onNavigate(item);
-                          }}
-                          className="p-1 rounded bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] hover:bg-[#d0e7dc] transition"
-                          title="Marshrut"
-                        >
-                          <Navigation className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
           </div>
-        </div>
-      )}
-    </div>
   );
 };

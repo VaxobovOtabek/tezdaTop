@@ -110,7 +110,7 @@ export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ className, error, label, id, ...props }, ref) => {
     return (
-      <div className="w-full flex flex-col gap-1 text-left">
+      <div className="w-full flex flex-col gap-1 text-left px-0.5">
         {label && (
           <label htmlFor={id} className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
             {label}
@@ -120,8 +120,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={id}
           className={cn(
-            'w-full min-h-[44px] px-3.5 py-2.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-[10px] text-[#172C28] dark:text-[#E8F2EC] placeholder-[#566A63]/60 dark:placeholder-[#8B9E95]/60 focus-visible:outline focus-visible:outline-3 focus-visible:outline-[#d59536] focus-visible:outline-offset-2 transition-colors',
-            error && 'border-[#B42318] focus-visible:outline-[#B42318]',
+            'w-full min-h-[42px] px-3.5 py-2 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 rounded-xl text-[#172C28] dark:text-[#E8F2EC] placeholder-[#566A63]/60 dark:placeholder-[#8B9E95]/60 focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all',
+            error && 'border-[#B42318] focus:border-[#B42318] focus:ring-[#B42318]/20',
             className
           )}
           {...props}
@@ -150,7 +150,7 @@ export function Modal({
   title,
   children,
   footer,
-  maxWidth = 'max-w-[550px]',
+  maxWidth = 'max-w-[460px]',
   className = ''
 }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
@@ -178,14 +178,18 @@ export function Modal({
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-[#142E27]/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-[#142E27]/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className={`w-full ${maxWidth} max-w-[calc(100vw-32px)] max-h-[92vh] overflow-y-auto overflow-x-hidden scrollbar-none no-scrollbar bg-white dark:bg-[#14201A] rounded-2xl sm:rounded-[24px] p-5 sm:p-6 shadow-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-4 text-[#172C28] dark:text-[#E8F2EC] ${className}`}
+        className={cn(
+          'w-full max-h-[90vh] overflow-y-auto scrollbar-none no-scrollbar bg-white dark:bg-[#14201A] rounded-2xl sm:rounded-[24px] p-5 sm:p-6 shadow-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-4 text-[#172C28] dark:text-[#E8F2EC]',
+          maxWidth,
+          className
+        )}
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         <div className="flex items-center justify-between pb-3 border-b border-[#DCE5DF] dark:border-[#22332C] gap-2">
@@ -200,7 +204,7 @@ export function Modal({
             ✕
           </button>
         </div>
-        <div className="py-1 min-w-0 overflow-x-hidden">{children}</div>
+        <div className="py-1 px-1 min-w-0">{children}</div>
         {footer && <div className="pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] flex justify-end gap-3">{footer}</div>}
       </div>
     </div>

@@ -27,7 +27,7 @@ import {
   DebtTransaction
 } from '@yaqintop/contracts';
 import { calculateWeightedAverageCost, sanitizeCsvField, calculateFinancialSummary } from '../services/ledger.service.js';
-import { syncAllToSupabase } from './supabase.js';
+import { syncAllToSupabase, isSupabaseWriteAllowed } from './supabase.js';
 
 export interface DBOrganization {
   id: string;
@@ -388,7 +388,9 @@ export class InMemoryDatabase {
     this.saveTimeout = setTimeout(async () => {
       this.saveToFile();
       try {
-        syncAllToSupabase(this).catch(e => console.error('[Supabase Sync Error]', e));
+        if (isSupabaseWriteAllowed()) {
+          syncAllToSupabase(this).catch(e => console.error('[Supabase Sync Error]', e));
+        }
       } catch (e) {
         // ignore if not configured
       }

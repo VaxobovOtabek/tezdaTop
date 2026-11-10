@@ -3,6 +3,12 @@ import type { Server } from 'node:http';
 import { db } from '../src/db/in-memory-db.js';
 import { seedDatabase, SEED_IDS } from '../src/db/seed.js';
 
+vi.mock('../src/db/supabase.js', () => ({
+  isSupabaseConfigured: () => false,
+  syncAllFromSupabase: vi.fn(),
+  syncAllToSupabase: vi.fn()
+}));
+
 let server: Server;
 let origin: string;
 

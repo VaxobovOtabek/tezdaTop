@@ -52,7 +52,7 @@ describe('audited security and inventory regressions', () => {
     expect(verifySignedSessionToken(token)).toBeNull();
   });
   it('does not sign production tokens with a fallback secret', () => {
-    vi.stubEnv('NODE_ENV','production'); vi.stubEnv('SESSION_SECRET','');
+    vi.stubEnv('NODE_ENV','production'); vi.stubEnv('SESSION_SECRET',''); vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY','');
     try { expect(()=>createSignedSessionToken(SEED_IDS.adminUserId)).toThrow('SESSION_SECRET'); } finally { vi.unstubAllEnvs(); }
   });
   it('derives a separate production signing key from an existing backend service secret', () => {

@@ -95,7 +95,7 @@ export function UnifiedLoginModal({
 
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - Tizimga Kirish`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - Tizimga Kirish`} maxWidth="max-w-[420px]">
       <div className="flex flex-col gap-4 py-1">
         <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
           Boshqaruv Admin paneliga kirish uchun administrator hisobingiz bilan tizimga kiring.
@@ -113,7 +113,7 @@ export function UnifiedLoginModal({
             e.preventDefault();
             handleLogin();
           }}
-          className="flex flex-col gap-3"
+          className="flex flex-col gap-3 px-0.5"
         >
           <div>
             <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
@@ -127,7 +127,7 @@ export function UnifiedLoginModal({
                 value={login}
                 onChange={(e) => setLogin(e.target.value)}
                 placeholder="masalan: admin yoki +998905556677"
-                className="w-full h-10 pl-9 pr-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC]"
+                className="w-full h-10 pl-9 pr-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 rounded-xl text-xs text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all"
               />
             </div>
           </div>
@@ -147,7 +147,7 @@ export function UnifiedLoginModal({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Parolingizni kiriting..."
-                className="w-full h-10 pl-9 pr-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-xs font-mono text-[#172C28] dark:text-[#E8F2EC]"
+                className="w-full h-10 pl-9 pr-3 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 rounded-xl text-xs font-mono text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all"
               />
             </div>
           </div>

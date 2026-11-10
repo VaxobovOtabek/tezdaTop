@@ -107,7 +107,7 @@ export function UnifiedLoginModal({
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - ${register ? 'Ro‘yxatdan o‘tish' : 'Tizimga kirish'}`}>
+    <Modal isOpen={isOpen} onClose={onClose} title={`${appTitle} - ${register ? 'Ro‘yxatdan o‘tish' : 'Tizimga kirish'}`} maxWidth="max-w-[420px]">
       <div className="flex flex-col gap-4 py-1">
         <p className="text-xs sm:text-sm text-[#566A63] dark:text-[#8B9E95] leading-relaxed">
           {register ? 'Ma’lumotlaringizni kiriting va yangi xaridor hisobini yarating.' : 'Profilingizga kirish uchun login va parolingizni kiriting.'}
@@ -125,7 +125,7 @@ export function UnifiedLoginModal({
             e.preventDefault();
             handleLogin();
           }}
-          className="flex flex-col gap-3.5"
+          className="flex flex-col gap-3.5 px-0.5"
         >
           {register && (
             <>
@@ -143,7 +143,7 @@ export function UnifiedLoginModal({
                   onChange={e => setFullName(e.target.value)}
                   placeholder="Masalan: Anvar Qodirov"
                   aria-label="Ism va familiyangizni kiriting"
-                  className="w-full h-11 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-sm text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                  className="w-full h-11 px-3.5 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 bg-white dark:bg-[#16241E] text-sm text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all"
                 />
               </div>
 
@@ -152,7 +152,7 @@ export function UnifiedLoginModal({
                   Telefon raqami
                 </label>
                 <div className="relative flex items-center">
-                  <span className="absolute left-3.5 font-bold text-sm text-[#116B50] dark:text-[#4ADE80] select-none pointer-events-none">
+                  <span className="absolute left-3.5 font-bold text-sm text-[#087F5B] dark:text-[#4ADE80] select-none pointer-events-none">
                     +998
                   </span>
                   <input
@@ -168,7 +168,7 @@ export function UnifiedLoginModal({
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
                       setPhone('+998' + digits);
                     }}
-                    className="w-full h-11 pl-16 pr-3.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-sm font-mono font-medium text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                    className="w-full h-11 pl-16 pr-3.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 rounded-xl text-sm font-mono font-medium text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all"
                   />
                 </div>
               </div>
@@ -191,7 +191,7 @@ export function UnifiedLoginModal({
                 onChange={(e) => setLogin(register ? e.target.value.slice(0, 8) : e.target.value)}
                 placeholder={register ? "masalan: otabek" : "masalan: otabek yoki +998901112233"}
                 aria-label="Foydalanuvchi nomi yoki telefon raqami"
-                className="w-full h-11 pl-10 pr-3.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-sm text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                className="w-full h-11 pl-10 pr-3.5 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 rounded-xl text-sm text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all"
               />
             </div>
           </div>
@@ -215,13 +215,13 @@ export function UnifiedLoginModal({
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Parolingizni kiriting..."
                 aria-label="Parol"
-                className="w-full h-11 pl-10 pr-10 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl text-sm font-mono text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                className="w-full h-11 pl-10 pr-10 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 rounded-xl text-sm font-mono text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 aria-label={showPassword ? "Parolni yashirish" : "Parolni ko'rsatish"}
-                className="absolute right-3.5 text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80] transition cursor-pointer p-1"
+                className="absolute right-3.5 text-[#566A63] dark:text-[#8B9E95] hover:text-[#087F5B] dark:hover:text-[#4ADE80] transition cursor-pointer p-1"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -246,13 +246,13 @@ export function UnifiedLoginModal({
                   onChange={e => setConfirmation(e.target.value)}
                   placeholder="Parolni qayta kiriting..."
                   aria-label="Parol tasdig‘i"
-                  className="w-full h-11 pl-10 pr-10 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] bg-white dark:bg-[#16241E] text-sm font-mono text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:ring-2 focus:ring-[#116B50]"
+                  className="w-full h-11 pl-10 pr-10 rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 bg-white dark:bg-[#16241E] text-sm font-mono text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all"
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirmation(!showConfirmation)}
                   aria-label={showConfirmation ? "Parolni yashirish" : "Parolni ko'rsatish"}
-                  className="absolute right-3.5 text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80] transition cursor-pointer p-1"
+                  className="absolute right-3.5 text-[#566A63] dark:text-[#8B9E95] hover:text-[#087F5B] dark:hover:text-[#4ADE80] transition cursor-pointer p-1"
                 >
                   {showConfirmation ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
@@ -264,7 +264,7 @@ export function UnifiedLoginModal({
             type="submit"
             variant="primary"
             disabled={isLoading}
-            className="w-full min-h-[46px] font-bold text-sm flex items-center justify-center gap-2 mt-2 rounded-xl"
+            className="w-full min-h-[46px] font-bold text-sm flex items-center justify-center gap-2 mt-2 rounded-xl bg-[#087F5B] hover:bg-[#065F46] border-none text-white transition-all shadow-xs"
           >
             <LogIn className="w-4 h-4" />
             <span>{isLoading ? 'Kutilmoqda...' : register ? 'Ro‘yxatdan o‘tish' : 'Tizimga kirish'}</span>
@@ -280,7 +280,7 @@ export function UnifiedLoginModal({
             setPassword('');
             setConfirmation('');
           }}
-          className="text-xs sm:text-sm font-semibold text-[#116B50] dark:text-[#4ADE80] cursor-pointer hover:underline text-center mt-1"
+          className="text-xs sm:text-sm font-semibold text-[#087F5B] dark:text-[#4ADE80] cursor-pointer hover:underline text-center mt-1"
         >
           {register ? 'Hisobingiz bormi? Tizimga kirish' : 'Hisobingiz yo‘qmi? Ro‘yxatdan o‘tish'}
         </button>

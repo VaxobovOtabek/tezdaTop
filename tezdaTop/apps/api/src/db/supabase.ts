@@ -8,8 +8,20 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 dotenv.config({ path: path.resolve(process.cwd(), '../../.env') });
 const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
+
 export const supabase: SupabaseClient | null = url && key ? createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
 export const isSupabaseConfigured = () => !!supabase;
+
+/**
+ * Localhost Guard:
+ * Prevents local development changes from polluting production Supabase database.
+ * Writes to Supabase are ONLY permitted in production (Vercel) or when ALLOW_LOCAL_SUPABASE_WRITE=true.
+ */
+export const isSupabaseWriteAllowed = () => isSupabaseConfigured() && (isProduction || process.env.ALLOW_LOCAL_SUPABASE_WRITE === 'true');
+
+let lastSyncTime = 0;
+const CACHE_TTL_MS = 60 * 1000; // 60s in-memory cache to dramatically reduce database load
 type Rows = Record<string, Record<string, any>[]>;
 type Mapping = { table: string; fields: Record<string, string> };
 const mappings: Record<string, Mapping> = {
@@ -102,16 +114,23 @@ export function hydrateDatabase(db: InMemoryDatabase, rows: Rows) {
   for (const offer of db.offers.values()) { const variant=db.variants.get(offer.variantId); if (!variant) throw new Error(`Offer ${offer.id} has no variant`); offer.variant=variant; offer.freshness=db.computeFreshness(offer.stockVerifiedAt); }
 }
 
-export async function syncAllFromSupabase(db: InMemoryDatabase): Promise<boolean> {
+export async function syncAllFromSupabase(db: InMemoryDatabase, force = false): Promise<boolean> {
   if (!supabase) return false;
+  const now = Date.now();
+  if (!force && lastSyncTime > 0 && now - lastSyncTime < CACHE_TTL_MS) {
+    return true;
+  }
   const {data,error}=await supabase.rpc('read_database_snapshot');
   if (error || !data?.tables) throw new Error('Database snapshot could not be loaded; migration must be applied');
-  hydrateDatabase(db,data.tables); version=Number(data.version); baseline=projectDatabase(db); return true;
+  hydrateDatabase(db,data.tables); version=Number(data.version); baseline=projectDatabase(db); lastSyncTime = now; return true;
 }
 
 /** One PostgreSQL transaction; stale writers receive 409 instead of overwriting newer data. */
 export async function syncAllToSupabase(db: InMemoryDatabase): Promise<boolean> {
   if (!supabase) return false;
+  if (!isSupabaseWriteAllowed()) {
+    return false;
+  }
   // Mirror relational cascades before computing the transaction, so permanent
   // deletions cannot leave dangling in-memory rows or resurrect deleted parents.
   for (const [id, store] of db.stores) if (!db.organizations.has(store.organizationId)) db.stores.delete(id);
@@ -133,7 +152,7 @@ export async function syncAllToSupabase(db: InMemoryDatabase): Promise<boolean> 
   if (!Object.values(changes).some(r=>r.length) && !Object.values(deleted).some(r=>r.length)) return true;
   const {data,error}=await supabase.rpc('commit_database_snapshot',{expected_version:version,changes,deleted});
   if (error) { const conflict=error.code==='40001'; throw Object.assign(new Error(conflict ? 'Ma’lumot yangilandi. So‘rovni qayta yuboring.' : 'Ma’lumot bazaga saqlanmadi.'),{status:conflict ? 409 : 503,code:conflict ? 'WRITE_CONFLICT' : 'PERSISTENCE_FAILED'}); }
-  version=Number(data); baseline=current; return true;
+  version=Number(data); baseline=current; lastSyncTime = Date.now(); return true;
 }
 
 // Committed together with the HTTP operation by the persistence middleware.
