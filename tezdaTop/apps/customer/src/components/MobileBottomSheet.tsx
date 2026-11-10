@@ -28,6 +28,19 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   const cleanLocation = locationName ? locationName.split(',')[0] : 'Guliston';
   const hasActiveSearch = Boolean(searchQuery.trim());
 
+  // Prioritize selected store at the top of the sheet list
+  const sortedItems = React.useMemo(() => {
+    if (!selectedItem) return items;
+    const targetId = selectedItem.store?.id || selectedItem.id;
+    return [...items].sort((a, b) => {
+      const aId = a.store?.id || a.id;
+      const bId = b.store?.id || b.id;
+      if (aId === targetId) return -1;
+      if (bId === targetId) return 1;
+      return 0;
+    });
+  }, [items, selectedItem]);
+
   const toggleExpand = () => {
     if (sheetState === 'collapsed') setSheetState('half');
     else if (sheetState === 'half') setSheetState('full');
@@ -58,9 +71,15 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
             <span className="bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] text-xs font-extrabold px-2 py-0.5 rounded-full shrink-0">
               {count} ta
             </span>
-            <span className="text-xs text-[#64748B] dark:text-[#8B9E95] truncate">
-              {hasActiveSearch ? `"${searchQuery}"` : cleanLocation}
-            </span>
+            {selectedItem?.store?.name ? (
+              <span className="text-xs font-semibold text-[#087F5B] dark:text-[#4ADE80] truncate max-w-[130px]">
+                · {selectedItem.store.name}
+              </span>
+            ) : (
+              <span className="text-xs text-[#64748B] dark:text-[#8B9E95] truncate">
+                {hasActiveSearch ? `"${searchQuery}"` : cleanLocation}
+              </span>
+            )}
             {hasActiveSearch && onClearSearch && (
               <button
                 type="button"
@@ -105,7 +124,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
             )}
           </div>
         ) : (
-          items.map((item) => {
+          sortedItems.map((item) => {
             const storeObj = item.store || item;
             const isSelected = Boolean(
               selectedItem && (selectedItem.store?.id === storeObj.id || selectedItem.id === storeObj.id)

@@ -231,6 +231,14 @@ html, body {
   background-color: #16241E !important;
 }
 
+.dark .leaflet-popup-close-button {
+  color: #8B9E95 !important;
+}
+
+.dark .leaflet-popup-close-button:hover {
+  color: #4ADE80 !important;
+}
+
 .leaflet-popup-content {
   margin: 8px !important;
   line-height: 1.4 !important;

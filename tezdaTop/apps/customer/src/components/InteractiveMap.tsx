@@ -109,14 +109,23 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         onNavigate(item);
       }
     };
+    (window as any).__yaqintop_open_product_modal = (storeId: string) => {
+      const item = results.find((s) => s.store.id === storeId);
+      if (item && onOpenProductModal) {
+        onOpenProductModal(item);
+      } else if (item && onOpenProduct) {
+        onOpenProduct(item.bestOffer?.variant?.id || item.bestOffer?.variant?.sku || '');
+      }
+    };
 
     return () => {
       delete (window as any).__yaqintop_open_nearby_detail;
       delete (window as any).__yaqintop_route_nearby;
       delete (window as any).__yaqintop_open_result_detail;
       delete (window as any).__yaqintop_route_result;
+      delete (window as any).__yaqintop_open_product_modal;
     };
-  }, [nearbyStores, results, onOpenNearbyDetail, onOpenDetail, onNavigate]);
+  }, [nearbyStores, results, onOpenNearbyDetail, onOpenDetail, onNavigate, onOpenProductModal, onOpenProduct]);
 
   const [mapReady, setMapReady] = useState(false);
 
@@ -381,7 +390,6 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     if (view === 'route') return;
 
     const isZoomedIn = currentZoom >= 17;
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     const placedBadgePositions: { x: number; y: number }[] = [];
 
     // Case 1: Product search active
@@ -480,82 +488,101 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           keyboard: true
         });
 
-        // Desktop gets the full popup; mobile uses the dedicated bottom card to prevent clutter
-        if (!isMobile) {
-          const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
-          const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
-          const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
-          const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
-          const productThumb = getProductThumbnail(item.bestOffer?.variant);
+        const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
+        const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
+        const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
+        const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
+        const productThumb = getProductThumbnail(item.bestOffer?.variant);
 
-          const popupContent = `
-            <div style="min-width: 200px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 2px;">
-                <div style="font-weight: 700; font-size: 14px; color: ${popupTitle};">
-                  ${item.store.name}
+        const popupContent = `
+          <div style="min-width: 210px; max-width: 280px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 6px; margin-bottom: 2px;">
+              <div style="font-weight: 700; font-size: 14px; color: ${popupTitle};">
+                ${item.store.name}
+              </div>
+              <span style="font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: ${item.isOpenNow ? (isDarkMode ? '#1E362A' : '#E0EFE7') : '#FEE2E2'}; color: ${item.isOpenNow ? (isDarkMode ? '#4ADE80' : '#116B50') : '#B42318'}; white-space: nowrap;">
+                ${item.isOpenNow ? 'Ochiq' : 'Yopiq'}
+              </span>
+            </div>
+            <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;">📍 ${item.store.address || 'Toshkent shahri'}</span>
+              <span style="font-weight: 600; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; white-space: nowrap;" title="Siz turgan nuqtadan to‘g‘ridan-to‘g‘ri masofa">
+                📍 ${item.distanceM === 0 ? 'Siz turgan joyda' : (item.distanceM >= 1000 ? (item.distanceM / 1000).toFixed(1) + ' km' : item.distanceM + ' m')}
+              </span>
+            </div>
+            <div id="btn-popup-prod-box-${item.store.id}" onclick="window.__yaqintop_open_product_modal && window.__yaqintop_open_product_modal('${item.store.id}')" style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;" title="Tovar ma‘lumotlari va muqobillarini ko‘rish">
+              <img id="btn-popup-thumb-${item.store.id}" src="${productThumb}" alt="${item.bestOffer?.variant?.title || 'Mahsulot'}" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; background: #fff; flex-shrink: 0; border: 1px solid ${popupBorder}; cursor: pointer;" />
+              <div style="min-width: 0; flex: 1;">
+                <div id="btn-prod-${item.store.id}" onclick="window.__yaqintop_open_product_modal && window.__yaqintop_open_product_modal('${item.store.id}')" style="font-size: 12px; font-weight: 700; color: #116B50; cursor: pointer; text-decoration: underline; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                  ${item.bestOffer?.variant?.title || 'Mahsulot'} ↗
                 </div>
-                <span style="font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; background: ${item.isOpenNow ? (isDarkMode ? '#1E362A' : '#E0EFE7') : '#FEE2E2'}; color: ${item.isOpenNow ? (isDarkMode ? '#4ADE80' : '#116B50') : '#B42318'}; white-space: nowrap;">
-                  ${item.isOpenNow ? 'Ochiq' : 'Yopiq'}
-                </span>
-              </div>
-              <div style="font-size: 11px; color: ${popupMuted}; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between;">
-                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 150px;">📍 ${item.store.address || 'Toshkent shahri'}</span>
-                <span style="font-weight: 600; color: ${isDarkMode ? '#4ADE80' : '#116B50'}; white-space: nowrap;" title="Siz turgan nuqtadan to‘g‘ridan-to‘g‘ri masofa">
-                  📍 ${item.distanceM === 0 ? 'Siz turgan joyda' : (item.distanceM >= 1000 ? (item.distanceM / 1000).toFixed(1) + ' km' : item.distanceM + ' m')}
-                </span>
-              </div>
-              <div id="btn-popup-prod-box-${item.store.id}" style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;" title="Tovar ma‘lumotlari va muqobillarini ko‘rish">
-                <img id="btn-popup-thumb-${item.store.id}" src="${productThumb}" alt="${item.bestOffer?.variant?.title || 'Mahsulot'}" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; background: #fff; flex-shrink: 0; border: 1px solid ${popupBorder}; cursor: pointer;" />
-                <div style="min-width: 0; flex: 1;">
-                  <div id="btn-prod-${item.store.id}" style="font-size: 12px; font-weight: 700; color: #116B50; cursor: pointer; text-decoration: underline; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                    ${item.bestOffer?.variant?.title || 'Mahsulot'} ↗
-                  </div>
-                  <div style="font-size: 13px; font-weight: 800; color: #116B50;">
-                    ${formattedPrice} so‘m <span style="font-size: 10px; font-weight: normal; color: ${popupMuted};">/ ${item.bestOffer?.variant?.packUnit || 'dona'}</span>
-                  </div>
+                <div style="font-size: 13px; font-weight: 800; color: #116B50;">
+                  ${formattedPrice} so‘m <span style="font-size: 10px; font-weight: normal; color: ${popupMuted};">/ ${item.bestOffer?.variant?.packUnit || 'dona'}</span>
                 </div>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <button id="btn-detail-${item.store.id}" style="background: #087F5B; color: white; border: none; border-radius: 10px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                  <span>🏪</span> <span style="white-space: nowrap;">Sahifasiga o‘tish</span>
-                </button>
-                <button id="btn-route-${item.store.id}" style="background: ${isDarkMode ? '#1E2923' : '#FFFFFF'}; color: ${isDarkMode ? '#E8F2EC' : '#172B26'}; border: 1px solid ${isDarkMode ? '#2E483A' : '#E2E8F0'}; border-radius: 10px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                  <span style="color: #087F5B;">🧭</span> <span style="white-space: nowrap;">Marshrut</span>
-                </button>
               </div>
             </div>
-          `;
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <button id="btn-detail-${item.store.id}" onclick="window.__yaqintop_open_result_detail && window.__yaqintop_open_result_detail('${item.store.id}')" style="background: #087F5B; color: white; border: none; border-radius: 10px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <span>🏪</span> <span style="white-space: nowrap;">Sahifasiga o‘tish</span>
+              </button>
+              <button id="btn-route-${item.store.id}" onclick="window.__yaqintop_route_result && window.__yaqintop_route_result('${item.store.id}')" style="background: ${isDarkMode ? '#1E2923' : '#FFFFFF'}; color: ${isDarkMode ? '#E8F2EC' : '#172B26'}; border: 1px solid ${isDarkMode ? '#2E483A' : '#E2E8F0'}; border-radius: 10px; padding: 7px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <span style="color: #087F5B;">🧭</span> <span style="white-space: nowrap;">Marshrut</span>
+              </button>
+            </div>
+          </div>
+        `;
 
-          marker.bindPopup(popupContent, { offset: [0, -20] });
-          marker.on('popupopen', () => {
-            const detailBtn = document.getElementById(`btn-detail-${item.store.id}`);
-            const routeBtn = document.getElementById(`btn-route-${item.store.id}`);
-            const prodBtn = document.getElementById(`btn-prod-${item.store.id}`);
-            const thumbBtn = document.getElementById(`btn-popup-thumb-${item.store.id}`);
-            const prodBox = document.getElementById(`btn-popup-prod-box-${item.store.id}`);
-            if (prodBox) prodBox.onclick = (e) => {
-              e.stopPropagation();
-              onOpenProductModal?.(item);
-            };
-            if (detailBtn) detailBtn.onclick = (e) => { e.stopPropagation(); onOpenDetail(item); };
-            if (routeBtn) routeBtn.onclick = (e) => { e.stopPropagation(); onNavigate(item); };
-            if (thumbBtn) thumbBtn.onclick = (e) => {
-              e.stopPropagation();
-              onOpenProductModal?.(item);
-            };
-            if (prodBtn) prodBtn.onclick = (e) => {
-              e.stopPropagation();
-              if (onOpenProductModal) {
-                onOpenProductModal(item);
-              } else if (onOpenProduct) {
-                onOpenProduct(item.bestOffer?.variant?.id || item.bestOffer?.variant?.sku || '');
-              }
-            };
-          });
-        }
+        marker.bindPopup(popupContent, {
+          offset: [0, -18],
+          autoPan: true,
+          autoPanPaddingTopLeft: [16, 90],
+          autoPanPaddingBottomRight: [16, 75],
+          closeButton: true
+        });
 
-        marker.on('click', () => onSelectStore(item));
+        marker.on('popupopen', () => {
+          const detailBtn = document.getElementById(`btn-detail-${item.store.id}`);
+          const routeBtn = document.getElementById(`btn-route-${item.store.id}`);
+          const prodBtn = document.getElementById(`btn-prod-${item.store.id}`);
+          const thumbBtn = document.getElementById(`btn-popup-thumb-${item.store.id}`);
+          const prodBox = document.getElementById(`btn-popup-prod-box-${item.store.id}`);
+          if (prodBox) prodBox.onclick = (e) => {
+            e.stopPropagation();
+            onOpenProductModal?.(item);
+          };
+          if (detailBtn) detailBtn.onclick = (e) => { e.stopPropagation(); onOpenDetail(item); };
+          if (routeBtn) routeBtn.onclick = (e) => { e.stopPropagation(); onNavigate(item); };
+          if (thumbBtn) thumbBtn.onclick = (e) => {
+            e.stopPropagation();
+            onOpenProductModal?.(item);
+          };
+          if (prodBtn) prodBtn.onclick = (e) => {
+            e.stopPropagation();
+            if (onOpenProductModal) {
+              onOpenProductModal(item);
+            } else if (onOpenProduct) {
+              onOpenProduct(item.bestOffer?.variant?.id || item.bestOffer?.variant?.sku || '');
+            }
+          };
+        });
+
+        marker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
+          onSelectStore(item);
+          try {
+            marker.openPopup();
+          } catch {}
+        });
+
         markersLayer.addLayer(marker);
+
+        if (isSelected) {
+          setTimeout(() => {
+            try {
+              marker.openPopup();
+            } catch {}
+          }, 40);
+        }
       });
     } else {
       // Case 2: Nearby stores browse mode
@@ -648,80 +675,88 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           keyboard: true
         });
 
-        // Desktop gets the full popup; mobile uses the dedicated bottom card
-        if (!isMobile) {
-          const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
-          const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
-          const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
-          const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
-          const storeType = item.store?.type === 'WHOLESALE' ? 'Ulgurji savdo' : 'Chakana do‘kon';
-          const isOpen = item.isOpenNow ?? true;
-          const openStatusHtml = isOpen
-            ? `<span style="color: ${isDarkMode ? '#4ADE80' : '#116B50'}; font-weight: 700; font-size: 11px;">● Ochiq</span>`
-            : `<span style="color: #EF4444; font-weight: 700; font-size: 11px;">○ Yopiq</span>`;
-          const distanceHtml = item.distanceM
-            ? `<span style="color: ${popupMuted}; font-size: 11px;"> · ${item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${item.distanceM} m`}</span>`
-            : '';
+        const popupCardBg = isDarkMode ? '#1F2D26' : '#F9FAF9';
+        const popupBorder = isDarkMode ? '#2A3F36' : '#DCE5DF';
+        const popupTitle = isDarkMode ? '#E8F2EC' : '#172C28';
+        const popupMuted = isDarkMode ? '#8B9E95' : '#566A63';
+        const storeType = item.store?.type === 'WHOLESALE' ? 'Ulgurji savdo' : 'Chakana do‘kon';
+        const isOpen = item.isOpenNow ?? true;
+        const openStatusHtml = isOpen
+          ? `<span style="color: ${isDarkMode ? '#4ADE80' : '#116B50'}; font-weight: 700; font-size: 11px;">● Ochiq</span>`
+          : `<span style="color: #EF4444; font-weight: 700; font-size: 11px;">○ Yopiq</span>`;
+        const distanceHtml = item.distanceM
+          ? `<span style="color: ${popupMuted}; font-size: 11px;"> · ${item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${item.distanceM} m`}</span>`
+          : '';
 
-          const distanceLabel = item.distanceM
-            ? (item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${Math.round(item.distanceM)} m`)
-            : '445 m';
+        const distanceLabel = item.distanceM
+          ? (item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${Math.round(item.distanceM)} m`)
+          : '445 m';
 
-          const popupContent = `
-            <div style="min-width: 240px; max-width: 290px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
-              <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
-                <div style="font-weight: 800; font-size: 15px; color: ${popupTitle}; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                  ${storeName}
-                </div>
-                <div style="background: ${isDarkMode ? '#1E362A' : '#E8F5EE'}; color: ${isDarkMode ? '#4ADE80' : '#087F5B'}; font-size: 11px; font-weight: 800; padding: 2.5px 8px; border-radius: 9999px; white-space: nowrap; display: flex; align-items: center; gap: 3px;">
-                  <span>📍</span> <span>${distanceLabel}</span>
-                </div>
+        const popupContent = `
+          <div style="min-width: 240px; max-width: 290px; padding: 4px; font-family: system-ui, -apple-system, sans-serif;">
+            <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 4px;">
+              <div style="font-weight: 800; font-size: 15px; color: ${popupTitle}; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${storeName}
               </div>
-              <div style="font-size: 11.5px; color: ${popupMuted}; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 4px; line-height: 1.35;">
-                <span style="flex-shrink: 0;">📍</span> <span>${item.store.address || 'Guliston, Sirdaryo'}</span>
-              </div>
-              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-                <button id="btn-nearby-detail-${item.store.id}" onclick="window.__yaqintop_open_nearby_detail && window.__yaqintop_open_nearby_detail('${item.store.id}')" style="background: #087F5B; color: white; border: none; border-radius: 10px; padding: 8px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
-                  <span>🏪</span> <span style="white-space: nowrap;">Sahifasiga o‘tish</span>
-                </button>
-                <button id="btn-nearby-route-${item.store.id}" onclick="window.__yaqintop_route_nearby && window.__yaqintop_route_nearby('${item.store.id}')" style="background: ${isDarkMode ? '#1E2923' : '#FFFFFF'}; color: ${isDarkMode ? '#E8F2EC' : '#172B26'}; border: 1px solid ${isDarkMode ? '#2E483A' : '#E2E8F0'}; border-radius: 10px; padding: 8px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
-                  <span style="color: #087F5B;">🧭</span> <span style="white-space: nowrap;">Marshrut</span>
-                </button>
+              <div style="background: ${isDarkMode ? '#1E362A' : '#E8F5EE'}; color: ${isDarkMode ? '#4ADE80' : '#087F5B'}; font-size: 11px; font-weight: 800; padding: 2.5px 8px; border-radius: 9999px; white-space: nowrap; display: flex; align-items: center; gap: 3px;">
+                <span>📍</span> <span>${distanceLabel}</span>
               </div>
             </div>
-          `;
+            <div style="font-size: 11.5px; color: ${popupMuted}; margin-bottom: 10px; display: flex; align-items: flex-start; gap: 4px; line-height: 1.35;">
+              <span style="flex-shrink: 0;">📍</span> <span>${item.store.address || 'Guliston, Sirdaryo'}</span>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+              <button id="btn-nearby-detail-${item.store.id}" onclick="window.__yaqintop_open_nearby_detail && window.__yaqintop_open_nearby_detail('${item.store.id}')" style="background: #087F5B; color: white; border: none; border-radius: 10px; padding: 8px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 1px 2px rgba(0,0,0,0.05);">
+                <span>🏪</span> <span style="white-space: nowrap;">Sahifasiga o‘tish</span>
+              </button>
+              <button id="btn-nearby-route-${item.store.id}" onclick="window.__yaqintop_route_nearby && window.__yaqintop_route_nearby('${item.store.id}')" style="background: ${isDarkMode ? '#1E2923' : '#FFFFFF'}; color: ${isDarkMode ? '#E8F2EC' : '#172B26'}; border: 1px solid ${isDarkMode ? '#2E483A' : '#E2E8F0'}; border-radius: 10px; padding: 8px 10px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;">
+                <span style="color: #087F5B;">🧭</span> <span style="white-space: nowrap;">Marshrut</span>
+              </button>
+            </div>
+          </div>
+        `;
 
-          marker.bindPopup(popupContent, { offset: [0, -20] });
-          marker.on('popupopen', () => {
-            const detailBtn = document.getElementById(`btn-nearby-detail-${item.store.id}`);
-            const routeBtn = document.getElementById(`btn-nearby-route-${item.store.id}`);
-            if (detailBtn) detailBtn.onclick = (e) => {
-              e.stopPropagation();
-              onOpenNearbyDetail?.(item);
-            };
-            if (routeBtn) routeBtn.onclick = (e) => {
-              e.stopPropagation();
-              onNavigate?.({ store: item.store, distanceM: item.distanceM || 0 });
-            };
-          });
+        marker.bindPopup(popupContent, {
+          offset: [0, -18],
+          autoPan: true,
+          autoPanPaddingTopLeft: [16, 90],
+          autoPanPaddingBottomRight: [16, 75],
+          closeButton: true
+        });
 
-          if (isSelected) {
-            setTimeout(() => {
-              try {
-                marker.openPopup();
-              } catch {}
-            }, 30);
-          }
-        }
+        marker.on('popupopen', () => {
+          const detailBtn = document.getElementById(`btn-nearby-detail-${item.store.id}`);
+          const routeBtn = document.getElementById(`btn-nearby-route-${item.store.id}`);
+          if (detailBtn) detailBtn.onclick = (e) => {
+            e.stopPropagation();
+            onOpenNearbyDetail?.(item);
+          };
+          if (routeBtn) routeBtn.onclick = (e) => {
+            e.stopPropagation();
+            onNavigate?.({ store: item.store, distanceM: item.distanceM || 0 });
+          };
+        });
 
-        marker.on('click', () => {
+        marker.on('click', (e) => {
+          L.DomEvent.stopPropagation(e);
           onSelectNearbyStore?.(item);
+          try {
+            marker.openPopup();
+          } catch {}
         });
 
         markersLayer.addLayer(marker);
+
+        if (isSelected) {
+          setTimeout(() => {
+            try {
+              marker.openPopup();
+            } catch {}
+          }, 40);
+        }
       });
     }
-  }, [results, nearbyStores, selectedResult, selectedNearbyStore, currentZoom, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail]);
+  }, [results, nearbyStores, selectedResult, selectedNearbyStore, currentZoom, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail, onSelectStore]);
 
   // Center selected result or nearby store on change
   useEffect(() => {
