@@ -1267,9 +1267,7 @@ export function CustomerApp() {
                   </button>
 
                   <div className="flex-1 flex flex-col justify-center min-w-0 px-1">
-                    <span className="text-[8px] min-[380px]:text-[9px] font-black text-[#1E293B] dark:text-[#E2E8F0] tracking-wider uppercase leading-none truncate">
-                      QAYSI MAHSULOT YOKI XIZMAT?
-                    </span>
+                    
                     <div className="relative flex items-center mt-0.5 min-w-0 w-full">
                       <input
                         type="text"
