@@ -79,35 +79,35 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
   };
 
   return (
-    <div className="w-full bg-white dark:bg-[#14201A] rounded-2xl border border-[#CBD5E1] dark:border-[#273B32] shadow-xl p-1 sm:p-1.5 md:p-2 flex items-center gap-1.5 sm:gap-2 transition-all z-20 max-w-full">
+    <div className="w-full bg-white dark:bg-[#14201A] rounded-2xl border border-[#CBD5E1] dark:border-[#273B32] shadow-xl p-1 sm:p-1.5 md:p-2 flex items-center gap-1 sm:gap-2 transition-all z-20 max-w-full">
       {/* 1. Qayerdan qidiramiz? */}
       <button
         type="button"
         onClick={onOpenLocationPicker}
-        className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-2.5 py-1.5 rounded-xl border border-[#CBD5E1] dark:border-[#273B32] bg-[#F8FAFC] dark:bg-[#16241E] hover:border-[#087F5B] hover:bg-white dark:hover:bg-[#1E3328] transition cursor-pointer select-none shrink-0 shadow-2xs"
+        className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl border border-[#CBD5E1] dark:border-[#273B32] bg-[#F8FAFC] dark:bg-[#16241E] hover:border-[#087F5B] hover:bg-white dark:hover:bg-[#1E3328] transition cursor-pointer select-none shrink-0 shadow-2xs"
         title="Hududni o'zgartirish"
       >
-        <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#E8F5EE] dark:bg-[#1E362A] flex items-center justify-center text-[#087F5B] dark:text-[#4ADE80] shrink-0">
-          <MapPin className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#E8F5EE] dark:bg-[#1E362A] flex items-center justify-center text-[#087F5B] dark:text-[#4ADE80] shrink-0">
+          <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
         </div>
         <div className="flex flex-col text-left">
           <span className="text-[10px] font-semibold text-[#64748B] dark:text-[#8B9E95] leading-tight hidden 2xl:inline">
             Qayerdan qidiramiz?
           </span>
-          <div className="flex items-center gap-1 font-bold text-xs sm:text-sm text-[#172B26] dark:text-white leading-tight whitespace-nowrap">
-            <span className="max-w-[64px] sm:max-w-[80px] xl:max-w-[110px] truncate">{selectedLocationName.split(',')[0]}</span>
-            <ChevronDown className="w-3.5 h-3.5 text-[#64748B] dark:text-[#8B9E95] shrink-0" />
+          <div className="flex items-center gap-0.5 sm:gap-1 font-bold text-xs sm:text-sm text-[#172B26] dark:text-white leading-tight whitespace-nowrap">
+            <span className="max-w-[42px] min-[380px]:max-w-[58px] sm:max-w-[80px] xl:max-w-[110px] truncate">{selectedLocationName.split(',')[0]}</span>
+            <ChevronDown className="w-3 h-3 text-[#64748B] dark:text-[#8B9E95] shrink-0" />
           </div>
         </div>
       </button>
 
       {/* 2. Asosiy Qidiruv Maydoni (Qaysi mahsulot yoki xizmat?) - Capsule Pill matching reference */}
-      <div className="flex-1 flex items-center gap-2 sm:gap-2.5 p-1 sm:p-1.5 md:p-2 pl-1.5 sm:pl-2.5 pr-1.5 sm:pr-2.5 rounded-full bg-white dark:bg-[#14201A] border-2 border-[#CBD5E1] dark:border-[#2E4237] hover:border-[#087F5B] focus-within:border-[#087F5B] focus-within:ring-2 focus-within:ring-[#087F5B]/20 shadow-xs hover:shadow-sm transition-all min-w-[140px] sm:min-w-[180px] md:min-w-[220px]">
+      <div className="flex-1 min-w-0 flex items-center gap-1.5 sm:gap-2.5 p-1 sm:p-1.5 md:p-2 pl-1.5 sm:pl-2.5 pr-1.5 sm:pr-2.5 rounded-full bg-white dark:bg-[#14201A] border-2 border-[#CBD5E1] dark:border-[#2E4237] hover:border-[#087F5B] focus-within:border-[#087F5B] focus-within:ring-2 focus-within:ring-[#087F5B]/20 shadow-xs hover:shadow-sm transition-all">
         {/* Left Circular Dark Green Search Button */}
         <button
           type="button"
           onClick={() => onSearch()}
-          className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#087F5B] hover:bg-[#065F46] active:scale-95 text-white flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer"
+          className="w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10 rounded-full bg-[#087F5B] hover:bg-[#065F46] active:scale-95 text-white flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer"
           title="Qidirish"
         >
           <Search className={`w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 text-white stroke-[2.5] ${isSearching ? 'animate-spin' : ''}`} />
@@ -117,19 +117,19 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
         <div className="flex-1 flex flex-col justify-center min-w-0 px-1 sm:px-2">
           <label
             htmlFor="toolbar-search-input"
-            className="text-[9px] sm:text-[10px] md:text-[11px] font-black text-[#1E293B] dark:text-[#E2E8F0] tracking-wider uppercase leading-none cursor-text select-none truncate"
+            className="text-[8px] sm:text-[10px] md:text-[11px] font-black text-[#1E293B] dark:text-[#E2E8F0] tracking-wider uppercase leading-none cursor-text select-none truncate"
           >
             QAYSI MAHSULOT YOKI XIZMAT?
           </label>
-          <div className="relative flex items-center mt-0.5 sm:mt-1">
+          <div className="relative flex items-center mt-0.5 sm:mt-1 min-w-0 w-full">
             <input
               id="toolbar-search-input"
               type="text"
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-              placeholder="Masalan: Burger, lavash, dorixona"
-              className="w-full bg-transparent text-xs sm:text-[13px] md:text-[14px] font-medium text-[#1E293B] dark:text-white placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none pr-4 sm:pr-5 leading-tight truncate"
+              placeholder="Burger, lavash, dorixona..."
+              className="w-full min-w-0 bg-transparent text-xs sm:text-[13px] md:text-[14px] font-medium text-[#1E293B] dark:text-white placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none pr-4 sm:pr-5 leading-tight truncate"
             />
             {searchQuery && (
               <button

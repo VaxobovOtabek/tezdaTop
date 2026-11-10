@@ -1172,7 +1172,7 @@ export function CustomerApp() {
             {/* Top Floating Bar: Reopen Trigger + SearchToolbar in single flex container (NEVER overlaps) */}
             {view === 'search' && (
               <div
-                className={`flex absolute top-3 sm:top-4 z-20 items-center gap-2 sm:gap-2.5 transition-all duration-300 pointer-events-none left-3 sm:left-4 right-3 sm:right-16 md:right-20 ${
+                className={`flex absolute top-2.5 sm:top-4 z-20 items-center gap-1.5 sm:gap-2.5 transition-all duration-300 pointer-events-none left-2.5 sm:left-4 right-2.5 sm:right-16 md:right-20 ${
                   isDrawerOpen ? 'md:left-[388px] lg:left-[408px]' : ''
                 }`}
               >

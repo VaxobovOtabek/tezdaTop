@@ -69,11 +69,11 @@ export const CustomerHeader: React.FC<CustomerHeaderProps> = ({
           </span>
         </div>
 
-        {/* Location selector pill */}
+        {/* Location selector pill (visible on sm and up; on mobile, Location is in SearchToolbar on map) */}
         <button
           onClick={onOpenLocationPicker}
           type="button"
-          className="flex items-center gap-1.5 px-3 py-1.5 border border-[#10B981]/40 dark:border-[#10B981]/50 text-xs font-semibold text-[#087F5B] dark:text-[#4ADE80] bg-[#E8F5EE] dark:bg-[#162720] hover:bg-[#d8efe2] dark:hover:bg-[#1E362C] rounded-full transition cursor-pointer group shadow-2xs max-w-[145px] sm:max-w-[210px] truncate"
+          className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 border border-[#10B981]/40 dark:border-[#10B981]/50 text-xs font-semibold text-[#087F5B] dark:text-[#4ADE80] bg-[#E8F5EE] dark:bg-[#162720] hover:bg-[#d8efe2] dark:hover:bg-[#1E362C] rounded-full transition cursor-pointer group shadow-2xs max-w-[145px] sm:max-w-[210px] truncate"
           title="Hududni tanlash"
         >
           <MapPin className="w-3.5 h-3.5 text-[#087F5B] dark:text-[#4ADE80] shrink-0 group-hover:scale-110 transition-transform" />
@@ -165,7 +165,7 @@ export const CustomerHeader: React.FC<CustomerHeaderProps> = ({
         {deferredPrompt && !isAppInstalled && (
           <button
             onClick={onInstallClick}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#087F5B] hover:bg-[#065F46] text-white text-xs font-bold transition shadow-sm shrink-0 cursor-pointer"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#087F5B] hover:bg-[#065F46] text-white text-xs font-bold transition shadow-sm shrink-0 cursor-pointer"
             title="YaqinTop ilovasini o‘rnatish"
           >
             <Smartphone className="w-3.5 h-3.5 shrink-0" />
