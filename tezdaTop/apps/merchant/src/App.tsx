@@ -1,6 +1,6 @@
 import { useCachedSession, clearSessionCache, saveCachedSession, TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
 import { merchantFetch } from './lib/api';
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   LayoutDashboard,
   Shield,
@@ -59,6 +59,7 @@ import { StockDocument, Offer, MerchantSummary, isTradeOrganization } from '@yaq
 import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
 import { MerchantInquiriesInbox } from './components/MerchantInquiriesInbox';
+import { CsvProductImportModal } from './components/CsvProductImportModal';
 const OwnerOnboarding = React.lazy(() => import('./components/OwnerOnboarding').then(m => ({ default: m.OwnerOnboarding })));
 import { ServiceWorkspace } from './components/ServiceWorkspace';
 
@@ -403,10 +404,10 @@ export function MerchantApp() {
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
-  };
+  }, []);
 
   const loadData = async (serviceMode = isServiceOrganization) => {
     if (!currentUser) return;
@@ -3611,35 +3612,17 @@ export function MerchantApp() {
       </Modal>
 
       {/* 8. CSV IMPORT MODAL */}
-      <Modal
+      <CsvProductImportModal
         isOpen={isImportModalOpen}
         onClose={() => setIsImportModalOpen(false)}
-        title="CSV orqali tovar yuklash"
-        footer={
-          <Button
-            variant="primary"
-            fullWidth
-            onClick={() => {
-              showToast('CSV fayl tekshirildi va tovarlar muvaffaqiyatli import qilindi');
-              setIsImportModalOpen(false);
-            }}
-          >
-            Tekshirish va yuklash
-          </Button>
-        }
-      >
-        <div className="flex flex-col gap-3 text-xs text-[#566A63] dark:text-[#8B9E95]">
-          <p>CSV fayl ustunlari: SHTRIX_KOD, NOMI, CHAKANA_NARX, QOLDIQ</p>
-          <input
-            type="file"
-            accept=".csv"
-            className="p-3 border border-[#DCE5DF] dark:border-[#2A3F36] rounded-xl bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] text-xs"
-          />
-          <div className="bg-[#FFF2DC] dark:bg-[#382613] text-[#8A4B08] dark:text-[#FBBF24] p-3 rounded-xl">
-            Diqqat: Formulalar xavfsizligi va qoldiq hisobi tekshiriladi.
-          </div>
-        </div>
-      </Modal>
+        storeId={branches[0]?.id || ''}
+        branches={branches}
+        existingOffers={offers}
+        onSuccess={() => {
+          loadData();
+        }}
+        onShowToast={showToast}
+      />
 
       {/* 9. ADD BRANCH MODAL (+ Yangi filial) */}
       <Modal

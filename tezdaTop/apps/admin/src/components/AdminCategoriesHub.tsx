@@ -111,6 +111,20 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
   const [productSearchQuery, setProductSearchQuery] = useState<string>('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState<string>('ALL');
   const [productTypeFilter, setProductTypeFilter] = useState<'ALL' | 'PRODUCT' | 'SERVICE'>('ALL');
+  // Pending refresh notification after edit or delete (allows manual refresh on user request)
+  const [pendingRefreshNotice, setPendingRefreshNotice] = useState<{ message: string } | null>(null);
+
+  // Stable toast notifier to prevent cascading re-fetches
+  const onShowToastRef = useRef(onShowToast);
+  useEffect(() => {
+    onShowToastRef.current = onShowToast;
+  }, [onShowToast]);
+
+  const notifyToast = useCallback((msg: string) => {
+    if (onShowToastRef.current) {
+      onShowToastRef.current(msg);
+    }
+  }, []);
 
   // Rename Category Modal state
   const [isRenameModalOpen, setIsRenameModalOpen] = useState<boolean>(false);
@@ -167,14 +181,14 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
         const data = await res.json();
         setCategories(data.items || data.categoryStats || []);
       } else {
-        onShowToast('Kategoriyalarni yuklab bo‘lmadi');
+        notifyToast('Kategoriyalarni yuklab bo‘lmadi');
       }
     } catch {
-      onShowToast('Server bilan aloqa xatosi');
+      notifyToast('Server bilan aloqa xatosi');
     } finally {
       setIsLoadingCategories(false);
     }
-  }, [onShowToast]);
+  }, [notifyToast]);
 
   // Fetch Products from server
   const fetchProducts = useCallback(async (category?: string, query?: string) => {
@@ -189,27 +203,33 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
         const data = await res.json();
         setProducts(data.items || []);
       } else {
-        onShowToast('Mahsulotlarni yuklab bo‘lmadi');
+        notifyToast('Mahsulotlarni yuklab bo‘lmadi');
       }
     } catch {
-      onShowToast('Server bilan aloqa xatosi');
+      notifyToast('Server bilan aloqa xatosi');
     } finally {
       setIsLoadingProducts(false);
     }
-  }, [onShowToast]);
+  }, [notifyToast]);
 
   useEffect(() => {
     fetchCategories();
   }, [fetchCategories]);
 
+  // Initial load when tab switched to products or category filter changed
   useEffect(() => {
     if (activeTab === 'products') {
       fetchProducts(selectedCategoryFilter, productSearchQuery);
     }
   }, [activeTab, selectedCategoryFilter, fetchProducts]);
 
-  // Handle Debounced Search for Products
+  // Handle Debounced Search for Products (only when search query changes)
+  const isInitialSearchRender = useRef(true);
   useEffect(() => {
+    if (isInitialSearchRender.current) {
+      isInitialSearchRender.current = false;
+      return;
+    }
     if (activeTab !== 'products') return;
     const timer = setTimeout(() => {
       fetchProducts(selectedCategoryFilter, productSearchQuery);
@@ -275,7 +295,7 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
   const handleSubmitRename = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!categoryToRename || !newCategoryName.trim()) {
-      onShowToast('Yangi kategoriya nomini kiriting');
+      notifyToast('Yangi kategoriya nomini kiriting');
       return;
     }
     if (newCategoryName.trim().toLowerCase() === categoryToRename.name.toLowerCase()) {
@@ -296,7 +316,7 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
 
       if (res.ok) {
         const data = await res.json();
-        onShowToast(data.message || 'Kategoriya muvaffaqiyatli o‘zgartirildi');
+        notifyToast(data.message || 'Kategoriya muvaffaqiyatli o‘zgartirildi');
         setIsRenameModalOpen(false);
         fetchCategories();
         if (selectedCategoryFilter === categoryToRename.name) {
@@ -305,10 +325,10 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
         fetchProducts(selectedCategoryFilter === categoryToRename.name ? newCategoryName.trim() : selectedCategoryFilter);
       } else {
         const err = await res.json();
-        onShowToast(err.message || 'Xatolik yuz berdi');
+        notifyToast(err.message || 'Xatolik yuz berdi');
       }
     } catch {
-      onShowToast('Server bilan aloqa xatosi');
+      notifyToast('Server bilan aloqa xatosi');
     } finally {
       setIsSubmittingRename(false);
     }
@@ -331,11 +351,11 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
     const finalTarget = isCustomTargetCategory ? targetCategory.trim() : targetCategory;
 
     if (!finalTarget) {
-      onShowToast('Birlashtiriladigan maqsadli kategoriyani tanlang');
+      notifyToast('Birlashtiriladigan maqsadli kategoriyani tanlang');
       return;
     }
     if (finalTarget.toLowerCase() === sourceCategory.name.toLowerCase()) {
-      onShowToast('Manba va maqsadli kategoriya bir xil bo‘lishi mumkin emas');
+      notifyToast('Manba va maqsadli kategoriya bir xil bo‘lishi mumkin emas');
       return;
     }
 
@@ -352,16 +372,16 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
 
       if (res.ok) {
         const data = await res.json();
-        onShowToast(data.message || 'Kategoriyalar muvaffaqiyatli birlashtirildi');
+        notifyToast(data.message || 'Kategoriyalar muvaffaqiyatli birlashtirildi');
         setIsMergeModalOpen(false);
         fetchCategories();
         fetchProducts(selectedCategoryFilter);
       } else {
         const err = await res.json();
-        onShowToast(err.message || 'Xatolik yuz berdi');
+        notifyToast(err.message || 'Xatolik yuz berdi');
       }
     } catch {
-      onShowToast('Server bilan aloqa xatosi');
+      notifyToast('Server bilan aloqa xatosi');
     } finally {
       setIsSubmittingMerge(false);
     }
@@ -395,7 +415,7 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
 
       if (res.ok) {
         const data = await res.json();
-        onShowToast(data.message || `"${categoryToDelete.name}" kategoriyasi muvaffaqiyatli o‘chirildi`);
+        notifyToast(data.message || `"${categoryToDelete.name}" kategoriyasi muvaffaqiyatli o‘chirildi`);
         setIsDeleteCategoryModalOpen(false);
         setCategoryToDelete(null);
         fetchCategories();
@@ -405,10 +425,10 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
         fetchProducts('ALL');
       } else {
         const err = await res.json();
-        onShowToast(err.message || 'Xatolik yuz berdi');
+        notifyToast(err.message || 'Xatolik yuz berdi');
       }
     } catch {
-      onShowToast('Server bilan aloqa xatosi');
+      notifyToast('Server bilan aloqa xatosi');
     } finally {
       setIsSubmittingDelete(false);
     }
@@ -432,15 +452,18 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
       });
 
       if (res.ok) {
-        onShowToast('Tovar/xizmat muvaffaqiyatli o‘chirildi');
+        notifyToast('Tovar/xizmat muvaffaqiyatli o‘chirildi');
+        // Update local state without automatic page reload/server re-fetch
         setProducts(prev => prev.filter(p => p.id !== item.id));
-        fetchCategories();
+        setPendingRefreshNotice({
+          message: `"${title}" tovari o‘chirildi. Serverdagi to‘liq ro‘yxat va statistikalarni yangilashni xohlaysizmi?`
+        });
       } else {
         const err = await res.json();
-        onShowToast(err.message || 'O‘chirishda xatolik yuz berdi');
+        notifyToast(err.message || 'O‘chirishda xatolik yuz berdi');
       }
     } catch {
-      onShowToast('Server bilan aloqa xatosi');
+      notifyToast('Server bilan aloqa xatosi');
     }
   };
 
@@ -487,7 +510,7 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
       };
       reader.readAsDataURL(file);
     } catch {
-      onShowToast('Rasm yuklashda xatolik yuz berdi');
+      notifyToast('Rasm yuklashda xatolik yuz berdi');
     }
   };
 
@@ -522,11 +545,11 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
     if (!editingProduct) return;
 
     if (!editProductForm.title.trim()) {
-      onShowToast('Mahsulot yoki xizmat nomini kiriting');
+      notifyToast('Mahsulot yoki xizmat nomini kiriting');
       return;
     }
     if (!editProductForm.price || isNaN(parseFloat(editProductForm.price))) {
-      onShowToast('Yaroqli narx kiriting');
+      notifyToast('Yaroqli narx kiriting');
       return;
     }
 
@@ -554,11 +577,10 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
       });
 
       if (res.ok) {
-        const data = await res.json();
-        onShowToast('Tovar/xizmat ma’lumotlari va rasmi muvaffaqiyatli yangilandi!');
+        notifyToast('Tovar/xizmat ma’lumotlari va rasmi muvaffaqiyatli yangilandi!');
         setIsEditProductModalOpen(false);
 
-        // Update local products list immediately
+        // Update local products list immediately without reloading from server
         setProducts(prev => prev.map(p => {
           if (p.id === editingProduct.id) {
             return {
@@ -581,14 +603,16 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
           return p;
         }));
 
-        // Refresh category stats in background
-        fetchCategories();
+        // Propose refresh to user instead of reloading by itself
+        setPendingRefreshNotice({
+          message: `"${editProductForm.title.trim()}" tovari ma’lumotlari saqlandi. Serverdagi to‘liq ro‘yxat va statistikalarni yangilashni xohlaysizmi?`
+        });
       } else {
         const err = await res.json();
-        onShowToast(err.message || 'Xatolik yuz berdi');
+        notifyToast(err.message || 'Xatolik yuz berdi');
       }
     } catch {
-      onShowToast('Server bilan aloqa xatosi');
+      notifyToast('Server bilan aloqa xatosi');
     } finally {
       setIsSubmittingProductEdit(false);
     }
@@ -901,6 +925,48 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
       {/* TAB 2: PRODUCTS & SERVICES LIST & EDITOR */}
       {activeTab === 'products' && (
         <div className="space-y-3.5 sm:space-y-4">
+          {/* Refresh Suggestion Banner */}
+          {pendingRefreshNotice && (
+            <div className="bg-emerald-50 dark:bg-[#16291F] border border-emerald-300 dark:border-emerald-800 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-[#1E382A] flex items-center justify-center text-emerald-700 dark:text-[#4ADE80] shrink-0">
+                  <CheckCircle2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-xs sm:text-sm font-bold text-[#172C28] dark:text-[#E8F2EC]">
+                    {pendingRefreshNotice.message}
+                  </p>
+                  <p className="text-[11px] sm:text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                    O‘zgarishlar lokal ro‘yxatda aks ettirildi. Sahifa o‘zidan-o‘zi yangilanmaydi.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPendingRefreshNotice(null);
+                    fetchProducts(selectedCategoryFilter, productSearchQuery);
+                    fetchCategories();
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-[#116B50] hover:bg-[#0d553f] text-white text-xs font-bold flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isLoadingProducts ? 'animate-spin' : ''}`} />
+                  <span>Yangilash</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPendingRefreshNotice(null)}
+                  className="px-3 py-2 rounded-xl border border-gray-300 dark:border-gray-700 text-[#566A63] dark:text-[#8B9E95] hover:bg-gray-100 dark:hover:bg-[#1C2C23] text-xs font-semibold transition cursor-pointer flex items-center gap-1"
+                  title="Yangilamasdan davom etish"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span>Yopish</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Filter Bar */}
           <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-3 sm:p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-2.5 sm:gap-3">
             {/* Search */}

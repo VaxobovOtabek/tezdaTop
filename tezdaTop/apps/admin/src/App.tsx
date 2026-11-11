@@ -484,10 +484,10 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
-  };
+  }, []);
 
   const [debouncedOrgSearch, setDebouncedOrgSearch] = useState(orgSearch);
   useEffect(() => {
@@ -1781,7 +1781,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
           {activeTab === 'categories' && currentUser?.role !== 'MODERATOR' && (
             <AdminCategoriesHub
               isDarkMode={isDarkMode}
-              onShowToast={(msg: string) => showToast(msg)}
+              onShowToast={showToast}
             />
           )}
 

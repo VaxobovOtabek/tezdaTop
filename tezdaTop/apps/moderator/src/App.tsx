@@ -448,10 +448,10 @@ export function ModeratorApp() {
 
   // Toast
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
-  };
+  }, []);
 
   const [debouncedOrgSearch, setDebouncedOrgSearch] = useState(orgSearch);
   useEffect(() => {

@@ -2629,7 +2629,8 @@ app.use('/api/v1/merchant', (req, res, next) => {
   const store = requestedId ? stores.find(item => item.id === requestedId) : stores[0];
   if (!store) return res.status(403).json({ message: 'Bu tashkilotga kirish huquqingiz yo‘q.' });
   const resourceId = req.path.split('/')[2];
-  const collection = req.path.startsWith('/offers/') ? db.offers : req.path.startsWith('/inbox/') ? db.corrections : req.path.startsWith('/inquiries/') ? db.inquiries : null;
+  const isSpecialOffersSubpath = req.path.startsWith('/offers/batch') || req.path.startsWith('/offers/import');
+  const collection = (req.path.startsWith('/offers/') && !isSpecialOffersSubpath) ? db.offers : req.path.startsWith('/inbox/') ? db.corrections : req.path.startsWith('/inquiries/') ? db.inquiries : null;
   if (collection && resourceId) {
     const resource = collection.get(resourceId);
     if (!resource || !stores.some(item => item.id === resource.storeId)) return res.status(403).json({ message: 'Bu yozuvga kirish huquqingiz yo‘q.' });
@@ -2781,6 +2782,187 @@ app.post('/api/v1/merchant/offers', (req, res) => {
   });
 
   res.status(201).json({ offer });
+});
+
+// POST batch import merchant offers (CSV / bulk)
+app.post('/api/v1/merchant/offers/batch', (req, res) => {
+  const { storeId, items } = req.body;
+  const targetStoreId = storeId || res.locals.store?.id || SEED_IDS.navbahorStoreId;
+
+  // Verify filial permission
+  if (res.locals.stores && !res.locals.stores.some((s: any) => s.id === targetStoreId)) {
+    return res.status(403).json({ success: false, code: 'FORBIDDEN', message: 'Ushbu filial/do‘konga tovar yuklash huquqingiz yo‘q.' });
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ success: false, code: 'INVALID_DATA', message: 'Import qilish uchun tovarlar ro‘yxati yuborilmadi' });
+  }
+
+  // Pre-validation: ensure all items are valid before committing anything to db
+  const rowErrors: Array<{ row?: number; barcode?: string; message: string }> = [];
+  const seenBarcodes = new Set<string>();
+
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
+    const rowNum = item.rowNumber || (i + 2);
+    const barcode = item.barcode ? String(item.barcode).trim() : '';
+    const title = item.title ? String(item.title).trim() : '';
+    const rawPrice = item.price;
+    const rawStock = item.stockOnHand;
+
+    const price = typeof rawPrice === 'number' ? rawPrice : parseFloat(rawPrice);
+    const stock = typeof rawStock === 'number' ? rawStock : parseInt(rawStock, 10);
+
+    if (!barcode) {
+      rowErrors.push({ row: rowNum, message: 'Shtrix-kod kiritilmagan' });
+    } else if (seenBarcodes.has(barcode.toLowerCase())) {
+      rowErrors.push({ row: rowNum, barcode, message: `Shtrix-kod (${barcode}) faylda takrorlangan` });
+    } else {
+      seenBarcodes.add(barcode.toLowerCase());
+    }
+
+    if (!title) {
+      rowErrors.push({ row: rowNum, barcode, message: 'Tovar nomi kiritilmagan' });
+    }
+
+    if (isNaN(price) || price <= 0) {
+      rowErrors.push({ row: rowNum, barcode, message: 'Chakana narx 0 dan katta musbat son bo‘lishi kerak' });
+    }
+
+    if (isNaN(stock) || stock < 0 || !Number.isInteger(stock)) {
+      rowErrors.push({ row: rowNum, barcode, message: 'Qoldiq 0 yoki undan katta butun son bo‘lishi kerak' });
+    }
+  }
+
+  // If any row fails validation, reject atomically to prevent partial/corrupted data
+  if (rowErrors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      code: 'VALIDATION_FAILED',
+      message: 'Fayldagi qatorlarda xatolik aniqlandi. Ma’lumotlar bazaga saqlanmadi.',
+      errors: rowErrors
+    });
+  }
+
+  // Atomic database update
+  let createdCount = 0;
+  let updatedCount = 0;
+  const processedOfferIds: string[] = [];
+
+  const storeOffers = Array.from(db.offers.values()).filter(o => o.storeId === targetStoreId);
+  const offerByBarcode = new Map<string, Offer>();
+  for (const o of storeOffers) {
+    if (o.variant?.barcode) {
+      offerByBarcode.set(o.variant.barcode.trim().toLowerCase(), o);
+    }
+  }
+
+  for (const item of items) {
+    const barcode = String(item.barcode).trim();
+    const title = String(item.title).trim();
+    const priceDec = new Decimal(item.price).toFixed(2);
+    const stockInt = parseInt(item.stockOnHand, 10);
+    const initialCost = item.costPrice ? new Decimal(item.costPrice) : new Decimal(item.price).times(0.75);
+
+    const existingOffer = offerByBarcode.get(barcode.toLowerCase());
+
+    if (existingOffer) {
+      // Update existing offer
+      existingOffer.price = priceDec;
+      existingOffer.stockOnHand = stockInt;
+      existingOffer.status = stockInt > 0 ? 'ACTIVE' : 'OUT_OF_STOCK';
+      existingOffer.priceUpdatedAt = new Date().toISOString();
+      existingOffer.stockVerifiedAt = new Date().toISOString();
+      existingOffer.version++;
+
+      // Update variant title & aliases
+      const variant = db.variants.get(existingOffer.variantId);
+      if (variant) {
+        variant.title = title;
+        if (!variant.aliases) variant.aliases = [];
+        if (!variant.aliases.includes(title.toLowerCase())) {
+          variant.aliases.push(title.toLowerCase());
+        }
+      }
+
+      // Update inventory balance
+      const balance = db.balances.get(existingOffer.id);
+      if (balance) {
+        balance.onHand = new Decimal(stockInt);
+        balance.lastVerifiedAt = new Date();
+        balance.version++;
+      } else {
+        db.balances.set(existingOffer.id, {
+          offerId: existingOffer.id,
+          onHand: new Decimal(stockInt),
+          averageUnitCost: initialCost,
+          lastVerifiedAt: new Date(),
+          version: 1
+        });
+      }
+
+      updatedCount++;
+      processedOfferIds.push(existingOffer.id);
+    } else {
+      // Create new variant & offer
+      const variantId = uuidv4();
+      const offerId = uuidv4();
+
+      const variant: Variant & { aliases?: string[] } = {
+        id: variantId,
+        productId: uuidv4(),
+        title,
+        brand: item.brand?.trim() || 'Boshqa',
+        category: item.category?.trim() || 'Umumiy',
+        packSize: '1 dona',
+        packUnit: item.packUnit?.trim() || 'dona',
+        barcode,
+        sku: `SKU-${Math.floor(100 + Math.random() * 900)}`,
+        photoUrl: item.imageUrl || '',
+        aliases: [title.toLowerCase()]
+      };
+
+      db.variants.set(variantId, variant);
+
+      const newOffer: Offer = {
+        id: offerId,
+        storeId: targetStoreId,
+        variantId,
+        variant,
+        price: priceDec,
+        minOrderQuantity: 1,
+        stockOnHand: stockInt,
+        stockVerifiedAt: new Date().toISOString(),
+        priceUpdatedAt: new Date().toISOString(),
+        freshness: 'NEW',
+        status: stockInt > 0 ? 'ACTIVE' : 'OUT_OF_STOCK',
+        wholesaleTiers: [],
+        version: 1
+      };
+
+      db.offers.set(offerId, newOffer);
+      db.balances.set(offerId, {
+        offerId,
+        onHand: new Decimal(stockInt),
+        averageUnitCost: initialCost,
+        lastVerifiedAt: new Date(),
+        version: 1
+      });
+
+      offerByBarcode.set(barcode.toLowerCase(), newOffer);
+      createdCount++;
+      processedOfferIds.push(offerId);
+    }
+  }
+
+  res.status(200).json({
+    success: true,
+    message: `${items.length} ta tovar muvaffaqiyatli import qilindi (${createdCount} ta yangi qo‘shildi, ${updatedCount} ta mavjud tovar yangilandi).`,
+    total: items.length,
+    createdCount,
+    updatedCount,
+    processedOfferIds
+  });
 });
 
 // DELETE merchant offer
