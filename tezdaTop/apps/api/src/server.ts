@@ -15,7 +15,7 @@ import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
 import Decimal from 'decimal.js';
 import { db } from './db/in-memory-db.js';
-import { seedDatabase, SEED_IDS } from './db/seed.js';
+import { seedDatabase, bootstrapSirdaryoPilotData, SEED_IDS } from './db/seed.js';
 import { calculateDistanceMetres } from './db/spatial.js';
 import { searchProducts, getMarkers, checkStoreIsOpenNow } from './services/search.service.js';
 import { routingService } from './services/routing.service.js';
@@ -69,9 +69,23 @@ export async function ensureDbInitialized() {
               db.saveToFile();
             }
           }
+          // Pilot aptekalar (Sirdaryo / Guliston) deployda ko'rinishi uchun avtomatik qo'shiladi va Supabase'ga sinxronlanadi
+          if (process.env.NODE_ENV !== 'test') {
+            try {
+              await bootstrapSirdaryoPilotData(db);
+            } catch (bootErr: any) {
+              console.warn('[Pilot Bootstrap Warning]', bootErr);
+            }
+          }
         } else if (!localLoaded && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_SEED === 'true') {
           await seedDatabase();
           db.saveToFile();
+        } else if (process.env.NODE_ENV !== 'test') {
+          try {
+            await bootstrapSirdaryoPilotData(db);
+          } catch (bootErr: any) {
+            console.warn('[Pilot Bootstrap Warning]', bootErr);
+          }
         }
 
         isDbReady = true;
