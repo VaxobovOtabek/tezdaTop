@@ -4,6 +4,7 @@ import { useTranslation } from '@yaqintop/ui';
 
 interface SearchToolbarProps {
   selectedLocationName: string;
+  isRegionChosen?: boolean;
   onOpenLocationPicker: () => void;
   searchQuery: string;
   onSearchQueryChange: (q: string) => void;
@@ -21,6 +22,7 @@ interface SearchToolbarProps {
 
 export const SearchToolbar: React.FC<SearchToolbarProps> = ({
   selectedLocationName,
+  isRegionChosen = true,
   onOpenLocationPicker,
   searchQuery,
   onSearchQueryChange,
@@ -84,19 +86,29 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
       <button
         type="button"
         onClick={onOpenLocationPicker}
-        className="flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl border border-[#CBD5E1] dark:border-[#273B32] bg-[#F8FAFC] dark:bg-[#16241E] hover:border-[#087F5B] hover:bg-white dark:hover:bg-[#1E3328] transition cursor-pointer select-none shrink-0 shadow-2xs"
+        className={`flex items-center gap-1 sm:gap-1.5 px-1.5 sm:px-2.5 py-1 sm:py-1.5 rounded-xl transition cursor-pointer select-none shrink-0 ${
+          !isRegionChosen
+            ? 'border-2 border-red-500 bg-red-50 dark:bg-red-950/60 ring-2 ring-red-400 animate-pulse text-red-900 shadow-md'
+            : 'border border-[#CBD5E1] dark:border-[#273B32] bg-[#F8FAFC] dark:bg-[#16241E] hover:border-[#087F5B] hover:bg-white dark:hover:bg-[#1E3328] shadow-2xs'
+        }`}
         title="Hududni o'zgartirish"
       >
-        <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-[#E8F5EE] dark:bg-[#1E362A] flex items-center justify-center text-[#087F5B] dark:text-[#4ADE80] shrink-0">
+        <div className={`w-6 h-6 sm:w-8 sm:h-8 rounded-full flex items-center justify-center shrink-0 ${
+          !isRegionChosen
+            ? 'bg-red-100 dark:bg-red-900/60 text-red-600 dark:text-red-200'
+            : 'bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80]'
+        }`}>
           <MapPin className="w-3 h-3 sm:w-4 sm:h-4" />
         </div>
         <div className="flex flex-col text-left">
-          <span className="text-[10px] font-semibold text-[#64748B] dark:text-[#8B9E95] leading-tight hidden 2xl:inline">
-            Qayerdan qidiramiz?
+          <span className={`text-[10px] font-semibold leading-tight hidden 2xl:inline ${!isRegionChosen ? 'text-red-600 font-bold' : 'text-[#64748B] dark:text-[#8B9E95]'}`}>
+            {!isRegionChosen ? 'Viloyat & Tuman' : 'Qayerdan qidiramiz?'}
           </span>
           <div className="flex items-center gap-0.5 sm:gap-1 font-bold text-xs sm:text-sm text-[#172B26] dark:text-white leading-tight whitespace-nowrap">
-            <span className="max-w-[42px] min-[380px]:max-w-[58px] sm:max-w-[80px] xl:max-w-[110px] truncate">{selectedLocationName.split(',')[0]}</span>
-            <ChevronDown className="w-3 h-3 text-[#64748B] dark:text-[#8B9E95] shrink-0" />
+            <span className={`max-w-[42px] min-[380px]:max-w-[58px] sm:max-w-[80px] xl:max-w-[110px] truncate ${!isRegionChosen ? 'text-red-700 dark:text-red-300 font-black' : ''}`}>
+              {!isRegionChosen ? 'Tanlang!' : selectedLocationName.split(',')[0]}
+            </span>
+            <ChevronDown className={`w-3 h-3 shrink-0 ${!isRegionChosen ? 'text-red-600 dark:text-red-400' : 'text-[#64748B] dark:text-[#8B9E95]'}`} />
           </div>
         </div>
       </button>

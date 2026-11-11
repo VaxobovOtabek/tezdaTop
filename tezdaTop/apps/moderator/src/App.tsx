@@ -1,9 +1,9 @@
 import { OrganizationPhotoField, OrganizationScheduleFields, OrganizationOwnerFields, buildOrganizationHours } from '@yaqintop/ui';
 import type { EnrichedStore } from './components/AdminMapHub';
-import { apiFetch, getSessionToken, adminResourcePlan, AdminResourceCache } from '@yaqintop/ui';
+import { apiFetch, getSessionToken, adminResourcePlan, AdminResourceCache, REGION_NAMES, getDistrictsForRegion } from '@yaqintop/ui';
 import { MaskedUserPassword } from '@yaqintop/ui';
 import { useCachedSession, clearSessionCache, TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   TrendingUp,
   Truck,
@@ -230,10 +230,46 @@ export function ModeratorApp() {
   const ORG_PAGE_SIZE = 20;
 
   const [storeSearch, setStoreSearch] = useState('');
-  const [orgRegionFilter, setOrgRegionFilter] = useState('Barcha viloyatlar');
-  const [orgCityFilter, setOrgCityFilter] = useState('Barcha tumanlar');
+  const [orgRegionFilter, setOrgRegionFilter] = useState(() => {
+    try {
+      return localStorage.getItem('yaqintop_moderator_region') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [orgCityFilter, setOrgCityFilter] = useState(() => {
+    try {
+      return localStorage.getItem('yaqintop_moderator_city') || '';
+    } catch {
+      return '';
+    }
+  });
   const [orgDistrictFilter, setOrgDistrictFilter] = useState('Barcha mahallalar');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PENDING' | 'SUSPENDED'>('ALL');
+
+  const isRegionChosen = Boolean(orgRegionFilter && orgRegionFilter !== 'Barcha viloyatlar');
+  const availableDistricts: string[] = useMemo(() => {
+    if (!isRegionChosen) return [];
+    return getDistrictsForRegion(orgRegionFilter);
+  }, [orgRegionFilter, isRegionChosen]);
+
+  const handleRegionFilterChange = (val: string) => {
+    setOrgRegionFilter(val);
+    setOrgCityFilter('');
+    setOrgPage(1);
+    try {
+      localStorage.setItem('yaqintop_moderator_region', val);
+      localStorage.setItem('yaqintop_moderator_city', '');
+    } catch {}
+  };
+
+  const handleCityFilterChange = (val: string) => {
+    setOrgCityFilter(val);
+    setOrgPage(1);
+    try {
+      localStorage.setItem('yaqintop_moderator_city', val);
+    } catch {}
+  };
 
   // Search in Users tab
   const [userSearch, setUserSearch] = useState('');
@@ -1312,14 +1348,17 @@ export function ModeratorApp() {
       (s.inn && s.inn.includes(q)) ||
       (s.organizationName && s.organizationName.toLowerCase().includes(q));
 
-    const matchRegion =
-      orgRegionFilter === 'Barcha viloyatlar' ||
+    const matchRegion = isRegionChosen && (
       s.region === orgRegionFilter ||
-      (orgRegionFilter === 'Toshkent shahri' && (!s.region || s.region.includes('Toshkent')));
+      (orgRegionFilter === 'Toshkent shahri' && (!s.region || s.region.includes('Toshkent'))) ||
+      (s.address && s.address.toLowerCase().includes(orgRegionFilter.toLowerCase().replace(/\s+(viloyati|respublikasi)$/i, '')))
+    );
 
     const matchCity =
+      !orgCityFilter ||
       orgCityFilter === 'Barcha tumanlar' ||
       s.city === orgCityFilter ||
+      (s.district && s.district.toLowerCase().includes(orgCityFilter.toLowerCase())) ||
       s.address.toLowerCase().includes(orgCityFilter.toLowerCase());
 
     const matchDistrict =
@@ -2162,38 +2201,74 @@ export function ModeratorApp() {
                   </div>
                 </div>
 
+                {/* Agar viloyat tanlanmagan bo'lsa, qizilda ko'rsatuvchi ogohlantirish banneri */}
+                {!isRegionChosen && (
+                  <div className="p-3.5 mb-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border-2 border-red-500 text-red-700 dark:text-red-300 flex items-center justify-between gap-3 shadow-md animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 font-bold text-sm shadow-xs">
+                        ⚠️
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-black text-xs text-red-800 dark:text-red-200 uppercase tracking-wide">
+                            {t('Iltimos, viloyat va shahar/tumanni tanlang!')}
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black uppercase">
+                            {t('Tanlang')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-red-700 dark:text-red-300 mt-0.5">
+                          {t('Tizimga juda ko‘p ma’lumot (aptekalar) kiritilgan. Ma’lumotlar bazasiga (Supabase) katta yuklama tushmasligi uchun barcha tashkilotlar birdaniga yuklanmaydi. Iltimos, o‘zingizga kerakli viloyat va tumanni belgilang.')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* 2-Qator: Viloyat, Shahar/Tuman va Holat (Status) filtrlari */}
                 <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C]">
                   <div className="flex items-center gap-2 flex-wrap flex-1 text-xs">
-                    {/* Viloyat Filter */}
-                    <div className="min-w-[170px] flex-1 sm:flex-initial">
+                    {/* Viloyat Filter - Tanlanmagan bo'lsa QIZILDA ko'rsatiladi */}
+                    <div className="min-w-[190px] flex-1 sm:flex-initial relative">
                       <select
                         value={orgRegionFilter}
-                        onChange={(e) => {
-                          setOrgRegionFilter(e.target.value);
-                          setOrgPage(1);
-                        }}
-                        className="w-full p-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                        onChange={(e) => handleRegionFilterChange(e.target.value)}
+                        className={`w-full p-2.5 text-xs font-bold rounded-xl transition-all ${
+                          !isRegionChosen
+                            ? 'border-2 border-red-500 bg-red-50 dark:bg-red-950/60 text-red-900 dark:text-red-100 ring-2 ring-red-400 focus:outline-none focus:border-red-600 animate-pulse'
+                            : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:border-[#116B50]'
+                        }`}
                       >
-                        {REGION_OPTIONS.map((reg) => (
+                        <option value="">🔴 {t('Viloyatni tanlang (Majburiy)')}</option>
+                        {REGION_NAMES.map((reg) => (
                           <option key={reg} value={reg}>
                             {reg}
                           </option>
                         ))}
                       </select>
+                      {!isRegionChosen && (
+                        <span className="absolute -top-2 right-2 px-1.5 py-0.2 rounded bg-red-600 text-white text-[9px] font-black uppercase tracking-wider animate-bounce">
+                          {t('Tanlang!')}
+                        </span>
+                      )}
                     </div>
 
                     {/* Shahar / Tuman Filter */}
-                    <div className="min-w-[150px] flex-1 sm:flex-initial">
+                    <div className="min-w-[170px] flex-1 sm:flex-initial">
                       <select
                         value={orgCityFilter}
-                        onChange={(e) => {
-                          setOrgCityFilter(e.target.value);
-                          setOrgPage(1);
-                        }}
-                        className="w-full p-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                        disabled={!isRegionChosen}
+                        onChange={(e) => handleCityFilterChange(e.target.value)}
+                        className={`w-full p-2.5 text-xs font-bold rounded-xl transition-all ${
+                          !isRegionChosen
+                            ? 'opacity-50 cursor-not-allowed border border-[#DCE5DF] dark:border-[#273B32] bg-gray-100 dark:bg-gray-800 text-gray-500'
+                            : !orgCityFilter
+                            ? 'border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-100'
+                            : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:border-[#116B50]'
+                        }`}
                       >
-                        {CITY_OPTIONS.map((c) => (
+                        <option value="">{isRegionChosen ? t('Barcha tumanlar') : t('Avval viloyatni tanlang')}</option>
+                        {availableDistricts.map((c) => (
                           <option key={c} value={c}>
                             {c}
                           </option>
@@ -2202,17 +2277,15 @@ export function ModeratorApp() {
                     </div>
 
                     {/* Reset button if filters active */}
-                    {(orgRegionFilter !== 'Barcha viloyatlar' || orgCityFilter !== 'Barcha tumanlar') && (
+                    {(isRegionChosen || orgCityFilter) && (
                       <button
                         type="button"
                         onClick={() => {
-                          setOrgRegionFilter('Barcha viloyatlar');
-                          setOrgCityFilter('Barcha tumanlar');
-                          setOrgPage(1);
+                          handleRegionFilterChange('');
                         }}
-                        className="text-xs text-[#116B50] dark:text-[#4ADE80] font-semibold hover:underline px-1.5 py-1"
+                        className="text-xs text-red-600 dark:text-red-400 font-semibold hover:underline px-1.5 py-1"
                       >
-                        Filtrni tozalash
+                        {t('Filtrni tozalash')}
                       </button>
                     )}
                   </div>
@@ -2267,6 +2340,22 @@ export function ModeratorApp() {
 
               {/* TAB CONTENT: ORGANIZATIONS LIST (TABLE + PAGINATION 20) */}
               {activeOrgSubTab === 'organizations' && (
+                !isRegionChosen ? (
+                  <div className="p-12 text-center rounded-3xl border-2 border-dashed border-red-400 bg-red-50/50 dark:bg-red-950/20 my-4 shadow-sm">
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center text-3xl">
+                      📍
+                    </div>
+                    <h3 className="text-base font-black text-red-800 dark:text-red-200 mb-1">
+                      {t('Viloyat va shahar / tuman tanlanmagan')}
+                    </h3>
+                    <p className="text-xs text-red-700 dark:text-red-300 max-w-md mx-auto mb-4">
+                      {t('Ma’lumotlar bazasini (Supabase) ortiqcha yuklamaslik uchun barcha tashkilotlar birdaniga yuklanmaydi. Iltimos, yuqoridagi filtrdan viloyat va tumaningizni belgilang.')}
+                    </p>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white font-extrabold text-xs shadow-md animate-bounce">
+                      <span>👆 {t('Yuqoridan Viloyatni tanlang')}</span>
+                    </div>
+                  </div>
+                ) : (
                 <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl shadow-sm overflow-hidden flex flex-col">
                   {/* Table view */}
                   <div className="overflow-x-auto">
@@ -2485,7 +2574,8 @@ export function ModeratorApp() {
                     </div>
                   </div>
                 </div>
-              )}
+              )
+            )}
 
               {/* TAB CONTENT: STORES (FILIALLAR) */}
               {activeOrgSubTab === 'stores' && (
@@ -2506,28 +2596,44 @@ export function ModeratorApp() {
                       </div>
 
                       {/* Viloyat Filter */}
-                      <div>
+                      <div className="relative">
                         <select
                           value={orgRegionFilter}
-                          onChange={(e) => setOrgRegionFilter(e.target.value)}
-                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                          onChange={(e) => handleRegionFilterChange(e.target.value)}
+                          className={`w-full p-2.5 rounded-xl text-xs font-bold transition-all ${
+                            !isRegionChosen
+                              ? 'border-2 border-red-500 bg-red-50 dark:bg-red-950/60 text-red-900 dark:text-red-100 ring-2 ring-red-400 animate-pulse'
+                              : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+                          }`}
                         >
-                          {REGION_OPTIONS.map((reg) => (
+                          <option value="">🔴 {t('Viloyatni tanlang (Majburiy)')}</option>
+                          {REGION_NAMES.map((reg) => (
                             <option key={reg} value={reg}>
                               {reg}
                             </option>
                           ))}
                         </select>
+                        {!isRegionChosen && (
+                          <span className="absolute -top-2 right-2 px-1.5 py-0.2 rounded bg-red-600 text-white text-[9px] font-black uppercase tracking-wider animate-bounce">
+                            {t('Tanlang!')}
+                          </span>
+                        )}
                       </div>
 
                       {/* Tuman/Shahar Filter */}
                       <div>
                         <select
                           value={orgCityFilter}
-                          onChange={(e) => setOrgCityFilter(e.target.value)}
-                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                          disabled={!isRegionChosen}
+                          onChange={(e) => handleCityFilterChange(e.target.value)}
+                          className={`w-full p-2.5 rounded-xl text-xs font-bold transition-all ${
+                            !isRegionChosen
+                              ? 'opacity-50 cursor-not-allowed border border-[#DCE5DF] dark:border-[#273B32] bg-gray-100 dark:bg-gray-800'
+                              : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+                          }`}
                         >
-                          {['Barcha tumanlar', 'Yunusobod', 'Mirobod', 'Chilonzor', 'Shayxontohur', 'Yakkasaroy', 'Mirzo Ulug‘bek', 'Olmazor', 'Samarqand shahri'].map((c) => (
+                          <option value="">{isRegionChosen ? t('Barcha tumanlar') : t('Avval viloyatni tanlang')}</option>
+                          {availableDistricts.map((c) => (
                             <option key={c} value={c}>
                               {c}
                             </option>
@@ -2540,7 +2646,7 @@ export function ModeratorApp() {
                         <select
                           value={orgDistrictFilter}
                           onChange={(e) => setOrgDistrictFilter(e.target.value)}
-                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                          className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
                         >
                           {['Barcha mahallalar', 'Navbahor MFY', 'Oqtepa MFY', 'Do‘stlik MFY', 'Chorsu MFY', 'Bog‘iston MFY', 'Guliston MFY', 'Mustaqillik MFY'].map((d) => (
                             <option key={d} value={d}>
@@ -2598,131 +2704,148 @@ export function ModeratorApp() {
                     </div>
                   </div>
 
-                  {/* Stores Grid / Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {filteredStores.length > 0 ? (
-                      filteredStores.map((st) => (
-                        <div
-                          key={st.id}
-                          className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-4 transition hover:border-[#116B50]/40"
-                        >
-                          <div>
-                            {/* Header & Status */}
-                            <div className="flex items-start justify-between gap-3">
-                              <div className="flex items-center gap-3">
-                                <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] shrink-0 flex items-center justify-center">
-                                  {st.photoUrl ? (
-                                    <img src={st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
-                                  ) : (
-                                    <Building2 className="w-6 h-6 text-[#566A63] dark:text-[#8B9E95]" />
-                                  )}
-                                </div>
-                                <div>
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{st.name}</h3>
-                                    {st.isVerified && (
-                                      <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
-                                        <CheckCircle className="w-3 h-3" /> Tasdiqlangan
-                                      </span>
+                  {!isRegionChosen ? (
+                    <div className="p-12 text-center rounded-3xl border-2 border-dashed border-red-400 bg-red-50/50 dark:bg-red-950/20 my-4 shadow-sm">
+                      <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center text-3xl">
+                        📍
+                      </div>
+                      <h3 className="text-base font-black text-red-800 dark:text-red-200 mb-1">
+                        {t('Viloyat va shahar / tuman tanlanmagan')}
+                      </h3>
+                      <p className="text-xs text-red-700 dark:text-red-300 max-w-md mx-auto mb-4">
+                        {t('Filiallar va do‘konlarni ko‘rish uchun avval yuqoridagi filtrdan viloyat va tumaningizni belgilang.')}
+                      </p>
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white font-extrabold text-xs shadow-md animate-bounce">
+                        <span>👆 {t('Yuqoridan Viloyatni tanlang')}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Stores Grid / Cards */
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {filteredStores.length > 0 ? (
+                        filteredStores.map((st) => (
+                          <div
+                            key={st.id}
+                            className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-4 transition hover:border-[#116B50]/40"
+                          >
+                            <div>
+                              {/* Header & Status */}
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="flex items-center gap-3">
+                                  <div className="w-12 h-12 rounded-xl overflow-hidden bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] shrink-0 flex items-center justify-center">
+                                    {st.photoUrl ? (
+                                      <img src={st.photoUrl} alt={st.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                      <Building2 className="w-6 h-6 text-[#566A63] dark:text-[#8B9E95]" />
                                     )}
                                   </div>
-                                  <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                                    Tashkilot: <strong className="text-[#172C28] dark:text-white">{st.organizationName || 'Bosh tashkilot'}</strong>
-                                    <span className="ml-2 font-mono text-[#116B50] dark:text-[#4ADE80] font-bold">
-                                      STIR (INN): {st.inn || '308123456'}
-                                    </span>
+                                  <div>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                      <h3 className="font-bold text-base text-[#172C28] dark:text-[#E8F2EC]">{st.name}</h3>
+                                      {st.isVerified && (
+                                        <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400">
+                                          <CheckCircle className="w-3 h-3" /> Tasdiqlangan
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                                      Tashkilot: <strong className="text-[#172C28] dark:text-white">{st.organizationName || 'Bosh tashkilot'}</strong>
+                                      <span className="ml-2 font-mono text-[#116B50] dark:text-[#4ADE80] font-bold">
+                                        STIR (INN): {st.inn || '308123456'}
+                                      </span>
+                                    </div>
                                   </div>
                                 </div>
+
+                                <Tag variant={st.status === 'ACTIVE' ? 'default' : st.status === 'PENDING' ? 'warn' : 'error'}>
+                                  {st.status}
+                                </Tag>
                               </div>
 
-                              <Tag variant={st.status === 'ACTIVE' ? 'default' : st.status === 'PENDING' ? 'warn' : 'error'}>
-                                {st.status}
-                              </Tag>
+                              {/* Store Details */}
+                              <div className="mt-4 flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95]">
+                                <div className="flex items-center gap-2">
+                                  <MapPin className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
+                                  <span className="truncate">{st.address} ({st.region || 'Toshkent sh.'}, {st.city || 'Yunusobod'})</span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Phone className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
+                                  <span>{st.phone}</span>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Compass className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
+                                  <span className="font-mono text-[11px] bg-[#F3F6F3] dark:bg-[#1A2822] px-2 py-0.5 rounded text-[#172C28] dark:text-[#E8F2EC]">
+                                    {st.location.lat.toFixed(6)}, {st.location.lng.toFixed(6)}
+                                  </span>
+                                  <a
+                                    href={`https://yaqintop.uz/customer/?lat=${st.location.lat}&lng=${st.location.lng}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold hover:underline flex items-center gap-1"
+                                  >
+                                    Kartada ochish <ExternalLink className="w-3 h-3" />
+                                  </a>
+                                </div>
+
+                                <div className="flex items-center gap-2">
+                                  <Clock className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
+                                  <span>
+                                    Ish vaqti:{' '}
+                                    {st.hours && st.hours.length > 0
+                                      ? `${st.hours[0].openTime} - ${st.hours[0].closeTime}`
+                                      : '08:00 - 22:00'}
+                                  </span>
+                                </div>
+                              </div>
                             </div>
 
-                            {/* Store Details */}
-                            <div className="mt-4 flex flex-col gap-2 text-xs text-[#566A63] dark:text-[#8B9E95]">
-                              <div className="flex items-center gap-2">
-                                <MapPin className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                                <span className="truncate">{st.address} ({st.region || 'Toshkent sh.'}, {st.city || 'Yunusobod'})</span>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <Phone className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                                <span>{st.phone}</span>
-                              </div>
-
-                              <div className="flex items-center gap-2">
-                                <Compass className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                                <span className="font-mono text-[11px] bg-[#F3F6F3] dark:bg-[#1A2822] px-2 py-0.5 rounded text-[#172C28] dark:text-[#E8F2EC]">
-                                  {st.location.lat.toFixed(6)}, {st.location.lng.toFixed(6)}
-                                </span>
-                                <a
-                                  href={`https://yaqintop.uz/customer/?lat=${st.location.lat}&lng=${st.location.lng}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-[11px] text-[#116B50] dark:text-[#4ADE80] font-semibold hover:underline flex items-center gap-1"
+                            {/* Actions */}
+                            <div className="flex items-center justify-between pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] gap-2 flex-wrap">
+                              <div className="flex gap-2 flex-wrap">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleOpenEditStore(st)}
+                                  className="flex items-center gap-1 text-xs"
                                 >
-                                  Kartada ochish <ExternalLink className="w-3 h-3" />
-                                </a>
+                                  <Edit2 className="w-3.5 h-3.5" />
+                                  Tahrirlash
+                                </Button>
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => window.open(getCustomerStoreUrl(st.id), '_blank')}
+                                  className="flex items-center gap-1 text-xs text-[#116B50] dark:text-[#4ADE80]"
+                                  title="Tashkilotning mijozlar sahifasini yangi oynada ko‘rish"
+                                >
+                                  <ExternalLink className="w-3.5 h-3.5" />
+                                  Sahifani ko‘rish
+                                </Button>
+                                <Button
+                                  variant={st.status === 'ACTIVE' ? 'danger' : 'secondary'}
+                                  size="sm"
+                                  onClick={() => handleToggleStoreStatus(st)}
+                                  className="text-xs"
+                                >
+                                  {st.status === 'ACTIVE' ? 'To‘xtatish' : 'Faollashtirish'}
+                                </Button>
                               </div>
 
-                              <div className="flex items-center gap-2">
-                                <Clock className="w-3.5 h-3.5 text-[#116B50] shrink-0" />
-                                <span>
-                                  Ish vaqti:{' '}
-                                  {st.hours && st.hours.length > 0
-                                    ? `${st.hours[0].openTime} - ${st.hours[0].closeTime}`
-                                    : '08:00 - 22:00'}
-                                </span>
-                              </div>
+                              <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                                Reyting: ⭐ {st.rating || 5.0} ({st.reviewCount || 0})
+                              </span>
                             </div>
                           </div>
-
-                          {/* Actions */}
-                          <div className="flex items-center justify-between pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] gap-2 flex-wrap">
-                            <div className="flex gap-2 flex-wrap">
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleOpenEditStore(st)}
-                                className="flex items-center gap-1 text-xs"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                                Tahrirlash
-                              </Button>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => window.open(getCustomerStoreUrl(st.id), '_blank')}
-                                className="flex items-center gap-1 text-xs text-[#116B50] dark:text-[#4ADE80]"
-                                title="Tashkilotning mijozlar sahifasini yangi oynada ko‘rish"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                                Sahifani ko‘rish
-                              </Button>
-                              <Button
-                                variant={st.status === 'ACTIVE' ? 'danger' : 'secondary'}
-                                size="sm"
-                                onClick={() => handleToggleStoreStatus(st)}
-                                className="text-xs"
-                              >
-                                {st.status === 'ACTIVE' ? 'To‘xtatish' : 'Faollashtirish'}
-                              </Button>
-                            </div>
-
-                            <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95]">
-                              Reyting: ⭐ {st.rating || 5.0} ({st.reviewCount || 0})
-                            </span>
-                          </div>
+                        ))
+                      ) : (
+                        <div className="col-span-2 bg-white dark:bg-[#14201A] p-10 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
+                          Mos keladigan filial yoki do‘kon topilmadi
                         </div>
-                      ))
-                    ) : (
-                      <div className="col-span-2 bg-white dark:bg-[#14201A] p-10 rounded-2xl border border-[#DCE5DF] dark:border-[#22332C] text-center text-xs text-[#566A63] dark:text-[#8B9E95]">
-                        Mos keladigan filial yoki do‘kon topilmadi
-                      </div>
-                    )}
-                  </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

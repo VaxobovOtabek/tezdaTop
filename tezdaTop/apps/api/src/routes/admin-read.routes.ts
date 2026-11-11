@@ -131,10 +131,24 @@ export class AdminReadRepository {
     return { auditLogs: scoped.auditLogs.map(log => ({ ...log, actorName: names.get(log.actorId) || log.actorEmail })), total: result.count || 0 };
   }
 
-  async stores() {
+  async stores(options?: { region?: string; city?: string }) {
+    const region = options?.region?.trim();
+    const city = options?.city?.trim();
+    const hasRegion = Boolean(region && region !== 'Barcha viloyatlar');
+
+    let storeFilter: ((q: any) => any) | undefined = undefined;
+    if (hasRegion) {
+      storeFilter = (q: any) => region === 'Toshkent shahri'
+        ? q.or(`region.eq.${quoted(region!)},region.is.null,region.eq."",region.ilike."%Toshkent%"`)
+        : q.eq('region', region!);
+    }
+
     const [stores, organizations, reports, corrections, offers] = await Promise.all([
-      this.rows('stores'), this.rows('organizations'), this.rows('reports','id,target_id,status'),
-      this.rows('corrections','id,target_id,status'), this.rows('offers','id,store_id,is_available,domain_status:app_data->>status')
+      this.rows('stores', '*', storeFilter),
+      this.rows('organizations', 'id,name,inn,region,city,district'),
+      this.rows('reports','id,target_id,status'),
+      this.rows('corrections','id,target_id,status'),
+      this.rows('offers','id,store_id,is_available,domain_status:app_data->>status')
     ]);
     const scoped = this.hydrate({ stores, organizations });
     const countBy = (rows: Row[], key: string, predicate: (row: Row) => boolean) => {
@@ -145,7 +159,16 @@ export class AdminReadRepository {
     const reportCounts = countBy(reports,'target_id',r => r.status === 'OPEN');
     const correctionCounts = countBy(corrections,'target_id',r => r.status === 'OPEN');
     const offerCounts = countBy(offers,'store_id',r => r.is_available && (!r.domain_status || r.domain_status === 'ACTIVE'));
-    return { stores: [...scoped.stores.values()].map((store: any) => {
+    let filteredStores = [...scoped.stores.values()];
+    if (city && city !== 'Barcha tumanlar') {
+      const c = city.toLowerCase();
+      filteredStores = filteredStores.filter((s: any) =>
+        (s.city || '').toLowerCase().includes(c) ||
+        (s.district || '').toLowerCase().includes(c) ||
+        (s.address || '').toLowerCase().includes(c)
+      );
+    }
+    return { stores: filteredStores.map((store: any) => {
       const org = scoped.organizations.get(store.organizationId) as any;
       const openReportsCount = reportCounts.get(store.id) || 0, openCorrectionsCount = correctionCounts.get(store.id) || 0;
       return { ...store, inn: store.inn || org?.inn || '300000000', region: store.region || org?.region || '', city: store.city || org?.city || '', district: store.district || org?.district || '', organizationName: org?.name || 'Noma‘lum tashkilot', openReportsCount, openCorrectionsCount, activeOffersCount: offerCounts.get(store.id) || 0, hasPendingModeration: ['PENDING','NEEDS_CHANGES'].includes(store.status) || openReportsCount > 0 || openCorrectionsCount > 0 };
@@ -202,9 +225,11 @@ export function createAdminReadMiddleware(client: SupabaseClient) {
     }
     const rawResult = endpoint === 'organizations'
       ? req.query.options === '1'
-        ? { organizations: [...repository.hydrate({ organizations: await repository.rows('organizations','id,name,inn,type,status,region,city,district,created_at') }).organizations.values()] }
+        ? { organizations: [...repository.hydrate({ organizations: await repository.rows('organizations','id,name,inn,type,status,region,city,district,created_at', req.query.region && req.query.region !== 'Barcha viloyatlar' ? (q: any) => q.eq('region', String(req.query.region)) : undefined) }).organizations.values()] }
         : await repository.organizations(organizationListOptions(req.query))
-      : await repository[endpoint as 'overview'|'users'|'stores'|'audit']();
+      : endpoint === 'stores'
+        ? await repository.stores({ region: String(req.query.region || ''), city: String(req.query.city || '') })
+        : await repository[endpoint as 'overview'|'users'|'audit']();
     const result = endpoint === 'overview' && session.row.role === 'MODERATOR'
       ? { ...rawResult, latestAudit: [], auditTotal: 0 }
       : rawResult;

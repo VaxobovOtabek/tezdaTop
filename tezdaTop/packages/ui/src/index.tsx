@@ -3,6 +3,17 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 export { apiFetch, apiJson, getSessionToken, loadApiResources, ApiRequestError } from './api-client';
 export { adminResourcePlan, AdminResourceCache } from './admin-data';
+export {
+  UZBEKISTAN_REGIONS,
+  REGION_NAMES,
+  getRegionData,
+  getDistrictsForRegion,
+  matchesRegion,
+  matchesDistrict,
+  normalizeAreaName,
+  type RegionData,
+  type RegionDistrict
+} from './regions';
 export { OrganizationPhotoField, OrganizationScheduleFields, OrganizationOwnerFields, buildOrganizationHours } from './organization-fields';
 export { useCachedSession, saveCachedSession, clearSessionCache } from './auth-session';
 export { MaskedUserPassword } from './MaskedUserPassword';

@@ -19,6 +19,18 @@ export const SEED_IDS = {
   pendingStoreId: '66666666-6666-4666-a666-666666666666',
   suspendedStoreId: '77777777-7777-4777-a777-777777777777',
   overnightStoreId: '88888888-8888-4888-a888-888888888888',
+  sirdaryoPharmOrgId: '11111111-1111-4111-b111-111111111111',
+  sirdaryoPharmStoreId: '22222222-2222-4222-b222-222222222222',
+  grandPharmStoreId: '33333333-3333-4333-b333-333333333333',
+  arzonPharmStoreId: '44444444-4444-4444-b444-444444444444',
+  gulistonMarketStoreId: '55555555-5555-4555-b555-555555555555',
+
+  tsitramonVariantId: 'bbbb1111-1111-4bbb-bbbb-111111111111',
+  paratsetamolVariantId: 'bbbb2222-2222-4bbb-bbbb-222222222222',
+  aspirinVariantId: 'bbbb3333-3333-4bbb-bbbb-333333333333',
+  spasmalgonVariantId: 'bbbb4444-4444-4bbb-bbbb-444444444444',
+  amoksitsillinVariantId: 'bbbb5555-5555-4bbb-bbbb-555555555555',
+  nimesilVariantId: 'bbbb6666-6666-4bbb-bbbb-666666666666',
 
   snickers50gVariantId: 'aaaa1111-1111-4aaa-aaaa-111111111111',
   snickers80gVariantId: 'aaaa2222-2222-4aaa-aaaa-222222222222',
@@ -182,6 +194,58 @@ export async function seedDatabase() {
     createdAt: new Date().toISOString()
   });
 
+  // Sirdaryo / Guliston Organizations
+  db.organizations.set(SEED_IDS.sirdaryoPharmOrgId, {
+    id: SEED_IDS.sirdaryoPharmOrgId,
+    name: '999 Shifo Farm MCHJ',
+    inn: '309999111',
+    region: 'Sirdaryo viloyati',
+    city: 'Guliston shahri',
+    district: 'Sayhun MFY',
+    type: 'PHARMACY',
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString()
+  });
+
+  const grandPharmOrgId = uuidv4();
+  db.organizations.set(grandPharmOrgId, {
+    id: grandPharmOrgId,
+    name: 'Grand Shifo Apteka XK',
+    inn: '309999222',
+    region: 'Sirdaryo viloyati',
+    city: 'Guliston shahri',
+    district: 'Bog‘ishamol MFY',
+    type: 'PHARMACY',
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString()
+  });
+
+  const arzonPharmOrgId = uuidv4();
+  db.organizations.set(arzonPharmOrgId, {
+    id: arzonPharmOrgId,
+    name: 'Arzon Dori Savdo MCHJ',
+    inn: '309999333',
+    region: 'Sirdaryo viloyati',
+    city: 'Guliston shahri',
+    district: 'Temiryo‘l MFY',
+    type: 'PHARMACY',
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString()
+  });
+
+  const gulistonMarketOrgId = uuidv4();
+  db.organizations.set(gulistonMarketOrgId, {
+    id: gulistonMarketOrgId,
+    name: 'Guliston Savdo MCHJ',
+    inn: '309999444',
+    region: 'Sirdaryo viloyati',
+    city: 'Guliston shahri',
+    district: 'Taraqqiyot MFY',
+    type: 'RETAIL',
+    status: 'ACTIVE',
+    createdAt: new Date().toISOString()
+  });
+
   // Memberships
   db.memberships.set(uuidv4(), {
     id: uuidv4(),
@@ -290,6 +354,85 @@ export async function seedDatabase() {
       sku: 'NSQ-200',
       photoUrl: 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?w=120&auto=format&fit=crop&q=80',
       aliases: ['nesquik', 'neskvik', 'kakao', 'несквик']
+    },
+    // Dori-darmon (Dorixona & Apteka tovarlari)
+    {
+      id: SEED_IDS.tsitramonVariantId,
+      productId: uuidv4(),
+      title: 'Tsitramon P №10',
+      brand: 'Borimed',
+      category: 'Dori-darmon',
+      packSize: '10 tabletka',
+      packUnit: 'qadoq',
+      barcode: '4810133001',
+      sku: 'MED-TSI-010',
+      photoUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=120&auto=format&fit=crop&q=80',
+      aliases: ['tsitramon', 'citramon', 'цитрамон', 'dori', 'bosh ogriq', 'apteka', 'dorixona']
+    },
+    {
+      id: SEED_IDS.paratsetamolVariantId,
+      productId: uuidv4(),
+      title: 'Paratsetamol 500 mg №10',
+      brand: 'Farmak',
+      category: 'Dori-darmon',
+      packSize: '10 tabletka',
+      packUnit: 'qadoq',
+      barcode: '4820000002',
+      sku: 'MED-PAR-010',
+      photoUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=120&auto=format&fit=crop&q=80',
+      aliases: ['paracetamol', 'paratsetamol', 'парацетамол', 'isitma tushiruvchi', 'dori', 'apteka', 'dorixona']
+    },
+    {
+      id: SEED_IDS.aspirinVariantId,
+      productId: uuidv4(),
+      title: 'Aspirin Kardio 100 mg №28',
+      brand: 'Bayer',
+      category: 'Dori-darmon',
+      packSize: '28 tabletka',
+      packUnit: 'quti',
+      barcode: '4000000003',
+      sku: 'MED-ASP-028',
+      photoUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=120&auto=format&fit=crop&q=80',
+      aliases: ['aspirin', 'aspirin cardio', 'аспирин', 'yurak', 'dori', 'apteka', 'dorixona']
+    },
+    {
+      id: SEED_IDS.spasmalgonVariantId,
+      productId: uuidv4(),
+      title: 'Spasmalgon №20',
+      brand: 'Sopharma',
+      category: 'Dori-darmon',
+      packSize: '20 tabletka',
+      packUnit: 'quti',
+      barcode: '3800000004',
+      sku: 'MED-SPA-020',
+      photoUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=120&auto=format&fit=crop&q=80',
+      aliases: ['spasmalgon', 'spazmalgon', 'спазмалгон', 'ogriq qoldiruvchi', 'dori', 'apteka', 'dorixona']
+    },
+    {
+      id: SEED_IDS.amoksitsillinVariantId,
+      productId: uuidv4(),
+      title: 'Amoksitsillin 500 mg №16',
+      brand: 'Hemofarm',
+      category: 'Dori-darmon',
+      packSize: '16 kapsula',
+      packUnit: 'quti',
+      barcode: '8600000005',
+      sku: 'MED-AMX-016',
+      photoUrl: 'https://images.unsplash.com/photo-1471864190281-a93a3070b6de?w=120&auto=format&fit=crop&q=80',
+      aliases: ['amoxicillin', 'amoksitsillin', 'амоксициллин', 'antibiotik', 'dori', 'apteka', 'dorixona']
+    },
+    {
+      id: SEED_IDS.nimesilVariantId,
+      productId: uuidv4(),
+      title: 'Nimesil 100 mg №30 paket',
+      brand: 'Berlin-Chemie',
+      category: 'Dori-darmon',
+      packSize: '30 paket',
+      packUnit: 'quti',
+      barcode: '4013000006',
+      sku: 'MED-NIM-030',
+      photoUrl: 'https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=120&auto=format&fit=crop&q=80',
+      aliases: ['nimesil', 'нимесил', 'ogriq', 'dori', 'apteka', 'dorixona']
     }
   ];
 
@@ -458,6 +601,96 @@ export async function seedDatabase() {
       hours: defaultHours,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
+    },
+    // Sirdaryo viloyati / Guliston shahri Do‘kon va Aptekalari
+    {
+      id: SEED_IDS.sirdaryoPharmStoreId,
+      organizationId: SEED_IDS.sirdaryoPharmOrgId,
+      name: '999 Dorixona (Guliston Markaz)',
+      inn: '309999111',
+      region: 'Sirdaryo viloyati',
+      city: 'Guliston shahri',
+      district: 'Sayhun MFY',
+      address: 'Islom Karimov shoh ko‘chasi, 45-uy, Guliston shahri',
+      phone: '+998 67 225 10 20',
+      location: { lat: 40.4905, lng: 68.7835 },
+      entranceLocation: { lat: 40.4906, lng: 68.7836 },
+      rating: 4.9,
+      reviewCount: 54,
+      isVerified: true,
+      status: 'ACTIVE',
+      type: 'PHARMACY',
+      hours: defaultHours,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: SEED_IDS.grandPharmStoreId,
+      organizationId: grandPharmOrgId,
+      name: 'Grand Shifo Apteka (24/7)',
+      inn: '309999222',
+      region: 'Sirdaryo viloyati',
+      city: 'Guliston shahri',
+      district: 'Bog‘ishamol MFY',
+      address: 'Mustaqillik ko‘chasi, 12-uy, Guliston shahri',
+      phone: '+998 67 225 33 44',
+      location: { lat: 40.4882, lng: 68.7860 },
+      rating: 4.8,
+      reviewCount: 38,
+      isVerified: true,
+      status: 'ACTIVE',
+      type: 'PHARMACY',
+      hours: [
+        { dayOfWeek: 0, openTime: '00:00', closeTime: '23:59', isClosed: false },
+        { dayOfWeek: 1, openTime: '00:00', closeTime: '23:59', isClosed: false },
+        { dayOfWeek: 2, openTime: '00:00', closeTime: '23:59', isClosed: false },
+        { dayOfWeek: 3, openTime: '00:00', closeTime: '23:59', isClosed: false },
+        { dayOfWeek: 4, openTime: '00:00', closeTime: '23:59', isClosed: false },
+        { dayOfWeek: 5, openTime: '00:00', closeTime: '23:59', isClosed: false },
+        { dayOfWeek: 6, openTime: '00:00', closeTime: '23:59', isClosed: false }
+      ],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: SEED_IDS.arzonPharmStoreId,
+      organizationId: arzonPharmOrgId,
+      name: 'Arzon Dorixona (Vokzal)',
+      inn: '309999333',
+      region: 'Sirdaryo viloyati',
+      city: 'Guliston shahri',
+      district: 'Temiryo‘l MFY',
+      address: 'Temiryo‘lchilar ko‘chasi, 3-uy, Guliston vokzal yaqinida',
+      phone: '+998 67 225 77 88',
+      location: { lat: 40.4920, lng: 68.7810 },
+      rating: 4.7,
+      reviewCount: 29,
+      isVerified: true,
+      status: 'ACTIVE',
+      type: 'PHARMACY',
+      hours: defaultHours,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    },
+    {
+      id: SEED_IDS.gulistonMarketStoreId,
+      organizationId: gulistonMarketOrgId,
+      name: 'Guliston Supermarket',
+      inn: '309999444',
+      region: 'Sirdaryo viloyati',
+      city: 'Guliston shahri',
+      district: 'Taraqqiyot MFY',
+      address: 'Navoiy shoh ko‘chasi, 18-uy, Guliston',
+      phone: '+998 67 225 99 00',
+      location: { lat: 40.4890, lng: 68.7850 },
+      rating: 4.6,
+      reviewCount: 19,
+      isVerified: true,
+      status: 'ACTIVE',
+      type: 'RETAIL',
+      hours: defaultHours,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }
   ];
 
@@ -600,6 +833,158 @@ export async function seedDatabase() {
         { minQuantity: 48, unitPrice: '6700.00' },
         { minQuantity: 120, unitPrice: '6500.00' }
       ]
+    },
+
+    // 999 Dorixona (Guliston) offers
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.sirdaryoPharmStoreId,
+      variantId: SEED_IDS.tsitramonVariantId,
+      price: '3000.00',
+      stockOnHand: 50,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.sirdaryoPharmStoreId,
+      variantId: SEED_IDS.paratsetamolVariantId,
+      price: '2500.00',
+      stockOnHand: 60,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.sirdaryoPharmStoreId,
+      variantId: SEED_IDS.aspirinVariantId,
+      price: '18000.00',
+      stockOnHand: 35,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.sirdaryoPharmStoreId,
+      variantId: SEED_IDS.spasmalgonVariantId,
+      price: '24000.00',
+      stockOnHand: 40,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.sirdaryoPharmStoreId,
+      variantId: SEED_IDS.amoksitsillinVariantId,
+      price: '15000.00',
+      stockOnHand: 25,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.sirdaryoPharmStoreId,
+      variantId: SEED_IDS.nimesilVariantId,
+      price: '85000.00',
+      stockOnHand: 20,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+
+    // Grand Shifo Apteka (Guliston 24/7) offers
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.grandPharmStoreId,
+      variantId: SEED_IDS.tsitramonVariantId,
+      price: '2800.00',
+      stockOnHand: 40,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.grandPharmStoreId,
+      variantId: SEED_IDS.paratsetamolVariantId,
+      price: '2200.00',
+      stockOnHand: 80,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.grandPharmStoreId,
+      variantId: SEED_IDS.spasmalgonVariantId,
+      price: '23000.00',
+      stockOnHand: 30,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.grandPharmStoreId,
+      variantId: SEED_IDS.nimesilVariantId,
+      price: '82000.00',
+      stockOnHand: 15,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+
+    // Arzon Dorixona (Guliston Vokzal) offers
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.arzonPharmStoreId,
+      variantId: SEED_IDS.tsitramonVariantId,
+      price: '2500.00',
+      stockOnHand: 100,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.arzonPharmStoreId,
+      variantId: SEED_IDS.paratsetamolVariantId,
+      price: '2000.00',
+      stockOnHand: 120,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.arzonPharmStoreId,
+      variantId: SEED_IDS.aspirinVariantId,
+      price: '17500.00',
+      stockOnHand: 45,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.arzonPharmStoreId,
+      variantId: SEED_IDS.amoksitsillinVariantId,
+      price: '14000.00',
+      stockOnHand: 30,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+
+    // Guliston Supermarket offers
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.snickers50gVariantId,
+      price: '8500.00',
+      stockOnHand: 50,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.cola15lVariantId,
+      price: '14000.00',
+      stockOnHand: 40,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
     }
   ];
 

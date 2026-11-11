@@ -137,11 +137,35 @@ export function CustomerApp() {
     return true;
   };
 
+  const [userRegion, setUserRegion] = useState<string>(() => {
+    try {
+      return localStorage.getItem('yaqintop_user_region') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const [userDistrict, setUserDistrict] = useState<string>(() => {
+    try {
+      return localStorage.getItem('yaqintop_user_district') || '';
+    } catch {
+      return '';
+    }
+  });
+
+  const isUserRegionChosen = Boolean(userRegion && userRegion !== 'Barcha viloyatlar');
+
   const [selectedLocationName, setSelectedLocationName] = useState<string>(() => {
     try {
-      return localStorage.getItem('yaqintop_location_name') || 'Toshkent, Yunusobod';
+      const savedReg = localStorage.getItem('yaqintop_user_region');
+      const savedDist = localStorage.getItem('yaqintop_user_district');
+      const savedName = localStorage.getItem('yaqintop_location_name');
+      if (savedReg) {
+        return savedName || (savedDist ? `${savedReg}, ${savedDist}` : savedReg);
+      }
+      return '';
     } catch {
-      return 'Toshkent, Yunusobod';
+      return '';
     }
   });
 
@@ -224,9 +248,15 @@ export function CustomerApp() {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  const handleSelectLocation = (loc: { lat: number; lng: number; name: string }) => {
+  const handleSelectLocation = (loc: { lat: number; lng: number; name: string; region?: string; district?: string }) => {
     setUserLocation({ lat: loc.lat, lng: loc.lng });
     setSelectedLocationName(loc.name);
+    if (loc.region) {
+      setUserRegion(loc.region);
+    }
+    if (loc.district) {
+      setUserDistrict(loc.district);
+    }
     setSearchQuery('');
     setResults([]);
     setSelectedResult(null);
@@ -235,6 +265,8 @@ export function CustomerApp() {
     try {
       localStorage.setItem('yaqintop_user_location', JSON.stringify({ lat: loc.lat, lng: loc.lng }));
       localStorage.setItem('yaqintop_location_name', loc.name);
+      if (loc.region) localStorage.setItem('yaqintop_user_region', loc.region);
+      if (loc.district) localStorage.setItem('yaqintop_user_district', loc.district);
     } catch (e) {
       console.error(e);
     }
@@ -242,17 +274,44 @@ export function CustomerApp() {
     if (view !== 'search') {
       navigateTo('/');
     }
+    if (loc.region) {
+      setTimeout(() => {
+        loadNearbyStores({ lat: loc.lat, lng: loc.lng });
+      }, 50);
+    }
   };
 
-  // Fetch all nearby stores or search organizations
+  // Fetch all nearby stores or search organizations (restricted to selected region/district to avoid loading all DB records)
   const loadNearbyStores = async (loc?: { lat: number; lng: number }, queryStr?: string) => {
+    const effectiveRegion = userRegion || (() => {
+      try {
+        return localStorage.getItem('yaqintop_user_region') || '';
+      } catch {
+        return '';
+      }
+    })();
+    const effectiveDistrict = userDistrict || (() => {
+      try {
+        return localStorage.getItem('yaqintop_user_district') || '';
+      } catch {
+        return '';
+      }
+    })();
+
+    if (!effectiveRegion) {
+      // Do NOT dump the entire database if region is not chosen!
+      setNearbyStores([]);
+      return;
+    }
+
     try {
       const uLat = loc?.lat ?? userLocation?.lat ?? 41.311081;
       const uLng = loc?.lng ?? userLocation?.lng ?? 69.240562;
       const targetQuery = queryStr !== undefined ? queryStr : (searchCategory === 'organizations' ? searchQuery.trim() : '');
       const queryParam = targetQuery ? `&q=${encodeURIComponent(targetQuery)}` : '';
       const radiusParam = radiusM ? `&radiusM=${radiusM}` : '&radiusM=0';
-      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}${radiusParam}${openNow ? '&openNow=true' : ''}${queryParam}`));
+      const regionParam = `&region=${encodeURIComponent(effectiveRegion)}${effectiveDistrict ? `&district=${encodeURIComponent(effectiveDistrict)}` : ''}`;
+      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}${radiusParam}${openNow ? '&openNow=true' : ''}${queryParam}${regionParam}`));
       if (res.ok) {
         const data = await res.json();
         const items = (data.items || []).map((item: any) => {
@@ -676,6 +735,9 @@ export function CustomerApp() {
 
     const targetLoc = loc || userLocation;
     try {
+      // Parallel: also load stores matching query so store names and categories (apteka, market, etc.) are always discovered
+      loadNearbyStores(targetLoc, q);
+
       const res = await fetch(apiUrl('/api/v1/search/products'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -685,6 +747,8 @@ export function CustomerApp() {
           lat: targetLoc.lat,
           lng: targetLoc.lng,
           radiusM,
+          region: userRegion || undefined,
+          district: userDistrict || undefined,
           openNow: openNow || undefined,
           inStock: inStock || undefined,
           freshOnly: freshOnly || undefined,
@@ -1076,6 +1140,7 @@ export function CustomerApp() {
       {/* Top Header - Map-First Compact Redesign */}
       <CustomerHeader
         selectedLocationName={selectedLocationName}
+        isRegionChosen={isUserRegionChosen}
         onOpenLocationPicker={() => setIsLocationModalOpen(true)}
         onNavigateHome={() => {
           setSearchQuery('');
@@ -1099,6 +1164,25 @@ export function CustomerApp() {
           setIsLoginModalOpen(true);
         }}
       />
+
+      {/* Sticky Top Warning when Region / District not selected */}
+      {!isUserRegionChosen && (
+        <div className="bg-red-600 text-white px-3 py-2 sm:px-4 text-xs font-bold flex items-center justify-between gap-2 shadow-md z-30 animate-pulse">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-base shrink-0">⚠️</span>
+            <span className="truncate sm:whitespace-normal">
+              {t('Iltimos, dorixonalar va tovarlarni ko‘rish uchun viloyat va tumaningizni tanlang! Barcha ma’lumotlar birdaniga yuklanmaydi.')}
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setIsLocationModalOpen(true)}
+            className="px-3 py-1 bg-white text-red-700 font-extrabold rounded-lg hover:bg-red-50 transition shrink-0 shadow-xs uppercase text-[11px] cursor-pointer"
+          >
+            {t('Tanlang 📍')}
+          </button>
+        </div>
+      )}
 
       {/* Main Container */}
       <main className="flex-1 relative overflow-hidden h-[calc(100dvh-60px)] w-full">
@@ -1163,6 +1247,8 @@ export function CustomerApp() {
                 onOpen={() => setIsDrawerOpen(true)}
                 searchQuery={searchQuery}
                 locationName={selectedLocationName}
+                isRegionChosen={isUserRegionChosen}
+                onOpenLocationPicker={() => setIsLocationModalOpen(true)}
                 items={results.length > 0 ? results : nearbyStores}
                 selectedItem={selectedResult || selectedNearbyStore}
                 onSelectItem={(item) => {
@@ -1203,6 +1289,7 @@ export function CustomerApp() {
                 <div className="pointer-events-auto min-w-0 flex-1 max-w-full">
                   <SearchToolbar
                     selectedLocationName={selectedLocationName}
+                    isRegionChosen={isUserRegionChosen}
                     onOpenLocationPicker={() => setIsLocationModalOpen(true)}
                     searchQuery={searchQuery}
                     onSearchQueryChange={setSearchQuery}
@@ -1246,13 +1333,21 @@ export function CustomerApp() {
                 <button
                   type="button"
                   onClick={() => setIsLocationModalOpen(true)}
-                  className="h-11 px-2.5 rounded-full bg-white dark:bg-[#14201A] border border-[#CBD5E1] dark:border-[#273B32] shadow-md flex items-center gap-1 text-[#087F5B] dark:text-[#4ADE80] text-xs font-bold shrink-0 active:scale-95 transition cursor-pointer"
+                  className={`h-11 px-2.5 rounded-full shadow-md flex items-center gap-1 text-xs font-bold shrink-0 active:scale-95 transition cursor-pointer ${
+                    !isUserRegionChosen
+                      ? 'border-2 border-red-500 bg-red-50 dark:bg-red-950/60 text-red-700 ring-2 ring-red-400 animate-pulse'
+                      : 'bg-white dark:bg-[#14201A] border border-[#CBD5E1] dark:border-[#273B32] text-[#087F5B] dark:text-[#4ADE80]'
+                  }`}
                   title="Hududni tanlash"
                 >
-                  <div className="w-5 h-5 rounded-full bg-[#E8F5EE] dark:bg-[#1E362A] flex items-center justify-center shrink-0">
-                    <MapPin className="w-3 h-3 text-[#087F5B] dark:text-[#4ADE80]" />
+                  <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
+                    !isUserRegionChosen ? 'bg-red-100 text-red-600' : 'bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80]'
+                  }`}>
+                    <MapPin className="w-3 h-3" />
                   </div>
-                  <span className="max-w-[48px] min-[390px]:max-w-[62px] truncate">{selectedLocationName.split(',')[0]}</span>
+                  <span className={`max-w-[48px] min-[390px]:max-w-[62px] truncate ${!isUserRegionChosen ? 'font-black text-red-700' : ''}`}>
+                    {!isUserRegionChosen ? 'Tanlang!' : (selectedLocationName.split(',')[0] || 'Tanlang')}
+                  </span>
                 </button>
 
                 {/* Main Search Pill matching Reference */}

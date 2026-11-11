@@ -69,7 +69,9 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       store.location.lng
     );
 
-    if (dist <= query.radiusM) {
+    // If query text is specified (e.g. searching 'apteka' or 'aspirin'), allow matching stores in the area even if slightly outside immediate small circle
+    const effectiveRadius = query.q ? Math.max(query.radiusM, 15000) : query.radiusM;
+    if (dist <= effectiveRadius) {
       const isOpen = checkStoreIsOpenNow(store);
       if (query.openNow && !isOpen) continue;
       candidateStores.push({ store, distanceM: dist, isOpenNow: isOpen });
@@ -142,6 +144,18 @@ export function searchProducts(query: SearchQuery): SearchResponse {
 
       // Check text / query match
       if (query.q && query.q.trim()) {
+        const qLower = query.q.trim().toLowerCase();
+        const isPharmacyQuery = ['apteka', 'dorixona', 'dori', 'pharmacy', 'farm', 'shifo'].some(k => qLower.includes(k));
+        const storeIsPharmacy = cand.store.type === 'PHARMACY' ||
+          (cand.store.name && ['apteka', 'dorixona', 'pharm', 'shifo', 'farm'].some(k => cand.store.name.toLowerCase().includes(k)));
+
+        const isMarketQuery = ['market', 'supermarket', 'do\'kon', 'dokon', 'savdo', 'baza'].some(k => qLower.includes(k));
+        const storeIsMarket = cand.store.type === 'RETAIL' || cand.store.type === 'WHOLESALE' || cand.store.type === 'MIXED';
+
+        const storeMatchesQuery = cand.store.name.toLowerCase().includes(qLower) ||
+          (isPharmacyQuery && storeIsPharmacy) ||
+          (isMarketQuery && storeIsMarket);
+
         const matchResult = matchProductQuery(query.q, {
           title: off.variant.title,
           barcode: off.variant.barcode,
@@ -152,6 +166,8 @@ export function searchProducts(query: SearchQuery): SearchResponse {
 
         if (matchResult.isMatch) {
           storeOffers.push({ offer: off, score: matchResult.score });
+        } else if (storeMatchesQuery) {
+          storeOffers.push({ offer: off, score: 0.85 });
         }
       } else {
         // No query: all active offers in store match

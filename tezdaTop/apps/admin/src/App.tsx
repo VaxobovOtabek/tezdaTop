@@ -1,8 +1,8 @@
 import { OrganizationPhotoField, OrganizationScheduleFields, OrganizationOwnerFields, buildOrganizationHours } from '@yaqintop/ui';
-import { apiFetch, getSessionToken, adminResourcePlan, AdminResourceCache } from '@yaqintop/ui';
+import { apiFetch, getSessionToken, adminResourcePlan, AdminResourceCache, REGION_NAMES, getDistrictsForRegion } from '@yaqintop/ui';
 import { MaskedUserPassword } from '@yaqintop/ui';
 import { useCachedSession, clearSessionCache, TokenQuickLoginModal, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   TrendingUp,
   Truck,
@@ -272,10 +272,46 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
   const ORG_PAGE_SIZE = 20;
 
   const [storeSearch, setStoreSearch] = useState('');
-  const [orgRegionFilter, setOrgRegionFilter] = useState('Barcha viloyatlar');
-  const [orgCityFilter, setOrgCityFilter] = useState('Barcha tumanlar');
+  const [orgRegionFilter, setOrgRegionFilter] = useState(() => {
+    try {
+      return localStorage.getItem('yaqintop_admin_region') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [orgCityFilter, setOrgCityFilter] = useState(() => {
+    try {
+      return localStorage.getItem('yaqintop_admin_city') || '';
+    } catch {
+      return '';
+    }
+  });
   const [orgDistrictFilter, setOrgDistrictFilter] = useState('Barcha mahallalar');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PENDING' | 'SUSPENDED'>('ALL');
+
+  const isRegionChosen = Boolean(orgRegionFilter && orgRegionFilter !== 'Barcha viloyatlar');
+  const availableDistricts: string[] = useMemo(() => {
+    if (!isRegionChosen) return [];
+    return getDistrictsForRegion(orgRegionFilter);
+  }, [orgRegionFilter, isRegionChosen]);
+
+  const handleRegionFilterChange = (val: string) => {
+    setOrgRegionFilter(val);
+    setOrgCityFilter('');
+    setOrgPage(1);
+    try {
+      localStorage.setItem('yaqintop_admin_region', val);
+      localStorage.setItem('yaqintop_admin_city', '');
+    } catch {}
+  };
+
+  const handleCityFilterChange = (val: string) => {
+    setOrgCityFilter(val);
+    setOrgPage(1);
+    try {
+      localStorage.setItem('yaqintop_admin_city', val);
+    } catch {}
+  };
 
   // Search in Users tab
   const [userSearch, setUserSearch] = useState('');
@@ -1371,14 +1407,17 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
       (s.inn && s.inn.includes(q)) ||
       (s.organizationName && s.organizationName.toLowerCase().includes(q));
 
-    const matchRegion =
-      orgRegionFilter === 'Barcha viloyatlar' ||
+    const matchRegion = isRegionChosen && (
       s.region === orgRegionFilter ||
-      (orgRegionFilter === 'Toshkent shahri' && (!s.region || s.region.includes('Toshkent')));
+      (orgRegionFilter === 'Toshkent shahri' && (!s.region || s.region.includes('Toshkent'))) ||
+      (s.address && s.address.toLowerCase().includes(orgRegionFilter.toLowerCase().replace(/\s+(viloyati|respublikasi)$/i, '')))
+    );
 
     const matchCity =
+      !orgCityFilter ||
       orgCityFilter === 'Barcha tumanlar' ||
       s.city === orgCityFilter ||
+      (s.district && s.district.toLowerCase().includes(orgCityFilter.toLowerCase())) ||
       s.address.toLowerCase().includes(orgCityFilter.toLowerCase());
 
     const matchDistrict =
@@ -2313,38 +2352,74 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                   </div>
                 </div>
 
+                {/* Agar viloyat tanlanmagan bo'lsa, qizilda ko'rsatuvchi ogohlantirish banneri */}
+                {!isRegionChosen && (
+                  <div className="p-3.5 mb-3 rounded-2xl bg-red-50 dark:bg-red-950/40 border-2 border-red-500 text-red-700 dark:text-red-300 flex items-center justify-between gap-3 shadow-md animate-pulse">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-red-600 text-white flex items-center justify-center shrink-0 font-bold text-sm shadow-xs">
+                        ⚠️
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h4 className="font-black text-xs text-red-800 dark:text-red-200 uppercase tracking-wide">
+                            {t('Iltimos, viloyat va shahar/tumanni tanlang!')}
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-full bg-red-600 text-white text-[9px] font-black uppercase">
+                            {t('Tanlang')}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-red-700 dark:text-red-300 mt-0.5">
+                          {t('Tizimga juda ko‘p ma’lumot (aptekalar) kiritilgan. Ma’lumotlar bazasiga (Supabase) katta yuklama tushmasligi uchun barcha tashkilotlar birdaniga yuklanmaydi. Iltimos, o‘zingizga kerakli viloyat va tumanni belgilang.')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* 2-Qator: Viloyat, Shahar/Tuman va Holat (Status) filtrlari */}
                 <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pt-3 border-t border-[#DCE5DF]/60 dark:border-[#22332C]">
                   <div className="flex items-center gap-2 flex-wrap flex-1 text-xs">
-                    {/* Viloyat Filter */}
-                    <div className="min-w-[170px] flex-1 sm:flex-initial">
+                    {/* Viloyat Filter - Tanlanmagan bo'lsa QIZILDA ko'rsatiladi */}
+                    <div className="min-w-[190px] flex-1 sm:flex-initial relative">
                       <select
                         value={orgRegionFilter}
-                        onChange={(e) => {
-                          setOrgRegionFilter(e.target.value);
-                          setOrgPage(1);
-                        }}
-                        className="w-full p-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                        onChange={(e) => handleRegionFilterChange(e.target.value)}
+                        className={`w-full p-2.5 text-xs font-bold rounded-xl transition-all ${
+                          !isRegionChosen
+                            ? 'border-2 border-red-500 bg-red-50 dark:bg-red-950/60 text-red-900 dark:text-red-100 ring-2 ring-red-400 focus:outline-none focus:border-red-600 animate-pulse'
+                            : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:border-[#116B50]'
+                        }`}
                       >
-                        {REGION_OPTIONS.map((reg) => (
+                        <option value="">🔴 {t('Viloyatni tanlang (Majburiy)')}</option>
+                        {REGION_NAMES.map((reg) => (
                           <option key={reg} value={reg}>
                             {reg}
                           </option>
                         ))}
                       </select>
+                      {!isRegionChosen && (
+                        <span className="absolute -top-2 right-2 px-1.5 py-0.2 rounded bg-red-600 text-white text-[9px] font-black uppercase tracking-wider animate-bounce">
+                          {t('Tanlang!')}
+                        </span>
+                      )}
                     </div>
 
                     {/* Shahar / Tuman Filter */}
-                    <div className="min-w-[150px] flex-1 sm:flex-initial">
+                    <div className="min-w-[170px] flex-1 sm:flex-initial">
                       <select
                         value={orgCityFilter}
-                        onChange={(e) => {
-                          setOrgCityFilter(e.target.value);
-                          setOrgPage(1);
-                        }}
-                        className="w-full p-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
+                        disabled={!isRegionChosen}
+                        onChange={(e) => handleCityFilterChange(e.target.value)}
+                        className={`w-full p-2.5 text-xs font-bold rounded-xl transition-all ${
+                          !isRegionChosen
+                            ? 'opacity-50 cursor-not-allowed border border-[#DCE5DF] dark:border-[#273B32] bg-gray-100 dark:bg-gray-800 text-gray-500'
+                            : !orgCityFilter
+                            ? 'border-2 border-amber-500 bg-amber-50 dark:bg-amber-950/60 text-amber-900 dark:text-amber-100'
+                            : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:border-[#116B50]'
+                        }`}
                       >
-                        {CITY_OPTIONS.map((c) => (
+                        <option value="">{isRegionChosen ? t('Barcha tumanlar') : t('Avval viloyatni tanlang')}</option>
+                        {availableDistricts.map((c) => (
                           <option key={c} value={c}>
                             {c}
                           </option>
@@ -2353,17 +2428,15 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                     </div>
 
                     {/* Reset button if filters active */}
-                    {(orgRegionFilter !== 'Barcha viloyatlar' || orgCityFilter !== 'Barcha tumanlar') && (
+                    {(isRegionChosen || orgCityFilter) && (
                       <button
                         type="button"
                         onClick={() => {
-                          setOrgRegionFilter('Barcha viloyatlar');
-                          setOrgCityFilter('Barcha tumanlar');
-                          setOrgPage(1);
+                          handleRegionFilterChange('');
                         }}
-                        className="text-xs text-[#116B50] dark:text-[#4ADE80] font-semibold hover:underline px-1.5 py-1"
+                        className="text-xs text-red-600 dark:text-red-400 font-semibold hover:underline px-1.5 py-1"
                       >
-                        Filtrni tozalash
+                        {t('Filtrni tozalash')}
                       </button>
                     )}
                   </div>
@@ -2418,6 +2491,22 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
 
               {/* TAB CONTENT: ORGANIZATIONS LIST (TABLE + PAGINATION 20) */}
               {activeOrgSubTab === 'organizations' && (
+                !isRegionChosen ? (
+                  <div className="p-12 text-center rounded-3xl border-2 border-dashed border-red-400 bg-red-50/50 dark:bg-red-950/20 my-4 shadow-sm">
+                    <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center text-3xl">
+                      📍
+                    </div>
+                    <h3 className="text-base font-black text-red-800 dark:text-red-200 mb-1">
+                      {t('Viloyat va shahar / tuman tanlanmagan')}
+                    </h3>
+                    <p className="text-xs text-red-700 dark:text-red-300 max-w-md mx-auto mb-4">
+                      {t('Ma’lumotlar bazasini (Supabase) ortiqcha yuklamaslik uchun barcha tashkilotlar birdaniga yuklanmaydi. Iltimos, yuqoridagi filtrdan viloyat va tumaningizni belgilang.')}
+                    </p>
+                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white font-extrabold text-xs shadow-md animate-bounce">
+                      <span>👆 {t('Yuqoridan Viloyatni tanlang')}</span>
+                    </div>
+                  </div>
+                ) : (
                 <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl shadow-sm overflow-hidden flex flex-col">
                   {/* Table view */}
                   <div className="overflow-x-auto">
@@ -2631,7 +2720,8 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                     </div>
                   </div>
                 </div>
-              )}
+              )
+            )}
 
               {/* TAB CONTENT: STORES (FILIALLAR) */}
               {activeOrgSubTab === 'stores' && (
@@ -2652,28 +2742,44 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                       </div>
 
                       {/* Viloyat Filter */}
-                      <div>
+                      <div className="relative">
                         <select
                           value={orgRegionFilter}
-                          onChange={(e) => setOrgRegionFilter(e.target.value)}
-                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                          onChange={(e) => handleRegionFilterChange(e.target.value)}
+                          className={`w-full p-2.5 rounded-xl text-xs font-bold transition-all ${
+                            !isRegionChosen
+                              ? 'border-2 border-red-500 bg-red-50 dark:bg-red-950/60 text-red-900 dark:text-red-100 ring-2 ring-red-400 animate-pulse'
+                              : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+                          }`}
                         >
-                          {REGION_OPTIONS.map((reg) => (
+                          <option value="">🔴 {t('Viloyatni tanlang (Majburiy)')}</option>
+                          {REGION_NAMES.map((reg) => (
                             <option key={reg} value={reg}>
                               {reg}
                             </option>
                           ))}
                         </select>
+                        {!isRegionChosen && (
+                          <span className="absolute -top-2 right-2 px-1.5 py-0.2 rounded bg-red-600 text-white text-[9px] font-black uppercase tracking-wider animate-bounce">
+                            {t('Tanlang!')}
+                          </span>
+                        )}
                       </div>
 
                       {/* Tuman/Shahar Filter */}
                       <div>
                         <select
                           value={orgCityFilter}
-                          onChange={(e) => setOrgCityFilter(e.target.value)}
-                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                          disabled={!isRegionChosen}
+                          onChange={(e) => handleCityFilterChange(e.target.value)}
+                          className={`w-full p-2.5 rounded-xl text-xs font-bold transition-all ${
+                            !isRegionChosen
+                              ? 'opacity-50 cursor-not-allowed border border-[#DCE5DF] dark:border-[#273B32] bg-gray-100 dark:bg-gray-800'
+                              : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+                          }`}
                         >
-                          {['Barcha tumanlar', 'Yunusobod', 'Mirobod', 'Chilonzor', 'Shayxontohur', 'Yakkasaroy', 'Mirzo Ulug‘bek', 'Olmazor', 'Samarqand shahri'].map((c) => (
+                          <option value="">{isRegionChosen ? t('Barcha tumanlar') : t('Avval viloyatni tanlang')}</option>
+                          {availableDistricts.map((c) => (
                             <option key={c} value={c}>
                               {c}
                             </option>
@@ -2686,7 +2792,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                         <select
                           value={orgDistrictFilter}
                           onChange={(e) => setOrgDistrictFilter(e.target.value)}
-                          className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+                          className="w-full p-2.5 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
                         >
                           {['Barcha mahallalar', 'Navbahor MFY', 'Oqtepa MFY', 'Do‘stlik MFY', 'Chorsu MFY', 'Bog‘iston MFY', 'Guliston MFY', 'Mustaqillik MFY'].map((d) => (
                             <option key={d} value={d}>
@@ -2744,8 +2850,24 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                     </div>
                   </div>
 
-                  {/* Stores Grid / Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                  {!isRegionChosen ? (
+                    <div className="p-12 text-center rounded-3xl border-2 border-dashed border-red-400 bg-red-50/50 dark:bg-red-950/20 my-4 shadow-sm">
+                      <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-red-500/10 text-red-600 dark:text-red-400 flex items-center justify-center text-3xl">
+                        📍
+                      </div>
+                      <h3 className="text-base font-black text-red-800 dark:text-red-200 mb-1">
+                        {t('Viloyat va shahar / tuman tanlanmagan')}
+                      </h3>
+                      <p className="text-xs text-red-700 dark:text-red-300 max-w-md mx-auto mb-4">
+                        {t('Filiallar va do‘konlarni ko‘rish uchun avval yuqoridagi filtrdan viloyat va tumaningizni belgilang.')}
+                      </p>
+                      <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-red-600 text-white font-extrabold text-xs shadow-md animate-bounce">
+                        <span>👆 {t('Yuqoridan Viloyatni tanlang')}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Stores Grid / Cards */
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     {filteredStores.length > 0 ? (
                       filteredStores.map((st) => (
                         <div
@@ -2869,6 +2991,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               )}
             </div>

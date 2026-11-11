@@ -1,6 +1,8 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 import path from 'node:path';
+import fs from 'node:fs';
+import os from 'node:os';
 import Decimal from 'decimal.js';
 import type { InMemoryDatabase } from './in-memory-db.js';
 
@@ -10,7 +12,11 @@ const url = process.env.SUPABASE_URL;
 const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const isProduction = process.env.NODE_ENV === 'production' || !!process.env.VERCEL;
 
-export const supabase: SupabaseClient | null = url && key ? createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } }) : null;
+const isValidUrl = (u?: string) => !!u && u.startsWith('http') && !u.includes('your-project-ref');
+export const supabase: SupabaseClient | null = isValidUrl(url) && key && key !== 'your_supabase_service_role_key'
+  ? createClient(url!, key, { auth: { persistSession: false, autoRefreshToken: false } })
+  : null;
+
 export const isSupabaseConfigured = () => !!supabase;
 
 /**
@@ -20,8 +26,45 @@ export const isSupabaseConfigured = () => !!supabase;
  */
 export const isSupabaseWriteAllowed = () => isSupabaseConfigured() && (isProduction || process.env.ALLOW_LOCAL_SUPABASE_WRITE === 'true');
 
+// ================= SUPABASE INTELLIGENT CACHE & QUOTA GUARD =================
+// Standart kesh muddati: 24 soat (86,400,000 ms).
+// Bu Supabase Free Tier limitlarini (egress va request limit) to'liq tejaydi.
+const DEFAULT_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+const envTtlMs = process.env.SUPABASE_CACHE_TTL_MS ? parseInt(process.env.SUPABASE_CACHE_TTL_MS, 10) : undefined;
+const envTtlHours = process.env.SUPABASE_CACHE_TTL_HOURS ? parseFloat(process.env.SUPABASE_CACHE_TTL_HOURS) * 60 * 60 * 1000 : undefined;
+export const CACHE_TTL_MS = envTtlMs || envTtlHours || DEFAULT_CACHE_TTL_MS;
+
+const cacheMetaDir = process.env.VERCEL ? path.join(os.tmpdir(), 'yaqintop-data') : path.resolve(process.cwd(), 'data');
+const cacheMetaPath = path.join(cacheMetaDir, 'supabase_sync_meta.json');
+
+interface CacheMetadata {
+  lastSyncTime: number;
+  version: number;
+  recordsCount?: number;
+}
+
+function readCacheMeta(): CacheMetadata | null {
+  try {
+    if (fs.existsSync(cacheMetaPath)) {
+      const raw = fs.readFileSync(cacheMetaPath, 'utf8');
+      return JSON.parse(raw);
+    }
+  } catch {
+    // Ignore error
+  }
+  return null;
+}
+
+function writeCacheMeta(meta: CacheMetadata) {
+  try {
+    if (!fs.existsSync(cacheMetaDir)) fs.mkdirSync(cacheMetaDir, { recursive: true });
+    fs.writeFileSync(cacheMetaPath, JSON.stringify(meta, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[Supabase Cache] Kesh metama‘lumotlarini yozishda xatolik:', err);
+  }
+}
+
 let lastSyncTime = 0;
-const CACHE_TTL_MS = 60 * 1000; // 60s in-memory cache to dramatically reduce database load
 type Rows = Record<string, Record<string, any>[]>;
 type Mapping = { table: string; fields: Record<string, string> };
 const mappings: Record<string, Mapping> = {
@@ -117,12 +160,63 @@ export function hydrateDatabase(db: InMemoryDatabase, rows: Rows) {
 export async function syncAllFromSupabase(db: InMemoryDatabase, force = false): Promise<boolean> {
   if (!supabase) return false;
   const now = Date.now();
+
+  // 1. In-memory kesh tekshiruvi: TTL muddati tugamagan bo'lsa, tarmoq orqali so'rov yuborilmaydi
   if (!force && lastSyncTime > 0 && now - lastSyncTime < CACHE_TTL_MS) {
     return true;
   }
-  const {data,error}=await supabase.rpc('read_database_snapshot');
-  if (error || !data?.tables) throw new Error('Database snapshot could not be loaded; migration must be applied');
-  hydrateDatabase(db,data.tables); version=Number(data.version); baseline=projectDatabase(db); lastSyncTime = now; return true;
+
+  // 2. Disk kesh tekshiruvi: agar diskda saqlangan kesh yangi bo'lsa, Supabase Free Tier limitini tejab, diskdan o'qiydi
+  if (!force) {
+    const meta = readCacheMeta();
+    if (meta && meta.lastSyncTime > 0 && now - meta.lastSyncTime < CACHE_TTL_MS) {
+      if (db.stores.size > 0 || db.loadFromFile()) {
+        lastSyncTime = meta.lastSyncTime;
+        version = meta.version || 0;
+        baseline = projectDatabase(db);
+        const minutesAgo = Math.round((now - meta.lastSyncTime) / 60000);
+        console.log(`[Supabase Cache] ✅ Disk keshidan yuklandi (${minutesAgo} daqiqa oldin sinxronlangan). Supabase Free Tier limiti tejaldi.`);
+        return true;
+      }
+    }
+  }
+
+  // 3. Kesh muddati o'tgan bo'lsa yoki force=true bo'lsa, Supabase'dan tortib oladi
+  try {
+    console.log('[Supabase Cache] Supabase bilan sinxronlanmoqda...');
+    const { data, error } = await supabase.rpc('read_database_snapshot');
+    if (error) throw error;
+    if (!data?.tables) throw new Error('Supabase snapshot formati noto‘g‘ri yoki bo‘sh qaytdi');
+
+    hydrateDatabase(db, data.tables);
+    version = Number(data.version || 0);
+    baseline = projectDatabase(db);
+    lastSyncTime = now;
+
+    // Lokal disk keshini yangilash
+    db.saveToFile();
+    writeCacheMeta({
+      lastSyncTime: now,
+      version,
+      recordsCount: db.stores.size + db.offers.size
+    });
+
+    console.log(`[Supabase Cache] ✅ Supabase muvaffaqiyatli sinxronlandi va disk keshiga saqlandi (versiya: ${version}, do‘konlar: ${db.stores.size}, takliflar: ${db.offers.size}).`);
+    return true;
+  } catch (err: any) {
+    // 4. Quota Guard / Graceful Fallback:
+    // Supabase limiti to'lgan yoki xato bergan taqdirda server to'xtab qolmaydi, lokal disk keshidan ishlashda davom etadi!
+    const isQuotaError = err?.status === 429 || err?.message?.includes('429') || err?.message?.includes('quota') || err?.message?.includes('limit');
+    console.warn(`[Supabase Quota Guard] ⚠️ Supabase ulanishida xatolik (${isQuotaError ? 'LIMIT OSHIB KETGAN' : err.message}).`);
+    console.warn(`[Supabase Quota Guard] 🛡️ Tizim avtomatik ravishda lokal disk keshidan ishlashda davom etmoqda.`);
+
+    if (db.stores.size === 0) {
+      db.loadFromFile();
+    }
+
+    lastSyncTime = now; // Qayta-qayta Supabasega murojaat qilib limitni battar yeb qo'ymaslik uchun
+    return true;
+  }
 }
 
 /** One PostgreSQL transaction; stale writers receive 409 instead of overwriting newer data. */
@@ -131,28 +225,53 @@ export async function syncAllToSupabase(db: InMemoryDatabase): Promise<boolean> 
   if (!isSupabaseWriteAllowed()) {
     return false;
   }
-  // Mirror relational cascades before computing the transaction, so permanent
-  // deletions cannot leave dangling in-memory rows or resurrect deleted parents.
-  for (const [id, store] of db.stores) if (!db.organizations.has(store.organizationId)) db.stores.delete(id);
-  for (const [id, offer] of db.offers) if (!db.stores.has(offer.storeId) || !db.variants.has(offer.variantId)) db.offers.delete(id);
-  for (const [id] of db.balances) if (!db.offers.has(id)) db.balances.delete(id);
-  for (const [id, member] of db.memberships) if (!db.users.has(member.userId) || !db.organizations.has(member.organizationId)) db.memberships.delete(id);
-  for (const collection of [db.expenses, db.stockDocuments]) for (const [id, row] of collection as Map<string, any>) if (!db.organizations.has(row.organizationId) || (row.storeId && !db.stores.has(row.storeId))) collection.delete(id);
-  for (const [id, row] of db.reviews) if (!db.stores.has(row.storeId)) db.reviews.delete(id);
-  for (const [id, row] of db.variants) if ((row as any).organizationId && !db.organizations.has((row as any).organizationId)) {
-    const offer = [...db.offers.values()].find(o => o.variantId === id);
-    if (offer) (row as any).organizationId = db.stores.get(offer.storeId)!.organizationId;
-    else db.variants.delete(id);
+
+  try {
+    // Mirror relational cascades before computing the transaction, so permanent
+    // deletions cannot leave dangling in-memory rows or resurrect deleted parents.
+    for (const [id, store] of db.stores) if (!db.organizations.has(store.organizationId)) db.stores.delete(id);
+    for (const [id, offer] of db.offers) if (!db.stores.has(offer.storeId) || !db.variants.has(offer.variantId)) db.offers.delete(id);
+    for (const [id] of db.balances) if (!db.offers.has(id)) db.balances.delete(id);
+    for (const [id, member] of db.memberships) if (!db.users.has(member.userId) || !db.organizations.has(member.organizationId)) db.memberships.delete(id);
+    for (const collection of [db.expenses, db.stockDocuments]) for (const [id, row] of collection as Map<string, any>) if (!db.organizations.has(row.organizationId) || (row.storeId && !db.stores.has(row.storeId))) collection.delete(id);
+    for (const [id, row] of db.reviews) if (!db.stores.has(row.storeId)) db.reviews.delete(id);
+    for (const [id, row] of db.variants) if ((row as any).organizationId && !db.organizations.has((row as any).organizationId)) {
+      const offer = [...db.offers.values()].find(o => o.variantId === id);
+      if (offer) (row as any).organizationId = db.stores.get(offer.storeId)!.organizationId;
+      else db.variants.delete(id);
+    }
+    const current = projectDatabase(db);
+    const changes: Rows = {};
+    const deleted: Record<string, string[]> = {};
+    for (const [table, rows] of Object.entries(current)) {
+      const old = new Map((baseline[table] || []).map(r => [r.id, JSON.stringify(r)]));
+      const ids = new Set(rows.map(r => r.id));
+      changes[table] = rows.filter(r => old.get(r.id) !== JSON.stringify(r));
+      deleted[table] = [...old.keys()].filter(id => !ids.has(id));
+    }
+    if (!Object.values(changes).some(r => r.length) && !Object.values(deleted).some(r => r.length)) return true;
+
+    const { data, error } = await supabase.rpc('commit_database_snapshot', { expected_version: version, changes, deleted });
+    if (error) {
+      const conflict = error.code === '40001';
+      if (!conflict) {
+        console.warn(`[Supabase Quota Guard] ⚠️ Supabase saqlash xatosi: ${error.message}. Lokal diskka saqlanmoqda.`);
+        db.saveToFile();
+        return true;
+      }
+      throw Object.assign(new Error('Ma’lumot yangilandi. So‘rovni qayta yuboring.'), { status: 409, code: 'WRITE_CONFLICT' });
+    }
+    version = Number(data);
+    baseline = current;
+    lastSyncTime = Date.now();
+    writeCacheMeta({ lastSyncTime, version, recordsCount: db.stores.size + db.offers.size });
+    return true;
+  } catch (err: any) {
+    if (err?.status === 409) throw err;
+    console.warn(`[Supabase Quota Guard] ⚠️ Supabase saqlashda limit yoki xatolik: ${err?.message}. O‘zgarishlar faqat lokal diskda saqlandi.`);
+    db.saveToFile();
+    return true;
   }
-  const current=projectDatabase(db); const changes: Rows={}; const deleted: Record<string,string[]>={};
-  for (const [table,rows] of Object.entries(current)) {
-    const old=new Map((baseline[table] || []).map(r=>[r.id,JSON.stringify(r)])); const ids=new Set(rows.map(r=>r.id));
-    changes[table]=rows.filter(r=>old.get(r.id)!==JSON.stringify(r)); deleted[table]=[...old.keys()].filter(id=>!ids.has(id));
-  }
-  if (!Object.values(changes).some(r=>r.length) && !Object.values(deleted).some(r=>r.length)) return true;
-  const {data,error}=await supabase.rpc('commit_database_snapshot',{expected_version:version,changes,deleted});
-  if (error) { const conflict=error.code==='40001'; throw Object.assign(new Error(conflict ? 'Ma’lumot yangilandi. So‘rovni qayta yuboring.' : 'Ma’lumot bazaga saqlanmadi.'),{status:conflict ? 409 : 503,code:conflict ? 'WRITE_CONFLICT' : 'PERSISTENCE_FAILED'}); }
-  version=Number(data); baseline=current; lastSyncTime = Date.now(); return true;
 }
 
 // Committed together with the HTTP operation by the persistence middleware.

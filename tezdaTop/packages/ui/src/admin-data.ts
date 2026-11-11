@@ -9,22 +9,34 @@ export interface AdminDataSelection {
 export function adminResourcePlan(tab: string, selection: AdminDataSelection): Record<string, string> {
   const resources: Record<string, string> = { overview: '/api/v1/admin/overview' };
   const add = (key: string) => { resources[key] = `/api/v1/admin/${key}`; };
+  const hasRegion = Boolean(selection.region && selection.region !== 'Barcha viloyatlar');
+  const storeQuery = new URLSearchParams();
+  if (hasRegion) storeQuery.set('region', selection.region);
+  if (selection.city && selection.city !== 'Barcha tumanlar') storeQuery.set('city', selection.city);
+  const storeUrl = storeQuery.toString() ? `/api/v1/admin/stores?${storeQuery}` : '/api/v1/admin/stores';
+
   if (tab === 'organizations') {
     if (selection.orgSubTab === 'organizations') {
       const query = new URLSearchParams({ page: String(selection.orgPage), limit: String(selection.orgLimit), q: selection.orgSearch, status: selection.orgStatus });
-      if (selection.region !== 'Barcha viloyatlar') query.set('region', selection.region);
-      if (selection.city !== 'Barcha tumanlar') query.set('city', selection.city);
+      if (hasRegion) query.set('region', selection.region);
+      if (selection.city && selection.city !== 'Barcha tumanlar') query.set('city', selection.city);
       resources.organizationPage = `/api/v1/admin/organizations?${query}`;
-    } else add('stores');
+    } else {
+      resources.stores = storeUrl;
+    }
   }
-  if (tab === 'map-hub') add('stores');
-  if (tab === 'growth-dynamics') add('stores');
-  if (tab === 'requests-inquiries') add('stores');
+  if (tab === 'map-hub' || tab === 'growth-dynamics' || tab === 'requests-inquiries') {
+    resources.stores = storeUrl;
+  }
   if (tab === 'users') add('users');
   if (tab === 'applications') add('applications');
   if (tab === 'reports') add('reports');
   if (tab === 'audit') add('audit');
-  if (tab === 'users' || selection.needsOrganizationOptions) resources.organizations = '/api/v1/admin/organizations?options=1';
+  if (tab === 'users' || selection.needsOrganizationOptions) {
+    const orgOptQuery = new URLSearchParams({ options: '1' });
+    if (hasRegion) orgOptQuery.set('region', selection.region);
+    resources.organizations = `/api/v1/admin/organizations?${orgOptQuery}`;
+  }
   return resources;
 }
 

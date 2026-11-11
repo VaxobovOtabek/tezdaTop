@@ -8,6 +8,9 @@ export default defineConfig(({ command }) => ({
   plugins: [react()],
   build: {
     chunkSizeWarningLimit: 800,
+    commonjsOptions: {
+      esmExternals: true
+    },
     rollupOptions: {
       output: {
         manualChunks: {

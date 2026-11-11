@@ -53,12 +53,23 @@ export async function ensureDbInitialized() {
   if (!initPromise) {
     initPromise = (async () => {
       try {
-        if (isProduction && !process.env.SESSION_SECRET && !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('A backend session signing secret must be configured');
-        if (isProduction && process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim().length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters');
-        const loaded = !isSupabaseConfigured() && db.loadFromFile();
+        if (isProduction && process.env.NODE_ENV !== 'test' && !process.env.SESSION_SECRET && !process.env.SUPABASE_SERVICE_ROLE_KEY) throw new Error('A backend session signing secret must be configured');
+        if (isProduction && process.env.NODE_ENV !== 'test' && process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim().length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters');
+        // 1. Birinchi navbatda lokal disk keshidan bazani tezkor yuklash (Supabase Free Tier'ni tejaydi)
+        const localLoaded = db.loadFromFile();
+
+        // 2. Agar Supabase sozlangan bo'lsa, xavfsiz sinxronlash (kesh TTL ga amal qiladi)
         if (isSupabaseConfigured()) {
-          await syncAllFromSupabase(db);
-        } else if (!loaded && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_SEED === 'true') {
+          try {
+            await syncAllFromSupabase(db, false);
+          } catch (syncErr: any) {
+            console.warn(`[Supabase Init] Supabase yuklanmadi: ${syncErr.message}. Lokal bazadan davom etiladi.`);
+            if (!localLoaded && process.env.ALLOW_DEMO_SEED === 'true') {
+              await seedDatabase();
+              db.saveToFile();
+            }
+          }
+        } else if (!localLoaded && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_SEED === 'true') {
           await seedDatabase();
           db.saveToFile();
         }
@@ -104,7 +115,29 @@ function isAllowedOrigin(origin: string): boolean {
   if (ALLOWED_ORIGINS.has(origin)) return true;
   try {
     const parsed = new URL(origin);
+    const host = parsed.hostname;
 
+    // Allow any localhost / loopback / local network IP on any port
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host === '::1' ||
+      host.endsWith('.localhost') ||
+      host.startsWith('192.168.') ||
+      host.startsWith('10.') ||
+      host.startsWith('172.')
+    ) {
+      return true;
+    }
+
+    // Allow yaqintop domains and vercel previews
+    if (
+      host === 'yaqintop.uz' ||
+      host.endsWith('.yaqintop.uz') ||
+      host.endsWith('.vercel.app')
+    ) {
+      return true;
+    }
   } catch {
     return false;
   }
@@ -1072,6 +1105,8 @@ app.get('/api/v1/stores', (req, res) => {
   const radiusM = req.query.radiusM ? parseInt(req.query.radiusM as string, 10) : 0;
   const openNow = req.query.openNow === 'true';
   const query = (req.query.q || req.query.query || '').toString().trim().toLowerCase();
+  const region = (req.query.region || '').toString().trim();
+  const district = (req.query.district || req.query.city || '').toString().trim();
 
   const results: any[] = [];
   for (const store of db.stores.values()) {
@@ -1079,19 +1114,52 @@ app.get('/api/v1/stores', (req, res) => {
     const org = db.organizations.get(store.organizationId);
     if (!org || org.status !== 'ACTIVE') continue;
 
+    // Regional restriction filter
+    if (region && region !== 'Barcha viloyatlar') {
+      const sReg = String((store as any).region || (org as any).region || '').toLowerCase();
+      const rLower = region.toLowerCase();
+      const matches = rLower === 'toshkent shahri'
+        ? (sReg === 'toshkent shahri' || !sReg || sReg.includes('toshkent') || (store.address || '').toLowerCase().includes('toshkent'))
+        : (sReg === rLower || sReg.includes(rLower.replace(/\s+(viloyati|respublikasi)$/i, '')) || (store.address || '').toLowerCase().includes(rLower.replace(/\s+(viloyati|respublikasi)$/i, '')));
+      if (!matches) continue;
+    }
+
+    // District / City filter
+    if (district && district !== 'Barcha tumanlar') {
+      const sDist = String((store as any).district || (store as any).city || (org as any).district || (org as any).city || '').toLowerCase();
+      const dClean = district.toLowerCase().replace(/\s*(tumani|shahri|\(.*?\))\s*/gi, '').trim();
+      const sAddr = (store.address || '').toLowerCase();
+      if (!sDist.includes(dClean) && !sAddr.includes(dClean)) {
+        continue;
+      }
+    }
+
     if (query) {
+      const isPharmQuery = ['apteka', 'dorixona', 'dori', 'pharmacy', 'farm', 'shifo'].some(k => query.includes(k));
+      const storeIsPharm = store.type === 'PHARMACY' || org.type === 'PHARMACY' ||
+        ['apteka', 'dorixona', 'pharm', 'shifo', 'farm'].some(k => store.name.toLowerCase().includes(k));
+
+      const isMarketQuery = ['market', 'supermarket', 'do\'kon', 'dokon', 'savdo', 'baza'].some(k => query.includes(k));
+      const storeIsMarket = store.type === 'RETAIL' || store.type === 'WHOLESALE' || store.type === 'MIXED';
+
       const matchName = store.name.toLowerCase().includes(query);
       const matchOrgName = org.name.toLowerCase().includes(query);
       const matchType = (store.type || org.type || '').toLowerCase().includes(query);
       const matchAddress = (store.address || '').toLowerCase().includes(query);
       const matchCity = (store.city || org.city || '').toLowerCase().includes(query);
-      if (!matchName && !matchOrgName && !matchType && !matchAddress && !matchCity) {
+      const matchDistrict = (store.district || org.district || '').toLowerCase().includes(query);
+
+      const matchesStore = matchName || matchOrgName || matchType || matchAddress || matchCity || matchDistrict ||
+        (isPharmQuery && storeIsPharm) ||
+        (isMarketQuery && storeIsMarket);
+
+      if (!matchesStore) {
         continue;
       }
     }
 
     const dist = calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng);
-    if (radiusM && dist > radiusM) continue;
+    if (radiusM && dist > radiusM && !query) continue;
 
     const isOpen = checkStoreIsOpenNow(store);
     if (openNow && !isOpen) continue;
@@ -4341,7 +4409,34 @@ app.delete('/api/v1/admin/organizations/:id', requireStaffRole(['SUPERADMIN']), 
 });
 
 app.get('/api/v1/admin/stores', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
-  const stores = Array.from(db.stores.values()).map(s => {
+  const region = String(req.query.region || '').trim();
+  const city = String(req.query.city || '').trim();
+
+  let storeList = Array.from(db.stores.values());
+
+  if (region && region !== 'Barcha viloyatlar') {
+    const rLower = region.toLowerCase();
+    storeList = storeList.filter(s => {
+      const org = db.organizations.get(s.organizationId);
+      const sReg = String((s as any).region || (org as any)?.region || '').toLowerCase();
+      if (rLower === 'toshkent shahri') {
+        return sReg === 'toshkent shahri' || !sReg || sReg.includes('toshkent') || (s.address || '').toLowerCase().includes('toshkent');
+      }
+      return sReg === rLower || sReg.includes(rLower.replace(/\s+(viloyati|respublikasi)$/i, '')) || (s.address || '').toLowerCase().includes(rLower.replace(/\s+(viloyati|respublikasi)$/i, ''));
+    });
+  }
+
+  if (city && city !== 'Barcha tumanlar') {
+    const cLower = city.toLowerCase().replace(/\s*(tumani|shahri|\(.*?\))\s*/gi, '').trim();
+    storeList = storeList.filter(s => {
+      const org = db.organizations.get(s.organizationId);
+      const sCity = String((s as any).city || (s as any).district || (org as any)?.city || (org as any)?.district || '').toLowerCase();
+      const sAddr = String(s.address || '').toLowerCase();
+      return sCity.includes(cLower) || sAddr.includes(cLower);
+    });
+  }
+
+  const stores = storeList.map(s => {
     const org = db.organizations.get(s.organizationId);
     const openReportsCount = Array.from(db.reports.values()).filter(r => r.storeId === s.id && r.status === 'OPEN').length;
     const openCorrectionsCount = Array.from(db.corrections.values()).filter(c => c.storeId === s.id && c.status === 'OPEN').length;

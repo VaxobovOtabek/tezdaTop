@@ -8,6 +8,8 @@ interface ResultsDrawerProps {
   onOpen: () => void;
   searchQuery: string;
   locationName: string;
+  isRegionChosen?: boolean;
+  onOpenLocationPicker?: () => void;
   items: any[];
   selectedItem: any | null;
   onSelectItem: (item: any) => void;
@@ -50,6 +52,8 @@ export const ResultsDrawer: React.FC<ResultsDrawerProps> = ({
   onOpen,
   searchQuery,
   locationName,
+  isRegionChosen = true,
+  onOpenLocationPicker,
   items,
   selectedItem,
   onSelectItem,
@@ -120,6 +124,27 @@ export const ResultsDrawer: React.FC<ResultsDrawerProps> = ({
                 <div className="w-1/2 h-3 bg-slate-200 dark:bg-slate-800 rounded" />
               </div>
             ))}
+          </div>
+        ) : !isRegionChosen ? (
+          <div className="py-12 flex flex-col items-center justify-center text-center px-4">
+            <div className="w-14 h-14 rounded-2xl bg-red-100 dark:bg-red-950/50 text-red-600 dark:text-red-400 flex items-center justify-center mb-3 text-2xl shadow-sm">
+              📍
+            </div>
+            <h3 className="font-extrabold text-sm text-red-700 dark:text-red-300 mb-1">
+              Viloyat va tuman tanlanmagan
+            </h3>
+            <p className="text-xs text-red-600/90 dark:text-red-400/90 max-w-[240px] mb-4">
+              Dorixonalar va do‘konlarni ko‘rish uchun iltimos, avval viloyat va shahar/tumaningizni belgilang.
+            </p>
+            {onOpenLocationPicker && (
+              <button
+                onClick={onOpenLocationPicker}
+                type="button"
+                className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md cursor-pointer animate-bounce"
+              >
+                <span>Viloyatni tanlash 📍</span>
+              </button>
+            )}
           </div>
         ) : count === 0 ? (
           <div className="py-12 flex flex-col items-center justify-center text-center px-4">

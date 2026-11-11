@@ -16,6 +16,7 @@
     "test": "pnpm --filter @yaqintop/api test",
     "test:all": "pnpm -r test",
     "lint": "pnpm -r lint",
+    "import:pharmacies": "pnpm --filter @yaqintop/api import:pharmacies",
     "dev:dealer": "pnpm --filter @yaqintop/dealer dev"
   },
   "devDependencies": {

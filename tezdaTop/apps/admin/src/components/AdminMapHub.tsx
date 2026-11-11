@@ -101,8 +101,21 @@ export function AdminMapHub({
   const [selectedStore, setSelectedStore] = useState<EnrichedStore | null>(null);
   const [isResolving, setIsResolving] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('Barcha viloyatlar');
-  const [selectedDistrict, setSelectedDistrict] = useState('Barcha tumanlar');
+  const [selectedRegion, setSelectedRegion] = useState(() => {
+    try {
+      return localStorage.getItem('yaqintop_admin_region') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [selectedDistrict, setSelectedDistrict] = useState(() => {
+    try {
+      return localStorage.getItem('yaqintop_admin_city') || '';
+    } catch {
+      return '';
+    }
+  });
+  const isRegionChosen = Boolean(selectedRegion && selectedRegion !== 'Barcha viloyatlar');
   const [filterMode, setFilterMode] = useState<'ALL' | 'WITH_ISSUES' | 'ACTIVE' | 'PENDING'>('ALL');
 
   // Map Zoom & Geo state
@@ -470,7 +483,9 @@ export function AdminMapHub({
       .sort((a, b) => String(a || '').localeCompare(String(b || ''), 'uz'))
   ], [stores, selectedRegion]);
 
-  const filteredStores = useMemo(() => stores.filter((st) => {
+  const filteredStores = useMemo(() => {
+    if (!isRegionChosen) return [];
+    return stores.filter((st) => {
     const query = searchQuery.toLowerCase().trim();
     const matchSearch =
       !query ||
@@ -498,7 +513,8 @@ export function AdminMapHub({
         : st.status === 'PENDING' || st.status === 'NEEDS_CHANGES';
 
     return matchSearch && matchRegion && matchDistrict && matchMode;
-  }), [stores, searchQuery, selectedRegion, selectedDistrict, filterMode]);
+    });
+  }, [stores, searchQuery, selectedRegion, selectedDistrict, filterMode, isRegionChosen]);
 
   useEffect(() => {
     setSelectedStore(current => current && filteredStores.some(store => store.id === current.id) ? current : null);
@@ -841,6 +857,17 @@ export function AdminMapHub({
         </div>
       </div>
 
+      {/* Warning when region is not selected */}
+      {!isRegionChosen && (
+        <div className="p-3 mb-2 rounded-2xl bg-red-50 dark:bg-red-950/40 border-2 border-red-500 text-red-700 dark:text-red-300 flex items-center justify-between text-xs font-bold shadow-sm animate-pulse">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            <span>⚠️ Iltimos, xaritada tashkilotlar va do‘konlarni ko‘rish uchun viloyat va shahar/tumanni tanlang! Barcha ma’lumotlar birdaniga yuklanmaydi.</span>
+          </div>
+          <span className="px-2 py-0.5 rounded bg-red-600 text-white text-[10px] font-black uppercase">Tanlang</span>
+        </div>
+      )}
+
       {/* Filter Toolbar */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-3.5 shadow-sm text-xs">
         {/* Search */}
@@ -856,19 +883,29 @@ export function AdminMapHub({
         </div>
 
         {/* Region */}
-        <div>
+        <div className="relative">
           <select
             value={selectedRegion}
             aria-label="Viloyat"
             onChange={(e) => { setSelectedRegion(e.target.value); setSelectedDistrict('Barcha tumanlar'); }}
-            className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+            className={`w-full p-2 rounded-xl text-xs font-bold transition-all ${
+              !isRegionChosen
+                ? 'border-2 border-red-500 bg-red-50 dark:bg-red-950/60 text-red-900 ring-2 ring-red-400 animate-pulse'
+                : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+            }`}
           >
+            <option value="">🔴 Iltimos, viloyatni tanlang (Majburiy)</option>
             {REGION_OPTIONS.map((reg) => (
               <option key={reg} value={reg}>
                 {reg}
               </option>
             ))}
           </select>
+          {!isRegionChosen && (
+            <span className="absolute -top-2 right-2 px-1.5 py-0.2 rounded bg-red-600 text-white text-[9px] font-black uppercase tracking-wider animate-bounce">
+              Tanlang!
+            </span>
+          )}
         </div>
 
         {/* District */}
@@ -876,10 +913,16 @@ export function AdminMapHub({
           <select
             aria-label="Tuman yoki shahar"
             value={selectedDistrict}
+            disabled={!isRegionChosen}
             onChange={(e) => setSelectedDistrict(e.target.value)}
-            className="w-full p-2 rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]"
+            className={`w-full p-2 rounded-xl text-xs font-bold transition-all ${
+              !isRegionChosen
+                ? 'opacity-50 cursor-not-allowed border border-[#DCE5DF] dark:border-[#273B32] bg-gray-100 dark:bg-gray-800'
+                : 'border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC]'
+            }`}
           >
-            {districtOptions.map((dist) => (
+            <option value="">{isRegionChosen ? 'Barcha tumanlar' : 'Avval viloyatni tanlang'}</option>
+            {districtOptions.filter(d => d !== 'Barcha tumanlar').map((dist) => (
               <option key={dist} value={dist}>
                 {dist}
               </option>

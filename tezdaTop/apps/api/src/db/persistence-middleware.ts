@@ -19,9 +19,13 @@ export async function persistenceMiddleware(req: Request, res: Response, next: N
   if (process.env.NODE_ENV === 'test') return next();
 
   const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method);
+  const isSearchOrRead =
+    !isMutation ||
+    req.path.includes('/search') ||
+    req.path.includes('/routes');
 
-  // Fast-path: read queries bypass queue serialization and persistence commits
-  if (!isMutation) {
+  // Fast-path: read and search queries bypass queue serialization and persistence commits
+  if (isSearchOrRead) {
     return next();
   }
 
@@ -33,10 +37,11 @@ export async function persistenceMiddleware(req: Request, res: Response, next: N
   let snapshot: Record<string, any>;
   try {
     if (isSupabaseConfigured()) {
-      await syncAllFromSupabase(db);
+      await syncAllFromSupabase(db, false);
     }
     snapshot = JSON.parse(JSON.stringify(db.exportSnapshot()));
   } catch (error) {
+    console.error('[Persistence Error caught in try]:', error);
     release();
     return next(error);
   }
@@ -63,6 +68,7 @@ export async function persistenceMiddleware(req: Request, res: Response, next: N
         }
         (end as any)(...args);
       } catch (error: any) {
+        console.error('[Persistence Error caught in res.end]:', error);
         db.restoreSnapshot(snapshot);
         res.removeHeader('Content-Length');
         res.removeHeader('ETag');
