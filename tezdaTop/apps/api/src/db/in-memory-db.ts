@@ -216,8 +216,29 @@ export class InMemoryDatabase {
   public idempotencyRecords: Map<string, DBIdempotencyRecord> = new Map();
 
   // Persistent file storage configuration (use /tmp on Serverless / Vercel)
-  private dataDir = process.env.VERCEL ? path.join(os.tmpdir(), 'yaqintop-data') : path.resolve(process.cwd(), 'data');
-  private dataFilePath = path.join(this.dataDir, 'yaqintop_db.json');
+  public getDataFilePath(): string {
+    if (process.env.VERCEL) {
+      return path.join(os.tmpdir(), 'yaqintop-data', 'yaqintop_db.json');
+    }
+    const candidates = [
+      path.resolve(process.cwd(), 'apps/api/data/yaqintop_db.json'),
+      path.resolve(process.cwd(), 'data/yaqintop_db.json'),
+      path.resolve(__dirname, '../../data/yaqintop_db.json'),
+      path.resolve(__dirname, '../../../data/yaqintop_db.json'),
+    ];
+    for (const c of candidates) {
+      if (fs.existsSync(c)) return c;
+    }
+    return path.resolve(process.cwd(), 'apps/api/data/yaqintop_db.json');
+  }
+
+  private get dataFilePath(): string {
+    return this.getDataFilePath();
+  }
+
+  private get dataDir(): string {
+    return path.dirname(this.dataFilePath);
+  }
   private saveTimeout: NodeJS.Timeout | null = null;
 
   public persistenceManaged = false;

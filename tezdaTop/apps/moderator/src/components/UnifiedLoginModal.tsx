@@ -23,6 +23,37 @@ export function UnifiedLoginModal({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(initialError);
 
+  const isLocalEnv = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1' ||
+    Boolean((import.meta as any).env?.DEV)
+  );
+
+  const handleDevQuickLogin = async (role: 'SUPERADMIN' | 'MODERATOR' = 'MODERATOR') => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch('/api/v1/auth/dev-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        saveCachedSession(data.user, data.token, data.expiresAt);
+        onLoginSuccess(data.user, data.token);
+        onClose();
+      } else {
+        setErrorMsg(data.message || 'Kirishda xatolik yuz berdi');
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Serverga ulanib bo‘lmadi');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = async () => {
     const targetLogin = login.trim();
     const targetPass = password;
@@ -105,6 +136,34 @@ export function UnifiedLoginModal({
           <div className="p-3 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs text-red-700 dark:text-red-300 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
             <span className="font-semibold">{errorMsg}</span>
+          </div>
+        )}
+
+        {isLocalEnv && (
+          <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 flex flex-col gap-2">
+            <span className="text-[11px] font-bold text-blue-800 dark:text-blue-300">
+              🛠️ Local Dev Rejimi (Parolsiz kirish):
+            </span>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => handleDevQuickLogin('MODERATOR')}
+                className="flex-1 text-[11px] font-bold bg-white text-blue-800 border-blue-300 shadow-2xs"
+              >
+                ⚖️ Moderator (Parolsiz)
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => handleDevQuickLogin('SUPERADMIN')}
+                className="flex-1 text-[11px] font-bold bg-white text-emerald-800 border-emerald-300 shadow-2xs"
+              >
+                ⚡ Admin (Parolsiz)
+              </Button>
+            </div>
           </div>
         )}
 

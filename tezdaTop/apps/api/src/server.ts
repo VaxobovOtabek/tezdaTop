@@ -263,7 +263,21 @@ function getCurrentUser(req: Request) {
   const bearerToken = authHeader?.startsWith('Bearer ') ? authHeader.slice(7).trim() : authHeader?.trim();
   const cookieToken = req.cookies?.session_token?.trim();
   const token = bearerToken || cookieToken;
-  if (!token) return null;
+  if (!token) {
+    // Local development only: seamlessly recognize requests from local admin (:3002) and moderator (:3004)
+    if (!isProduction) {
+      const origin = (req.headers.origin || req.headers.referer || '').toString();
+      if (origin.includes(':3002') || origin.endsWith('/admin') || origin.includes('/admin/')) {
+        const adminUser = Array.from(db.users.values()).find(u => ((u.role as any) === 'SUPERADMIN' || (u.role as any) === 'ADMIN') && u.status === 'ACTIVE');
+        if (adminUser) return adminUser;
+      }
+      if (origin.includes(':3004') || origin.endsWith('/moderator') || origin.includes('/moderator/')) {
+        const modUser = Array.from(db.users.values()).find(u => u.role === 'MODERATOR' && u.status === 'ACTIVE');
+        if (modUser) return modUser;
+      }
+    }
+    return null;
+  }
   if (process.env.NODE_ENV !== 'test' && !verifySignedSessionToken(token)) return null;
   if (isTokenRevoked(token)) return null;
 
@@ -453,6 +467,44 @@ app.post('/api/v1/auth/login', authLoginLimiter, (req, res) => {
   }
 
   res.json({ user: userClean, token, expiresAt: sessionExpiresAt(db.sessions.get(token)!) });
+});
+
+// Local Development ONLY: Instant passwordless dev login for Admin and Moderator
+app.post('/api/v1/auth/dev-login', (req: Request, res: Response) => {
+  if (isProduction) {
+    res.status(403).json({ code: 'FORBIDDEN', message: 'Dev login production (deploy) muhitida o‘chirilgan' });
+    return;
+  }
+
+  const requestedRole = (req.body?.role || 'SUPERADMIN').toString().toUpperCase();
+  const targetUser = Array.from(db.users.values()).find(u => (u.role as string) === requestedRole && u.status === 'ACTIVE') ||
+                     Array.from(db.users.values()).find(u => ((u.role as any) === 'SUPERADMIN' || (u.role as any) === 'ADMIN') && u.status === 'ACTIVE') ||
+                     Array.from(db.users.values())[0];
+
+  if (!targetUser) {
+    res.status(404).json({ code: 'USER_NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
+    return;
+  }
+
+  const token = createSignedSessionToken(targetUser.id);
+  db.sessions.set(token, { userId: targetUser.id, createdAt: new Date() });
+
+  res.cookie('session_token', token, {
+    httpOnly: true,
+    secure: false,
+    sameSite: 'lax',
+    maxAge: SESSION_TTL_MS
+  });
+
+  const { passwordHash, ...userClean } = targetUser;
+  delete (userClean as any).plainPassword;
+  delete (userClean as any).verificationCode;
+
+  res.json({
+    user: userClean,
+    token,
+    expiresAt: sessionExpiresAt(db.sessions.get(token)!)
+  });
 });
 
 app.post('/api/v1/auth/register', authRegisterLimiter, async (req, res) => {
@@ -1138,8 +1190,8 @@ app.get('/api/v1/stores', (req, res) => {
       if (!matches) continue;
     }
 
-    // District / City filter
-    if (district && district !== 'Barcha tumanlar') {
+    // District / City filter (only if explicitly specified and not Barcha tumanlar)
+    if (district && district !== 'Barcha tumanlar' && district !== 'Viloyat markazi') {
       const sDist = String((store as any).district || (store as any).city || (org as any).district || (org as any).city || '').toLowerCase();
       const dClean = district.toLowerCase().replace(/\s*(tumani|shahri|\(.*?\))\s*/gi, '').trim();
       const sAddr = (store.address || '').toLowerCase();
@@ -1173,7 +1225,9 @@ app.get('/api/v1/stores', (req, res) => {
     }
 
     const dist = calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng);
-    if (radiusM && dist > radiusM && !query) continue;
+    const hasRegionFilter = Boolean(region && region !== 'Barcha viloyatlar');
+    // If region is selected, show ALL stores in that region without cutting off by radius
+    if (radiusM && dist > radiusM && !query && !hasRegionFilter) continue;
 
     const isOpen = checkStoreIsOpenNow(store);
     if (openNow && !isOpen) continue;

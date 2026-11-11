@@ -30,6 +30,39 @@ export function UnifiedLoginModal({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(initialError);
 
+  const isLocalEnv = typeof window !== 'undefined' && (
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1' ||
+    window.location.hostname === '::1' ||
+    Boolean((import.meta as any).env?.DEV)
+  );
+
+  const handleDevQuickLogin = async (role: 'SUPERADMIN' | 'MODERATOR' = 'SUPERADMIN') => {
+    setIsLoading(true);
+    setErrorMsg(null);
+    try {
+      const res = await fetch(apiUrl('/api/v1/auth/dev-login'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role })
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        saveCachedSession(data.user, data.token, data.expiresAt);
+        onLoginSuccess(data.user, data.token);
+        onClose();
+        const targetDevPort = role === 'MODERATOR' ? '3004' : '3002';
+        window.location.href = `${window.location.protocol}//${window.location.hostname}:${targetDevPort}/#token=${encodeURIComponent(data.token)}`;
+      } else {
+        setErrorMsg(data.message || 'Kirishda xatolik yuz berdi');
+      }
+    } catch (e: any) {
+      setErrorMsg(e?.message || 'Serverga ulanib bo‘lmadi');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleLogin = async () => {
     const targetLogin = login.trim();
     const targetPass = password;
@@ -117,6 +150,30 @@ export function UnifiedLoginModal({
           <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 text-xs sm:text-sm text-red-700 dark:text-red-300 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0 text-red-600" />
             <span className="font-semibold">{errorMsg}</span>
+          </div>
+        )}
+
+        {isLocalEnv && (
+          <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 flex flex-col gap-2">
+            <span className="text-[11px] font-bold text-emerald-800 dark:text-emerald-300">
+              🛠️ Local Dev Rejimi (Parolsiz kirish):
+            </span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => handleDevQuickLogin('SUPERADMIN')}
+                className="flex-1 py-1.5 px-2 text-[11px] font-bold bg-white text-emerald-800 border border-emerald-300 rounded-lg hover:bg-emerald-100 transition shadow-2xs cursor-pointer"
+              >
+                ⚡ Admin (:3002)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDevQuickLogin('MODERATOR')}
+                className="flex-1 py-1.5 px-2 text-[11px] font-bold bg-white text-blue-800 border border-blue-300 rounded-lg hover:bg-blue-100 transition shadow-2xs cursor-pointer"
+              >
+                ⚖️ Moderator (:3004)
+              </button>
+            </div>
           </div>
         )}
 

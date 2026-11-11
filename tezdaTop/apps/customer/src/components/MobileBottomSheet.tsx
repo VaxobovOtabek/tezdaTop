@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { ChevronUp, ChevronDown, Store as StoreIcon, MapPin, RotateCcw } from 'lucide-react';
-import { StoreCard } from './StoreCard';
+import { ChevronUp, ChevronDown, RotateCcw, Search, Sparkles, Pill } from 'lucide-react';
+import { ProductSearchCard } from './ProductSearchCard';
 
 interface MobileBottomSheetProps {
   items: any[];
@@ -9,9 +9,21 @@ interface MobileBottomSheetProps {
   onOpenStore: (storeId: string) => void;
   onGetRoute: (store: any) => void;
   onClearSearch?: () => void;
+  onSearchQuery?: (q: string) => void;
+  onOpenProductModal?: (item: any) => void;
   searchQuery: string;
   locationName: string;
 }
+
+const POPULAR_SEARCH_PILLS = [
+  'Paratsetamol',
+  'Aspirin',
+  'Sitamol',
+  'Spazmalgon',
+  'Analgin',
+  'Kardiomagnil',
+  'Mezim'
+];
 
 export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   items,
@@ -20,6 +32,8 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   onOpenStore,
   onGetRoute,
   onClearSearch,
+  onSearchQuery,
+  onOpenProductModal,
   searchQuery,
   locationName
 }) => {
@@ -28,13 +42,13 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   const cleanLocation = locationName ? locationName.split(',')[0] : 'Guliston';
   const hasActiveSearch = Boolean(searchQuery.trim());
 
-  // Prioritize selected store at the top of the sheet list
+  // Prioritize selected item at the top of the sheet list
   const sortedItems = React.useMemo(() => {
     if (!selectedItem) return items;
-    const targetId = selectedItem.store?.id || selectedItem.id;
+    const targetId = selectedItem.bestOffer?.id || selectedItem.store?.id || selectedItem.id;
     return [...items].sort((a, b) => {
-      const aId = a.store?.id || a.id;
-      const bId = b.store?.id || b.id;
+      const aId = a.bestOffer?.id || a.store?.id || a.id;
+      const bId = b.bestOffer?.id || b.store?.id || b.id;
       if (aId === targetId) return -1;
       if (bId === targetId) return 1;
       return 0;
@@ -49,7 +63,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
 
   const heightClass = {
     collapsed: 'h-[62px]',
-    half: 'h-[48vh]',
+    half: 'h-[52vh]',
     full: 'h-[calc(100vh-140px)]'
   }[sheetState];
 
@@ -66,14 +80,16 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
         <div className="w-full flex items-center justify-between px-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-extrabold text-sm text-[#172B26] dark:text-white shrink-0">
-              Do‘kon va xizmatlar
+              Topilgan tovarlar
             </span>
-            <span className="bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] text-xs font-extrabold px-2 py-0.5 rounded-full shrink-0">
-              {count} ta
-            </span>
-            {selectedItem?.store?.name ? (
+            {hasActiveSearch && (
+              <span className="bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] text-xs font-extrabold px-2 py-0.5 rounded-full shrink-0">
+                {count} ta
+              </span>
+            )}
+            {selectedItem?.bestOffer?.variant?.title ? (
               <span className="text-xs font-semibold text-[#087F5B] dark:text-[#4ADE80] truncate max-w-[130px]">
-                · {selectedItem.store.name}
+                · {selectedItem.bestOffer.variant.title}
               </span>
             ) : (
               <span className="text-xs text-[#64748B] dark:text-[#8B9E95] truncate">
@@ -109,9 +125,34 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
 
       {/* Content list */}
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3 pb-6">
-        {count === 0 ? (
+        {!hasActiveSearch ? (
+          <div className="py-6 flex flex-col items-center text-center px-3">
+            <div className="w-12 h-12 rounded-2xl bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] flex items-center justify-center mb-2.5">
+              <Search className="w-6 h-6" />
+            </div>
+            <h4 className="font-extrabold text-sm text-[#172B26] dark:text-white mb-1">
+              Qidiruvni boshlang
+            </h4>
+            <p className="text-xs text-[#64748B] dark:text-[#8B9E95] mb-4">
+              Kerakli dori yoki tovar nomini yozing:
+            </p>
+            <div className="flex flex-wrap gap-1.5 justify-center">
+              {POPULAR_SEARCH_PILLS.map((pill) => (
+                <button
+                  key={pill}
+                  type="button"
+                  onClick={() => onSearchQuery?.(pill)}
+                  className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-[#E8F5EE] dark:bg-[#1A2822] text-[#172B26] hover:text-[#087F5B] dark:text-[#E8F2EC] text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95"
+                >
+                  <Pill className="w-3 h-3 text-[#087F5B]" />
+                  <span>{pill}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : count === 0 ? (
           <div className="text-center py-8 text-[#64748B] dark:text-[#8B9E95] text-xs flex flex-col items-center gap-2">
-            <span>Yaqin atrofda do‘konlar topilmadi</span>
+            <span>Hech qanday tovar topilmadi</span>
             {hasActiveSearch && onClearSearch && (
               <button
                 type="button"
@@ -130,10 +171,9 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
               selectedItem && (selectedItem.store?.id === storeObj.id || selectedItem.id === storeObj.id)
             );
             return (
-              <StoreCard
-                key={storeObj.id}
-                store={storeObj}
-                distanceM={item.distanceM}
+              <ProductSearchCard
+                key={item.bestOffer?.id || storeObj.id}
+                item={item}
                 isSelected={isSelected}
                 onSelect={() => {
                   onSelectItem(item);
@@ -141,6 +181,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
                 }}
                 onOpenStore={onOpenStore}
                 onGetRoute={onGetRoute}
+                onOpenProductModal={onOpenProductModal}
               />
             );
           })

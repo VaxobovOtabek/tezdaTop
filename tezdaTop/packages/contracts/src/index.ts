@@ -184,6 +184,8 @@ export const SearchQuerySchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   radiusM: z.number().int().min(50).max(3000).default(1000),
+  region: z.string().optional(),
+  district: z.string().optional(),
   openNow: z.boolean().optional(),
   inStock: z.boolean().optional(),
   freshOnly: z.boolean().optional(),

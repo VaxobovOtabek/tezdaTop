@@ -251,12 +251,12 @@ export function CustomerApp() {
   const handleSelectLocation = (loc: { lat: number; lng: number; name: string; region?: string; district?: string }) => {
     setUserLocation({ lat: loc.lat, lng: loc.lng });
     setSelectedLocationName(loc.name);
-    if (loc.region) {
-      setUserRegion(loc.region);
-    }
-    if (loc.district) {
-      setUserDistrict(loc.district);
-    }
+    const chosenRegion = loc.region || '';
+    const cleanDist = (loc.district && loc.district !== 'Barcha tumanlar' && loc.district !== 'Viloyat markazi') ? loc.district : '';
+
+    setUserRegion(chosenRegion);
+    setUserDistrict(cleanDist);
+
     setSearchQuery('');
     setResults([]);
     setSelectedResult(null);
@@ -265,8 +265,14 @@ export function CustomerApp() {
     try {
       localStorage.setItem('yaqintop_user_location', JSON.stringify({ lat: loc.lat, lng: loc.lng }));
       localStorage.setItem('yaqintop_location_name', loc.name);
-      if (loc.region) localStorage.setItem('yaqintop_user_region', loc.region);
-      if (loc.district) localStorage.setItem('yaqintop_user_district', loc.district);
+      if (chosenRegion) {
+        localStorage.setItem('yaqintop_user_region', chosenRegion);
+      }
+      if (cleanDist) {
+        localStorage.setItem('yaqintop_user_district', cleanDist);
+      } else {
+        localStorage.removeItem('yaqintop_user_district');
+      }
     } catch (e) {
       console.error(e);
     }
@@ -274,29 +280,29 @@ export function CustomerApp() {
     if (view !== 'search') {
       navigateTo('/');
     }
-    if (loc.region) {
-      setTimeout(() => {
-        loadNearbyStores({ lat: loc.lat, lng: loc.lng });
-      }, 50);
-    }
   };
 
   // Fetch all nearby stores or search organizations (restricted to selected region/district to avoid loading all DB records)
-  const loadNearbyStores = async (loc?: { lat: number; lng: number }, queryStr?: string) => {
-    const effectiveRegion = userRegion || (() => {
+  const loadNearbyStores = async (
+    loc?: { lat: number; lng: number },
+    queryStr?: string,
+    regionOverride?: string,
+    districtOverride?: string
+  ) => {
+    const effectiveRegion = regionOverride !== undefined ? regionOverride : (userRegion || (() => {
       try {
         return localStorage.getItem('yaqintop_user_region') || '';
       } catch {
         return '';
       }
-    })();
-    const effectiveDistrict = userDistrict || (() => {
+    })());
+    const effectiveDistrict = districtOverride !== undefined ? districtOverride : (userDistrict || (() => {
       try {
         return localStorage.getItem('yaqintop_user_district') || '';
       } catch {
         return '';
       }
-    })();
+    })());
 
     if (!effectiveRegion) {
       // Do NOT dump the entire database if region is not chosen!
@@ -310,7 +316,8 @@ export function CustomerApp() {
       const targetQuery = queryStr !== undefined ? queryStr : (searchCategory === 'organizations' ? searchQuery.trim() : '');
       const queryParam = targetQuery ? `&q=${encodeURIComponent(targetQuery)}` : '';
       const radiusParam = radiusM ? `&radiusM=${radiusM}` : '&radiusM=0';
-      const regionParam = `&region=${encodeURIComponent(effectiveRegion)}${effectiveDistrict ? `&district=${encodeURIComponent(effectiveDistrict)}` : ''}`;
+      const cleanDist = (effectiveDistrict && effectiveDistrict !== 'Barcha tumanlar' && effectiveDistrict !== 'Viloyat markazi') ? effectiveDistrict : '';
+      const regionParam = `&region=${encodeURIComponent(effectiveRegion)}${cleanDist ? `&district=${encodeURIComponent(cleanDist)}` : ''}`;
       const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}${radiusParam}${openNow ? '&openNow=true' : ''}${queryParam}${regionParam}`));
       if (res.ok) {
         const data = await res.json();
@@ -719,7 +726,7 @@ export function CustomerApp() {
       setResults([]);
       setSelectedResult(null);
       setSearchError(null);
-      loadNearbyStores(loc);
+      setNearbyStores([]);
       return;
     }
 
@@ -735,9 +742,6 @@ export function CustomerApp() {
 
     const targetLoc = loc || userLocation;
     try {
-      // Parallel: also load stores matching query so store names and categories (apteka, market, etc.) are always discovered
-      loadNearbyStores(targetLoc, q);
-
       const res = await fetch(apiUrl('/api/v1/search/products'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -748,12 +752,12 @@ export function CustomerApp() {
           lng: targetLoc.lng,
           radiusM,
           region: userRegion || undefined,
-          district: userDistrict || undefined,
+          district: (userDistrict && userDistrict !== 'Barcha tumanlar' && userDistrict !== 'Viloyat markazi') ? userDistrict : undefined,
           openNow: openNow || undefined,
           inStock: inStock || undefined,
           freshOnly: freshOnly || undefined,
           sort: selectedSort,
-          limit: 20
+          limit: 50
         })
       });
 
@@ -803,36 +807,28 @@ export function CustomerApp() {
 
   const isFirstSearchRef = useRef(true);
 
-  // Debounced Search Effect (Immediate on first load, 350ms delay when user types)
+  // Debounced Search Effect (Zero query on first load, 350ms delay when user types)
   useEffect(() => {
     if (isFirstSearchRef.current) {
       isFirstSearchRef.current = false;
-      if (searchCategory === 'organizations') {
-        loadNearbyStores(undefined, searchQuery.trim());
-      } else if (searchQuery.trim()) {
+      if (searchQuery.trim()) {
         doSearch();
-      } else {
-        loadNearbyStores();
       }
       return;
     }
 
     const timer = setTimeout(() => {
-      if (searchCategory === 'organizations') {
-        setResults([]);
-        setSelectedResult(null);
-        loadNearbyStores(undefined, searchQuery.trim());
-      } else if (searchQuery.trim()) {
+      if (searchQuery.trim()) {
         doSearch();
       } else {
         setResults([]);
         setSelectedResult(null);
-        loadNearbyStores();
+        setNearbyStores([]);
       }
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [userLocation, radiusM, openNow, inStock, freshOnly, selectedSort, searchQuery, searchCategory]);
+  }, [userLocation, radiusM, openNow, inStock, freshOnly, selectedSort, searchQuery]);
 
   // Fetch route
   const fetchRoute = async (storeParam: any, mode: 'walking' | 'driving') => {
@@ -1165,25 +1161,6 @@ export function CustomerApp() {
         }}
       />
 
-      {/* Sticky Top Warning when Region / District not selected */}
-      {!isUserRegionChosen && (
-        <div className="bg-red-600 text-white px-3 py-2 sm:px-4 text-xs font-bold flex items-center justify-between gap-2 shadow-md z-30 animate-pulse">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="text-base shrink-0">⚠️</span>
-            <span className="truncate sm:whitespace-normal">
-              {t('Iltimos, dorixonalar va tovarlarni ko‘rish uchun viloyat va tumaningizni tanlang! Barcha ma’lumotlar birdaniga yuklanmaydi.')}
-            </span>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsLocationModalOpen(true)}
-            className="px-3 py-1 bg-white text-red-700 font-extrabold rounded-lg hover:bg-red-50 transition shrink-0 shadow-xs uppercase text-[11px] cursor-pointer"
-          >
-            {t('Tanlang 📍')}
-          </button>
-        </div>
-      )}
-
       {/* Main Container */}
       <main className="flex-1 relative overflow-hidden h-[calc(100dvh-60px)] w-full">
         {view === 'hub' ? (
@@ -1249,14 +1226,10 @@ export function CustomerApp() {
                 locationName={selectedLocationName}
                 isRegionChosen={isUserRegionChosen}
                 onOpenLocationPicker={() => setIsLocationModalOpen(true)}
-                items={results.length > 0 ? results : nearbyStores}
-                selectedItem={selectedResult || selectedNearbyStore}
+                items={results}
+                selectedItem={selectedResult}
                 onSelectItem={(item) => {
-                  if (item.store && item.bestOffer) {
-                    handleSelectStore(item);
-                  } else {
-                    handleSelectNearbyStore(item);
-                  }
+                  handleSelectStore(item);
                 }}
                 onOpenStore={(storeId) => {
                   loadStoreCatalog(storeId);
@@ -1266,6 +1239,11 @@ export function CustomerApp() {
                   fetchRoute(store, routeMode);
                 }}
                 onClearSearch={handleClearSearch}
+                onSearchQuery={(q) => {
+                  setSearchQuery(q);
+                  doSearch(q);
+                }}
+                onOpenProductModal={(item) => setSelectedProductModalItem(item)}
                 isLoading={isSearching}
               />
             )}
@@ -1280,7 +1258,7 @@ export function CustomerApp() {
                 {!isDrawerOpen && (
                   <div className="pointer-events-auto shrink-0">
                     <ResultsDrawerTrigger
-                      count={(results.length > 0 ? results : nearbyStores).length}
+                      count={results.length}
                       onOpen={() => setIsDrawerOpen(true)}
                     />
                   </div>
@@ -1316,7 +1294,7 @@ export function CustomerApp() {
             {/* Desktop Bottom Status Bar */}
             {view === 'search' && (
               <SearchStatusBar
-                totalResults={(results.length > 0 ? results : nearbyStores).length}
+                totalResults={results.length}
                 radiusM={radiusM}
                 searchQuery={searchQuery}
                 locationName={selectedLocationName}
@@ -1369,7 +1347,7 @@ export function CustomerApp() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-                        placeholder="Burger, lavash, dorixona..."
+                        placeholder="Dori yoki tovar nomini yozing..."
                         className="w-full min-w-0 bg-transparent text-xs font-medium text-[#1E293B] dark:text-white placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none pr-4 leading-tight truncate"
                       />
                       {searchQuery && (
@@ -1512,9 +1490,9 @@ export function CustomerApp() {
               radiusM={radiusM}
               locationName={selectedLocationName}
               results={results}
-              nearbyStores={nearbyStores}
+              nearbyStores={[]}
               selectedResult={selectedResult}
-              selectedNearbyStore={selectedNearbyStore}
+              selectedNearbyStore={null}
               onSelectStore={handleSelectStore}
               onSelectNearbyStore={handleSelectNearbyStore}
               onOpenDetail={handleOpenDetail}
@@ -1553,14 +1531,10 @@ export function CustomerApp() {
             {/* Mobile Draggable Bottom Sheet (<768px) */}
             {view === 'search' && (
               <MobileBottomSheet
-                items={results.length > 0 ? results : nearbyStores}
-                selectedItem={selectedResult || selectedNearbyStore}
+                items={results}
+                selectedItem={selectedResult}
                 onSelectItem={(item) => {
-                  if (item.store && item.bestOffer) {
-                    handleSelectStore(item);
-                  } else {
-                    handleSelectNearbyStore(item);
-                  }
+                  handleSelectStore(item);
                 }}
                 onOpenStore={(storeId) => {
                   loadStoreCatalog(storeId);
@@ -1571,6 +1545,11 @@ export function CustomerApp() {
                 }}
                 searchQuery={searchQuery}
                 onClearSearch={handleClearSearch}
+                onSearchQuery={(q) => {
+                  setSearchQuery(q);
+                  doSearch(q);
+                }}
+                onOpenProductModal={(item) => setSelectedProductModalItem(item)}
                 locationName={selectedLocationName}
               />
             )}

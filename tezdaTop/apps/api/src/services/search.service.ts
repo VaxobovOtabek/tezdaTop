@@ -62,6 +62,26 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       continue;
     }
 
+    // Regional restriction filter
+    if (query.region && query.region !== 'Barcha viloyatlar') {
+      const sReg = String((store as any).region || (org as any).region || '').toLowerCase();
+      const rLower = query.region.toLowerCase();
+      const matches = rLower === 'toshkent shahri'
+        ? (sReg === 'toshkent shahri' || !sReg || sReg.includes('toshkent') || (store.address || '').toLowerCase().includes('toshkent'))
+        : (sReg === rLower || sReg.includes(rLower.replace(/\s+(viloyati|respublikasi)$/i, '')) || (store.address || '').toLowerCase().includes(rLower.replace(/\s+(viloyati|respublikasi)$/i, '')));
+      if (!matches) continue;
+    }
+
+    // District / City filter (only if explicitly specified and not Barcha tumanlar)
+    if (query.district && query.district !== 'Barcha tumanlar' && query.district !== 'Viloyat markazi') {
+      const sDist = String((store as any).district || (store as any).city || (org as any).district || (org as any).city || '').toLowerCase();
+      const dClean = query.district.toLowerCase().replace(/\s*(tumani|shahri|\(.*?\))\s*/gi, '').trim();
+      const sAddr = (store.address || '').toLowerCase();
+      if (!sDist.includes(dClean) && !sAddr.includes(dClean)) {
+        continue;
+      }
+    }
+
     const dist = calculateDistanceMetres(
       query.lat,
       query.lng,
@@ -69,9 +89,9 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       store.location.lng
     );
 
-    // If query text is specified (e.g. searching 'apteka' or 'aspirin'), allow matching stores in the area even if slightly outside immediate small circle
+    // If region is specified, include ALL matching stores in that region without radius cutoff!
     const effectiveRadius = query.q ? Math.max(query.radiusM, 15000) : query.radiusM;
-    if (dist <= effectiveRadius) {
+    if (query.region || dist <= effectiveRadius) {
       const isOpen = checkStoreIsOpenNow(store);
       if (query.openNow && !isOpen) continue;
       candidateStores.push({ store, distanceM: dist, isOpenNow: isOpen });

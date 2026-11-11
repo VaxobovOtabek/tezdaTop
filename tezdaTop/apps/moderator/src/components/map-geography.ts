@@ -17,7 +17,7 @@ export const REGION_VIEWS: Record<string, [number, number, number]> = {
 export const normalizeArea = (value = '') => value.toLowerCase()
   .replace(/[‘’ʻʼ'`]/g, '').replace(/\b(viloyati|viloyat|respublikasi)\b/g, '').replace(/\s+/g, ' ').trim();
 export const matchesRegion = (store: { region?: string; location: { lat: number; lng: number } }, region: string) =>
-  region === 'Barcha viloyatlar' || normalizeArea(store.region) === normalizeArea(region);
+  !region || region === 'Barcha viloyatlar' || normalizeArea(store.region) === normalizeArea(region);
 export function mapViewport(region: string, district: string, locations: [number, number][]) {
   const view = REGION_VIEWS[region];
   if (view && (district === 'Barcha tumanlar' || locations.length === 0)) return { center: view };

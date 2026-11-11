@@ -134,7 +134,7 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-              placeholder="Burger, lavash, dorixona..."
+              placeholder="Dori yoki tovar nomini yozing (masalan: Paratsetamol)..."
               className="w-full min-w-0 bg-transparent text-xs sm:text-[13px] md:text-[14px] font-medium text-[#1E293B] dark:text-white placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none pr-4 sm:pr-5 leading-tight truncate"
             />
             {searchQuery && (

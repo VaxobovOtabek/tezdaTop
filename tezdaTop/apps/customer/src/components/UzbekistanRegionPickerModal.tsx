@@ -318,7 +318,7 @@ export const UZBEKISTAN_REGIONS: RegionData[] = [
   }
 ];
 
-export const POPULAR_PRESETS = [
+const POPULAR_PRESETS = [
   { name: 'Toshkent shahri', sub: 'Yunusobod', region: 'Toshkent shahri', district: 'Yunusobod tumani', lat: 41.3645, lng: 69.2885 },
   { name: 'Toshkent shahri', sub: 'Chilonzor', region: 'Toshkent shahri', district: 'Chilonzor tumani', lat: 41.2825, lng: 69.2085 },
   { name: 'Samarqand', sub: 'Markaz (Registon)', region: 'Samarqand viloyati', district: 'Samarqand shahri (Markaz / Registon)', lat: 39.6542, lng: 66.9597 },
@@ -416,15 +416,20 @@ export function UzbekistanRegionPickerModal({
     return UZBEKISTAN_REGIONS.find((r) => r.id === activeRegionId) || UZBEKISTAN_REGIONS[0];
   }, [activeRegionId]);
 
-  const handlePick = (regionName: string, districtName: string, lat: number, lng: number) => {
-    const cleanDist = districtName.replace(/\s*\([^)]*\)/g, '').trim();
-    const displayName = regionName === 'Toshkent shahri' ? `${cleanDist}` : `${regionName.replace(' viloyati', '').replace(' Respublikasi', '')}, ${cleanDist}`;
+  const handlePick = (regionName: string, districtName?: string, lat?: number, lng?: number) => {
+    const isWholeRegion = !districtName || districtName === 'Viloyat markazi' || districtName === 'Barcha tumanlar' || districtName.includes('Barcha tumanlar');
+    const cleanDist = isWholeRegion ? '' : districtName.replace(/\s*\([^)]*\)/g, '').trim();
+    const displayName = cleanDist
+      ? (regionName === 'Toshkent shahri' ? cleanDist : `${regionName.replace(' viloyati', '').replace(' Respublikasi', '')}, ${cleanDist}`)
+      : regionName;
+    const finalLat = lat ?? activeRegion.centerLat;
+    const finalLng = lng ?? activeRegion.centerLng;
     onSelectLocation({
       name: displayName,
       region: regionName,
-      district: districtName,
-      lat,
-      lng
+      district: cleanDist,
+      lat: finalLat,
+      lng: finalLng
     });
     onClose();
   };
@@ -572,10 +577,10 @@ export function UzbekistanRegionPickerModal({
                 </span>
                 <button
                   type="button"
-                  onClick={() => handlePick(activeRegion.name, 'Viloyat markazi', activeRegion.centerLat, activeRegion.centerLng)}
+                  onClick={() => handlePick(activeRegion.name, 'Barcha tumanlar', activeRegion.centerLat, activeRegion.centerLng)}
                   className="text-[10px] font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline"
                 >
-                  Markazga o‘tish →
+                  Butun viloyatni tanlash ✨
                 </button>
               </div>
               <div className="relative">
@@ -641,19 +646,30 @@ export function UzbekistanRegionPickerModal({
                       {activeRegion.name}
                     </h4>
                     <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] block truncate">
-                      Tuman yoki shaharni tanlang ({activeRegion.districts.length} ta):
+                      Viloyat bo‘yicha to‘liq yoki tuman tanlang (tuman ixtiyoriy):
                     </span>
                   </div>
                   <button
                     type="button"
-                    onClick={() => handlePick(activeRegion.name, 'Viloyat markazi', activeRegion.centerLat, activeRegion.centerLng)}
-                    className="px-2.5 py-1 bg-emerald-50 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] border border-emerald-200 dark:border-emerald-800 rounded-lg text-[10px] font-bold hover:bg-emerald-100 transition shrink-0 whitespace-nowrap"
+                    onClick={() => handlePick(activeRegion.name, 'Barcha tumanlar', activeRegion.centerLat, activeRegion.centerLng)}
+                    className="px-2.5 py-1 bg-emerald-600 text-white rounded-lg text-[10px] sm:text-[11px] font-bold hover:bg-emerald-700 transition shrink-0 whitespace-nowrap shadow-xs cursor-pointer"
                   >
-                    Butun viloyat markazi →
+                    ✨ Butun viloyatni tanlash
                   </button>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handlePick(activeRegion.name, 'Barcha tumanlar', activeRegion.centerLat, activeRegion.centerLng)}
+                    className="col-span-1 sm:col-span-2 p-2.5 rounded-xl border border-dashed border-[#116B50] bg-emerald-50/80 dark:bg-emerald-950/40 text-[#116B50] dark:text-[#4ADE80] font-bold text-xs flex items-center justify-between hover:bg-emerald-100 dark:hover:bg-emerald-900/40 transition cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Sparkles className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                      <span className="truncate">Barcha tumanlar ({activeRegion.name} bo‘ylab barcha tovar va do‘konlar)</span>
+                    </div>
+                    <Check className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  </button>
                   {activeRegion.districts.map((d) => {
                     const isCurrent =
                       Math.abs(selectedLocation.lat - d.lat) < 0.02 &&
