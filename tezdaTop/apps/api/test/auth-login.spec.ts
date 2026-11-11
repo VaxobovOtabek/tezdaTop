@@ -61,4 +61,40 @@ describe('Explicit login', () => {
     expect(me.status).toBe(200);
     expect((await me.json()).user.id).toBe('test-admin');
   });
+  it('enforces that audit, supabase usage, and database schema are admin-only and forbidden to moderator', async () => {
+    db.users.set('test-moderator', {
+      id: 'test-moderator', email: 'moderator@example.test', fullName: 'Moderator User',
+      role: 'MODERATOR', status: 'ACTIVE', passwordHash: hashOwnerPassword('ModPass123!'),
+      createdAt: new Date()
+    } as any);
+    const modToken = createSignedSessionToken('test-moderator');
+    db.sessions.set(modToken, { userId: 'test-moderator', createdAt: new Date() });
+    const adminToken = createSignedSessionToken('test-admin');
+    db.sessions.set(adminToken, { userId: 'test-admin', createdAt: new Date() });
+
+    // Moderator cannot access /api/v1/admin/audit
+    const modAudit = await fetch(`${origin}/api/v1/admin/audit`, { headers: { Authorization: `Bearer ${modToken}` } });
+    expect(modAudit.status).toBe(403);
+
+    // Moderator cannot access /api/v1/admin/supabase-usage
+    const modUsage = await fetch(`${origin}/api/v1/admin/supabase-usage`, { headers: { Authorization: `Bearer ${modToken}` } });
+    expect(modUsage.status).toBe(403);
+
+    // Moderator cannot access /api/v1/admin/database/schema-and-tables
+    const modSchema = await fetch(`${origin}/api/v1/admin/database/schema-and-tables`, { headers: { Authorization: `Bearer ${modToken}` } });
+    expect(modSchema.status).toBe(403);
+
+    // Superadmin CAN access audit and database schema
+    const adminAudit = await fetch(`${origin}/api/v1/admin/audit`, { headers: { Authorization: `Bearer ${adminToken}` } });
+    expect(adminAudit.status).toBe(200);
+    const adminSchema = await fetch(`${origin}/api/v1/admin/database/schema-and-tables`, { headers: { Authorization: `Bearer ${adminToken}` } });
+    expect(adminSchema.status).toBe(200);
+
+    // In overview, Moderator does not receive audit logs or audit total
+    const modOverview = await fetch(`${origin}/api/v1/admin/overview`, { headers: { Authorization: `Bearer ${modToken}` } });
+    expect(modOverview.status).toBe(200);
+    const modOverviewData = await modOverview.json();
+    expect(modOverviewData.latestAudit).toEqual([]);
+    expect(modOverviewData.auditTotal).toBe(0);
+  });
 });

@@ -197,11 +197,17 @@ export function createAdminReadMiddleware(client: SupabaseClient) {
       return void res.json({ user, token: session.token, expiresAt: session.expiresAt });
     }
     if (!['ADMIN','SUPERADMIN','MODERATOR'].includes(session.row.role)) throw fail(403, 'Ushbu amal uchun ruxsat yo‘q.');
-    const result = endpoint === 'organizations'
+    if (endpoint === 'audit' && !['ADMIN', 'SUPERADMIN'].includes(session.row.role)) {
+      throw fail(403, 'Faqat administrator uchun ruxsat etilgan.');
+    }
+    const rawResult = endpoint === 'organizations'
       ? req.query.options === '1'
         ? { organizations: [...repository.hydrate({ organizations: await repository.rows('organizations','id,name,inn,type,status,region,city,district,created_at') }).organizations.values()] }
         : await repository.organizations(organizationListOptions(req.query))
       : await repository[endpoint as 'overview'|'users'|'stores'|'audit']();
+    const result = endpoint === 'overview' && session.row.role === 'MODERATOR'
+      ? { ...rawResult, latestAudit: [], auditTotal: 0 }
+      : rawResult;
     res.json(result);
   } catch (error: any) {
     res.status(error.status || 503).json({ code: error.status === 401 ? 'UNAUTHORIZED' : error.status === 403 ? 'FORBIDDEN' : 'READ_FAILED', message: error.message || 'Ma’lumotlarni yuklab bo‘lmadi.' });

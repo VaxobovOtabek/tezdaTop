@@ -51,9 +51,10 @@ const ROLES_DATA: RoleDefinition[] = [
     badgeColor: 'bg-emerald-600 text-white',
     icon: ShieldCheck,
     targetUser: 'Platforma boshqaruv jamoasi (Faqat Bosh Admin)',
-    description: 'YaqinTop platformasining barcha bo‘limlari, shu jumladan Arxitektura & Relyatsion DB Explorer, API Postman Visual, Tizim auditi va barcha rollarni (Admin, Moderator, Diller, Do‘kon xodimlari) to‘liq boshqaruvchi yagona bosh admin.',
+    description: 'YaqinTop platformasining barcha bo‘limlari, shu jumladan Supabase limitlari, Arxitektura & Relyatsion DB Explorer, API Postman Visual, Tizim auditi va barcha rollarni (Admin, Moderator, Diller, Do‘kon xodimlari) to‘liq boshqaruvchi yagona bosh admin.',
     responsibilities: [
       'Arxitektura & DB relyatsion modeli va API Explorer (Postman) bo‘limlaridan to‘liq foydalanish',
+      'Supabase limitlari va infratuzilma ko‘rsatkichlarini nazorat qilish',
       'Yangi Moderator, Diller, Do‘kon egalari va xodimlarni platformaga qo‘shish',
       'Barcha tashkilot, filiallar va dillerlarni ro‘yxatdan o‘tkazish, tahrirlash va faollashtirish',
       'Tizim auditi (Audit Logs) va ma’lumotlar bazasi yaxlitligini nazorat qilish'
@@ -76,7 +77,7 @@ const ROLES_DATA: RoleDefinition[] = [
     badgeColor: 'bg-[#116B50] text-white',
     icon: Shield,
     targetUser: 'Moderatsiya va ma’lumotlar sifati mutaxassislari',
-    description: 'Xarita va moderatsiya markazi, so‘rov va murojaatlar, qidiruv analitikasi, rollar yo‘riqnomasi, tashkilot va do‘konlar, dillerlar hisobi, arizalar, shikoyat navbati, sharh moderatsiyasi, tizim auditi va foydalanuvchilar (Dillerlar, do‘kon xodimlari, xaridorlar) bilan ishlaydi.',
+    description: 'Xarita va moderatsiya markazi, so‘rov va murojaatlar, qidiruv analitikasi, rollar yo‘riqnomasi, tashkilot va do‘konlar, dillerlar hisobi, arizalar, shikoyat navbati, sharh moderatsiyasi va foydalanuvchilar (Dillerlar, do‘kon xodimlari, xaridorlar) bilan ishlaydi.',
     responsibilities: [
       'Xarita & Moderatsiya markazida filiallar va shikoyat nuqtalarini tekshirish',
       'Do‘kon arizalari, xaridorlar shikoyatlari va sharhlarni ko‘rib chiqib tasdiqlash/rad etish',

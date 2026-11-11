@@ -3025,6 +3025,9 @@ app.get('/api/v1/admin/overview', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODE
   const allReviews = Array.from(db.reviews.values());
   const pendingReviews = allReviews.filter((r: any) => r.status === 'PENDING' || r.status === 'HIDDEN').length;
 
+  const user = getCurrentUser(req);
+  const isStaffAdmin = user && ['ADMIN', 'SUPERADMIN'].includes(user.role);
+
   res.json({
     pendingApps,
     openReports,
@@ -3044,8 +3047,8 @@ app.get('/api/v1/admin/overview', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODE
     totalUsers: db.users.size,
     ownerCount: [...db.users.values()].filter(u => u.role === 'OWNER').length,
     totalReports: db.reports.size,
-    latestAudit: db.auditLogs.slice(-5).reverse(),
-    auditTotal: db.auditLogs.length
+    latestAudit: isStaffAdmin ? db.auditLogs.slice(-5).reverse() : [],
+    auditTotal: isStaffAdmin ? db.auditLogs.length : 0
   });
 });
 
@@ -3830,7 +3833,7 @@ app.delete('/api/v1/admin/organizations/:orgId/users/:userId', requireStaffRole(
   res.json({ success: true, message: 'Foydalanuvchi tashkilotdan o‘chirildi' });
 });
 
-app.get('/api/v1/admin/audit', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERATOR']), (req, res) => {
+app.get('/api/v1/admin/audit', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
 
 
   const enrichedLogs = db.auditLogs.slice(-100).reverse().map(l => {
@@ -5556,7 +5559,7 @@ app.get('/api/v1/admin/analytics/growth', requireStaffRole(['ADMIN', 'SUPERADMIN
 });
 
 // Admin Database Schema & Live Tables Explorer
-app.get('/api/v1/admin/database/schema-and-tables', requireStaffRole(['SUPERADMIN']), (req, res) => {
+app.get('/api/v1/admin/database/schema-and-tables', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
   const sanitizeUser = (u: any) => {
     const { passwordHash, plainPassword, verificationCode, ...clean } = u;
     return clean;

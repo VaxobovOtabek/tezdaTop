@@ -282,12 +282,14 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
   const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL');
   const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'DELETED'>('ALL');
 
-  // Auto-switch restricted tabs if Moderator logs in
+  // Auto-switch restricted tabs if Moderator logs in or user is not admin
   useEffect(() => {
-    if (currentUser?.role === 'MODERATOR' && (activeTab === 'architecture-db' || activeTab === 'api-explorer' || activeTab === 'categories')) {
-      setActiveTab('overview');
+    const isStaffAdmin = currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role);
+    const adminOnlyTabs = ['architecture-db', 'api-explorer', 'supabase-usage', 'audit', 'categories'];
+    if ((currentUser?.role === 'MODERATOR' || portalMode === 'moderator' || !isStaffAdmin) && adminOnlyTabs.includes(activeTab)) {
+      setActiveTab(portalMode === 'moderator' ? 'map-hub' : 'overview');
     }
-  }, [currentUser?.role, activeTab]);
+  }, [currentUser?.role, activeTab, portalMode]);
 
   useEffect(() => {
     const handleOpenLogin = () => setIsLoginModalOpen(true);
@@ -1613,9 +1615,9 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
               { id: 'reports', label: t('nav_reports', 'Shikoyatlar navbati'), icon: AlertTriangle, badge: overviewStats.openReports || undefined },
               { id: 'reviews', label: t('nav_reviews', 'Sharhlar moderatsiyasi'), icon: MessageSquare, badge: overviewStats.pendingReviews || undefined },
               { id: 'users', label: t('nav_users', 'Foydalanuvchilar'), icon: Users },
-              { id: 'audit', label: t('nav_audit', 'Tizim auditi'), icon: ShieldCheck }
+              { id: 'audit', label: t('nav_audit', 'Tizim auditi'), icon: ShieldCheck, adminOnly: true }
             ]
-              .filter(item => !item.adminOnly || currentUser?.role !== 'MODERATOR')
+              .filter(item => !item.adminOnly || (portalMode !== 'moderator' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role)))
               .map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -1718,9 +1720,9 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
               { id: 'reports', label: t('nav_reports', 'Shikoyatlar navbati'), icon: AlertTriangle, badge: overviewStats.openReports || undefined },
               { id: 'reviews', label: t('nav_reviews', 'Sharhlar moderatsiyasi'), icon: MessageSquare, badge: overviewStats.pendingReviews || undefined },
               { id: 'users', label: t('nav_users', 'Foydalanuvchilar'), icon: Users },
-              { id: 'audit', label: t('nav_audit', 'Tizim auditi'), icon: ShieldCheck }
+              { id: 'audit', label: t('nav_audit', 'Tizim auditi'), icon: ShieldCheck, adminOnly: true }
             ]
-              .filter(item => !item.adminOnly || currentUser?.role !== 'MODERATOR')
+              .filter(item => !item.adminOnly || (portalMode !== 'moderator' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role)))
               .map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -1796,7 +1798,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
           )}
 
           {/* MAP HUB TAB */}
-          {activeTab === 'supabase-usage' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && <SupabaseUsagePanel />}
+          {activeTab === 'supabase-usage' && portalMode !== 'moderator' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && <SupabaseUsagePanel />}
           {activeTab === 'map-hub' && (
             <AdminMapHub
               stores={stores}
@@ -1854,7 +1856,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
           )}
 
           {/* ARCHITECTURE & DATABASE EXPLORER TAB (ADMIN ONLY) */}
-          {activeTab === 'architecture-db' && currentUser?.role !== 'MODERATOR' && (
+          {activeTab === 'architecture-db' && portalMode !== 'moderator' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && (
             <ArchitectureAndDbViewer />
           )}
 
@@ -2207,48 +2209,50 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                 </div>
               </div>
 
-              {/* Live Activity Stream (Recent Audits) */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
-                    <h3 className="text-sm font-extrabold text-[#172C28] dark:text-white">So‘nggi Platforma Operatsiyalari</h3>
+              {/* Live Activity Stream (Recent Audits - Admin Only) */}
+              {portalMode !== 'moderator' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && (
+                <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
+                      <h3 className="text-sm font-extrabold text-[#172C28] dark:text-white">So‘nggi Platforma Operatsiyalari</h3>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('audit')}
+                      className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline"
+                    >
+                      Barcha audit tarixini ko‘rish ({overviewStats.auditTotal} ta) →
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setActiveTab('audit')}
-                    className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline"
-                  >
-                    Barcha audit tarixini ko‘rish ({overviewStats.auditTotal} ta) →
-                  </button>
-                </div>
 
-                <div className="divide-y divide-[#DCE5DF]/60 dark:divide-[#22332C]">
-                  {auditLogs.slice(0, 5).map((log) => (
-                    <div key={log.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                        <div>
-                          <div className="font-bold text-[#172C28] dark:text-white flex items-center gap-2">
-                            <span>{log.actorEmail || 'Admin'}</span>
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-mono font-bold">
-                              {log.action}
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                            Obyekt: {log.entityType} ({log.entityId?.slice(0, 8)}...)
+                  <div className="divide-y divide-[#DCE5DF]/60 dark:divide-[#22332C]">
+                    {auditLogs.slice(0, 5).map((log) => (
+                      <div key={log.id} className="py-3 flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-3">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
+                          <div>
+                            <div className="font-bold text-[#172C28] dark:text-white flex items-center gap-2">
+                              <span>{log.actorEmail || 'Admin'}</span>
+                              <span className="px-2 py-0.5 rounded text-[10px] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-mono font-bold">
+                                {log.action}
+                              </span>
+                            </div>
+                            <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
+                              Obyekt: {log.entityType} ({log.entityId?.slice(0, 8)}...)
+                            </div>
                           </div>
                         </div>
+                        <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] shrink-0 font-mono">
+                          {new Date(log.timestamp).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] shrink-0 font-mono">
-                        {new Date(log.timestamp).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  ))}
-                  {auditLogs.length === 0 && (
-                    <div className="py-4 text-center text-xs text-[#566A63]">Hozircha tizim amallari qayd etilmagan</div>
-                  )}
+                    ))}
+                    {auditLogs.length === 0 && (
+                      <div className="py-4 text-center text-xs text-[#566A63]">Hozircha tizim amallari qayd etilmagan</div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
@@ -2871,7 +2875,7 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
           )}
 
           {/* API EXPLORER / POSTMAN TAB (ADMIN ONLY) */}
-          {activeTab === 'api-explorer' && currentUser?.role !== 'MODERATOR' && (
+          {activeTab === 'api-explorer' && portalMode !== 'moderator' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && (
             <ApiExplorer />
           )}
 
@@ -3736,8 +3740,8 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
             </div>
           )}
 
-          {/* AUDIT TAB */}
-          {activeTab === 'audit' && (
+          {/* AUDIT TAB (ADMIN ONLY) */}
+          {activeTab === 'audit' && portalMode !== 'moderator' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && (
             <div className="max-w-6xl mx-auto flex flex-col gap-6">
               {/* Header Banner */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#116B50] to-[#0B563F] text-white shadow-lg">

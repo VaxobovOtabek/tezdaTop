@@ -14,7 +14,6 @@ import {
   AlertTriangle,
   MessageSquare,
   Users,
-  ShieldCheck,
   ShieldAlert,
   RotateCcw,
   ChevronLeft,
@@ -42,7 +41,6 @@ import {
   Image as ImageIcon,
   Upload,
   Camera,
-  Terminal,
   Sparkles,
   Key,
   Send,
@@ -57,21 +55,16 @@ import {
   Shield,
   BookOpen,
   Activity,
-  Cpu,
-  Database,
   Menu,
   X
 } from 'lucide-react';
 import { Button, Tag, Modal, Input, YaqinTopLogo } from '@yaqintop/ui';
 import { Report, Store as StoreType, User } from '@yaqintop/contracts';
-const ApiExplorer = React.lazy(() => import('./components/ApiExplorer').then(m => ({ default: m.ApiExplorer })));
-const SupabaseUsagePanel = React.lazy(() => import('./components/SupabaseUsagePanel').then(m => ({ default: m.SupabaseUsagePanel })));
 const AdminMapHub = React.lazy(() => import('./components/AdminMapHub').then(m => ({ default: m.AdminMapHub })));
 const RolesGuideMatrix = React.lazy(() => import('./components/RolesGuideMatrix').then(m => ({ default: m.RolesGuideMatrix })));
 const RequestsInquiriesHub = React.lazy(() => import('./components/RequestsInquiriesHub').then(m => ({ default: m.RequestsInquiriesHub })));
 const AnalyticsActivityHub = React.lazy(() => import('./components/AnalyticsActivityHub').then(m => ({ default: m.AnalyticsActivityHub })));
 const GrowthDynamicsHub = React.lazy(() => import('./components/GrowthDynamicsHub').then(m => ({ default: m.GrowthDynamicsHub })));
-const ArchitectureAndDbViewer = React.lazy(() => import('./components/ArchitectureAndDbViewer').then(m => ({ default: m.ArchitectureAndDbViewer })));
 const AdminDealersHub = React.lazy(() => import('./components/AdminDealersHub').then(m => ({ default: m.AdminDealersHub })));
 const LocationPickerModal = React.lazy(() => import('./components/LocationPickerModal').then(m => ({ default: m.LocationPickerModal })));
 const UnifiedUserProfileModal = React.lazy(() => import('./components/UnifiedUserProfileModal').then(m => ({ default: m.UnifiedUserProfileModal })));
@@ -186,8 +179,8 @@ export function ModeratorApp() {
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'growth-dynamics' | 'supabase-usage' | 'map-hub' | 'analytics' | 'architecture-db' | 'roles-guide' | 'requests-inquiries'
-    | 'dealers' | 'organizations' | 'api-explorer' | 'applications' | 'reports' | 'reviews' | 'users' | 'audit'
+    'overview' | 'growth-dynamics' | 'map-hub' | 'analytics' | 'roles-guide' | 'requests-inquiries'
+    | 'dealers' | 'organizations' | 'applications' | 'reports' | 'reviews' | 'users'
   >('map-hub');
 
   // Current User Session State (Loads from localStorage or null for guest)
@@ -228,7 +221,6 @@ export function ModeratorApp() {
   const [applications, setApplications] = useState<StoreType[]>([]);
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<User[]>([]);
-  const [auditLogs, setAuditLogs] = useState<any[]>([]);
 
   // Search & Filter in Organizations tab
   const [orgSearch, setOrgSearch] = useState('');
@@ -248,12 +240,13 @@ export function ModeratorApp() {
   const [userRoleFilter, setUserRoleFilter] = useState<string>('ALL');
   const [userStatusFilter, setUserStatusFilter] = useState<'ALL' | 'ACTIVE' | 'PENDING' | 'SUSPENDED' | 'DELETED'>('ALL');
 
-  // Auto-switch restricted tabs if Moderator logs in
+  // Auto-switch restricted/legacy tabs if somehow opened
   useEffect(() => {
-    if (currentUser?.role === 'MODERATOR' && (activeTab === 'architecture-db' || activeTab === 'api-explorer')) {
-      setActiveTab('overview');
+    const validTabs = ['overview', 'growth-dynamics', 'map-hub', 'requests-inquiries', 'analytics', 'dealers', 'roles-guide', 'organizations', 'applications', 'reports', 'reviews', 'users'];
+    if (!validTabs.includes(activeTab)) {
+      setActiveTab('map-hub');
     }
-  }, [currentUser?.role, activeTab]);
+  }, [activeTab]);
 
   useEffect(() => {
     const handleOpenLogin = () => setIsLoginModalOpen(true);
@@ -275,9 +268,6 @@ export function ModeratorApp() {
   const [reportSearch, setReportSearch] = useState('');
   const [reportFilterStatus, setReportFilterStatus] = useState<'ALL' | 'OPEN' | 'RESOLVED'>('ALL');
   const [reportFilterReason, setReportFilterReason] = useState<string>('ALL');
-
-  const [auditSearch, setAuditSearch] = useState('');
-  const [auditCategoryFilter, setAuditCategoryFilter] = useState<string>('ALL');
 
   // Organization Users Management Modal
   const [selectedOrgForUsers, setSelectedOrgForUsers] = useState<OrganizationItem | null>(null);
@@ -503,10 +493,8 @@ export function ModeratorApp() {
       updateList('applications','applications',setApplications);
       updateList('reports','reports',setReports);
       updateList('users','users',setUsers);
-      updateList('audit','auditLogs',setAuditLogs);
       if (data.overview) {
         setOverviewStats(previous => ({ ...previous, ...data.overview }));
-        if (activeTab === 'overview' && Array.isArray(data.overview.latestAudit)) setAuditLogs(data.overview.latestAudit);
       }
       setDataError(problems.length ? problems.join(' · ') : null);
     } catch (error: any) {
@@ -522,7 +510,7 @@ export function ModeratorApp() {
     else {
       ++loadRevision.current;
       resourceCache.current.clear(); cacheSession.current = ''; setOrganizationPage([]); setOrgTotal(0);
-      setOrganizations([]); setStores([]); setApplications([]); setReports([]); setUsers([]); setAuditLogs([]);
+      setOrganizations([]); setStores([]); setApplications([]); setReports([]); setUsers([]);
       setDataError(null); setDataLoading(false);
     }
     return () => controller.abort();
@@ -1508,7 +1496,6 @@ export function ModeratorApp() {
                 icon: TrendingUp,
                 isSpecial: true
               },
-              { id: 'supabase-usage', label: t('nav_supabase_limits', 'Supabase limitlari'), icon: Database, adminOnly: true },
               {
                 id: 'map-hub',
                 label: t('nav_map_hub', 'Xarita & Moderatsiya markazi'),
@@ -1530,13 +1517,6 @@ export function ModeratorApp() {
                 isSpecial: true
               },
               {
-                id: 'architecture-db',
-                label: t('nav_architecture_db', 'Arxitektura & DB Explorer'),
-                icon: Cpu,
-                isSpecial: true,
-                adminOnly: true
-              },
-              {
                 id: 'dealers',
                 label: t('nav_dealers', 'Dillerlar & Distribyutorlar'),
                 icon: Truck,
@@ -1544,15 +1524,11 @@ export function ModeratorApp() {
               },
               { id: 'roles-guide', label: t('nav_roles_guide', 'Rollar & Yo‘riqnoma'), icon: Shield },
               { id: 'organizations', label: t('nav_organizations', 'Tashkilotlar va Do‘konlar'), icon: Building2, count: overviewStats.totalStores },
-              { id: 'api-explorer', label: t('nav_api_explorer', 'API Explorer (Postman)'), icon: Terminal, adminOnly: true },
               { id: 'applications', label: t('nav_applications', 'Do‘kon arizalari'), icon: Store, badge: overviewStats.pendingApps || undefined },
               { id: 'reports', label: t('nav_reports', 'Shikoyatlar navbati'), icon: AlertTriangle, badge: overviewStats.openReports || undefined },
               { id: 'reviews', label: t('nav_reviews', 'Sharhlar moderatsiyasi'), icon: MessageSquare, badge: overviewStats.pendingReviews || undefined },
-              { id: 'users', label: t('nav_users', 'Foydalanuvchilar'), icon: Users },
-              { id: 'audit', label: t('nav_audit', 'Tizim auditi'), icon: ShieldCheck }
-            ]
-              .filter(item => !item.adminOnly || currentUser?.role !== 'MODERATOR')
-              .map((item) => {
+              { id: 'users', label: t('nav_users', 'Foydalanuvchilar'), icon: Users }
+            ].map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -1612,7 +1588,6 @@ export function ModeratorApp() {
                 icon: TrendingUp,
                 isSpecial: true
               },
-              { id: 'supabase-usage', label: t('nav_supabase_limits', 'Supabase limitlari'), icon: Database, adminOnly: true },
               {
                 id: 'map-hub',
                 label: t('nav_map_hub', 'Xarita & Moderatsiya markazi'),
@@ -1634,23 +1609,18 @@ export function ModeratorApp() {
                 isSpecial: true
               },
               {
-                id: 'architecture-db',
-                label: t('nav_architecture_db', 'Arxitektura & DB Explorer'),
-                icon: Cpu,
-                isSpecial: true,
-                adminOnly: true
+                id: 'dealers',
+                label: t('nav_dealers', 'Dillerlar & Distribyutorlar'),
+                icon: Truck,
+                isSpecial: true
               },
               { id: 'roles-guide', label: t('nav_roles_guide', 'Rollar & Yo‘riqnoma'), icon: Shield },
               { id: 'organizations', label: t('nav_organizations', 'Tashkilotlar va Do‘konlar'), icon: Building2, count: overviewStats.totalStores },
-              { id: 'api-explorer', label: t('nav_api_explorer', 'API Explorer (Postman)'), icon: Terminal, adminOnly: true },
               { id: 'applications', label: t('nav_applications', 'Do‘kon arizalari'), icon: Store, badge: overviewStats.pendingApps || undefined },
               { id: 'reports', label: t('nav_reports', 'Shikoyatlar navbati'), icon: AlertTriangle, badge: overviewStats.openReports || undefined },
               { id: 'reviews', label: t('nav_reviews', 'Sharhlar moderatsiyasi'), icon: MessageSquare, badge: overviewStats.pendingReviews || undefined },
-              { id: 'users', label: t('nav_users', 'Foydalanuvchilar'), icon: Users },
-              { id: 'audit', label: t('nav_audit', 'Tizim auditi'), icon: ShieldCheck }
-            ]
-              .filter(item => !item.adminOnly || currentUser?.role !== 'MODERATOR')
-              .map((item) => {
+              { id: 'users', label: t('nav_users', 'Foydalanuvchilar'), icon: Users }
+            ].map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -1717,7 +1687,6 @@ export function ModeratorApp() {
           )}
 
           {/* MAP HUB TAB */}
-          {activeTab === 'supabase-usage' && currentUser && ['ADMIN', 'SUPERADMIN'].includes(currentUser.role) && <SupabaseUsagePanel />}
           {activeTab === 'map-hub' && (
             <AdminMapHub
               stores={stores}
@@ -1772,11 +1741,6 @@ export function ModeratorApp() {
               isDarkMode={isDarkMode}
               onShowToast={(msg) => showToast(msg)}
             />
-          )}
-
-          {/* ARCHITECTURE & DATABASE EXPLORER TAB (ADMIN ONLY) */}
-          {activeTab === 'architecture-db' && currentUser?.role !== 'MODERATOR' && (
-            <ArchitectureAndDbViewer />
           )}
 
           {/* OVERVIEW TAB */}
@@ -2128,48 +2092,6 @@ export function ModeratorApp() {
                 </div>
               </div>
 
-              {/* Live Activity Stream (Recent Audits) */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-5 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80]" />
-                    <h3 className="text-sm font-extrabold text-[#172C28] dark:text-white">So‘nggi Platforma Operatsiyalari</h3>
-                  </div>
-                  <button
-                    onClick={() => setActiveTab('audit')}
-                    className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline"
-                  >
-                    Barcha audit tarixini ko‘rish ({overviewStats.auditTotal} ta) →
-                  </button>
-                </div>
-
-                <div className="divide-y divide-[#DCE5DF]/60 dark:divide-[#22332C]">
-                  {auditLogs.slice(0, 5).map((log) => (
-                    <div key={log.id} className="py-3 flex items-center justify-between gap-3 text-xs">
-                      <div className="flex items-center gap-3">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                        <div>
-                          <div className="font-bold text-[#172C28] dark:text-white flex items-center gap-2">
-                            <span>{log.actorEmail || 'Admin'}</span>
-                            <span className="px-2 py-0.5 rounded text-[10px] bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] font-mono font-bold">
-                              {log.action}
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] mt-0.5">
-                            Obyekt: {log.entityType} ({log.entityId?.slice(0, 8)}...)
-                          </div>
-                        </div>
-                      </div>
-                      <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] shrink-0 font-mono">
-                        {new Date(log.timestamp).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
-                      </div>
-                    </div>
-                  ))}
-                  {auditLogs.length === 0 && (
-                    <div className="py-4 text-center text-xs text-[#566A63]">Hozircha tizim amallari qayd etilmagan</div>
-                  )}
-                </div>
-              </div>
             </div>
           )}
 
@@ -2804,11 +2726,6 @@ export function ModeratorApp() {
                 </div>
               )}
             </div>
-          )}
-
-          {/* API EXPLORER / POSTMAN TAB (ADMIN ONLY) */}
-          {activeTab === 'api-explorer' && currentUser?.role !== 'MODERATOR' && (
-            <ApiExplorer />
           )}
 
           {/* STORE APPLICATIONS TAB */}
@@ -3666,219 +3583,6 @@ export function ModeratorApp() {
             </div>
           )}
 
-          {/* AUDIT TAB */}
-          {activeTab === 'audit' && (
-            <div className="max-w-6xl mx-auto flex flex-col gap-6">
-              {/* Header Banner */}
-              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-6 rounded-2xl bg-gradient-to-r from-[#116B50] to-[#0B563F] text-white shadow-lg">
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-200 uppercase tracking-wider">
-                    <ShieldCheck className="w-4 h-4 text-emerald-300" />
-                    <span>{t('Xavfsizlik & Boshqaruv Jurnali')}</span>
-                  </div>
-                  <h2 className="text-2xl font-extrabold tracking-tight mt-1">{t('Tizim Amallari Auditi')}</h2>
-                  <p className="text-xs text-emerald-100/90 mt-1 max-w-xl">
-                    {t('Kim, qachon va qaysi operatsiyani bajargan: do‘konlar faollashuvi, login/parol o‘zgarishlari va narxlar tekshiruvi.')}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={()=>void loadData(undefined, true)}
-                    className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5 border border-white/20"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                    <span>{t('refresh', 'Yangilash')}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Search & Category Filters */}
-              <div className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-4 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-[#566A63] dark:text-[#8B9E95]" />
-                  <input
-                    type="text"
-                    value={auditSearch}
-                    onChange={(e) => setAuditSearch(e.target.value)}
-                    placeholder={t('Foydalanuvchi, amal yoki obyekt bo‘yicha izlash...')}
-                    className="w-full pl-9 pr-3.5 py-2 text-xs rounded-xl border border-[#DCE5DF] dark:border-[#273B32] bg-[#F9FAF9] dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] focus:outline-none focus:border-[#116B50]"
-                  />
-                </div>
-
-                <div className="flex items-center gap-1.5 overflow-x-auto pb-1 md:pb-0">
-                  {[
-                    { id: 'ALL', label: `${t('Barchasi')} (${auditLogs.length})` },
-                    { id: 'STORE', label: t('Do‘konlar') },
-                    { id: 'USER', label: t('Foydalanuvchilar') },
-                    { id: 'ORGANIZATION', label: t('Tashkilotlar') },
-                    { id: 'ITEM_PROPOSAL', label: t('Takliflar') }
-                  ].map(tab => (
-                    <button
-                      key={tab.id}
-                      onClick={() => setAuditCategoryFilter(tab.id)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap ${
-                        auditCategoryFilter === tab.id
-                          ? 'bg-[#116B50] text-white shadow-sm'
-                          : 'bg-[#F3F6F3] dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] hover:bg-[#E0EFE7] dark:hover:bg-[#1E362A]'
-                      }`}
-                    >
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Audit Logs: Mobile Cards (< md) + Desktop Table (>= md) */}
-              {/* 1. Mobile Cards */}
-              <div className="md:hidden flex flex-col gap-2.5">
-                {auditLogs
-                  .filter((log) => {
-                    const q = auditSearch.toLowerCase().trim();
-                    const matchSearch =
-                      !q ||
-                      (log.actorEmail && log.actorEmail.toLowerCase().includes(q)) ||
-                      (log.actorName && log.actorName.toLowerCase().includes(q)) ||
-                      (log.action && log.action.toLowerCase().includes(q)) ||
-                      (log.entityType && log.entityType.toLowerCase().includes(q)) ||
-                      (log.diff && JSON.stringify(log.diff).toLowerCase().includes(q));
-                    const matchCat = auditCategoryFilter === 'ALL' || log.entityType === auditCategoryFilter;
-                    return matchSearch && matchCat;
-                  })
-                  .map((log) => {
-                    const isApprove = log.action.includes('APPROVE') || log.action.includes('INIT') || log.action.includes('ACTIVE');
-                    const isDelete = log.action.includes('DELETE') || log.action.includes('SUSPEND') || log.action.includes('REJECT');
-
-                    return (
-                      <div key={log.id} className="bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl p-3.5 shadow-sm flex flex-col gap-2 text-xs">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="font-extrabold text-[#172C28] dark:text-white">
-                              {log.actorName || log.actorEmail}
-                            </div>
-                            <div className="text-[10px] text-[#566A63] dark:text-[#8B9E95] font-mono">
-                              {log.actorEmail}
-                            </div>
-                          </div>
-                          <span className="text-[10px] text-[#566A63] dark:text-[#8B9E95] font-mono shrink-0">
-                            {new Date(log.timestamp).toLocaleDateString('uz-UZ')}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                            isApprove
-                              ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                              : isDelete
-                              ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                              : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
-                          }`}>
-                            {log.action}
-                          </span>
-                          <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-semibold">
-                            {log.entityType}
-                          </span>
-                        </div>
-
-                        <div className="font-mono text-[11px] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#16241E] p-2 rounded-xl border border-[#DCE5DF]/60 dark:border-[#22332C] break-all">
-                          {typeof log.diff === 'object' ? JSON.stringify(log.diff) : String(log.diff || '-')}
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-
-              {/* 2. Desktop Table */}
-              <div className="hidden md:block bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-2xl overflow-hidden shadow-sm">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs text-[#172C28] dark:text-[#E8F2EC]">
-                  <thead>
-                    <tr className="border-b border-[#DCE5DF] dark:border-[#22332C] text-[#566A63] dark:text-[#8B9E95] bg-[#F9FAF9] dark:bg-[#1A2822]">
-                      <th className="py-3 px-4 font-semibold">{t('Sana va vaqt')}</th>
-                      <th className="py-3 px-4 font-semibold">{t('Foydalanuvchi')}</th>
-                      <th className="py-3 px-4 font-semibold">{t('Amal (Operatsiya)')}</th>
-                      <th className="py-3 px-4 font-semibold">{t('Obyekt')}</th>
-                      <th className="py-3 px-4 font-semibold">{t('O‘zgarish tafsiloti')}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#DCE5DF] dark:divide-[#22332C]">
-                    {auditLogs
-                      .filter((log) => {
-                        const q = auditSearch.toLowerCase().trim();
-                        const matchSearch =
-                          !q ||
-                          (log.actorEmail && log.actorEmail.toLowerCase().includes(q)) ||
-                          (log.actorName && log.actorName.toLowerCase().includes(q)) ||
-                          (log.action && log.action.toLowerCase().includes(q)) ||
-                          (log.entityType && log.entityType.toLowerCase().includes(q)) ||
-                          (log.diff && JSON.stringify(log.diff).toLowerCase().includes(q));
-                        const matchCat = auditCategoryFilter === 'ALL' || log.entityType === auditCategoryFilter;
-                        return matchSearch && matchCat;
-                      })
-                      .map((log) => {
-                        const isApprove = log.action.includes('APPROVE') || log.action.includes('INIT') || log.action.includes('ACTIVE');
-                        const isDelete = log.action.includes('DELETE') || log.action.includes('SUSPEND') || log.action.includes('REJECT');
-
-                        return (
-                          <tr key={log.id} className="hover:bg-[#F3F6F3]/50 dark:hover:bg-[#1A2822]/50 transition">
-                            <td className="py-3.5 px-4 text-[#566A63] dark:text-[#8B9E95] whitespace-nowrap font-mono text-[11px]">
-                              {new Date(log.timestamp).toLocaleString('uz-UZ')}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <div className="font-bold text-[#172C28] dark:text-white">
-                                {log.actorName || log.actorEmail}
-                              </div>
-                              <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] font-mono">
-                                {log.actorEmail}
-                              </div>
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
-                                isApprove
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                  : isDelete
-                                  ? 'bg-rose-100 text-rose-800 dark:bg-rose-950/60 dark:text-rose-300'
-                                  : 'bg-blue-100 text-blue-800 dark:bg-blue-950/60 dark:text-blue-300'
-                              }`}>
-                                {log.action}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 font-semibold">
-                              <span className="px-1.5 py-0.5 rounded text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300">
-                                {log.entityType}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 max-w-sm">
-                              <div className="font-mono text-[11px] text-[#566A63] dark:text-[#8B9E95] truncate bg-[#F9FAF9] dark:bg-[#16241E] p-1.5 rounded-lg border border-[#DCE5DF]/60 dark:border-[#22332C]">
-                                {typeof log.diff === 'object' ? JSON.stringify(log.diff) : String(log.diff || '-')}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                  </tbody>
-                </table>
-                </div>
-
-                {auditLogs.filter((log) => {
-                  const q = auditSearch.toLowerCase().trim();
-                  const matchSearch =
-                    !q ||
-                    (log.actorEmail && log.actorEmail.toLowerCase().includes(q)) ||
-                    (log.action && log.action.toLowerCase().includes(q));
-                  const matchCat = auditCategoryFilter === 'ALL' || log.entityType === auditCategoryFilter;
-                  return matchSearch && matchCat;
-                }).length === 0 && (
-                  <div className="p-10 text-center flex flex-col items-center justify-center">
-                    <div className="w-12 h-12 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 flex items-center justify-center mb-2">
-                      <ShieldCheck className="w-6 h-6" />
-                    </div>
-                    <p className="text-xs font-bold text-[#172C28] dark:text-white">{t('Audit qaydnomalari topilmadi')}</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
         {/* Mobile Bottom Navigation Bar */}
           <nav className="lg:hidden h-16 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40 px-1 shadow-lg">
             <button
