@@ -83,20 +83,27 @@ export class DealerService {
    */
   public static attachStore(dealerId: string, identifier: string, creditLimit = 5000000, notes = '') {
     const cleanId = identifier.trim().toLowerCase();
+    const cleanDigits = identifier.replace(/\D/g, '');
 
-    // Find store by exact id, or by INN, or by partial name
+    // Find store by exact id, or by INN, or by phone, or by name / address / org name
     let store = db.stores.get(cleanId);
     if (!store) {
       store = Array.from(db.stores.values()).find(s => {
         if (s.id.toLowerCase() === cleanId) return true;
-        if (s.inn && s.inn.trim().toLowerCase() === cleanId) return true;
+        const org = db.organizations.get(s.organizationId);
+        const orgInn = (s.inn || org?.inn || '').trim().toLowerCase();
+        if (orgInn && (orgInn === cleanId || (cleanDigits.length >= 5 && orgInn.includes(cleanDigits)))) return true;
         if (s.name.toLowerCase().includes(cleanId)) return true;
+        if (org && org.name.toLowerCase().includes(cleanId)) return true;
+        if (s.address && s.address.toLowerCase().includes(cleanId)) return true;
+        const phoneDigits = (s.phone || '').replace(/\D/g, '');
+        if (cleanDigits.length >= 7 && phoneDigits && (phoneDigits === cleanDigits || phoneDigits.endsWith(cleanDigits))) return true;
         return false;
       });
     }
 
     if (!store) {
-      throw new Error('Belgilangan do‘kon topilmadi (ID, STIR yoki nomi bo‘yicha qidiring)');
+      throw new Error('Belgilangan do‘kon topilmadi (ID, STIR, telefon yoki nomi bo‘yicha qidiring)');
     }
 
     // Check if already attached
@@ -133,6 +140,89 @@ export class DealerService {
       store,
       message: 'Do‘kon mijozlaringiz ro‘yxatiga muvaffaqiyatli biriktirildi'
     };
+  }
+
+  /**
+   * Get all platform stores available for a dealer to attach, optionally filtered by query
+   */
+  public static getAvailableStores(dealerId: string, q = '') {
+    const attachedStoreIds = new Set(
+      Array.from(db.dealerStores.values())
+        .filter(ds => ds.dealerId === dealerId)
+        .map(ds => ds.storeId)
+    );
+
+    const cleanQ = q.trim().toLowerCase();
+    const cleanDigits = q.replace(/\D/g, '');
+
+    return Array.from(db.stores.values())
+      .filter(s => s.status === 'ACTIVE')
+      .map(s => {
+        const org = db.organizations.get(s.organizationId);
+        const inn = (s.inn || org?.inn || '').trim();
+        const orgName = org?.name || '';
+        return {
+          id: s.id,
+          name: s.name,
+          address: s.address,
+          phone: s.phone || '',
+          inn,
+          organizationName: orgName,
+          category: s.type || 'RETAIL',
+          rating: s.rating || 5,
+          isAttached: attachedStoreIds.has(s.id)
+        };
+      })
+      .filter(s => {
+        if (!cleanQ) return true;
+        if (s.id.toLowerCase() === cleanQ) return true;
+        if (s.name.toLowerCase().includes(cleanQ)) return true;
+        if (s.organizationName.toLowerCase().includes(cleanQ)) return true;
+        if (s.address.toLowerCase().includes(cleanQ)) return true;
+        if (s.inn && (s.inn.toLowerCase().includes(cleanQ) || (cleanDigits.length >= 4 && s.inn.includes(cleanDigits)))) return true;
+        const phoneDigits = s.phone.replace(/\D/g, '');
+        if (cleanDigits.length >= 7 && phoneDigits.includes(cleanDigits)) return true;
+        return false;
+      });
+  }
+
+  /**
+   * Auto-provision starter B2B products for newly created dealers
+   */
+  public static ensureStarterProductsForDealer(dealerId: string) {
+    const existing = Array.from(db.dealerProducts.values()).filter(p => p.dealerId === dealerId);
+    if (existing.length > 0) return existing;
+
+    const starterItems = [
+      { name: 'Snickers 50g Shokolad (Blok 24 dona)', categoryId: 'sweets', categoryName: 'Shirinliklar va shokolad', sku: 'SNK-50G-B24', unit: 'blok', wholesalePrice: 204000, stockQuantity: 120 },
+      { name: 'Coca-Cola Classic 1.5L (Qadoq 6 dona)', categoryId: 'drinks', categoryName: 'Ichimliklar', sku: 'COLA-15L-P6', unit: 'qadoq', wholesalePrice: 69000, stockQuantity: 200 },
+      { name: 'Twix 50g Pechenye (Blok 24 dona)', categoryId: 'sweets', categoryName: 'Shirinliklar va shokolad', sku: 'TWX-50G-B24', unit: 'blok', wholesalePrice: 196800, stockQuantity: 100 },
+      { name: 'Bounty 57g Kokosli Batonchik (Blok 24 dona)', categoryId: 'sweets', categoryName: 'Shirinliklar va shokolad', sku: 'BNT-57G-B24', unit: 'blok', wholesalePrice: 204000, stockQuantity: 80 },
+      { name: 'Dena Olma Sharbati 1L (Qadoq 12 dona)', categoryId: 'drinks', categoryName: 'Sharbatlar', sku: 'DENA-APP-12', unit: 'qadoq', wholesalePrice: 168000, stockQuantity: 90 },
+      { name: 'Paratsetamol 500mg (Quti 100 blister)', categoryId: 'medicine', categoryName: 'Dori vositalari', sku: 'MED-PAR-100', unit: 'quti', wholesalePrice: 85000, stockQuantity: 150 },
+      { name: 'Toshkent Non (Qop 50 dona)', categoryId: 'bakery', categoryName: 'Non mahsulotlari', sku: 'NON-50', unit: 'qop', wholesalePrice: 120000, stockQuantity: 60 }
+    ];
+
+    const added: DBDealerProduct[] = [];
+    for (const item of starterItems) {
+      const id = uuidv4();
+      const p: DBDealerProduct = {
+        id,
+        dealerId,
+        name: item.name,
+        categoryId: item.categoryId,
+        categoryName: item.categoryName,
+        sku: item.sku,
+        unit: item.unit,
+        wholesalePrice: new Decimal(item.wholesalePrice),
+        stockQuantity: new Decimal(item.stockQuantity),
+        createdAt: new Date().toISOString()
+      };
+      db.dealerProducts.set(id, p);
+      added.push(p);
+    }
+    db.scheduleSave();
+    return added;
   }
 
   /**

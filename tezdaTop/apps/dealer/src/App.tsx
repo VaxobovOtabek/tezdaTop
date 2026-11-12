@@ -160,6 +160,18 @@ export interface GlobalDistributionPoint {
   lastDistributedAt: string;
 }
 
+export interface AvailableStore {
+  id: string;
+  name: string;
+  address: string;
+  phone: string;
+  inn: string;
+  organizationName: string;
+  category: string;
+  rating: number;
+  isAttached: boolean;
+}
+
 export default function App() {
   const [currentUser, setCurrentUser] = useCachedSession();
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -245,6 +257,11 @@ export default function App() {
   const [storeFilterStatus, setStoreFilterStatus] = useState<'ALL' | 'GREEN' | 'YELLOW' | 'RED'>('ALL');
   const [storeSearch, setStoreSearch] = useState('');
 
+  // Available Stores Discovery State
+  const [availableStores, setAvailableStores] = useState<AvailableStore[]>([]);
+  const [isLoadingAvailableStores, setIsLoadingAvailableStores] = useState(false);
+  const [isCreatingProduct, setIsCreatingProduct] = useState(false);
+
   // GIS Map Mode States
   const [mapMode, setMapMode] = useState<'crm' | 'global'>('crm');
   const [selectedStoresForRoute, setSelectedStoresForRoute] = useState<string[]>([]);
@@ -261,6 +278,39 @@ export default function App() {
   const getAuthHeaders = (): Record<string, string> => {
     const token = localStorage.getItem('yaqintop_token') || localStorage.getItem('yaqintop_session_token') || '';
     return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  const loadAvailableStores = async (query = '') => {
+    setIsLoadingAvailableStores(true);
+    try {
+      const q = encodeURIComponent(query.trim());
+      const res = await fetch(`/api/v1/dealer/stores/available?q=${q}`, {
+        headers: getAuthHeaders()
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAvailableStores(data.stores || []);
+      }
+    } catch {
+      // silently handle
+    } finally {
+      setIsLoadingAvailableStores(false);
+    }
+  };
+
+  const openNewSupplyModal = (initialStoreId?: string) => {
+    const targetStoreId = initialStoreId || (stores.length > 0 ? stores[0].storeId : '');
+    setSupplyStoreId(targetStoreId);
+    if (products.length > 0) {
+      setSupplyLines([
+        { productId: products[0].id, quantity: 1, unitPrice: products[0].wholesalePrice }
+      ]);
+    } else {
+      setSupplyLines([]);
+    }
+    setSupplyPaidAmount(0);
+    setSupplyNotes('');
+    setIsSupplyModalOpen(true);
   };
 
   // Dark mode effect
@@ -357,6 +407,23 @@ export default function App() {
       loadInitialData();
     }
   }, [currentUser]);
+
+  useEffect(() => {
+    if (isAttachStoreModalOpen) {
+      loadAvailableStores('');
+    }
+  }, [isAttachStoreModalOpen]);
+
+  useEffect(() => {
+    if (isSupplyModalOpen) {
+      if (stores.length > 0 && (!supplyStoreId || !stores.some(s => s.storeId === supplyStoreId))) {
+        setSupplyStoreId(stores[0].storeId);
+      }
+      if (products.length > 0 && supplyLines.length === 0) {
+        setSupplyLines([{ productId: products[0].id, quantity: 1, unitPrice: products[0].wholesalePrice }]);
+      }
+    }
+  }, [isSupplyModalOpen, stores, products]);
 
   // Fetch Global goods map when mode toggled
   useEffect(() => {
@@ -494,8 +561,13 @@ export default function App() {
   // Handle Supply Order Creation (Tovar topshirish / Nakladnoy)
   const handleCreateSupplyOrder = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supplyStoreId || supplyLines.length === 0) {
-      showToast('Do‘kon va kamida 1 ta mahsulot tanlang');
+    const finalStoreId = supplyStoreId || (stores.length > 0 ? stores[0].storeId : '');
+    if (!finalStoreId) {
+      showToast('Do‘kon tanlanishi shart');
+      return;
+    }
+    if (supplyLines.length === 0) {
+      showToast('Kamida 1 ta mahsulot tanlang');
       return;
     }
 
@@ -507,7 +579,7 @@ export default function App() {
           ...getAuthHeaders()
         },
         body: JSON.stringify({
-          storeId: supplyStoreId,
+          storeId: finalStoreId,
           items: supplyLines,
           paidAmount: Number(supplyPaidAmount || 0),
           paymentType: supplyPaymentType,
@@ -517,7 +589,7 @@ export default function App() {
 
       const data = await res.json();
       if (res.ok) {
-        showToast(`Yuk xati ${data.order.orderNumber} yaratildi! Do‘konda tovar zudlik bilan In Stock bo‘ldi.`);
+        showToast(`Yuk xati ${data.order?.orderNumber || ''} yaratildi! Do‘konda tovar zudlik bilan In Stock bo‘ldi.`);
         setIsSupplyModalOpen(false);
         setSupplyLines([]);
         setSupplyPaidAmount(0);
@@ -534,7 +606,8 @@ export default function App() {
   // Handle Inkassatsiya (Qarz yig'ish)
   const handleRecordPayment = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!payStoreId || payAmount <= 0) {
+    const finalStoreId = payStoreId || (stores.length > 0 ? stores[0].storeId : '');
+    if (!finalStoreId || payAmount <= 0) {
       showToast('Do‘kon va to‘lov summasini kiriting');
       return;
     }
@@ -547,7 +620,7 @@ export default function App() {
           ...getAuthHeaders()
         },
         body: JSON.stringify({
-          storeId: payStoreId,
+          storeId: finalStoreId,
           amount: Number(payAmount),
           paymentMethod: payMethod,
           comment: payComment
@@ -572,7 +645,9 @@ export default function App() {
   // Handle Return (Vozvrat)
   const handleRecordReturn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!returnStoreId || !returnProductId || returnQuantity <= 0) {
+    const finalStoreId = returnStoreId || (stores.length > 0 ? stores[0].storeId : '');
+    const finalProdId = returnProductId || (products.length > 0 ? products[0].id : '');
+    if (!finalStoreId || !finalProdId || returnQuantity <= 0) {
       showToast('Do‘kon, tovar va miqdorini tanlang');
       return;
     }
@@ -585,8 +660,8 @@ export default function App() {
           ...getAuthHeaders()
         },
         body: JSON.stringify({
-          storeId: returnStoreId,
-          items: [{ productId: returnProductId, quantity: Number(returnQuantity) }],
+          storeId: finalStoreId,
+          items: [{ productId: finalProdId, quantity: Number(returnQuantity) }],
           comment: returnComment
         })
       });
@@ -626,9 +701,13 @@ export default function App() {
   };
 
   // Attach Store
-  const handleAttachStore = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!attachQuery.trim()) return;
+  const handleAttachStore = async (e?: React.FormEvent, directStoreId?: string) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const queryToUse = (directStoreId || attachQuery).trim();
+    if (!queryToUse) {
+      showToast('Do‘kon nomi, STIR yoki ID kiritilishi kerak');
+      return;
+    }
 
     try {
       const res = await fetch('/api/v1/dealer/stores/attach', {
@@ -638,22 +717,73 @@ export default function App() {
           ...getAuthHeaders()
         },
         body: JSON.stringify({
-          query: attachQuery.trim(),
-          creditLimit: Number(attachCreditLimit)
+          query: queryToUse,
+          creditLimit: Number(attachCreditLimit) || 5000000
         })
       });
 
       const data = await res.json();
       if (res.ok) {
-        showToast(data.message || 'Do‘kon mijozlar bazasiga qo‘shildi');
+        showToast(data.message || 'Do‘kon mijozlar bazasiga muvaffaqiyatli biriktirildi');
         setIsAttachStoreModalOpen(false);
         setAttachQuery('');
-        loadInitialData();
+        await loadInitialData();
+        await loadAvailableStores('');
       } else {
         showToast(data.message || 'Do‘kon topilmadi');
       }
     } catch {
       showToast('Server bilan bog‘lanishda xatolik');
+    }
+  };
+
+  // Create Product
+  const handleCreateProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newProdName.trim() || newProdPrice <= 0) {
+      showToast('Mahsulot nomi va ulgurji narxi kiritilishi shart');
+      return;
+    }
+
+    setIsCreatingProduct(true);
+    try {
+      const res = await fetch('/api/v1/dealer/products', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders()
+        },
+        body: JSON.stringify({
+          name: newProdName.trim(),
+          categoryId: 'general',
+          categoryName: newProdCategory.trim() || 'Umumiy tovarlar',
+          sku: newProdSku.trim() || undefined,
+          unit: newProdUnit.trim() || 'dona',
+          wholesalePrice: Number(newProdPrice),
+          stockQuantity: Number(newProdStock || 0)
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.product) {
+        showToast(`Yangi tovar "${data.product.name}" muvaffaqiyatli qo‘shildi!`);
+        setIsProductModalOpen(false);
+        setNewProdName('');
+        setNewProdSku('');
+        setNewProdPrice(10000);
+        setNewProdStock(100);
+        const prodsRes = await fetch('/api/v1/dealer/products', { headers: getAuthHeaders() });
+        if (prodsRes.ok) {
+          const pData = await prodsRes.json();
+          setProducts(pData.products || []);
+        }
+      } else {
+        showToast(data.message || 'Mahsulot qo‘shishda xatolik');
+      }
+    } catch {
+      showToast('Server bilan bog‘lanishda xatolik');
+    } finally {
+      setIsCreatingProduct(false);
     }
   };
 
@@ -1178,12 +1308,7 @@ export default function App() {
 
               <div className="flex flex-wrap items-center gap-2">
                 <button
-                  onClick={() => {
-                    setSupplyStoreId(stores[0]?.storeId || '');
-                    setSupplyLines([]);
-                    addSupplyLine();
-                    setIsSupplyModalOpen(true);
-                  }}
+                  onClick={() => openNewSupplyModal()}
                   className="px-3 py-2 rounded-xl bg-white text-[#116B50] text-xs font-black flex items-center gap-1.5 shadow hover:bg-emerald-50 transition active:scale-95"
                 >
                   <Plus className="w-4 h-4" />
@@ -1514,12 +1639,7 @@ export default function App() {
                   {/* 3 Core Quick Action Buttons */}
                   <div className="grid grid-cols-3 gap-1.5 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#22332C]">
                     <button
-                      onClick={() => {
-                        setSupplyStoreId(store.storeId);
-                        setSupplyLines([]);
-                        addSupplyLine();
-                        setIsSupplyModalOpen(true);
-                      }}
+                      onClick={() => openNewSupplyModal(store.storeId)}
                       className="py-2 px-2 rounded-xl bg-[#116B50] hover:bg-[#0E5842] text-white text-[11px] font-bold text-center transition active:scale-95 shadow-xs"
                     >
                       + {t('btn_supply')}
@@ -1563,12 +1683,7 @@ export default function App() {
               <Button
                 variant="primary"
                 size="sm"
-                onClick={() => {
-                  setSupplyStoreId(stores[0]?.storeId || '');
-                  setSupplyLines([]);
-                  addSupplyLine();
-                  setIsSupplyModalOpen(true);
-                }}
+                onClick={() => openNewSupplyModal()}
                 className="text-xs font-bold bg-[#116B50] hover:bg-[#0E5842] text-white"
               >
                 <Plus className="w-4 h-4 mr-1" />
@@ -2118,10 +2233,7 @@ export default function App() {
             stores={stores}
             isDarkMode={isDarkMode}
             onOpenSupply={(store) => {
-              setSupplyStoreId(store.storeId);
-              setSupplyLines([]);
-              addSupplyLine();
-              setIsSupplyModalOpen(true);
+              openNewSupplyModal(store.storeId);
             }}
             onOpenPayment={(store) => {
               setPayStoreId(store.storeId);
@@ -2213,10 +2325,7 @@ export default function App() {
           <button
             onClick={() => {
               setIsMobileQuickActionsOpen(false);
-              setSupplyStoreId(stores[0]?.storeId || '');
-              setSupplyLines([]);
-              addSupplyLine();
-              setIsSupplyModalOpen(true);
+              openNewSupplyModal();
             }}
             className="p-3.5 rounded-2xl bg-[#E0EFE7] dark:bg-[#1E362A] hover:bg-[#cbe5d8] text-[#116B50] dark:text-[#4ADE80] text-xs font-bold flex items-center justify-between transition active:scale-98"
           >
@@ -2302,77 +2411,140 @@ export default function App() {
         title={t('modal_supply_title')}
       >
         <form onSubmit={handleCreateSupplyOrder} className="flex flex-col gap-3.5 py-1">
-          <div>
-            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
-              {t('modal_supply_select_store')}
-            </label>
-            <select
-              value={supplyStoreId}
-              onChange={(e) => setSupplyStoreId(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
-            >
-              {stores.map(s => (
-                <option key={s.storeId} value={s.storeId}>
-                  {s.storeName} ({t('debt_short')} {s.currentDebtBalance.toLocaleString()} {t('currency')})
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
-                {t('modal_supply_goods_list')}
-              </label>
-              <button
+          {stores.length === 0 ? (
+            <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center flex flex-col items-center gap-2">
+              <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
+              <div className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                Hali birorta ham do‘kon biriktirilmagan!
+              </div>
+              <p className="text-[11px] text-amber-700 dark:text-amber-400 max-w-sm">
+                Yuk xati (nakladnoy) rasmiylashtirishdan oldin do‘konni mijozlar bazangizga biriktirishingiz kerak.
+              </p>
+              <Button
+                variant="primary"
+                size="sm"
                 type="button"
-                onClick={addSupplyLine}
-                className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1"
+                onClick={() => {
+                  setIsSupplyModalOpen(false);
+                  setIsAttachStoreModalOpen(true);
+                }}
+                className="bg-[#116B50] hover:bg-[#0E5842] text-white font-bold text-xs"
               >
-                <Plus className="w-3 h-3" />
-                {t('modal_supply_add_line')}
-              </button>
+                <Store className="w-4 h-4 mr-1.5" />
+                + Yangi Do‘kon Biriktirish
+              </Button>
             </div>
+          ) : (
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                {t('modal_supply_select_store')} *
+              </label>
+              <select
+                value={supplyStoreId || stores[0]?.storeId}
+                onChange={(e) => setSupplyStoreId(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+              >
+                {stores.map(s => (
+                  <option key={s.storeId} value={s.storeId}>
+                    {s.storeName} ({t('debt_short')} {s.currentDebtBalance.toLocaleString()} {t('currency')})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
-            <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
-              {supplyLines.map((line, idx) => (
-                <div key={idx} className="p-2.5 rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] flex items-center gap-2">
-                  <select
-                    value={line.productId}
-                    onChange={(e) => updateSupplyLine(idx, 'productId', e.target.value)}
-                    className="flex-1 px-2 py-1.5 text-xs rounded-lg bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white"
-                  >
-                    {products.map(p => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.wholesalePrice.toLocaleString()} {t('currency')})
-                      </option>
-                    ))}
-                  </select>
+          {products.length === 0 ? (
+            <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-center flex flex-col items-center gap-2">
+              <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <div className="text-xs font-bold text-blue-900 dark:text-blue-200">
+                Omborda tovarlar mavjud emas
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => {
+                  setIsSupplyModalOpen(false);
+                  setIsProductModalOpen(true);
+                }}
+                className="text-xs font-bold"
+              >
+                <Plus className="w-3.5 h-3.5 mr-1" />
+                Yangi tovar qo‘shish
+              </Button>
+            </div>
+          ) : (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
+                  {t('modal_supply_goods_list')} *
+                </label>
+                <button
+                  type="button"
+                  onClick={addSupplyLine}
+                  className="text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1"
+                >
+                  <Plus className="w-3 h-3" />
+                  {t('modal_supply_add_line')}
+                </button>
+              </div>
 
-                  <input
-                    type="number"
-                    min="1"
-                    placeholder={t('modal_supply_qty')}
-                    value={line.quantity}
-                    onChange={(e) => updateSupplyLine(idx, 'quantity', e.target.value)}
-                    className="w-16 px-2 py-1.5 text-xs rounded-lg bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white text-center font-bold"
-                  />
-
-                  <div className="text-xs font-bold text-right min-w-[80px]">
-                    {(line.quantity * line.unitPrice).toLocaleString()}
-                  </div>
-
-                  <button
+              {supplyLines.length === 0 ? (
+                <div className="p-3 rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] text-center">
+                  <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mb-2">Tovarlar tanlanmagan</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
                     type="button"
-                    onClick={() => removeSupplyLine(idx)}
-                    className="p-1 text-rose-500 hover:text-rose-700"
+                    onClick={addSupplyLine}
+                    className="text-xs font-bold"
                   >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    + Tovar qo‘shish
+                  </Button>
                 </div>
-              ))}
+              ) : (
+                <div className="flex flex-col gap-2 max-h-56 overflow-y-auto pr-1">
+                  {supplyLines.map((line, idx) => (
+                    <div key={idx} className="p-2.5 rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] flex items-center gap-2">
+                      <select
+                        value={line.productId}
+                        onChange={(e) => updateSupplyLine(idx, 'productId', e.target.value)}
+                        className="flex-1 px-2 py-1.5 text-xs rounded-lg bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white"
+                      >
+                        {products.map(p => (
+                          <option key={p.id} value={p.id}>
+                            {p.name} ({p.wholesalePrice.toLocaleString()} {t('currency')})
+                          </option>
+                        ))}
+                      </select>
+
+                      <input
+                        type="number"
+                        min="1"
+                        placeholder={t('modal_supply_qty')}
+                        value={line.quantity}
+                        onChange={(e) => updateSupplyLine(idx, 'quantity', e.target.value)}
+                        className="w-16 px-2 py-1.5 text-xs rounded-lg bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white text-center font-bold"
+                      />
+
+                      <div className="text-xs font-bold text-right min-w-[80px]">
+                        {(line.quantity * line.unitPrice).toLocaleString()}
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => removeSupplyLine(idx)}
+                        className="p-1 text-rose-500 hover:text-rose-700"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
+          )}
 
           <div className="p-3 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] text-xs">
             <div className="flex items-center justify-between font-black text-sm text-[#116B50] dark:text-[#4ADE80]">
@@ -2552,28 +2724,14 @@ export default function App() {
         onClose={() => setIsAttachStoreModalOpen(false)}
         title={t('modal_link_title')}
       >
-        <form onSubmit={handleAttachStore} className="flex flex-col gap-3 py-1">
+        <div className="flex flex-col gap-3 py-1">
           <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
             {t('modal_link_desc')}
           </p>
 
           <div>
             <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
-              {t('form_store_search')}
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="Navbahor / 308123456"
-              value={attachQuery}
-              onChange={(e) => setAttachQuery(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
-              {t('form_store_credit_limit')}
+              {t('form_store_credit_limit')} (so‘m)
             </label>
             <input
               type="number"
@@ -2584,25 +2742,136 @@ export default function App() {
             />
           </div>
 
-          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#DCE5DF] dark:border-[#22332C]">
+          {/* Search Box */}
+          <form onSubmit={(e) => { e.preventDefault(); handleAttachStore(e); }} className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#566A63] dark:text-[#8B9E95]" />
+              <input
+                type="text"
+                placeholder="Do‘kon nomi, STIR/INN, telefon yoki manzil..."
+                value={attachQuery}
+                onChange={(e) => {
+                  setAttachQuery(e.target.value);
+                  loadAvailableStores(e.target.value);
+                }}
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white"
+              />
+            </div>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              className="bg-[#116B50] hover:bg-[#0E5842] text-white font-bold text-xs shrink-0"
+            >
+              Qidirish
+            </Button>
+          </form>
+
+          {/* List of Available Platform Stores */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95]">
+              <span>YaqinTop platformasidagi do‘konlar ({availableStores.length})</span>
+              {isLoadingAvailableStores && <span className="text-[#116B50] animate-pulse">Yuklanmoqda...</span>}
+            </div>
+
+            <div className="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1">
+              {availableStores.length === 0 ? (
+                <div className="p-4 rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] text-center flex flex-col items-center gap-2">
+                  <p className="text-xs text-[#566A63] dark:text-[#8B9E95]">
+                    {attachQuery ? 'Qidiruv bo‘yicha do‘kon topilmadi.' : 'Do‘konlar ro‘yxati bo‘sh.'}
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    onClick={() => {
+                      setIsAttachStoreModalOpen(false);
+                      setIsNewStoreModalOpen(true);
+                    }}
+                    className="text-xs font-bold"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1" />
+                    Xaritada yangi do‘kon ochish
+                  </Button>
+                </div>
+              ) : (
+                availableStores.map(st => (
+                  <div
+                    key={st.id}
+                    className="p-3 rounded-xl bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] hover:border-[#116B50] transition flex items-center justify-between gap-3 shadow-xs"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="font-bold text-xs text-[#172C28] dark:text-white truncate">
+                          {st.name}
+                        </span>
+                        {st.category && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80]">
+                            {st.category}
+                          </span>
+                        )}
+                        {st.isAttached && (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
+                            Mijozingiz
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-[#566A63] dark:text-[#8B9E95] truncate">
+                        {st.organizationName && `${st.organizationName} • `}{st.address || 'Manzil ko‘rsatilmagan'}
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#566A63] dark:text-[#8B9E95]">
+                        {st.inn && <span className="font-mono bg-gray-100 dark:bg-gray-800 px-1 rounded">STIR: {st.inn}</span>}
+                        {st.phone && <span>Tel: {st.phone}</span>}
+                      </div>
+                    </div>
+
+                    <div>
+                      {st.isAttached ? (
+                        <span className="px-2 py-1 rounded-lg text-[10px] font-bold text-gray-400 bg-gray-100 dark:bg-gray-800">
+                          Biriktirilgan
+                        </span>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          type="button"
+                          onClick={() => handleAttachStore(undefined, st.id)}
+                          className="bg-[#116B50] hover:bg-[#0E5842] text-white font-bold text-xs px-2.5 py-1"
+                        >
+                          <Plus className="w-3.5 h-3.5 mr-1" />
+                          Biriktirish
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between pt-2 border-t border-[#DCE5DF] dark:border-[#22332C]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsAttachStoreModalOpen(false);
+                setIsNewStoreModalOpen(true);
+              }}
+              className="text-xs font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline flex items-center gap-1"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              Yangi do‘kon (Xaritada ochish)
+            </button>
+
             <Button
               variant="outline"
               size="sm"
               type="button"
               onClick={() => setIsAttachStoreModalOpen(false)}
             >
-              {t('btn_cancel')}
-            </Button>
-            <Button
-              variant="primary"
-              size="sm"
-              type="submit"
-              className="bg-[#116B50] hover:bg-[#0E5842] text-white font-bold"
-            >
-              {t('btn_submit_link')}
+              {t('btn_close')}
             </Button>
           </div>
-        </form>
+        </div>
       </Modal>
 
       {/* ================= MODAL: CREATE STORE PIN ================= */}
@@ -2714,6 +2983,124 @@ export default function App() {
         </form>
       </Modal>
 
+      {/* ================= MODAL: ADD PRODUCT ================= */}
+      <Modal
+        isOpen={isProductModalOpen}
+        onClose={() => setIsProductModalOpen(false)}
+        title="Yangi Mahsulot Qo‘shish"
+      >
+        <form onSubmit={handleCreateProduct} className="flex flex-col gap-3 py-1">
+          <div>
+            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+              Mahsulot nomi *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="Masalan: Snickers 50g, Coca-Cola 1.5L..."
+              value={newProdName}
+              onChange={(e) => setNewProdName(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                Kategoriya
+              </label>
+              <input
+                type="text"
+                placeholder="Ichimliklar, Shirinliklar..."
+                value={newProdCategory}
+                onChange={(e) => setNewProdCategory(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                O‘lchov birligi
+              </label>
+              <select
+                value={newProdUnit}
+                onChange={(e) => setNewProdUnit(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white"
+              >
+                <option value="dona">dona</option>
+                <option value="blok">blok</option>
+                <option value="qadoq">qadoq</option>
+                <option value="quti">quti</option>
+                <option value="kg">kg</option>
+                <option value="litr">litr</option>
+                <option value="qop">qop</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                Ulgurji narxi (so‘m) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="500"
+                required
+                value={newProdPrice}
+                onChange={(e) => setNewProdPrice(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white font-bold"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                Ombordagi qoldiq
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={newProdStock}
+                onChange={(e) => setNewProdStock(Number(e.target.value))}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white font-bold"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+              SKU / Artikil (ixtiyoriy)
+            </label>
+            <input
+              type="text"
+              placeholder="Masalan: SNK-50G-24"
+              value={newProdSku}
+              onChange={(e) => setNewProdSku(e.target.value)}
+              className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white"
+            />
+          </div>
+
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-[#DCE5DF] dark:border-[#22332C]">
+            <Button
+              variant="outline"
+              size="sm"
+              type="button"
+              onClick={() => setIsProductModalOpen(false)}
+            >
+              {t('btn_cancel')}
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              type="submit"
+              disabled={isCreatingProduct}
+              className="bg-[#116B50] hover:bg-[#0E5842] text-white font-bold"
+            >
+              {isCreatingProduct ? 'Qo‘shilmoqda...' : 'Tovar qo‘shish'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* ================= MODAL: PAYMENT (INKASSATSIYA) ================= */}
       <Modal
         isOpen={isPaymentModalOpen}
@@ -2721,22 +3108,28 @@ export default function App() {
         title={t('modal_pay_title')}
       >
         <form onSubmit={handleRecordPayment} className="flex flex-col gap-3 py-1">
-          <div>
-            <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
-              {t('modal_supply_select_store')}
-            </label>
-            <select
-              value={payStoreId}
-              onChange={(e) => setPayStoreId(e.target.value)}
-              className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
-            >
-              {stores.map(s => (
-                <option key={s.storeId} value={s.storeId}>
-                  {s.storeName} ({t('debt_short')} {s.currentDebtBalance.toLocaleString()} {t('currency')})
-                </option>
-              ))}
-            </select>
-          </div>
+          {stores.length === 0 ? (
+            <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-center">
+              <p className="text-xs text-amber-900 dark:text-amber-200 font-bold">Hali birorta ham do‘kon biriktirilmagan</p>
+            </div>
+          ) : (
+            <div>
+              <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
+                {t('modal_supply_select_store')}
+              </label>
+              <select
+                value={payStoreId || stores[0]?.storeId}
+                onChange={(e) => setPayStoreId(e.target.value)}
+                className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
+              >
+                {stores.map(s => (
+                  <option key={s.storeId} value={s.storeId}>
+                    {s.storeName} ({t('debt_short')} {s.currentDebtBalance.toLocaleString()} {t('currency')})
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95] block mb-1">
@@ -2850,7 +3243,7 @@ export default function App() {
               {t('modal_supply_select_store')}
             </label>
             <select
-              value={returnStoreId}
+              value={returnStoreId || stores[0]?.storeId}
               onChange={(e) => setReturnStoreId(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
             >
@@ -2867,7 +3260,7 @@ export default function App() {
               {t('modal_supply_product')} *
             </label>
             <select
-              value={returnProductId}
+              value={returnProductId || products[0]?.id}
               onChange={(e) => setReturnProductId(e.target.value)}
               className="w-full px-3 py-2 text-xs rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white focus:outline-none focus:border-[#116B50]"
             >

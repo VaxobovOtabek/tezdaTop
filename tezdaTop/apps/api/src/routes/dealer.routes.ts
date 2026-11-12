@@ -95,6 +95,13 @@ dealerRouter.get('/stores', (req: Request, res: Response) => {
   res.json({ stores });
 });
 
+dealerRouter.get('/stores/available', (req: Request, res: Response) => {
+  const dealer = (req as any).dealer as DBDealer;
+  const q = (req.query.q || '') as string;
+  const stores = DealerService.getAvailableStores(dealer.id, q);
+  res.json({ stores });
+});
+
 dealerRouter.post('/stores/attach', (req: Request, res: Response) => {
   const dealer = (req as any).dealer as DBDealer;
   const { storeId, query, creditLimit, notes } = req.body;
@@ -150,6 +157,7 @@ dealerRouter.get('/stores/:storeId/akt-sverka', (req: Request, res: Response) =>
 // 4. Products Catalog
 dealerRouter.get('/products', (req: Request, res: Response) => {
   const dealer = (req as any).dealer as DBDealer;
+  DealerService.ensureStarterProductsForDealer(dealer.id);
   const products = Array.from(db.dealerProducts.values())
     .filter(p => p.dealerId === dealer.id)
     .map(p => ({
