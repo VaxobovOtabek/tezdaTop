@@ -81,6 +81,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const routePolylineRef = useRef<L.Polyline | null>(null);
   const routeMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const prevRadiusRef = useRef<number>(radiusM);
+  const prevLocRef = useRef<{ lat: number; lng: number } | null>(null);
   const [currentZoom, setCurrentZoom] = useState<number>(15);
 
   // Global handlers for Leaflet popups
@@ -336,6 +337,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         radiusCircleRef.current = circle;
       }
 
+      // Center camera to newly selected location if coordinates shifted significantly
+      const hasLocationChanged = !prevLocRef.current ||
+        Math.abs(prevLocRef.current.lat - userLocation.lat) > 0.0001 ||
+        Math.abs(prevLocRef.current.lng - userLocation.lng) > 0.0001;
+
+      if (hasLocationChanged && view !== 'route') {
+        prevLocRef.current = { lat: userLocation.lat, lng: userLocation.lng };
+        map.setView([userLocation.lat, userLocation.lng], 14, { animate: true });
+      }
+
       // Auto fit search circle into screen view only when radius explicitly changes
       const isRadiusChanged = prevRadiusRef.current !== radiusM;
       if (isRadiusChanged && view !== 'route' && radiusCircleRef.current && mapContainerRef.current && mapContainerRef.current.clientWidth > 0) {
@@ -389,7 +400,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
     if (view === 'route') return;
 
-    const isZoomedIn = currentZoom >= 17;
+    const isZoomedIn = currentZoom >= 13;
     const placedBadgePositions: { x: number; y: number }[] = [];
 
     // Case 1: Product search active

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Search, MapPin, Check, Compass, ChevronRight, Building, Sparkles, ChevronDown } from 'lucide-react';
 import { Modal, Button } from '@yaqintop/ui';
 
@@ -379,6 +379,29 @@ export function UzbekistanRegionPickerModal({
   const [searchQuery, setSearchQuery] = useState('');
   const [activeRegionId, setActiveRegionId] = useState<string>('tashkent-city');
   const [locating, setLocating] = useState(false);
+  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
+  const [isDistrictDropdownOpen, setIsDistrictDropdownOpen] = useState(false);
+  const regionDropdownRef = useRef<HTMLDivElement | null>(null);
+  const districtDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Close custom dropdowns on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (regionDropdownRef.current && !regionDropdownRef.current.contains(target)) {
+        setIsRegionDropdownOpen(false);
+      }
+      if (districtDropdownRef.current && !districtDropdownRef.current.contains(target)) {
+        setIsDistrictDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, []);
 
   // Search matches across all regions and districts
   const searchResults = useMemo(() => {
@@ -569,34 +592,185 @@ export function UzbekistanRegionPickerModal({
         ) : (
           /* Main Browser: Fully Adaptive */
           <div className="flex flex-col gap-2.5">
-            {/* Mobile-only Region Selector Dropdown (< md) */}
-            <div className="md:hidden flex flex-col gap-1.5 p-2 bg-[#F9FAF9] dark:bg-[#16241E] rounded-xl border border-[#DCE5DF] dark:border-[#2A3F36]">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-[#566A63] dark:text-[#8B9E95] uppercase tracking-wider">
+            {/* Mobile-friendly Region & District Custom Selectors (< md) */}
+            <div className="md:hidden flex flex-col gap-2 p-2.5 bg-[#F8FAFC] dark:bg-[#16241E] rounded-2xl border border-[#CBD5E1] dark:border-[#273B32] shadow-2xs">
+              <div className="flex items-center justify-between px-0.5">
+                <span className="text-[10px] font-extrabold text-[#566A63] dark:text-[#8B9E95] uppercase tracking-wider">
                   Viloyatni tanlang:
                 </span>
                 <button
                   type="button"
                   onClick={() => handlePick(activeRegion.name, 'Barcha tumanlar', activeRegion.centerLat, activeRegion.centerLng)}
-                  className="text-[10px] font-bold text-[#116B50] dark:text-[#4ADE80] hover:underline"
+                  className="text-[10px] font-bold text-[#087F5B] dark:text-[#4ADE80] hover:underline flex items-center gap-1 cursor-pointer"
                 >
-                  Butun viloyatni tanlash ✨
+                  <span>Butun viloyatni tanlash</span>
+                  <Sparkles className="w-3 h-3 text-amber-500 fill-amber-500" />
                 </button>
               </div>
-              <div className="relative">
-                <Building className="w-4 h-4 text-[#116B50] dark:text-[#4ADE80] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-                <select
-                  value={activeRegionId}
-                  onChange={(e) => setActiveRegionId(e.target.value)}
-                  className="w-full h-10 pl-9 pr-8 bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#2A3F36] rounded-lg text-xs font-bold text-[#172C28] dark:text-[#E8F2EC] outline-none cursor-pointer appearance-none"
+
+              {/* 1. Custom Region Dropdown */}
+              <div ref={regionDropdownRef} className="relative w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsRegionDropdownOpen(!isRegionDropdownOpen);
+                    setIsDistrictDropdownOpen(false);
+                  }}
+                  className={`w-full h-11 px-3 bg-white dark:bg-[#14201A] rounded-xl border transition-all flex items-center justify-between text-left cursor-pointer shadow-2xs ${
+                    isRegionDropdownOpen
+                      ? 'border-2 border-[#087F5B] ring-2 ring-[#087F5B]/20 bg-white dark:bg-[#1A2822]'
+                      : 'border-[#CBD5E1] dark:border-[#273B32] hover:border-[#087F5B] hover:bg-slate-50 dark:hover:bg-[#1A2822]'
+                  }`}
                 >
-                  {UZBEKISTAN_REGIONS.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.name} ({r.districts.length} ta tuman/shahar)
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="w-4 h-4 text-[#566A63] dark:text-[#8B9E95] absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                      <Building className="w-4 h-4" />
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-extrabold text-xs text-[#172B26] dark:text-white truncate">
+                        {activeRegion.name}
+                      </span>
+                      <span className="text-[10px] font-bold text-[#64748B] dark:text-[#8B9E95] bg-slate-100 dark:bg-[#203328] px-1.5 py-0.5 rounded-md shrink-0">
+                        {activeRegion.districts.length} ta
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-[#64748B] dark:text-[#8B9E95] transition-transform duration-200 shrink-0 ${
+                      isRegionDropdownOpen ? 'rotate-180 text-[#087F5B]' : ''
+                    }`}
+                  />
+                </button>
+
+                {/* Custom Region Popup */}
+                {isRegionDropdownOpen && (
+                  <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 bg-white dark:bg-[#182620] rounded-2xl border-2 border-[#CBD5E1] dark:border-[#2E4237] shadow-[0_16px_40px_rgba(0,0,0,0.18)] p-1.5 flex flex-col gap-1 max-h-72 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-1.5 text-[10px] font-extrabold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider border-b border-[#F1F5F9] dark:border-[#263D33] mb-0.5 flex items-center justify-between">
+                      <span>Viloyatni tanlang</span>
+                      <span className="text-[9px] font-bold text-[#087F5B] dark:text-[#4ADE80]">{UZBEKISTAN_REGIONS.length} ta hudud</span>
+                    </div>
+                    {UZBEKISTAN_REGIONS.map((r) => {
+                      const isSelected = r.id === activeRegionId;
+                      return (
+                        <button
+                          key={r.id}
+                          type="button"
+                          onClick={() => {
+                            setActiveRegionId(r.id);
+                            setIsRegionDropdownOpen(false);
+                          }}
+                          className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer text-left ${
+                            isSelected
+                              ? 'bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] shadow-2xs'
+                              : 'text-[#172B26] dark:text-[#E8F2EC] hover:bg-[#F1F5F9] dark:hover:bg-[#203328]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${
+                              isSelected ? 'bg-[#087F5B] text-white' : 'bg-slate-100 dark:bg-[#25392F] text-[#64748B] dark:text-[#8B9E95]'
+                            }`}>
+                              <Building className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="truncate">{r.name}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md font-semibold ${
+                              isSelected ? 'bg-[#087F5B]/15 text-[#087F5B] dark:text-[#4ADE80]' : 'bg-slate-100 dark:bg-[#263D33] text-[#64748B] dark:text-[#8B9E95]'
+                            }`}>
+                              {r.districts.length} ta tuman
+                            </span>
+                            {isSelected && <Check className="w-4 h-4 text-[#087F5B] dark:text-[#4ADE80] stroke-[2.5]" />}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. Custom District Dropdown (Quick Instant Select on Mobile) */}
+              <div ref={districtDropdownRef} className="relative w-full">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDistrictDropdownOpen(!isDistrictDropdownOpen);
+                    setIsRegionDropdownOpen(false);
+                  }}
+                  className={`w-full h-11 px-3 bg-white dark:bg-[#14201A] rounded-xl border transition-all flex items-center justify-between text-left cursor-pointer shadow-2xs ${
+                    isDistrictDropdownOpen
+                      ? 'border-2 border-[#087F5B] ring-2 ring-[#087F5B]/20 bg-white dark:bg-[#1A2822]'
+                      : 'border-[#CBD5E1] dark:border-[#273B32] hover:border-[#087F5B] hover:bg-slate-50 dark:hover:bg-[#1A2822]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 text-[#087F5B] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+                      <MapPin className="w-4 h-4" />
+                    </div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-bold text-xs text-[#172B26] dark:text-white truncate">
+                        Tumanni tanlang (yoki quyidan tanlang)
+                      </span>
+                    </div>
+                  </div>
+                  <ChevronDown
+                    className={`w-4 h-4 text-[#64748B] dark:text-[#8B9E95] transition-transform duration-200 shrink-0 ${
+                      isDistrictDropdownOpen ? 'rotate-180 text-[#087F5B]' : ''
+                    }`}
+                  />
+                </button>
+
+                {/* Custom District Popup */}
+                {isDistrictDropdownOpen && (
+                  <div className="absolute top-[calc(100%+6px)] left-0 right-0 z-50 bg-white dark:bg-[#182620] rounded-2xl border-2 border-[#CBD5E1] dark:border-[#2E4237] shadow-[0_16px_40px_rgba(0,0,0,0.18)] p-1.5 flex flex-col gap-1 max-h-72 overflow-y-auto animate-in fade-in zoom-in-95 duration-150">
+                    <div className="px-3 py-1.5 text-[10px] font-extrabold text-[#64748B] dark:text-[#94A3B8] uppercase tracking-wider border-b border-[#F1F5F9] dark:border-[#263D33] mb-0.5 flex items-center justify-between">
+                      <span>{activeRegion.name} tumanlari</span>
+                      <span className="text-[9px] font-bold text-[#087F5B] dark:text-[#4ADE80]">{activeRegion.districts.length} ta tuman</span>
+                    </div>
+                    
+                    {/* Barcha tumanlar option */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsDistrictDropdownOpen(false);
+                        handlePick(activeRegion.name, 'Barcha tumanlar', activeRegion.centerLat, activeRegion.centerLng);
+                      }}
+                      className="w-full px-3 py-2.5 rounded-xl text-xs font-extrabold flex items-center justify-between transition cursor-pointer text-left bg-emerald-50/70 dark:bg-emerald-950/40 text-[#087F5B] dark:text-[#4ADE80] hover:bg-emerald-100 dark:hover:bg-emerald-900/50"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-500 fill-amber-500 shrink-0" />
+                        <span className="truncate">Butun viloyat (Barcha tumanlar)</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-[#087F5B] shrink-0" />
+                    </button>
+
+                    {activeRegion.districts.map((d) => {
+                      const isCurrent =
+                        Math.abs(selectedLocation.lat - d.lat) < 0.02 &&
+                        Math.abs(selectedLocation.lng - d.lng) < 0.02;
+                      return (
+                        <button
+                          key={d.name}
+                          type="button"
+                          onClick={() => {
+                            setIsDistrictDropdownOpen(false);
+                            handlePick(activeRegion.name, d.name, d.lat, d.lng);
+                          }}
+                          className={`w-full px-3 py-2.5 rounded-xl text-xs font-bold flex items-center justify-between transition cursor-pointer text-left ${
+                            isCurrent
+                              ? 'bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] shadow-2xs'
+                              : 'text-[#172B26] dark:text-[#E8F2EC] hover:bg-[#F1F5F9] dark:hover:bg-[#203328]'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                            <MapPin className={`w-3.5 h-3.5 shrink-0 ${isCurrent ? 'text-[#087F5B] dark:text-[#4ADE80]' : 'text-[#64748B] dark:text-[#8B9E95]'}`} />
+                            <span className="truncate">{d.name}</span>
+                          </div>
+                          {isCurrent && <Check className="w-4 h-4 text-[#087F5B] dark:text-[#4ADE80] stroke-[2.5] shrink-0" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
 

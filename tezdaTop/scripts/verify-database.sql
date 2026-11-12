@@ -12,7 +12,9 @@ BEGIN
   BEGIN
     PERFORM public.commit_database_snapshot(v-1,'{}','{}');
     RAISE EXCEPTION 'Stale writer was accepted';
-  EXCEPTION WHEN serialization_failure THEN NULL; END;
+  EXCEPTION WHEN SQLSTATE 'PGRST' THEN
+    IF (SQLERRM::jsonb)->>'code' IS DISTINCT FROM '40001' THEN RAISE; END IF;
+  END;
   BEGIN
     PERFORM public.commit_database_snapshot(v,jsonb_build_object(
       'offers',jsonb_build_array(offer_row||jsonb_build_object('price',(original_price+2)::text)),

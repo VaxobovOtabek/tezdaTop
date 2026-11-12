@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronUp, ChevronDown, RotateCcw, Search, Sparkles, Pill } from 'lucide-react';
+import { ChevronUp, ChevronDown, RotateCcw, Search, Sparkles, ShoppingBag } from 'lucide-react';
 import { ProductSearchCard } from './ProductSearchCard';
 
 interface MobileBottomSheetProps {
@@ -16,13 +16,15 @@ interface MobileBottomSheetProps {
 }
 
 const POPULAR_SEARCH_PILLS = [
-  'Paratsetamol',
-  'Aspirin',
-  'Sitamol',
-  'Spazmalgon',
-  'Analgin',
-  'Kardiomagnil',
-  'Mezim'
+  'Non',
+  'Sut',
+  'Yog‘',
+  'Shakar',
+  'Choy',
+  'Tuxum',
+  'Guruch',
+  'Un',
+  'Suv'
 ];
 
 export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
@@ -37,7 +39,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   searchQuery,
   locationName
 }) => {
-  const [sheetState, setSheetState] = useState<'collapsed' | 'half' | 'full'>('collapsed');
+  const [sheetState, setSheetState] = useState<'collapsed' | 'open'>('collapsed');
   const count = items.length;
   const cleanLocation = locationName ? locationName.split(',')[0] : 'Guliston';
   const hasActiveSearch = Boolean(searchQuery.trim());
@@ -56,16 +58,10 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   }, [items, selectedItem]);
 
   const toggleExpand = () => {
-    if (sheetState === 'collapsed') setSheetState('half');
-    else if (sheetState === 'half') setSheetState('full');
-    else setSheetState('collapsed');
+    setSheetState((prev) => (prev === 'collapsed' ? 'open' : 'collapsed'));
   };
 
-  const heightClass = {
-    collapsed: 'h-[62px]',
-    half: 'h-[52vh]',
-    full: 'h-[calc(100vh-140px)]'
-  }[sheetState];
+  const heightClass = sheetState === 'collapsed' ? 'h-[62px]' : 'h-[52vh]';
 
   return (
     <div
@@ -114,8 +110,6 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
           <div className="flex items-center gap-1 text-[#64748B] dark:text-[#8B9E95] shrink-0 pl-2">
             {sheetState === 'collapsed' ? (
               <ChevronUp className="w-5 h-5 text-[#087F5B]" />
-            ) : sheetState === 'half' ? (
-              <ChevronUp className="w-5 h-5 text-[#087F5B]" />
             ) : (
               <ChevronDown className="w-5 h-5 text-[#087F5B]" />
             )}
@@ -134,7 +128,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
               Qidiruvni boshlang
             </h4>
             <p className="text-xs text-[#64748B] dark:text-[#8B9E95] mb-4">
-              Kerakli dori yoki tovar nomini yozing:
+              Kerakli tovar yoki mahsulot nomini yozing:
             </p>
             <div className="flex flex-wrap gap-1.5 justify-center">
               {POPULAR_SEARCH_PILLS.map((pill) => (
@@ -144,7 +138,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
                   onClick={() => onSearchQuery?.(pill)}
                   className="px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-[#E8F5EE] dark:bg-[#1A2822] text-[#172B26] hover:text-[#087F5B] dark:text-[#E8F2EC] text-xs font-bold transition flex items-center gap-1 cursor-pointer active:scale-95"
                 >
-                  <Pill className="w-3 h-3 text-[#087F5B]" />
+                  <ShoppingBag className="w-3 h-3 text-[#087F5B]" />
                   <span>{pill}</span>
                 </button>
               ))}
@@ -177,7 +171,6 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
                 isSelected={isSelected}
                 onSelect={() => {
                   onSelectItem(item);
-                  if (sheetState === 'full') setSheetState('half');
                 }}
                 onOpenStore={onOpenStore}
                 onGetRoute={onGetRoute}

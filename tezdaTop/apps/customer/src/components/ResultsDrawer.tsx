@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, ChevronRight, Layers, AlertCircle, RotateCcw, Search, Sparkles, Pill } from 'lucide-react';
+import { X, ChevronRight, Layers, AlertCircle, RotateCcw, Search, Sparkles, ShoppingBag, Building2 } from 'lucide-react';
 import { ProductSearchCard } from './ProductSearchCard';
 
 interface ResultsDrawerProps {
@@ -19,17 +19,20 @@ interface ResultsDrawerProps {
   onSearchQuery?: (q: string) => void;
   onOpenProductModal?: (item: any) => void;
   isLoading?: boolean;
+  nearbyStores?: any[];
+  onSelectNearbyStore?: (item: any) => void;
 }
 
 const POPULAR_SEARCH_PILLS = [
-  'Paratsetamol',
-  'Aspirin',
-  'Sitamol',
-  'Spazmalgon',
-  'Analgin',
-  'Kardiomagnil',
-  'Mezim',
-  'Ambroksol'
+  'Non',
+  'Sut',
+  'Yog‘',
+  'Shakar',
+  'Choy',
+  'Tuxum',
+  'Guruch',
+  'Un',
+  'Suv'
 ];
 
 export const ResultsDrawerTrigger: React.FC<{ count: number; onOpen: () => void }> = ({ count, onOpen }) => (
@@ -74,7 +77,9 @@ export const ResultsDrawer: React.FC<ResultsDrawerProps> = ({
   onClearSearch,
   onSearchQuery,
   onOpenProductModal,
-  isLoading = false
+  isLoading = false,
+  nearbyStores = [],
+  onSelectNearbyStore
 }) => {
   const count = items.length;
   const cleanLocation = locationName ? locationName.split(',')[0] : 'Guliston';
@@ -86,16 +91,16 @@ export const ResultsDrawer: React.FC<ResultsDrawerProps> = ({
   }
 
   return (
-    <aside className="hidden md:flex absolute top-4 bottom-4 left-4 w-[380px] lg:w-[410px] z-20 bg-white dark:bg-[#14201A] rounded-3xl shadow-2xl border border-[#CBD5E1] dark:border-[#273B32] flex-col overflow-hidden animate-in fade-in slide-in-from-left duration-200">
+    <aside className="hidden md:flex absolute top-4 bottom-4 left-4 w-[340px] md:w-[360px] lg:w-[380px] xl:w-[400px] z-20 bg-white dark:bg-[#14201A] rounded-3xl shadow-2xl border border-[#CBD5E1] dark:border-[#273B32] flex-col overflow-hidden animate-in fade-in slide-in-from-left duration-200">
       {/* Header */}
       <div className="p-4 sm:p-5 border-b border-[#E2E8F0] dark:border-[#263D33] shrink-0">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h2 className="font-extrabold text-xl text-[#172B26] dark:text-white tracking-tight">
+          <div className="flex items-center gap-2 min-w-0">
+            <h2 className="font-extrabold text-lg sm:text-xl text-[#172B26] dark:text-white tracking-tight truncate">
               Topilgan tovarlar
             </h2>
             {hasActiveSearch && (
-              <span className="bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] text-xs font-extrabold px-2.5 py-0.5 rounded-full">
+              <span className="bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] text-xs font-extrabold px-2 py-0.5 rounded-full shrink-0">
                 {count} ta
               </span>
             )}
@@ -103,7 +108,7 @@ export const ResultsDrawer: React.FC<ResultsDrawerProps> = ({
           <button
             onClick={onClose}
             type="button"
-            className="w-8 h-8 rounded-full hover:bg-[#F1F5F9] dark:hover:bg-[#1E3328] text-[#64748B] dark:text-[#8B9E95] hover:text-[#172B26] dark:hover:text-white flex items-center justify-center transition cursor-pointer"
+            className="w-8 h-8 rounded-full hover:bg-[#F1F5F9] dark:hover:bg-[#1E3328] text-[#64748B] dark:text-[#8B9E95] hover:text-[#172B26] dark:hover:text-white flex items-center justify-center transition cursor-pointer shrink-0"
             title="Panelni yopish"
           >
             <X className="w-4 h-4" />
@@ -183,7 +188,7 @@ export const ResultsDrawer: React.FC<ResultsDrawerProps> = ({
               Qidiruvni boshlang
             </h3>
             <p className="text-xs text-[#64748B] dark:text-[#8B9E95] max-w-[260px] mb-5">
-              O‘zingizga kerakli dori, tovar yoki xizmat nomini yozing, uning eng yaqin do‘kondagi narxi va sheriklarini topamiz.
+              O‘zingizga kerakli tovar yoki mahsulot nomini yozing, uning eng yaqin do‘kondagi narxi va sheriklarini topamiz.
             </p>
 
             <div className="w-full text-left">
@@ -199,12 +204,61 @@ export const ResultsDrawer: React.FC<ResultsDrawerProps> = ({
                     onClick={() => onSearchQuery?.(pill)}
                     className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-[#E8F5EE] dark:bg-[#1A2822] dark:hover:bg-[#1E362A] text-[#172B26] hover:text-[#087F5B] dark:text-[#E8F2EC] dark:hover:text-[#4ADE80] text-xs font-bold transition border border-transparent hover:border-[#087F5B]/30 flex items-center gap-1 cursor-pointer active:scale-95"
                   >
-                    <Pill className="w-3 h-3 text-[#087F5B]" />
+                    <ShoppingBag className="w-3 h-3 text-[#087F5B]" />
                     <span>{pill}</span>
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* Organizations in Selected Region */}
+            {nearbyStores.length > 0 && (
+              <div className="w-full text-left mt-5 pt-4 border-t border-[#E2E8F0] dark:border-[#263D33]">
+                <div className="flex items-center justify-between mb-2.5 px-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#172B26] dark:text-white">
+                    <Building2 className="w-3.5 h-3.5 text-[#087F5B] dark:text-[#4ADE80]" />
+                    <span>Hududdagi tashkilotlar:</span>
+                  </div>
+                  <span className="bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] text-[11px] font-extrabold px-2 py-0.5 rounded-full">
+                    {nearbyStores.length} ta
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2">
+                  {nearbyStores.map((item) => {
+                    const store = item.store || item;
+                    const isSelected = selectedItem?.store?.id === store.id || selectedItem?.id === store.id;
+                    return (
+                      <button
+                        key={store.id}
+                        type="button"
+                        onClick={() => {
+                          if (onSelectNearbyStore) {
+                            onSelectNearbyStore(item);
+                          } else {
+                            onSelectItem(item);
+                          }
+                        }}
+                        className={`w-full text-left p-2.5 rounded-xl border transition cursor-pointer flex items-center justify-between gap-2 active:scale-98 ${
+                          isSelected
+                            ? 'bg-[#E8F5EE] dark:bg-[#1E362A] border-[#087F5B] text-[#087F5B] dark:text-[#4ADE80] shadow-xs'
+                            : 'bg-white dark:bg-[#16241E] border-[#E2E8F0] dark:border-[#273B32] hover:border-[#087F5B]/60 text-[#172B26] dark:text-white hover:bg-slate-50 dark:hover:bg-[#1A2C23]'
+                        }`}
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="text-xs font-bold truncate">{store.name}</div>
+                          <div className="text-[11px] text-[#64748B] dark:text-[#8B9E95] truncate">{store.address || cleanLocation}</div>
+                        </div>
+                        {typeof item.distanceM === 'number' && (
+                          <span className="text-[10px] font-bold text-[#087F5B] dark:text-[#4ADE80] bg-[#E8F5EE] dark:bg-[#1E362A] px-1.5 py-0.5 rounded-md shrink-0">
+                            {item.distanceM >= 1000 ? `${(item.distanceM / 1000).toFixed(1)} km` : `${item.distanceM} m`}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ) : count === 0 ? (
           <div className="py-12 flex flex-col items-center justify-center text-center px-4">

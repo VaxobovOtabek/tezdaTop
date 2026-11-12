@@ -260,7 +260,6 @@ export function CustomerApp() {
     setSearchQuery('');
     setResults([]);
     setSelectedResult(null);
-    setNearbyStores([]);
     setSelectedNearbyStore(null);
     try {
       localStorage.setItem('yaqintop_user_location', JSON.stringify({ lat: loc.lat, lng: loc.lng }));
@@ -276,6 +275,10 @@ export function CustomerApp() {
     } catch (e) {
       console.error(e);
     }
+
+    // Immediately load all organizations of the chosen region
+    loadNearbyStores({ lat: loc.lat, lng: loc.lng }, '', chosenRegion, cleanDist);
+
     showToast(`Hudud o‘zgartirildi: ${loc.name}`);
     if (view !== 'search') {
       navigateTo('/');
@@ -315,10 +318,9 @@ export function CustomerApp() {
       const uLng = loc?.lng ?? userLocation?.lng ?? 69.240562;
       const targetQuery = queryStr !== undefined ? queryStr : (searchCategory === 'organizations' ? searchQuery.trim() : '');
       const queryParam = targetQuery ? `&q=${encodeURIComponent(targetQuery)}` : '';
-      const radiusParam = radiusM ? `&radiusM=${radiusM}` : '&radiusM=0';
-      const cleanDist = (effectiveDistrict && effectiveDistrict !== 'Barcha tumanlar' && effectiveDistrict !== 'Viloyat markazi') ? effectiveDistrict : '';
-      const regionParam = `&region=${encodeURIComponent(effectiveRegion)}${cleanDist ? `&district=${encodeURIComponent(cleanDist)}` : ''}`;
-      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}${radiusParam}${openNow ? '&openNow=true' : ''}${queryParam}${regionParam}`));
+      // Pass radiusM=0 and regionParam so all organizations in the region are returned and sorted by distance from selected district
+      const regionParam = `&region=${encodeURIComponent(effectiveRegion)}`;
+      const res = await fetch(apiUrl(`/api/v1/stores?lat=${uLat}&lng=${uLng}&radiusM=0${openNow ? '&openNow=true' : ''}${queryParam}${regionParam}`));
       if (res.ok) {
         const data = await res.json();
         const items = (data.items || []).map((item: any) => {
@@ -802,17 +804,19 @@ export function CustomerApp() {
     setResults([]);
     setSelectedResult(null);
     setSearchError(null);
-    doSearch('');
+    loadNearbyStores();
   };
 
   const isFirstSearchRef = useRef(true);
 
-  // Debounced Search Effect (Zero query on first load, 350ms delay when user types)
+  // Debounced Search Effect (Load nearby stores on first load if no query, 350ms delay when user types)
   useEffect(() => {
     if (isFirstSearchRef.current) {
       isFirstSearchRef.current = false;
       if (searchQuery.trim()) {
         doSearch();
+      } else {
+        loadNearbyStores();
       }
       return;
     }
@@ -823,7 +827,7 @@ export function CustomerApp() {
       } else {
         setResults([]);
         setSelectedResult(null);
-        setNearbyStores([]);
+        loadNearbyStores();
       }
     }, 350);
 
@@ -1228,6 +1232,8 @@ export function CustomerApp() {
                 onOpenLocationPicker={() => setIsLocationModalOpen(true)}
                 items={results}
                 selectedItem={selectedResult}
+                nearbyStores={nearbyStores}
+                onSelectNearbyStore={handleSelectNearbyStore}
                 onSelectItem={(item) => {
                   handleSelectStore(item);
                 }}
@@ -1252,7 +1258,7 @@ export function CustomerApp() {
             {view === 'search' && (
               <div
                 className={`hidden md:flex absolute top-4 z-20 items-center gap-2.5 transition-all duration-300 pointer-events-none right-16 md:right-20 ${
-                  isDrawerOpen ? 'left-[388px] lg:left-[408px]' : 'left-4'
+                  isDrawerOpen ? 'md:left-[392px] lg:left-[412px] xl:left-[432px]' : 'left-4'
                 }`}
               >
                 {!isDrawerOpen && (
@@ -1347,7 +1353,7 @@ export function CustomerApp() {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-                        placeholder="Dori yoki tovar nomini yozing..."
+                        placeholder="Tovar yoki mahsulot nomini yozing..."
                         className="w-full min-w-0 bg-transparent text-xs font-medium text-[#1E293B] dark:text-white placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none pr-4 leading-tight truncate"
                       />
                       {searchQuery && (
@@ -1490,9 +1496,9 @@ export function CustomerApp() {
               radiusM={radiusM}
               locationName={selectedLocationName}
               results={results}
-              nearbyStores={[]}
+              nearbyStores={nearbyStores}
               selectedResult={selectedResult}
-              selectedNearbyStore={null}
+              selectedNearbyStore={selectedNearbyStore}
               onSelectStore={handleSelectStore}
               onSelectNearbyStore={handleSelectNearbyStore}
               onOpenDetail={handleOpenDetail}

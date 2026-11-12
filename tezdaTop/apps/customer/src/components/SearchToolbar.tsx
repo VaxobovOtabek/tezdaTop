@@ -134,7 +134,7 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
               value={searchQuery}
               onChange={(e) => onSearchQueryChange(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-              placeholder="Dori yoki tovar nomini yozing (masalan: Paratsetamol)..."
+              placeholder={isDrawerOpen ? "Tovar yoki mahsulot nomini yozing..." : "Tovar yoki mahsulot nomini yozing (masalan: Shakar, Non)..."}
               className="w-full min-w-0 bg-transparent text-xs sm:text-[13px] md:text-[14px] font-medium text-[#1E293B] dark:text-white placeholder:text-[#64748B] dark:placeholder:text-[#94A3B8] focus:outline-none pr-4 sm:pr-5 leading-tight truncate"
             />
             {searchQuery && (
@@ -164,7 +164,7 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
       </div>
 
       {/* 3. Radius Custom Dropdown */}
-      <div ref={radiusRef} className="hidden sm:block relative shrink-0">
+      <div ref={radiusRef} className={`relative shrink-0 ${isDrawerOpen ? 'hidden lg:block' : 'hidden sm:block'}`}>
         <button
           type="button"
           onClick={() => {
@@ -228,7 +228,7 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
       </div>
 
       {/* 4. Saralash Custom Dropdown */}
-      <div ref={sortRef} className={`relative shrink-0 ${isDrawerOpen ? 'hidden xl:block' : 'hidden lg:block'}`}>
+      <div ref={sortRef} className={`relative shrink-0 ${isDrawerOpen ? 'hidden 2xl:block' : 'hidden xl:block'}`}>
         <button
           type="button"
           onClick={() => {
@@ -311,7 +311,7 @@ export const SearchToolbar: React.FC<SearchToolbarProps> = ({
         disabled={isSearching}
         type="button"
         className={`px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-[#087F5B] hover:bg-[#065F46] active:scale-95 text-white font-bold text-xs sm:text-sm items-center justify-center gap-1.5 sm:gap-2 shadow-sm hover:shadow-md transition shrink-0 cursor-pointer disabled:opacity-70 whitespace-nowrap ${
-          isDrawerOpen ? 'hidden xl:flex' : 'hidden sm:flex'
+          isDrawerOpen ? 'hidden 2xl:flex' : 'hidden xl:flex'
         }`}
         title="Qidirish"
       >

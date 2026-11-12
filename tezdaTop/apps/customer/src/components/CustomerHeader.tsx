@@ -16,9 +16,9 @@ import {
 import { YaqinTopLogo, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
 
 interface CustomerHeaderProps {
-  selectedLocationName: string;
+  selectedLocationName?: string;
   isRegionChosen?: boolean;
-  onOpenLocationPicker: () => void;
+  onOpenLocationPicker?: () => void;
   onNavigateHome: () => void;
   onNavigate: (path: string) => void;
   currentView: string;
@@ -70,22 +70,6 @@ export const CustomerHeader: React.FC<CustomerHeaderProps> = ({
             YaqinTop
           </span>
         </div>
-
-        {/* Location selector pill (visible on sm and up; on mobile, Location is in SearchToolbar on map) */}
-        <button
-          onClick={onOpenLocationPicker}
-          type="button"
-          className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-full transition cursor-pointer group max-w-[155px] sm:max-w-[220px] truncate ${
-            !isRegionChosen
-              ? 'border-2 border-red-500 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/60 ring-2 ring-red-400 animate-pulse shadow-md'
-              : 'border border-[#10B981]/40 dark:border-[#10B981]/50 text-[#087F5B] dark:text-[#4ADE80] bg-[#E8F5EE] dark:bg-[#162720] hover:bg-[#d8efe2] dark:hover:bg-[#1E362C] shadow-2xs'
-          }`}
-          title="Hududni tanlash"
-        >
-          <MapPin className={`w-3.5 h-3.5 shrink-0 group-hover:scale-110 transition-transform ${!isRegionChosen ? 'text-red-600 dark:text-red-400' : 'text-[#087F5B] dark:text-[#4ADE80]'}`} />
-          <span className="truncate">{!isRegionChosen ? 'Viloyatni tanlang!' : (selectedLocationName || 'Guliston, Sirdaryo')}</span>
-          <ChevronDown className={`w-3 h-3 shrink-0 group-hover:translate-y-0.5 transition-transform ${!isRegionChosen ? 'text-red-600 dark:text-red-400' : 'text-[#087F5B] dark:text-[#4ADE80]'}`} />
-        </button>
 
         {/* Desktop Navigation Links */}
         <nav className="hidden xl:flex items-center gap-1 ml-2">
