@@ -12,5 +12,6 @@ pnpm-debug.log*
 .local/
 yaqintop_db.json
 **/yaqintop_db.json
-apps/api/data/yaqintop_db.json
+apps/api/data/
+**/supabase_sync_meta.json
 *.tsbuildinfo

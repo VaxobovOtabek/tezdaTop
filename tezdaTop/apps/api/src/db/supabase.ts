@@ -161,13 +161,27 @@ export async function syncAllFromSupabase(db: InMemoryDatabase, force = false): 
   if (!supabase) return false;
   const now = Date.now();
 
-  // 1. In-memory kesh tekshiruvi: TTL muddati tugamagan bo'lsa, tarmoq orqali so'rov yuborilmaydi
-  if (!force && lastSyncTime > 0 && now - lastSyncTime < CACHE_TTL_MS) {
+  // 1. In-memory throttle: within 10 seconds and not forced, return in-memory state
+  if (!force && lastSyncTime > 0 && now - lastSyncTime < 10000) {
     return true;
   }
 
-  // 2. Disk kesh tekshiruvi: agar diskda saqlangan kesh yangi bo'lsa, Supabase Free Tier limitini tejab, diskdan o'qiydi
-  if (!force) {
+  // 2. Intelligent Remote Version Check (Lightweight: ~20 bytes)
+  // If remote version hasn't changed since our last sync, zero need to re-download snapshot
+  if (!force && version > 0) {
+    try {
+      const { data: verRow, error: verErr } = await supabase.from('app_persistence_state').select('version').limit(1).single();
+      if (!verErr && verRow && Number(verRow.version) === version) {
+        lastSyncTime = now;
+        return true;
+      }
+    } catch {
+      // In case of network glitch on version check, fall through to snapshot/cache logic
+    }
+  }
+
+  // 3. Disk kesh tekshiruvi: faqat dastlabki sovuq startda agar diskda saqlangan kesh yangi bo'lsa
+  if (!force && version === 0) {
     const meta = readCacheMeta();
     if (meta && meta.lastSyncTime > 0 && now - meta.lastSyncTime < CACHE_TTL_MS) {
       if (db.stores.size > 0 || db.loadFromFile()) {
@@ -181,7 +195,7 @@ export async function syncAllFromSupabase(db: InMemoryDatabase, force = false): 
     }
   }
 
-  // 3. Kesh muddati o'tgan bo'lsa yoki force=true bo'lsa, Supabase'dan tortib oladi
+  // 4. Kesh muddati o'tgan bo'lsa, versiya o'zgargan bo'lsa yoki force=true bo'lsa, Supabase'dan tortib oladi
   try {
     console.log('[Supabase Cache] Supabase bilan sinxronlanmoqda...');
     const { data, error } = await supabase.rpc('read_database_snapshot');

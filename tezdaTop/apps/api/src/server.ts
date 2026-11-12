@@ -403,7 +403,7 @@ app.get('/api/v1/health/ready', (req, res) => {
 });
 
 // ================= AUTH ROUTES =================
-app.post('/api/v1/auth/login', authLoginLimiter, (req, res) => {
+app.post('/api/v1/auth/login', authLoginLimiter, async (req, res) => {
   const parsed = LoginRequestSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ code: 'INVALID_REQUEST', message: 'Login va parol kiritilishi shart' });
@@ -421,7 +421,7 @@ app.post('/api/v1/auth/login', authLoginLimiter, (req, res) => {
   const normalizedInput = rawIdentifier.toLowerCase();
   const digitsOnlyInput = rawIdentifier.replace(/\D/g, '');
 
-  let matchedUser = Array.from(db.users.values()).find(u => {
+  const findUser = () => Array.from(db.users.values()).find(u => {
     const userEmail = u.email.toLowerCase();
     const userEmailPrefix = userEmail.split('@')[0];
     const userPhoneDigits = (u.phone || '').replace(/\D/g, '');
@@ -431,6 +431,19 @@ app.post('/api/v1/auth/login', authLoginLimiter, (req, res) => {
     if (digitsOnlyInput.length >= 9 && userPhoneDigits && (userPhoneDigits === digitsOnlyInput || userPhoneDigits.endsWith(digitsOnlyInput))) return true;
     return false;
   }) || null;
+
+  let matchedUser = findUser();
+
+  // If user not found in local memory or password verification fails,
+  // force sync from Supabase to pick up newly added accounts or updated passwords across serverless containers
+  if ((!matchedUser || !verifyOwnerPassword(password, matchedUser.passwordHash)) && isSupabaseConfigured()) {
+    try {
+      await syncAllFromSupabase(db, true);
+      matchedUser = findUser();
+    } catch (syncErr: any) {
+      console.warn('[Auth Login] Supabase fallback sync error:', syncErr?.message);
+    }
+  }
 
   if (!matchedUser || !verifyOwnerPassword(password, matchedUser.passwordHash)) {
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Login yoki parol noto‘g‘ri' });
@@ -542,7 +555,7 @@ app.post('/api/v1/auth/register', authRegisterLimiter, async (req, res) => {
 });
 
 // Quick Token Login (for direct impersonation / instant login via token)
-app.post('/api/v1/auth/token-login', (req, res) => {
+app.post('/api/v1/auth/token-login', async (req, res) => {
   const { token } = req.body;
   if (!token || typeof token !== 'string') {
     res.status(400).json({ code: 'INVALID_TOKEN', message: 'Token kiritilmadi' });
@@ -569,6 +582,12 @@ app.post('/api/v1/auth/token-login', (req, res) => {
     const verified = verifySignedSessionToken(cleanToken);
     if (verified) {
       user = db.users.get(verified.userId);
+      if (!user && isSupabaseConfigured()) {
+        try {
+          await syncAllFromSupabase(db, true);
+          user = db.users.get(verified.userId);
+        } catch {}
+      }
       if (user) {
         db.sessions.set(cleanToken, { userId: verified.userId, createdAt: new Date(verified.createdAt) });
       }
@@ -3867,13 +3886,19 @@ app.patch('/api/v1/admin/users/:id/credentials', requireStaffRole(['ADMIN', 'SUP
 });
 
 // Generate / Copy impersonation token for a user (Admin only)
-app.all('/api/v1/admin/users/:id/token', requireStaffRole(['ADMIN', 'SUPERADMIN']), (req, res) => {
+app.all('/api/v1/admin/users/:id/token', requireStaffRole(['ADMIN', 'SUPERADMIN']), async (req, res) => {
   if (req.method !== 'GET' && req.method !== 'POST') {
     res.status(405).json({ message: 'Method not allowed' });
     return;
   }
 
-  const user = db.users.get(req.params.id);
+  let user = db.users.get(req.params.id);
+  if (!user && isSupabaseConfigured()) {
+    try {
+      await syncAllFromSupabase(db, true);
+      user = db.users.get(req.params.id);
+    } catch {}
+  }
   if (!user) {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Foydalanuvchi topilmadi' });
     return;
