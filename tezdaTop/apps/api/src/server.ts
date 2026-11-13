@@ -230,6 +230,21 @@ const userVerifyLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 10, mess
 // Read-only admin endpoints use independent, table-specific queries.
 app.use(adminReadMiddleware);
 
+app.get('/api/v1/stores', async (req, res, next) => {
+  if (!supabase || process.env.NODE_ENV === 'test') return next();
+  try {
+    const repository = new AdminReadRepository(supabase);
+    const [stores, organizations] = await Promise.all([
+      repository.rows('stores', '*', query => query.eq('status', 'ACTIVE')),
+      repository.rows('organizations', '*', query => query.eq('status', 'ACTIVE'))
+    ]);
+    return listPublicStores(req, res, repository.hydrate({ stores, organizations }));
+  } catch (error) {
+    console.error('[Public Store List]', error);
+    return res.status(503).json({ code: 'DATABASE_UNAVAILABLE', message: 'Do‘konlar ro‘yxatini yuklab bo‘lmadi.' });
+  }
+});
+
 app.get(['/api/v1/stores/:id/offers', '/api/v1/stores/:slug/@:lat,:lng/offers',
   '/api/v1/stores/:id', '/api/v1/stores/:slug/@:lat,:lng'], readPublicStore);
 
@@ -1192,7 +1207,9 @@ app.get('/api/v1/search/markers', (req, res) => {
 });
 
 // ================= STORE & OFFER DETAIL =================
-app.get('/api/v1/stores', (req, res) => {
+app.get('/api/v1/stores', (req, res) => listPublicStores(req, res, db));
+
+function listPublicStores(req: Request, res: Response, database: typeof db) {
   const lat = req.query.lat ? parseFloat(req.query.lat as string) : 41.311081;
   const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
   const radiusM = req.query.radiusM ? parseInt(req.query.radiusM as string, 10) : 0;
@@ -1201,10 +1218,16 @@ app.get('/api/v1/stores', (req, res) => {
   const region = (req.query.region || '').toString().trim();
   const district = (req.query.district || req.query.city || '').toString().trim();
 
+  const offerCounts = new Map<string, number>();
+  for (const offer of database.offers.values()) {
+    if (offer.status !== 'INACTIVE') {
+      offerCounts.set(offer.storeId, (offerCounts.get(offer.storeId) ?? 0) + 1);
+    }
+  }
   const results: any[] = [];
-  for (const store of db.stores.values()) {
+  for (const store of database.stores.values()) {
     if (store.status !== 'ACTIVE') continue;
-    const org = db.organizations.get(store.organizationId);
+    const org = database.organizations.get(store.organizationId);
     if (!org || org.status !== 'ACTIVE') continue;
 
     // Regional restriction filter
@@ -1259,23 +1282,19 @@ app.get('/api/v1/stores', (req, res) => {
     const isOpen = checkStoreIsOpenNow(store);
     if (openNow && !isOpen) continue;
 
-    const offersCount = Array.from(db.offers.values()).filter(
-      (o) => o.storeId === store.id && o.status !== 'INACTIVE'
-    ).length;
-
     results.push({
       store,
       organization: org,
       distanceM: dist,
       isOpenNow: isOpen,
-      offersCount
+      offersCount: offerCounts.get(store.id) ?? 0
     });
   }
 
   // Sort by nearest
   results.sort((a, b) => a.distanceM - b.distanceM);
   res.json({ items: results, total: results.length });
-});
+}
 
 function findStoreByParam(param: string, stores = db.stores): Store | undefined {
   const store = stores.get(param);
