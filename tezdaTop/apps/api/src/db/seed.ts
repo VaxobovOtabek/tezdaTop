@@ -10,47 +10,8 @@ import { db } from './in-memory-db.js';
 import { Store, Variant, Offer, User } from '@yaqintop/contracts';
 import { hashOwnerPassword } from '../services/owner-onboarding.service.js';
 
-export const SEED_IDS = {
-  navbahorOrgId: '11111111-1111-4111-a111-111111111111',
-  navbahorStoreId: '22222222-2222-4222-a222-222222222222',
-  mahallaStoreId: '33333333-3333-4333-a333-333333333333',
-  barakaStoreId: '44444444-4444-4444-a444-444444444444',
-  chorsuWholesaleStoreId: '55555555-5555-4555-a555-555555555555',
-  pendingStoreId: '66666666-6666-4666-a666-666666666666',
-  suspendedStoreId: '77777777-7777-4777-a777-777777777777',
-  overnightStoreId: '88888888-8888-4888-a888-888888888888',
-  sirdaryoPharmOrgId: '11111111-1111-4111-b111-111111111111',
-  grandPharmOrgId: '22222222-1111-4111-b111-111111111111',
-  arzonPharmOrgId: '33333333-1111-4111-b111-111111111111',
-  gulistonMarketOrgId: '44444444-1111-4111-b111-111111111111',
-  sirdaryoPharmStoreId: '22222222-2222-4222-b222-222222222222',
-  grandPharmStoreId: '33333333-3333-4333-b333-333333333333',
-  arzonPharmStoreId: '44444444-4444-4444-b444-444444444444',
-  gulistonMarketStoreId: '55555555-5555-4555-b555-555555555555',
-
-  tsitramonVariantId: 'bbbb1111-1111-4bbb-bbbb-111111111111',
-  paratsetamolVariantId: 'bbbb2222-2222-4bbb-bbbb-222222222222',
-  aspirinVariantId: 'bbbb3333-3333-4bbb-bbbb-333333333333',
-  spasmalgonVariantId: 'bbbb4444-4444-4bbb-bbbb-444444444444',
-  amoksitsillinVariantId: 'bbbb5555-5555-4bbb-bbbb-555555555555',
-  nimesilVariantId: 'bbbb6666-6666-4bbb-bbbb-666666666666',
-
-  snickers50gVariantId: 'aaaa1111-1111-4aaa-aaaa-111111111111',
-  snickers80gVariantId: 'aaaa2222-2222-4aaa-aaaa-222222222222',
-  mars50gVariantId: 'aaaa3333-3333-4aaa-aaaa-333333333333',
-  twix50gVariantId: 'aaaa4444-4444-4aaa-aaaa-444444444444',
-  bounty57gVariantId: 'aaaa5555-5555-4aaa-aaaa-555555555555',
-  cola15lVariantId: 'aaaa6666-6666-4aaa-aaaa-666666666666',
-  nesquik200gVariantId: 'aaaa7777-7777-4aaa-aaaa-777777777777',
-
-  customerUserId: 'cccc1111-1111-4ccc-cccc-111111111111',
-  ownerUserId: 'cccc2222-2222-4ccc-cccc-222222222222',
-  operatorUserId: 'cccc3333-3333-4ccc-cccc-333333333333',
-  moderatorUserId: 'cccc4444-4444-4ccc-cccc-444444444444',
-  adminUserId: 'cccc5555-5555-4ccc-cccc-555555555555',
-  dealerUserId: 'cccc6666-6666-4ccc-cccc-666666666666',
-  dealerId: 'dddd1111-1111-4ddd-dddd-111111111111',
-};
+import { SEED_IDS } from './seed-ids.js';
+export { SEED_IDS };
 
 export async function seedDatabase() {
   if (process.env.NODE_ENV === 'production') throw new Error('Demo data is disabled in production');

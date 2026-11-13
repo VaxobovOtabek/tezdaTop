@@ -102,25 +102,41 @@ describe('YaqinTop Platform Comprehensive Verification Suite', () => {
     expect(storeIds).not.toContain(SEED_IDS.suspendedStoreId);
   });
 
-  // TEST 6: Store aggregation & offer counts
-  it('Requirement 6: Store aggregation produces one card per branch with correct offer count', () => {
-    const res = searchProducts({
+  it('assigns each matching variant to the nearest eligible branch within the selected radius', () => {
+    const near = db.stores.get(SEED_IDS.navbahorStoreId)!;
+    const far = db.stores.get(SEED_IDS.barakaStoreId)!;
+    near.location = { lat: 41.311081, lng: 69.241562 };
+    far.location = { lat: 41.311081, lng: 69.260562 };
+    near.region = far.region = 'Toshkent shahri';
+    const nearOffer = [...db.offers.values()].find(offer =>
+      offer.storeId === near.id && offer.variantId === SEED_IDS.snickers50gVariantId)!;
+    const otherSize = [...db.offers.values()].find(offer =>
+      offer.storeId === near.id && offer.variantId === SEED_IDS.snickers80gVariantId)!;
+    const farDuplicate = { ...nearOffer, id: uuidv4(), storeId: far.id, price: '1' };
+    db.offers.clear();
+    db.offers.set(nearOffer.id, nearOffer);
+    db.offers.set(otherSize.id, otherSize);
+    db.offers.set(farDuplicate.id, farDuplicate);
+    const query = {
       q: 'Snickers',
       lat: 41.311081,
       lng: 69.240562,
-      radiusM: 2000,
-      sort: 'relevance',
+      radiusM: 3000,
+      region: 'Toshkent shahri',
+      sort: 'price' as const,
       limit: 20
-    });
+    };
 
-    // Check Navbahor Market card
-    const navbahorResult = res.items.find((it) => it.store.id === SEED_IDS.navbahorStoreId);
-    expect(navbahorResult).toBeDefined();
-    // Navbahor has both Snickers 50g and Snickers 80g matching
-    expect(navbahorResult!.bestOffer.variant.title).toContain('Snickers');
-    expect(navbahorResult!.otherMatchingOfferCount).toBeGreaterThanOrEqual(1);
-    expect(res.totalStores).toBeGreaterThanOrEqual(2);
-    expect(res.totalOffers).toBeGreaterThanOrEqual(res.totalStores);
+    const result = searchProducts(query);
+    expect(result.items.map(item => item.store.id)).toEqual([near.id]);
+    expect(result.items[0].otherMatchingOfferCount).toBe(1);
+    expect(result.totalOffers).toBe(2);
+    expect(getMarkers(query).map(marker => marker.storeId)).toEqual([near.id]);
+
+    db.offers.delete(nearOffer.id);
+    const withinRadius = searchProducts({ ...query, radiusM: 1000 });
+    expect(withinRadius.items.map(item => item.bestOffer.id)).toEqual([otherSize.id]);
+    expect(withinRadius.totalOffers).toBe(1);
   });
 
   // TEST 7: Freshness states (NEW, STALE, VERY_STALE, OUT_OF_STOCK)

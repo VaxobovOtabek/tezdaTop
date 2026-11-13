@@ -1,5 +1,5 @@
 import { prepareAdminOrganizationExtras } from './services/admin-organization.service.js';
-import { adminReadMiddleware } from './routes/admin-read.routes.js';
+import { AdminReadRepository, adminReadMiddleware } from './routes/admin-read.routes.js';
 import { organizationListOptions, paginateOrganizations } from './services/organization-list.service.js';
 import { dealerRouter } from './routes/dealer.routes.js';
 import { adminDealersRouter } from './routes/admin-dealers.routes.js';
@@ -15,7 +15,7 @@ import cookieParser from 'cookie-parser';
 import { v4 as uuidv4 } from 'uuid';
 import Decimal from 'decimal.js';
 import { db } from './db/in-memory-db.js';
-import { seedDatabase, bootstrapSirdaryoPilotData, SEED_IDS } from './db/seed.js';
+import { SEED_IDS } from './db/seed-ids.js';
 import { calculateDistanceMetres } from './db/spatial.js';
 import { searchProducts, getMarkers, checkStoreIsOpenNow } from './services/search.service.js';
 import { routingService } from './services/routing.service.js';
@@ -57,6 +57,12 @@ export async function ensureDbInitialized() {
         if (isProduction && process.env.NODE_ENV !== 'test' && process.env.SESSION_SECRET && process.env.SESSION_SECRET.trim().length < 32) throw new Error('SESSION_SECRET must contain at least 32 characters');
         // 1. Birinchi navbatda lokal disk keshidan bazani tezkor yuklash (Supabase Free Tier'ni tejaydi)
         const localLoaded = db.loadFromFile();
+        // Production deployment packages omit the development fixture module.
+        const seedPath = './db/' + 'seed.js';
+        const demo: {
+          seedDatabase(): Promise<void>;
+          bootstrapSirdaryoPilotData(database: typeof db): Promise<boolean>;
+        } | undefined = isProduction ? undefined : await import(seedPath);
 
         // 2. Agar Supabase sozlangan bo'lsa, xavfsiz sinxronlash (kesh TTL ga amal qiladi)
         if (isSupabaseConfigured()) {
@@ -64,25 +70,24 @@ export async function ensureDbInitialized() {
             await syncAllFromSupabase(db, false);
           } catch (syncErr: any) {
             console.warn(`[Supabase Init] Supabase yuklanmadi: ${syncErr.message}. Lokal bazadan davom etiladi.`);
-            if (!localLoaded && process.env.ALLOW_DEMO_SEED === 'true') {
-              await seedDatabase();
+            if (demo && !localLoaded && process.env.ALLOW_DEMO_SEED === 'true') {
+              await demo.seedDatabase();
               db.saveToFile();
             }
           }
-          // Pilot aptekalar (Sirdaryo / Guliston) deployda ko'rinishi uchun avtomatik qo'shiladi va Supabase'ga sinxronlanadi
-          if (process.env.NODE_ENV !== 'test') {
+          if (demo && process.env.NODE_ENV !== 'test') {
             try {
-              await bootstrapSirdaryoPilotData(db);
+              await demo.bootstrapSirdaryoPilotData(db);
             } catch (bootErr: any) {
               console.warn('[Pilot Bootstrap Warning]', bootErr);
             }
           }
-        } else if (!localLoaded && process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEMO_SEED === 'true') {
-          await seedDatabase();
+        } else if (demo && !localLoaded && process.env.ALLOW_DEMO_SEED === 'true') {
+          await demo.seedDatabase();
           db.saveToFile();
-        } else if (process.env.NODE_ENV !== 'test') {
+        } else if (demo && process.env.NODE_ENV !== 'test') {
           try {
-            await bootstrapSirdaryoPilotData(db);
+            await demo.bootstrapSirdaryoPilotData(db);
           } catch (bootErr: any) {
             console.warn('[Pilot Bootstrap Warning]', bootErr);
           }
@@ -224,6 +229,9 @@ const userVerifyLimiter = createRateLimiter({ windowMs: 60 * 1000, max: 10, mess
 
 // Read-only admin endpoints use independent, table-specific queries.
 app.use(adminReadMiddleware);
+
+app.get(['/api/v1/stores/:id/offers', '/api/v1/stores/:slug/@:lat,:lng/offers',
+  '/api/v1/stores/:id', '/api/v1/stores/:slug/@:lat,:lng'], readPublicStore);
 
 // Ensure DB is initialized before handling requests (for Serverless / Vercel support)
 app.use(async (req: Request, res: Response, next: NextFunction) => {
@@ -1269,8 +1277,8 @@ app.get('/api/v1/stores', (req, res) => {
   res.json({ items: results, total: results.length });
 });
 
-function findStoreByParam(param: string): Store | undefined {
-  let store = db.stores.get(param);
+function findStoreByParam(param: string, stores = db.stores): Store | undefined {
+  const store = stores.get(param);
   if (store) return store;
 
   // Coordinates matching like @41.3135,69.2435 or 41.3135,69.2435
@@ -1280,7 +1288,7 @@ function findStoreByParam(param: string): Store | undefined {
     const lat = parseFloat(latStr);
     const lng = parseFloat(lngStr);
     if (!isNaN(lat) && !isNaN(lng)) {
-      for (const s of db.stores.values()) {
+      for (const s of stores.values()) {
         if (s.location && Math.abs(s.location.lat - lat) < 0.0008 && Math.abs(s.location.lng - lng) < 0.0008) {
           return s;
         }
@@ -1291,7 +1299,7 @@ function findStoreByParam(param: string): Store | undefined {
   // Slug matching
   const cleanParam = param.toLowerCase().replace(/@.*$/, '').replace(/^-+|-+$/g, '');
   if (cleanParam) {
-    for (const s of db.stores.values()) {
+    for (const s of stores.values()) {
       const sSlug = s.name.toLowerCase().replace(/[^a-z0-9а-яёўқғҳ]+/gi, '-').replace(/^-+|-+$/g, '');
       if (sSlug === cleanParam || sSlug.includes(cleanParam) || cleanParam.includes(sSlug)) {
         return s;
@@ -1300,6 +1308,67 @@ function findStoreByParam(param: string): Store | undefined {
   }
 
   return undefined;
+}
+
+async function readPublicStore(req: Request, res: Response, next: NextFunction) {
+  const client = supabase;
+  if (!client || process.env.NODE_ENV === 'test') return next();
+
+  try {
+    const repository = new AdminReadRepository(client);
+    const isId = req.params.id && /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(req.params.id);
+    const stores = await repository.rows('stores', '*', query => isId
+      ? query.eq('id', req.params.id)
+      : query.eq('status', 'ACTIVE'));
+    const storeDb = repository.hydrate({ stores });
+    const params = req.params.slug
+      ? [`@${req.params.lat},${req.params.lng}`, req.params.slug]
+      : [req.params.id];
+    const store = params.map(param => findStoreByParam(param, storeDb.stores)).find(Boolean);
+    if (!store || store.status !== 'ACTIVE') {
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    }
+
+    const organizations = await repository.rows('organizations', '*', query =>
+      query.eq('id', store.organizationId).eq('status', 'ACTIVE'));
+    if (!organizations.length) {
+      return res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
+    }
+    const offersForStore = () => client.from('offers').select('*', { count: 'exact' })
+      .eq('store_id', store.id).eq('is_available', true).order('id');
+    if (!/\/offers\/?$/.test(req.path)) {
+      const result = await offersForStore().limit(1);
+      if (result.error) throw result.error;
+      const organization = repository.hydrate({ organizations }).organizations.get(store.organizationId);
+      return res.json({ store, organization, isOpenNow: checkStoreIsOpenNow(store), offersCount: result.count ?? 0 });
+    }
+
+    const page = Math.max(1, parseInt(String(req.query.page), 10) || 1);
+    const requestedLimit = parseInt(String(req.query.limit), 10);
+    const limit = requestedLimit > 0 ? Math.min(requestedLimit, 100) : 0;
+    const start = limit ? (page - 1) * limit : 0;
+    const result = limit
+      ? await offersForStore().range(start, start + limit - 1)
+      : { data: await repository.rows('offers', '*', query => query.eq('store_id', store.id).eq('is_available', true)), count: null, error: null };
+    if (result.error) throw result.error;
+    const rows = result.data || [];
+    const variants: Record<string, any>[] = [];
+    for (let offset = 0; offset < rows.length; offset += 100) {
+      const ids = rows.slice(offset, offset + 100).map(row => row.variant_id);
+      variants.push(...await repository.rows('variants', '*', query => query.in('id', ids)));
+    }
+    const scoped = repository.hydrate({ offers: rows, variants });
+    const offers = [...scoped.offers.values()];
+    const total = result.count ?? offers.length;
+    return res.json({
+      offers, total, page: limit ? page : 1, limit: limit || total,
+      totalPages: limit ? Math.ceil(total / limit) : 1,
+      hasMore: Boolean(limit && start + limit < total)
+    });
+  } catch (error) {
+    console.error('[Public Store Read]', error);
+    return res.status(503).json({ code: 'DATABASE_UNAVAILABLE', message: 'Do‘kon ma’lumotlarini yuklab bo‘lmadi.' });
+  }
 }
 
 // Support multi-segment slug and coordinates like /api/v1/stores/:slug/@:lat,:lng

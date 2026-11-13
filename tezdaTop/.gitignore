@@ -14,4 +14,5 @@ yaqintop_db.json
 **/yaqintop_db.json
 apps/api/data/
 **/supabase_sync_meta.json
+/korzinka/
 *.tsbuildinfo

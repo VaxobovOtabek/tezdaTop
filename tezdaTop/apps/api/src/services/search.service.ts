@@ -89,9 +89,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       store.location.lng
     );
 
-    // If region is specified, include ALL matching stores in that region without radius cutoff!
-    const effectiveRadius = query.q ? Math.max(query.radiusM, 15000) : query.radiusM;
-    if (query.region || dist <= effectiveRadius) {
+    if (dist <= query.radiusM) {
       const isOpen = checkStoreIsOpenNow(store);
       if (query.openNow && !isOpen) continue;
       candidateStores.push({ store, distanceM: dist, isOpenNow: isOpen });
@@ -107,7 +105,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   }
 
   const storeAggregates: StoreMatchAggregate[] = [];
-  let totalMatchingOffers = 0;
+  const assignedProducts = new Set<string>();
 
   // Index offers by store for candidate stores in O(N) instead of O(S x N)
   const candidateStoreIdSet = new Set(candidateStores.map(c => c.store.id));
@@ -122,19 +120,12 @@ export function searchProducts(query: SearchQuery): SearchResponse {
     list.push(off);
   }
 
+  candidateStores.sort((a, b) => a.distanceM - b.distanceM || a.store.id.localeCompare(b.store.id));
   for (const cand of candidateStores) {
     const storeOffers: { offer: Offer; score: number }[] = [];
     const offersInStore = offersByStore.get(cand.store.id) || [];
-    const seenVariantKeys = new Set<string>();
-
     for (const off of offersInStore) {
       if (off.status === 'INACTIVE') continue;
-
-      const vKey = off.variantId || off.variant?.id || off.id;
-      if (vKey) {
-        if (seenVariantKeys.has(vKey)) continue;
-        seenVariantKeys.add(vKey);
-      }
 
       if (query.inStock && off.variant.kind !== 'SERVICE' && (off.stockOnHand <= 0 || off.status === 'OUT_OF_STOCK')) {
         continue;
@@ -202,12 +193,20 @@ export function searchProducts(query: SearchQuery): SearchResponse {
         return Number(a.offer.price) - Number(b.offer.price);
       });
 
-      totalMatchingOffers += storeOffers.length;
+      const matchingOffers = storeOffers.filter(({ offer }) => {
+        const key = offer.variant.barcode?.trim()
+          ? `barcode:${offer.variant.barcode.trim()}`
+          : `variant:${offer.variantId || offer.variant.id || offer.id}`;
+        if (assignedProducts.has(key)) return false;
+        assignedProducts.add(key);
+        return true;
+      });
+      if (!matchingOffers.length) continue;
       storeAggregates.push({
         store: cand.store,
         distanceM: cand.distanceM,
         isOpenNow: cand.isOpenNow,
-        matchingOffers: storeOffers
+        matchingOffers
       });
     }
   }
@@ -241,8 +240,8 @@ export function searchProducts(query: SearchQuery): SearchResponse {
 
     // Find similar products in the SAME store (alternatives from same category)
     const similarProducts: Offer[] = [];
-    for (const off of db.offers.values()) {
-      if (off.storeId === agg.store.id && off.id !== bestOffer.id && off.stockOnHand > 0) {
+    for (const off of offersByStore.get(agg.store.id) || []) {
+      if (off.id !== bestOffer.id && off.stockOnHand > 0) {
         if (off.variant.category === bestOffer.variant.category) {
           similarProducts.push(off);
         }
@@ -262,7 +261,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   return {
     items,
     totalStores: storeAggregates.length,
-    totalOffers: totalMatchingOffers,
+    totalOffers: assignedProducts.size,
     nextCursor,
     hasMore: nextCursor !== null
   };
