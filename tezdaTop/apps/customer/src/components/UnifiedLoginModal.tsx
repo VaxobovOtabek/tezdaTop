@@ -48,6 +48,7 @@ export function UnifiedLoginModal({
       const res = await fetch(apiUrl('/api/v1/auth/dev-login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ role })
       });
       const data = await res.json();
@@ -246,7 +247,7 @@ export function UnifiedLoginModal({
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Masalan: Anvar Qodirov"
-                    className="w-full pl-10 pr-3.5 py-3 text-xs sm:text-sm rounded-xl bg-[#EDF3FA] dark:bg-[#1A2822] border border-transparent dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
+                    className="w-full pl-10 pr-3.5 py-3 text-xs sm:text-sm rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#1A2822] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
                   />
                 </div>
               </div>
@@ -270,7 +271,7 @@ export function UnifiedLoginModal({
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 9);
                       setPhone('+998' + digits);
                     }}
-                    className="w-full pl-16 pr-3.5 py-3 text-xs sm:text-sm font-mono font-medium rounded-xl bg-[#EDF3FA] dark:bg-[#1A2822] border border-transparent dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
+                    className="w-full pl-16 pr-3.5 py-3 text-xs sm:text-sm font-mono font-medium rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#1A2822] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
                   />
                 </div>
               </div>
@@ -286,11 +287,12 @@ export function UnifiedLoginModal({
               <input
                 type="text"
                 required
+                autoComplete="username"
                 maxLength={register ? 8 : undefined}
                 value={login}
                 onChange={(e) => setLogin(register ? e.target.value.slice(0, 8) : e.target.value)}
                 placeholder={register ? 'masalan: otabek' : 'masalan: otabek yoki +998901112233'}
-                className="w-full pl-10 pr-3.5 py-3 text-xs sm:text-sm rounded-xl bg-[#EDF3FA] dark:bg-[#1A2822] border border-transparent dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
+                className="w-full pl-10 pr-3.5 py-3 text-xs sm:text-sm rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#1A2822] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
               />
             </div>
           </div>
@@ -304,11 +306,12 @@ export function UnifiedLoginModal({
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
+                autoComplete={register ? 'new-password' : 'current-password'}
                 minLength={register ? 8 : undefined}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-10 pr-10 py-3 text-xs sm:text-sm rounded-xl bg-[#EDF3FA] dark:bg-[#1A2822] border border-transparent dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
+                className="w-full pl-10 pr-10 py-3 text-xs sm:text-sm rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#1A2822] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
               />
               <button
                 type="button"
@@ -330,11 +333,12 @@ export function UnifiedLoginModal({
                 <input
                   type={showConfirmation ? 'text' : 'password'}
                   required
+                  autoComplete="new-password"
                   minLength={8}
                   value={confirmation}
                   onChange={(e) => setConfirmation(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full pl-10 pr-10 py-3 text-xs sm:text-sm rounded-xl bg-[#EDF3FA] dark:bg-[#1A2822] border border-transparent dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
+                  className="w-full pl-10 pr-10 py-3 text-xs sm:text-sm rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#1A2822] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
                 />
                 <button
                   type="button"

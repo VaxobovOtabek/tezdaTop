@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import {
   X,
   Store,
@@ -57,6 +59,256 @@ export const PRESET_PHOTOS: Record<string, string> = {
   WHOLESALE: 'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&auto=format&fit=crop&q=80'
 };
 
+export interface MapLocationPickerModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  initialCoords: { lat: number; lng: number };
+  storeTypeIcon?: string;
+  storeName?: string;
+  onConfirm: (coords: { lat: number; lng: number }, detectedRegion?: string, detectedDistrict?: string) => void;
+}
+
+export const MapLocationPickerModal: React.FC<MapLocationPickerModalProps> = ({
+  isOpen,
+  onClose,
+  initialCoords,
+  storeTypeIcon = '🏪',
+  storeName,
+  onConfirm
+}) => {
+  const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markerRef = useRef<L.Marker | null>(null);
+  const [selectedCoords, setSelectedCoords] = useState(initialCoords);
+  const [isLocating, setIsLocating] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedCoords(initialCoords);
+    }
+  }, [isOpen, initialCoords]);
+
+  const detectedLocation = useMemo(() => {
+    return detectNearestUzbekistanLocation(selectedCoords.lat, selectedCoords.lng);
+  }, [selectedCoords.lat, selectedCoords.lng]);
+
+  useEffect(() => {
+    if (!isOpen || !mapContainerRef.current) return;
+
+    if ((mapContainerRef.current as any)._leaflet_id) {
+      delete (mapContainerRef.current as any)._leaflet_id;
+    }
+
+    const map = L.map(mapContainerRef.current, {
+      center: [selectedCoords.lat, selectedCoords.lng],
+      zoom: 16,
+      zoomControl: false,
+      attributionControl: false
+    });
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19
+    }).addTo(map);
+
+    const pinIcon = L.divIcon({
+      className: 'store-location-pin',
+      html: `
+        <div style="position:relative;display:flex;align-items:center;justify-content:center;width:44px;height:44px;cursor:grab;">
+          <div style="position:absolute;width:30px;height:30px;background:#087F5B;opacity:0.25;border-radius:50%;animation:ping 1.8s cubic-bezier(0,0,0.2,1) infinite;"></div>
+          <div style="background:#087F5B;color:white;width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(8,127,91,0.5);border:3px solid #ffffff;font-size:20px;z-index:2;">
+            ${storeTypeIcon}
+          </div>
+          <div style="position:absolute;bottom:-6px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-top:9px solid #087F5B;z-index:1;"></div>
+        </div>
+      `,
+      iconSize: [44, 52],
+      iconAnchor: [22, 52]
+    });
+
+    const marker = L.marker([selectedCoords.lat, selectedCoords.lng], {
+      draggable: true,
+      icon: pinIcon
+    }).addTo(map);
+
+    marker.on('drag', (e) => {
+      const pos = e.target.getLatLng();
+      setSelectedCoords({ lat: pos.lat, lng: pos.lng });
+    });
+
+    marker.on('dragend', (e) => {
+      const pos = e.target.getLatLng();
+      setSelectedCoords({ lat: pos.lat, lng: pos.lng });
+    });
+
+    map.on('click', (e) => {
+      marker.setLatLng(e.latlng);
+      setSelectedCoords({ lat: e.latlng.lat, lng: e.latlng.lng });
+    });
+
+    markerRef.current = marker;
+    mapInstanceRef.current = map;
+
+    const timer = setTimeout(() => {
+      try { map.invalidateSize(); } catch {}
+    }, 250);
+
+    const ro = new ResizeObserver(() => {
+      try { map.invalidateSize(); } catch {}
+    });
+    ro.observe(mapContainerRef.current);
+
+    return () => {
+      clearTimeout(timer);
+      ro.disconnect();
+      map.remove();
+      mapInstanceRef.current = null;
+      markerRef.current = null;
+    };
+  }, [isOpen]);
+
+  const handleFlyToUserLocation = () => {
+    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
+      setIsLocating(true);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setIsLocating(false);
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          setSelectedCoords({ lat, lng });
+          if (markerRef.current) markerRef.current.setLatLng([lat, lng]);
+          if (mapInstanceRef.current) mapInstanceRef.current.flyTo([lat, lng], 17);
+        },
+        () => {
+          setIsLocating(false);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    }
+  };
+
+  const handleZoomIn = () => {
+    mapInstanceRef.current?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    mapInstanceRef.current?.zoomOut();
+  };
+
+  const handleConfirm = () => {
+    onConfirm(selectedCoords, detectedLocation?.region, detectedLocation?.district);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[70] bg-slate-900/60 backdrop-blur-xs flex flex-col justify-end md:justify-center items-center p-0 md:p-4 animate-in fade-in duration-200">
+      <div className="w-full h-[94vh] md:h-[88vh] md:max-w-3xl bg-white dark:bg-[#14201A] rounded-t-3xl md:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative border border-slate-200/80 dark:border-[#273B32]">
+        {/* Floating Top Header */}
+        <div className="absolute top-3 left-3 right-3 z-[400] flex items-center justify-between gap-2 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md px-3.5 py-2.5 rounded-2xl shadow-lg border border-slate-200/80 dark:border-[#273B32]">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-8 h-8 rounded-xl bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] flex items-center justify-center shrink-0">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div className="min-w-0">
+              <h3 className="text-xs font-black text-slate-800 dark:text-white truncate">
+                {storeName ? `${storeName} joylashuvi` : 'Do‘kon joylashuvini tanlang'}
+              </h3>
+              <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                Xaritani bosing yoki belgini kerakli manzilga suring
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 flex items-center justify-center text-slate-500 hover:text-slate-700 dark:text-slate-300 transition shrink-0 cursor-pointer"
+            title="Yopish"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Map Canvas */}
+        <div className="relative flex-1 w-full h-full">
+          <div ref={mapContainerRef} className="w-full h-full" />
+
+          {/* Floating Zoom Controls */}
+          <div className="absolute right-3.5 top-20 z-[400] flex flex-col gap-1.5">
+            <button
+              type="button"
+              onClick={handleZoomIn}
+              className="w-10 h-10 rounded-xl bg-white/95 dark:bg-[#1E2D25]/95 backdrop-blur-md text-slate-700 dark:text-white flex items-center justify-center font-bold text-lg hover:bg-slate-100 dark:hover:bg-[#273B32] transition active:scale-95 shadow-md border border-slate-200 dark:border-[#273B32] cursor-pointer"
+              title="Yaqinlashtirish"
+            >
+              +
+            </button>
+            <button
+              type="button"
+              onClick={handleZoomOut}
+              className="w-10 h-10 rounded-xl bg-white/95 dark:bg-[#1E2D25]/95 backdrop-blur-md text-slate-700 dark:text-white flex items-center justify-center font-bold text-lg hover:bg-slate-100 dark:hover:bg-[#273B32] transition active:scale-95 shadow-md border border-slate-200 dark:border-[#273B32] cursor-pointer"
+              title="Uzoqlashtirish"
+            >
+              −
+            </button>
+          </div>
+
+          {/* Floating GPS Button */}
+          <button
+            type="button"
+            onClick={handleFlyToUserLocation}
+            disabled={isLocating}
+            className="absolute right-3.5 top-44 z-[400] w-10 h-10 rounded-xl bg-white/95 dark:bg-[#1E2D25]/95 backdrop-blur-md text-[#087F5B] dark:text-[#4ADE80] flex items-center justify-center hover:bg-slate-100 dark:hover:bg-[#273B32] transition active:scale-95 shadow-md border border-slate-200 dark:border-[#273B32] cursor-pointer disabled:opacity-50"
+            title="Hozirgi GPS joylashuvimga o‘tish"
+          >
+            <Navigation className={`w-5 h-5 ${isLocating ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
+
+        {/* Floating Bottom Confirmation Card */}
+        <div className="absolute bottom-3 left-3 right-3 z-[400] bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md p-3.5 rounded-2xl shadow-2xl border border-slate-200/80 dark:border-[#273B32] flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="min-w-0 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50 text-amber-600 flex items-center justify-center shrink-0 text-base shadow-2xs">
+                📍
+              </div>
+              <div className="min-w-0">
+                <div className="text-xs font-black text-slate-900 dark:text-white truncate">
+                  {detectedLocation?.region || 'O‘zbekiston'}{detectedLocation?.district ? `, ${detectedLocation.district}` : ''}
+                </div>
+                <div className="text-[11px] font-mono text-slate-500 dark:text-slate-400">
+                  {selectedCoords.lat.toFixed(6)}, {selectedCoords.lng.toFixed(6)}
+                </div>
+              </div>
+            </div>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] shrink-0">
+              Belgilangan joy
+            </span>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="flex-1 h-11 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition active:scale-95 cursor-pointer"
+            >
+              Bekor qilish
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              className="flex-[2] h-11 rounded-xl bg-[#087F5B] hover:bg-[#065F46] text-white font-black text-xs shadow-md transition active:scale-[0.98] flex items-center justify-center gap-1.5 cursor-pointer"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>Ushbu joyni tanlash</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const AddStoreModal: React.FC<AddStoreModalProps> = ({
   isOpen,
   onClose,
@@ -73,10 +325,23 @@ export const AddStoreModal: React.FC<AddStoreModalProps> = ({
   const [region, setRegion] = useState(initialRegion || 'Toshkent shahri');
   const [district, setDistrict] = useState(initialDistrict || '');
   const [address, setAddress] = useState('');
+
+  const getRegionCenter = (regName: string) => {
+    const found = UZBEKISTAN_REGIONS.find((r) => r.name.toLowerCase() === regName.toLowerCase());
+    if (found?.centerLat && found?.centerLng) {
+      return { lat: found.centerLat, lng: found.centerLng };
+    }
+    return { lat: 40.4897, lng: 68.7842 }; // Guliston / Sirdaryo markazi
+  };
+
   const [coordinates, setCoordinates] = useState<{ lat: number; lng: number }>(() => {
-    return userLocation || { lat: 41.311081, lng: 69.240562 };
+    if (userLocation && userLocation.lat && userLocation.lng) {
+      return userLocation;
+    }
+    return getRegionCenter(initialRegion || 'Toshkent shahri');
   });
-  const [isLocating, setIsLocating] = useState(false);
+
+  const [isMapPickerOpen, setIsMapPickerOpen] = useState(false);
   const [is24Hours, setIs24Hours] = useState(false);
   const [openTime, setOpenTime] = useState('08:00');
   const [closeTime, setCloseTime] = useState('22:00');
@@ -92,6 +357,19 @@ export const AddStoreModal: React.FC<AddStoreModalProps> = ({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const selectedTypeObj = STORE_TYPES.find((t) => t.value === type) || STORE_TYPES[0];
+
+  const handleConfirmMapLocation = (
+    coords: { lat: number; lng: number },
+    detectedRegion?: string,
+    detectedDistrict?: string
+  ) => {
+    setCoordinates(coords);
+    if (detectedRegion) setRegion(detectedRegion);
+    if (detectedDistrict) setDistrict(detectedDistrict);
+    onToast?.(`📍 Xaritadan joylashuv belgilandi: ${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`);
+  };
+
   // Available districts for chosen region
   const selectedRegionData = UZBEKISTAN_REGIONS.find(
     (r) => r.name.toLowerCase() === region.toLowerCase()
@@ -103,47 +381,24 @@ export const AddStoreModal: React.FC<AddStoreModalProps> = ({
       if (!phone || phone === '+998') {
         if (currentUser?.phone) setPhone(currentUser.phone);
       }
-      if (userLocation && (!coordinates.lat || coordinates.lat === 41.311081)) {
-        setCoordinates(userLocation);
-      }
+      const effectiveReg = initialRegion || region || 'Toshkent shahri';
       if (initialRegion && region !== initialRegion) {
         setRegion(initialRegion);
       }
       if (initialDistrict && district !== initialDistrict) {
         setDistrict(initialDistrict);
       }
+      // Boshlang'ich nuqtasi: joriy joylashgan joyi bo'lsin, bo'lmasa viloyat markazidan bo'lsin
+      if (userLocation && userLocation.lat && userLocation.lng) {
+        setCoordinates(userLocation);
+      } else {
+        const center = getRegionCenter(effectiveReg);
+        setCoordinates(center);
+      }
     }
   }, [isOpen, currentUser, userLocation, initialRegion, initialDistrict]);
 
   if (!isOpen) return null;
-
-  const handleGetCurrentLocation = () => {
-    if (typeof window !== 'undefined' && 'geolocation' in navigator) {
-      setIsLocating(true);
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const lat = pos.coords.latitude;
-          const lng = pos.coords.longitude;
-          setCoordinates({ lat, lng });
-          const detected = detectNearestUzbekistanLocation(lat, lng);
-          if (detected) {
-            if (detected.region) setRegion(detected.region);
-            if (detected.district) setDistrict(detected.district);
-          }
-          setIsLocating(false);
-          onToast?.('📍 Joriy GPS joylashuvingiz muvaffaqiyatli aniqlandi!');
-        },
-        (err) => {
-          console.warn('Geolocation error:', err);
-          setIsLocating(false);
-          onToast?.('GPS joylashuvni aniqlab bo‘lmadi. Qo‘lda kiritishingiz mumkin.');
-        },
-        { enableHighAccuracy: true, timeout: 6000 }
-      );
-    } else {
-      onToast?.('Qurilmangizda geolokatsiya qo‘llab-quvvatlanmaydi.');
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -317,21 +572,21 @@ export const AddStoreModal: React.FC<AddStoreModalProps> = ({
             </div>
           </div>
 
-          {/* 3. Location & GPS Auto-detect */}
+          {/* 3. Location & Map Picker */}
           <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#1A2822] border border-slate-200/80 dark:border-[#273B32] space-y-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-xs font-extrabold flex items-center gap-1.5 text-[#087F5B] dark:text-[#4ADE80]">
                 <MapPin className="w-4 h-4" />
                 Joylashuv va Hudud
               </span>
               <button
                 type="button"
-                onClick={handleGetCurrentLocation}
-                disabled={isLocating}
-                className="px-2.5 py-1 rounded-xl bg-white dark:bg-[#14201A] border border-[#CBD5E1] dark:border-[#273B32] text-[#087F5B] dark:text-[#4ADE80] text-[11px] font-bold flex items-center gap-1 shadow-2xs hover:bg-[#E8F5EE] dark:hover:bg-[#1E362A] transition active:scale-95 cursor-pointer disabled:opacity-50"
+                onClick={() => setIsMapPickerOpen(true)}
+                className="px-3 py-1.5 rounded-xl bg-[#087F5B] hover:bg-[#065F46] text-white text-xs font-extrabold flex items-center gap-1.5 shadow-sm transition active:scale-95 cursor-pointer"
+                title="Xaritadan do‘kon lokatsiyasini tanlash va belgilash"
               >
-                <Navigation className={`w-3 h-3 ${isLocating ? 'animate-spin' : ''}`} />
-                <span>{isLocating ? 'Aniqlanmoqda...' : '📍 Joriy joylashuvni olish'}</span>
+                <MapPin className="w-3.5 h-3.5" />
+                <span>Kartadan lokatsiya tanlash</span>
               </button>
             </div>
 
@@ -343,8 +598,11 @@ export const AddStoreModal: React.FC<AddStoreModalProps> = ({
                 <select
                   value={region}
                   onChange={(e) => {
-                    setRegion(e.target.value);
+                    const nextReg = e.target.value;
+                    setRegion(nextReg);
                     setDistrict('');
+                    const center = getRegionCenter(nextReg);
+                    setCoordinates(center);
                   }}
                   className="w-full h-10 px-2.5 rounded-xl bg-white dark:bg-[#14201A] border border-slate-200 dark:border-[#273B32] text-xs font-semibold focus:outline-none"
                 >
@@ -362,7 +620,14 @@ export const AddStoreModal: React.FC<AddStoreModalProps> = ({
                 </label>
                 <select
                   value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
+                  onChange={(e) => {
+                    const nextDist = e.target.value;
+                    setDistrict(nextDist);
+                    const distItem = availableDistricts.find((d) => d.name === nextDist);
+                    if (distItem?.lat && distItem?.lng) {
+                      setCoordinates({ lat: distItem.lat, lng: distItem.lng });
+                    }
+                  }}
                   className="w-full h-10 px-2.5 rounded-xl bg-white dark:bg-[#14201A] border border-slate-200 dark:border-[#273B32] text-xs font-semibold focus:outline-none"
                 >
                   <option value="">Barcha tumanlar / Shahar markazi</option>
@@ -389,11 +654,21 @@ export const AddStoreModal: React.FC<AddStoreModalProps> = ({
               />
             </div>
 
-            <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
-              <span>Koordinatalar:</span>
-              <span className="font-mono bg-white dark:bg-[#14201A] px-2 py-0.5 rounded border border-slate-200 dark:border-[#273B32]">
-                {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
-              </span>
+            <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-200/60 dark:border-[#273B32]/60">
+              <div className="flex items-center gap-2 text-[11px] text-slate-500 dark:text-slate-400">
+                <span>Koordinatalar:</span>
+                <span className="font-mono bg-white dark:bg-[#14201A] px-2 py-0.5 rounded border border-slate-200 dark:border-[#273B32]">
+                  {coordinates.lat.toFixed(6)}, {coordinates.lng.toFixed(6)}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMapPickerOpen(true)}
+                className="text-[11px] font-bold text-[#087F5B] dark:text-[#4ADE80] hover:underline flex items-center gap-1 cursor-pointer"
+              >
+                <span>Xaritada ochish</span>
+                <ArrowRight className="w-3 h-3" />
+              </button>
             </div>
           </div>
 
@@ -523,6 +798,16 @@ export const AddStoreModal: React.FC<AddStoreModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Interactive Map Location Picker Modal */}
+      <MapLocationPickerModal
+        isOpen={isMapPickerOpen}
+        onClose={() => setIsMapPickerOpen(false)}
+        initialCoords={coordinates}
+        storeTypeIcon={selectedTypeObj.icon}
+        storeName={name}
+        onConfirm={handleConfirmMapLocation}
+      />
     </div>
   );
 };

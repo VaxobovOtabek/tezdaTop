@@ -177,7 +177,7 @@ export function UnifiedLoginModal({
               value={login}
               onChange={(e) => setLogin(e.target.value)}
               placeholder="moderator yoki +998901234567"
-              className="w-full pl-10 pr-3.5 py-3 text-xs sm:text-sm rounded-xl bg-[#EDF3FA] dark:bg-[#1A2822] border border-transparent dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
+              className="w-full pl-10 pr-3.5 py-3 text-xs sm:text-sm rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#1A2822] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
             />
           </div>
         </div>
@@ -194,7 +194,7 @@ export function UnifiedLoginModal({
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="w-full pl-10 pr-10 py-3 text-xs sm:text-sm rounded-xl bg-[#EDF3FA] dark:bg-[#1A2822] border border-transparent dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#16241E] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
+              className="w-full pl-10 pr-10 py-3 text-xs sm:text-sm rounded-xl bg-[#F3F6F3] dark:bg-[#1A2822] border border-[#DCE5DF] dark:border-[#22332C] text-[#172C28] dark:text-white placeholder:text-[#566A63]/60 dark:placeholder:text-[#8B9E95]/60 focus:bg-white dark:focus:bg-[#1A2822] focus:outline-none focus:ring-2 focus:ring-[#116B50] transition-all"
             />
             <button
               type="button"

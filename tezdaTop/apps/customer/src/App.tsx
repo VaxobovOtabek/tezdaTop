@@ -140,19 +140,13 @@ export function CustomerApp() {
     }
   };
 
-  const [authErrorBanner, setAuthErrorBanner] = useState<string | null>(null);
   const pendingAuthCallback = useRef<(() => void) | null>(null);
 
-  const requireAuth = (actionName = 'ushbu amalni bajarish', callback?: () => void): boolean => {
+  const requireAuth = (_actionName = 'ushbu amalni bajarish', callback?: () => void): boolean => {
     if (!currentUser) {
       if (callback) {
         pendingAuthCallback.current = callback;
       }
-      let cleanAction = actionName.trim();
-      cleanAction = cleanAction.replace(/^⚠️\s*/, '');
-      cleanAction = cleanAction.replace(/\s*uchun\s+iltimos,\s*tizimga\s*kiring!?$/i, '').trim();
-      const msg = `⚠️ ${cleanAction} uchun iltimos, tizimga kiring!`;
-      setAuthErrorBanner(msg);
       setIsLoginModalOpen(true);
       return false;
     }
@@ -945,7 +939,6 @@ export function CustomerApp() {
 
     if (relPath === '/sevimlilar' || relPath === '/sharhlarim' || relPath === '/ariza' || relPath === '/murojaatlar' || relPath === '/tarix' || relPath === '/takliflarim' || relPath === '/takliflar') {
       if (!currentUser) {
-        setAuthErrorBanner('⚠️ Shaxsiy kabinet va ma‘lumotlarni ko‘rish uchun iltimos, tizimga kiring!');
         setIsLoginModalOpen(true);
         window.history.replaceState(null, '', customerHomePath);
         setCurrentPath(customerHomePath);
@@ -1175,24 +1168,38 @@ export function CustomerApp() {
 
     const targetLoc = loc || userLocation;
     try {
-      const res = await fetch(apiUrl('/api/v1/search/products'), {
+      const searchBody = JSON.stringify({
+        q,
+        lat: targetLoc.lat,
+        lng: targetLoc.lng,
+        radiusM,
+        region: userRegion || undefined,
+        district: (userDistrict && userDistrict !== 'Barcha tumanlar' && userDistrict !== 'Viloyat markazi') ? userDistrict : undefined,
+        openNow: openNow || undefined,
+        inStock: inStock || undefined,
+        freshOnly: freshOnly || undefined,
+        sort: selectedSort,
+        limit: 50
+      });
+
+      let res = await fetch(apiUrl('/api/v1/search/products'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
-        body: JSON.stringify({
-          q,
-          lat: targetLoc.lat,
-          lng: targetLoc.lng,
-          radiusM,
-          region: userRegion || undefined,
-          district: (userDistrict && userDistrict !== 'Barcha tumanlar' && userDistrict !== 'Viloyat markazi') ? userDistrict : undefined,
-          openNow: openNow || undefined,
-          inStock: inStock || undefined,
-          freshOnly: freshOnly || undefined,
-          sort: selectedSort,
-          limit: 50
-        })
+        body: searchBody
       });
+
+      // Agar server/baza uyg‘onayotgan bo‘lsa (503), 1 soniya kutib qayta bir marta so‘rov yuborish
+      if (res.status === 503) {
+        await new Promise((r) => setTimeout(r, 1200));
+        if (controller.signal.aborted) return;
+        res = await fetch(apiUrl('/api/v1/search/products'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: searchBody
+        });
+      }
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
@@ -1552,33 +1559,6 @@ export function CustomerApp() {
         </div>
       )}
 
-      {/* Red Auth Guard Warning Banner for Guests */}
-      {authErrorBanner && (
-        <div className="bg-red-600 dark:bg-red-700 text-white px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-bold flex items-center justify-between gap-2 shadow-lg z-40 animate-in slide-in-from-top duration-200 shrink-0">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            <AlertTriangle className="w-4 h-4 shrink-0 text-yellow-300" />
-            <span className="line-clamp-2 leading-snug">{authErrorBanner}</span>
-          </div>
-          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-            <button
-              onClick={() => {
-                setAuthErrorBanner(null);
-                setIsLoginModalOpen(true);
-              }}
-              className="px-2.5 sm:px-3 py-1 bg-white text-red-700 rounded-lg text-[11px] sm:text-xs font-extrabold hover:bg-red-50 transition shadow whitespace-nowrap cursor-pointer"
-            >
-              Tizimga kirish
-            </button>
-            <button
-              onClick={() => setAuthErrorBanner(null)}
-              className="p-1 hover:bg-red-800 rounded transition cursor-pointer"
-            >
-              <X className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Top Header - Map-First Compact Redesign */}
       <CustomerHeader
         selectedLocationName={selectedLocationName}
@@ -1602,10 +1582,7 @@ export function CustomerApp() {
         onToggleDarkMode={toggleDarkMode}
         currentUser={currentUser}
         onOpenProfile={() => setIsProfileModalOpen(true)}
-        onOpenLogin={() => {
-          setAuthErrorBanner(null);
-          setIsLoginModalOpen(true);
-        }}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
       />
 
       {/* Main Container */}
@@ -1684,6 +1661,7 @@ export function CustomerApp() {
                 }}
                 onOpenFilter={() => setIsFilterModalOpen(true)}
                 results={results}
+                searchError={searchError}
                 nearbyStores={nearbyStores}
                 selectedResult={selectedResult}
                 selectedNearbyStore={selectedNearbyStore}
@@ -1911,9 +1889,14 @@ export function CustomerApp() {
                 {view === 'search' && (
                   <MobileBottomSheet
                     items={results}
-                    selectedItem={selectedResult}
+                    nearbyStores={nearbyStores}
+                    selectedItem={selectedResult || selectedNearbyStore}
                     onSelectItem={(item) => {
-                      handleSelectStore(item);
+                      if (item.bestOffer) {
+                        handleSelectStore(item);
+                      } else {
+                        handleSelectNearbyStore(item);
+                      }
                     }}
                     onOpenStore={(storeId) => {
                       loadStoreCatalog(storeId);
@@ -1939,22 +1922,7 @@ export function CustomerApp() {
       </main>
 
       {/* Mobile Bottom Navigation */}
-      <nav className="md:hidden h-16 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40 px-1 shadow-lg">
-        <a
-          href={isLocalEnv ? 'http://localhost:3003' : '/'}
-          onClick={(e) => {
-            if (!isLocalEnv) {
-              e.preventDefault();
-              navigateTo('/');
-            }
-          }}
-          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] hover:text-[#116B50] dark:hover:text-[#4ADE80] min-w-0"
-          title="Lending sahifasiga o‘tish"
-        >
-          <Compass className="w-5 h-5 text-[#116B50] dark:text-[#4ADE80]" />
-          <span>Lending</span>
-        </a>
-
+      <nav className="md:hidden h-16 bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border-t border-[#DCE5DF] dark:border-[#22332C] flex items-center justify-around fixed bottom-0 left-0 right-0 z-40 px-3 shadow-lg">
         <button
           onClick={() => {
             if (view === 'route') {
@@ -1966,7 +1934,7 @@ export function CustomerApp() {
               setMobileTab(mobileTab === 'xarita' ? 'royxat' : 'xarita');
             }
           }}
-          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
+          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-xs font-bold min-w-0 ${
             view === 'search' || view === 'route'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
@@ -1986,19 +1954,8 @@ export function CustomerApp() {
         </button>
 
         <button
-          onClick={() => requireAuth('Tashkilot yoki do‘kon qo‘shish', () => setIsAddStoreModalOpen(true))}
-          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] min-w-0 active:scale-95 transition-transform"
-          title="Tashkilot yoki do‘kon qo‘shish"
-        >
-          <div className="w-6 h-6 rounded-full bg-[#116B50] text-white flex items-center justify-center shadow-sm">
-            <Plus className="w-3.5 h-3.5" />
-          </div>
-          <span>+ Qo‘shish</span>
-        </button>
-
-        <button
           onClick={() => navigateTo('/sevimlilar')}
-          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
+          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-xs font-bold min-w-0 ${
             view === 'hub' && hubSection === 'favorites'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
@@ -2010,7 +1967,7 @@ export function CustomerApp() {
 
         <button
           onClick={() => navigateTo('/ariza')}
-          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
+          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-xs font-bold min-w-0 ${
             view === 'hub' && hubSection === 'inquiries'
               ? 'text-[#116B50] dark:text-[#4ADE80]'
               : 'text-[#566A63] dark:text-[#8B9E95]'
@@ -2021,23 +1978,11 @@ export function CustomerApp() {
         </button>
 
         <button
-          onClick={() => navigateTo('/tarix')}
-          className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
-            view === 'hub' && hubSection === 'history'
-              ? 'text-[#116B50] dark:text-[#4ADE80]'
-              : 'text-[#566A63] dark:text-[#8B9E95]'
-          }`}
-        >
-          <Clock className="w-5 h-5" />
-          <span>Tarix</span>
-        </button>
-
-        <button
           onClick={() => {
             if (currentUser) setIsProfileModalOpen(true);
             else setIsLoginModalOpen(true);
           }}
-          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-[#566A63] dark:text-[#8B9E95] min-w-0"
+          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-xs font-bold text-[#566A63] dark:text-[#8B9E95] min-w-0"
         >
           <div className="w-5 h-5 rounded-full bg-[#116B50] text-white text-[9px] font-bold flex items-center justify-center">
             {currentUser?.fullName ? currentUser.fullName[0].toUpperCase() : '○'}

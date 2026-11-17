@@ -50,6 +50,7 @@ export interface DesktopSearchSidebarProps {
   onStopRoute: () => void;
   activeCategoryId?: string;
   onSelectCategory?: (id: string) => void;
+  searchError?: string | null;
 }
 
 export interface CategoryItem {
@@ -108,7 +109,8 @@ export const DesktopSearchSidebar: React.FC<DesktopSearchSidebarProps> = ({
   onChangeRouteMode,
   onStopRoute,
   activeCategoryId: controlledCategoryId,
-  onSelectCategory
+  onSelectCategory,
+  searchError
 }) => {
   const [internalCategoryId, setInternalCategoryId] = useState<string>('all');
   const activeCategoryId = controlledCategoryId ?? internalCategoryId;
@@ -486,6 +488,26 @@ export const DesktopSearchSidebar: React.FC<DesktopSearchSidebarProps> = ({
                         viewMode={viewMode}
                       />
                     ))}
+                  </div>
+                ) : searchError ? (
+                  /* Error / Retry State */
+                  <div className="h-full flex flex-col items-center justify-center p-6 text-center select-none my-auto">
+                    <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-center text-3xl shadow-sm mb-3">
+                      ⚠️
+                    </div>
+                    <h4 className="text-sm font-extrabold text-[#172B26] dark:text-[#E8F2EC] mb-1">
+                      {searchError}
+                    </h4>
+                    <p className="text-xs text-[#566A63] dark:text-[#8B9E95] max-w-[280px] mb-4">
+                      Server vaqtincha ulanishni yangilamoqda. Qaytadan urinib ko‘ring.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => onSearch(searchQuery)}
+                      className="px-4 py-2 rounded-xl bg-[#087F5B] hover:bg-[#066549] text-white text-xs font-bold shadow-md cursor-pointer active:scale-95 transition"
+                    >
+                      🔄 Qayta qidirish
+                    </button>
                   </div>
                 ) : (
                   /* Empty Box State matching Tejam screenshot */

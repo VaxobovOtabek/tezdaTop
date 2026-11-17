@@ -82,10 +82,11 @@ authRouter.post('/login', authLoginLimiter, async (req, res) => {
   const token = createSignedSessionToken(matchedUser.id);
   db.sessions.set(token, { userId: matchedUser.id, createdAt: new Date() });
 
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.cookie('session_token', token, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: Boolean(isHttps && isProduction),
+    sameSite: isHttps && isProduction ? 'none' : 'lax',
     maxAge: SESSION_TTL_MS
   });
 
@@ -108,7 +109,7 @@ authRouter.post('/login', authLoginLimiter, async (req, res) => {
 
 // Local Development ONLY: Instant passwordless dev login for Admin and Moderator
 authRouter.post('/dev-login', (req: Request, res: Response) => {
-  if (isProduction || process.env.NODE_ENV === 'production') {
+  if (process.env.VERCEL) {
     res.status(403).json({ code: 'FORBIDDEN', message: 'Dev login production (deploy) muhitida o‘chirilgan' });
     return;
   }
@@ -124,8 +125,10 @@ authRouter.post('/dev-login', (req: Request, res: Response) => {
   const isLocalHost =
     host.startsWith('localhost:') ||
     host.startsWith('127.0.0.1:') ||
+    host.startsWith('[::1]:') ||
     host === 'localhost' ||
-    host === '127.0.0.1';
+    host === '127.0.0.1' ||
+    host === '[::1]';
   if (!isLocalHost) {
     res.status(403).json({ code: 'FORBIDDEN', message: 'Dev login faqat mahalliy host orqali ruxsat etilgan' });
     return;
@@ -223,10 +226,11 @@ authRouter.post('/register', authRegisterLimiter, async (req, res) => {
   const token = createSignedSessionToken(newUser.id);
   db.sessions.set(token, { userId: newUser.id, createdAt: new Date() });
 
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.cookie('session_token', token, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: Boolean(isHttps && isProduction),
+    sameSite: isHttps && isProduction ? 'none' : 'lax',
     maxAge: SESSION_TTL_MS
   });
 

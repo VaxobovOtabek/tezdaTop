@@ -53,3 +53,30 @@ body {
   background-color: #16241E !important;
 }
 
+
+
+/* Color scheme and autofill theming */
+html.dark, .dark {
+  color-scheme: dark;
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #172C28 !important;
+  -webkit-box-shadow: 0 0 0 1000px #F3F6F3 inset !important;
+  box-shadow: 0 0 0 1000px #F3F6F3 inset !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+.dark input:-webkit-autofill,
+.dark input:-webkit-autofill:hover, 
+.dark input:-webkit-autofill:focus, 
+.dark input:-webkit-autofill:active {
+  -webkit-text-fill-color: #FFFFFF !important;
+  -webkit-box-shadow: 0 0 0 1000px #1A2822 inset !important;
+  box-shadow: 0 0 0 1000px #1A2822 inset !important;
+  caret-color: #FFFFFF !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
