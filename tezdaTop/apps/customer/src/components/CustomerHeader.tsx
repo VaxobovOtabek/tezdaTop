@@ -12,7 +12,8 @@ import {
   Sun,
   Moon,
   LogIn,
-  Search
+  Search,
+  Plus
 } from 'lucide-react';
 import { YaqinTopLogo, LanguageSwitcher, useTranslation } from '@yaqintop/ui';
 
@@ -33,6 +34,7 @@ interface CustomerHeaderProps {
   currentUser: any;
   onOpenProfile: () => void;
   onOpenLogin: () => void;
+  onOpenAddStore?: () => void;
 }
 
 export const CustomerHeader: React.FC<CustomerHeaderProps> = ({
@@ -51,7 +53,8 @@ export const CustomerHeader: React.FC<CustomerHeaderProps> = ({
   onToggleDarkMode,
   currentUser,
   onOpenProfile,
-  onOpenLogin
+  onOpenLogin,
+  onOpenAddStore
 }) => {
   const { t } = useTranslation();
 
@@ -170,6 +173,20 @@ export const CustomerHeader: React.FC<CustomerHeaderProps> = ({
           >
             {isDarkMode ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-[#087F5B]" />}
           </button>
+
+          {/* Add Store / Service Button */}
+          {onOpenAddStore && (
+            <button
+              type="button"
+              onClick={onOpenAddStore}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#087F5B] hover:bg-[#065F46] text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95 shrink-0"
+              title="Tashkilot, do‘kon yoki xizmat qo‘shish"
+            >
+              <Plus className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">+ Do‘kon qo‘shish</span>
+              <span className="sm:hidden">+ Do‘kon</span>
+            </button>
+          )}
 
           {/* User profile / Login */}
           {currentUser ? (

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import { db } from '../db/in-memory-db.js';
+import { db, type DBOrganization } from '../db/in-memory-db.js';
 import { SEED_IDS } from '../db/seed-ids.js';
 import { getCurrentUser } from '../middleware/auth.middleware.js';
 
@@ -226,4 +226,205 @@ userHubRouter.post('/inquiries', (req, res) => {
   });
 
   res.status(201).json({ success: true, inquiry: inq });
+});
+
+// Ordinary User: Add Organization / Store / Service
+userHubRouter.post('/stores', async (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tashkilot yoki do‘kon qo‘shish uchun iltimos, tizimga kiring' });
+    return;
+  }
+
+  const {
+    name,
+    type = 'RETAIL',
+    category,
+    region,
+    city,
+    district,
+    address,
+    phone,
+    lat,
+    lng,
+    openTime = '08:00',
+    closeTime = '22:00',
+    is24Hours = false,
+    photoUrl,
+    description,
+    initialOffer
+  } = req.body;
+
+  if (!name || !name.trim()) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'Tashkilot yoki do‘kon nomi kiritilishi shart' });
+    return;
+  }
+
+  const finalName = name.trim();
+  const finalRegion = region?.trim() || 'Toshkent shahri';
+  const finalDistrict = district?.trim() || city?.trim() || '';
+  const finalAddress = address?.trim() || [finalRegion, finalDistrict].filter(Boolean).join(', ');
+  const finalPhone = phone?.trim() || user.phone || '+998 90 000 00 00';
+  const finalLat = parseFloat(lat) || 41.311081;
+  const finalLng = parseFloat(lng) || 69.240562;
+
+  // 1. Create Organization
+  const orgId = uuidv4();
+  const newOrg: DBOrganization = {
+    id: orgId,
+    name: finalName,
+    inn: req.body.inn || '',
+    type: (type || 'RETAIL').trim(),
+    status: 'ACTIVE',
+    region: finalRegion,
+    city: finalDistrict || finalRegion,
+    district: finalDistrict,
+    createdAt: new Date().toISOString()
+  };
+  db.organizations.set(orgId, newOrg);
+
+  // 2. Set user membership as OWNER
+  const membershipId = uuidv4();
+  db.memberships.set(membershipId, {
+    id: membershipId,
+    organizationId: orgId,
+    userId: user.id,
+    role: 'OWNER',
+    status: 'ACTIVE'
+  });
+
+  // 3. Store Hours
+  const hours = is24Hours
+    ? [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+        dayOfWeek,
+        openTime: '00:00',
+        closeTime: '23:59',
+        isClosed: false
+      }))
+    : [0, 1, 2, 3, 4, 5, 6].map((dayOfWeek) => ({
+        dayOfWeek,
+        openTime: openTime || '08:00',
+        closeTime: closeTime || '22:00',
+        isClosed: false
+      }));
+
+  // 4. Create Store
+  const storeId = uuidv4();
+  const newStore: any = {
+    id: storeId,
+    organizationId: orgId,
+    name: finalName,
+    title: finalName,
+    inn: req.body.inn || '',
+    region: finalRegion,
+    city: finalDistrict || finalRegion,
+    district: finalDistrict,
+    address: finalAddress,
+    phone: finalPhone,
+    location: {
+      lat: finalLat,
+      lng: finalLng
+    },
+    rating: 5.0,
+    reviewCount: 0,
+    isVerified: true,
+    status: 'ACTIVE',
+    type: (type || 'RETAIL').trim(),
+    category: category?.trim() || (type || 'RETAIL').trim(),
+    description: description?.trim() || '',
+    photoUrl: photoUrl?.trim() || '',
+    hours,
+    createdByUserId: user.id,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+  db.stores.set(storeId, newStore);
+
+  // 5. Create Initial Service or Product if provided
+  let createdOffer: any = null;
+  if (initialOffer && initialOffer.title && initialOffer.price !== undefined && initialOffer.price !== null && initialOffer.price !== '') {
+    const isService =
+      initialOffer.type === 'SERVICE' ||
+      ['SERVICES', 'BEAUTY_SALON', 'GAME_CLUB', 'AUTO_SERVICE', 'EDUCATION'].includes(type);
+    const variantId = uuidv4();
+    const offerId = uuidv4();
+    const variant: any = {
+      id: variantId,
+      productId: uuidv4(),
+      organizationId: orgId,
+      title: initialOffer.title.trim(),
+      brand: finalName,
+      category: initialOffer.category?.trim() || (isService ? 'Xizmatlar' : 'Mahsulotlar'),
+      packSize: isService ? '1 ta' : '1 dona',
+      packUnit: initialOffer.packUnit || (isService ? 'xizmat' : 'dona'),
+      photoUrl: initialOffer.photoUrl || photoUrl || '',
+      type: isService ? 'SERVICE' : 'PRODUCT',
+      aliases: [initialOffer.title.toLowerCase()]
+    };
+    db.variants.set(variantId, variant);
+
+    const price = String(initialOffer.price).replace(/\D/g, '') || '0';
+    createdOffer = {
+      id: offerId,
+      storeId,
+      variantId,
+      price,
+      stockOnHand: isService ? 999 : (Number(initialOffer.stockOnHand) || 10),
+      freshness: 'FRESH',
+      status: 'ACTIVE',
+      variant,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.offers.set(offerId, createdOffer);
+  }
+
+  // 6. Notify Admin
+  db.notifications.set(uuidv4(), {
+    id: uuidv4(),
+    userId: SEED_IDS.adminUserId,
+    title: 'Yangi tashkilot / do‘kon qo‘shildi',
+    message: `${user.fullName || user.phone} tomonidan yangi "${finalName}" (${type}) muvaffaqiyatli qo‘shildi.`,
+    type: 'INFO',
+    isRead: false,
+    createdAt: new Date().toISOString()
+  });
+
+  // 7. Audit Log
+  db.auditLogs.push({
+    id: uuidv4(),
+    actorId: user.id,
+    actorEmail: user.email,
+    action: 'CREATE_USER_STORE',
+    entityType: 'STORE',
+    entityId: storeId,
+    diff: { name: finalName, type, region: finalRegion, address: finalAddress },
+    timestamp: new Date().toISOString()
+  });
+
+  res.status(201).json({
+    success: true,
+    message: 'Tashkilot muvaffaqiyatli qo‘shildi',
+    store: newStore,
+    organization: newOrg,
+    offer: createdOffer
+  });
+});
+
+userHubRouter.post('/add-store', (req, res, next) => {
+  (userHubRouter as any).handle(Object.assign(req, { url: '/stores' }), res, next);
+});
+
+userHubRouter.get('/stores', (req, res) => {
+  const user = getCurrentUser(req);
+  if (!user) {
+    res.status(401).json({ code: 'UNAUTHORIZED', message: 'Tizimga kiring' });
+    return;
+  }
+  const myStores = Array.from(db.stores.values()).filter(
+    (s: any) =>
+      s.createdByUserId === user.id ||
+      Array.from(db.memberships.values()).some((m) => m.userId === user.id && m.organizationId === s.organizationId)
+  );
+  res.json({ items: myStores, total: myStores.length });
 });

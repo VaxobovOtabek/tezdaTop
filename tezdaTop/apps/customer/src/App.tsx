@@ -35,7 +35,8 @@ import {
   ShoppingBag,
   Star,
   Store as StoreIcon,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Plus
 } from 'lucide-react';
 import { Button, Tag, Modal, StarRating, YaqinTopLogo } from '@yaqintop/ui';
 import { StoreSearchResult, RouteResponse, Offer, Store } from '@yaqintop/contracts';
@@ -53,6 +54,7 @@ import { UnifiedUserProfileModal } from './components/UnifiedUserProfileModal';
 import { UnifiedLoginModal } from './components/UnifiedLoginModal';
 import { UzbekistanRegionPickerModal, detectNearestUzbekistanLocation } from './components/UzbekistanRegionPickerModal';
 import { ProductQuickDetailModal } from './components/ProductQuickDetailModal';
+import { AddStoreModal } from './components/AddStoreModal';
 import { getStoreBannerImage } from './utils/store-images';
 import { apiUrl } from './config/api.js';
 const LandingApp = React.lazy(() => import('@yaqintop/landing-app').then(m => ({ default: m.LandingApp })));
@@ -139,9 +141,13 @@ export function CustomerApp() {
   };
 
   const [authErrorBanner, setAuthErrorBanner] = useState<string | null>(null);
+  const pendingAuthCallback = useRef<(() => void) | null>(null);
 
   const requireAuth = (actionName = 'ushbu amalni bajarish', callback?: () => void): boolean => {
     if (!currentUser) {
+      if (callback) {
+        pendingAuthCallback.current = callback;
+      }
       let cleanAction = actionName.trim();
       cleanAction = cleanAction.replace(/^⚠️\s*/, '');
       cleanAction = cleanAction.replace(/\s*uchun\s+iltimos,\s*tizimga\s*kiring!?$/i, '').trim();
@@ -264,6 +270,7 @@ export function CustomerApp() {
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isAddStoreModalOpen, setIsAddStoreModalOpen] = useState(false);
 
   // Review & Report Form states
   const [reviewRating, setReviewRating] = useState(5);
@@ -275,6 +282,43 @@ export function CustomerApp() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleStoreCreated = (newStore: any) => {
+    setIsAddStoreModalOpen(false);
+    showToast(`"${newStore.name}" muvaffaqiyatli qo‘shildi va xaritaga joylashtirildi!`);
+
+    const normalizedStore = {
+      store: {
+        id: newStore.id,
+        name: newStore.name,
+        type: newStore.type,
+        address: newStore.address,
+        phone: newStore.phone,
+        location: {
+          lat: Number(newStore.latitude),
+          lng: Number(newStore.longitude),
+        },
+        rating: 5.0,
+        ratingCount: 1,
+        reviewCount: 0,
+        photoUrl: newStore.photoUrl,
+        hours: newStore.hours || [],
+        offersCount: (newStore.offers || []).length
+      },
+      distanceM: 0,
+      isOpenNow: true
+    };
+
+    setNearbyStores(prev => [normalizedStore, ...prev.filter(s => (s.store?.id || s.id) !== newStore.id)]);
+
+    if (newStore.latitude && newStore.longitude) {
+      setUserLocation({
+        lat: Number(newStore.latitude),
+        lng: Number(newStore.longitude)
+      });
+      setSelectedNearbyStore(normalizedStore);
+    }
   };
 
   const handleSelectLocation = (loc: { lat: number; lng: number; name: string; region?: string; district?: string }) => {
@@ -1540,6 +1584,7 @@ export function CustomerApp() {
         selectedLocationName={selectedLocationName}
         isRegionChosen={isUserRegionChosen}
         onOpenLocationPicker={() => setIsLocationModalOpen(true)}
+        onOpenAddStore={() => requireAuth('Tashkilot yoki do‘kon qo‘shish', () => setIsAddStoreModalOpen(true))}
         onNavigateHome={() => {
           setSearchQuery('');
           setSelectedResult(null);
@@ -1941,6 +1986,17 @@ export function CustomerApp() {
         </button>
 
         <button
+          onClick={() => requireAuth('Tashkilot yoki do‘kon qo‘shish', () => setIsAddStoreModalOpen(true))}
+          className="flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold text-[#116B50] dark:text-[#4ADE80] min-w-0 active:scale-95 transition-transform"
+          title="Tashkilot yoki do‘kon qo‘shish"
+        >
+          <div className="w-6 h-6 rounded-full bg-[#116B50] text-white flex items-center justify-center shadow-sm">
+            <Plus className="w-3.5 h-3.5" />
+          </div>
+          <span>+ Qo‘shish</span>
+        </button>
+
+        <button
           onClick={() => navigateTo('/sevimlilar')}
           className={`flex-1 py-1 min-h-[44px] flex flex-col items-center justify-center gap-0.5 text-[11px] font-bold min-w-0 ${
             view === 'hub' && hubSection === 'favorites'
@@ -2122,11 +2178,21 @@ export function CustomerApp() {
       {/* 4. Login Modal */}
       <UnifiedLoginModal
         isOpen={isLoginModalOpen}
-        onClose={() => setIsLoginModalOpen(false)}
+        onClose={() => {
+          setIsLoginModalOpen(false);
+          pendingAuthCallback.current = null;
+        }}
         appTitle="YaqinTop Xaridor"
         onLoginSuccess={(user) => {
           setCurrentUser(user);
           showToast(`Xush kelibsiz, ${user.fullName}!`);
+          if (pendingAuthCallback.current) {
+            const cb = pendingAuthCallback.current;
+            pendingAuthCallback.current = null;
+            setTimeout(() => {
+              cb();
+            }, 100);
+          }
         }}
       />
 
@@ -2276,6 +2342,18 @@ export function CustomerApp() {
         onClose={() => setIsLocationModalOpen(false)}
         selectedLocation={userLocation}
         onSelectLocation={handleSelectLocation}
+      />
+
+      {/* Add Store / Organization / Service Modal */}
+      <AddStoreModal
+        isOpen={isAddStoreModalOpen}
+        onClose={() => setIsAddStoreModalOpen(false)}
+        onStoreCreated={handleStoreCreated}
+        currentUser={currentUser}
+        userLocation={userLocation}
+        initialRegion={userRegion}
+        initialDistrict={userDistrict}
+        onToast={showToast}
       />
 
       {/* Global Token Quick Login (Ctrl + Alt + T) */}
