@@ -1,0 +1,23 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --green: #116B50;
+  --ink: #172C28;
+  --muted: #566A63;
+  --bg: #F3F6F3;
+  --line: #DCE5DF;
+  --amber: #8A4B08;
+}
+
+body {
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+  background-color: var(--bg);
+  color: var(--ink);
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 3px solid #d59536;
+  outline-offset: 2px;
+}

@@ -1,0 +1,301 @@
+import React, { useEffect, useRef } from 'react';
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+export { apiFetch, apiJson, getSessionToken, loadApiResources, ApiRequestError } from './api-client';
+export { adminResourcePlan, AdminResourceCache } from './admin-data';
+export {
+  UZBEKISTAN_REGIONS,
+  REGION_NAMES,
+  getRegionData,
+  getDistrictsForRegion,
+  matchesRegion,
+  matchesDistrict,
+  normalizeAreaName,
+  type RegionData,
+  type RegionDistrict
+} from './regions';
+export { OrganizationPhotoField, OrganizationScheduleFields, OrganizationOwnerFields, buildOrganizationHours } from './organization-fields';
+export { useCachedSession, saveCachedSession, clearSessionCache } from './auth-session';
+export { MaskedUserPassword } from './MaskedUserPassword';
+export { TokenQuickLoginModal } from './TokenQuickLoginModal';
+export { Skeleton } from './components/ui/skeleton';
+export { Badge, type BadgeProps } from './components/ui/badge';
+export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './components/ui/table';
+export { Toaster, toast, type ToasterProps } from './components/ui/toaster';
+export { TableSkeleton, type TableSkeletonProps } from './components/skeletons/TableSkeleton';
+export { StatsSkeleton, CardSkeleton } from './components/skeletons/StatsSkeleton';
+export {
+  LanguageProvider,
+  useTranslation,
+  LanguageSwitcher,
+  DICTIONARY,
+  type Language,
+  type LanguageSwitcherProps
+} from './i18n';
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs));
+}
+
+// Design Tokens constants
+export const colors = {
+  green: '#116B50',
+  greenHover: '#0B563F',
+  greenLight: '#E7F3EB',
+  greenSoft: '#E0EFE7',
+  ink: '#172C28',
+  muted: '#566A63',
+  bg: '#F3F6F3',
+  line: '#DCE5DF',
+  amber: '#8A4B08',
+  amberBg: '#FFF2DC',
+  error: '#B42318',
+  errorBg: '#FEF0EE'
+};
+
+// ================= BUTTON =================
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'quiet' | 'danger' | 'outline';
+  size?: 'sm' | 'md' | 'lg';
+  fullWidth?: boolean;
+}
+
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  ({ className, variant = 'secondary', size = 'md', fullWidth = false, children, ...props }, ref) => {
+    const base = 'inline-flex items-center justify-center font-medium rounded-[10px] transition-colors focus-visible:outline focus-visible:outline-3 focus-visible:outline-[#d59536] focus-visible:outline-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none min-h-[44px]';
+    
+    const variants = {
+      primary: 'bg-[#116B50] text-white hover:bg-[#0B563F] border border-[#116B50]',
+      secondary: 'bg-white dark:bg-[#16241E] text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] border border-[#DCE5DF] dark:border-[#2A3F36]',
+      outline: 'bg-transparent text-[#116B50] dark:text-[#4ADE80] hover:bg-[#E7F3EB] dark:hover:bg-[#1E3328] border border-[#116B50] dark:border-[#4ADE80]',
+      quiet: 'bg-transparent text-[#172C28] dark:text-[#E8F2EC] hover:bg-[#EDF5F0] dark:hover:bg-[#1E3328] border-transparent',
+      danger: 'bg-[#FEF0EE] dark:bg-[#381B18] text-[#B42318] dark:text-[#F87171] hover:bg-[#fddcd8] dark:hover:bg-[#4A201C] border border-[#FEF0EE] dark:border-[#4A201C]'
+    };
+
+    const sizes = {
+      sm: 'px-3 py-1.5 text-xs',
+      md: 'px-4 py-2.5 text-sm',
+      lg: 'px-6 py-3 text-base'
+    };
+
+    return (
+      <button
+        ref={ref}
+        className={cn(base, variants[variant], sizes[size], fullWidth && 'w-full', className)}
+        {...props}
+      >
+        {children}
+      </button>
+    );
+  }
+);
+Button.displayName = 'Button';
+
+// ================= TAG / BADGE =================
+export interface TagProps extends React.HTMLAttributes<HTMLSpanElement> {
+  variant?: 'default' | 'warn' | 'error' | 'gray';
+}
+
+export function Tag({ className, variant = 'default', children, ...props }: TagProps) {
+  const variants = {
+    default: 'bg-[#E7F3EB] dark:bg-[#1C362A] text-[#116B50] dark:text-[#4ADE80]',
+    warn: 'bg-[#FFF2DC] dark:bg-[#382613] text-[#8A4B08] dark:text-[#FBBF24]',
+    error: 'bg-[#FEF0EE] dark:bg-[#381B18] text-[#B42318] dark:text-[#F87171]',
+    gray: 'bg-[#EDF0EE] dark:bg-[#202E27] text-[#566A63] dark:text-[#8B9E95]'
+  };
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center text-xs font-semibold px-2 py-0.5 rounded-[6px]',
+        variants[variant],
+        className
+      )}
+      {...props}
+    >
+      {children}
+    </span>
+  );
+}
+
+// ================= INPUT =================
+export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  error?: string;
+  label?: string;
+}
+
+export const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, error, label, id, ...props }, ref) => {
+    return (
+      <div className="w-full flex flex-col gap-1 text-left px-0.5">
+        {label && (
+          <label htmlFor={id} className="text-xs font-semibold text-[#566A63] dark:text-[#8B9E95]">
+            {label}
+          </label>
+        )}
+        <input
+          ref={ref}
+          id={id}
+          className={cn(
+            'w-full min-h-[42px] px-3.5 py-2 bg-white dark:bg-[#16241E] border border-[#DCE5DF] dark:border-[#2A3F36] hover:border-[#087F5B]/60 rounded-xl text-[#172C28] dark:text-[#E8F2EC] placeholder-[#566A63]/60 dark:placeholder-[#8B9E95]/60 focus:outline-none focus:border-[#087F5B] focus:ring-2 focus:ring-[#087F5B]/20 transition-all',
+            error && 'border-[#B42318] focus:border-[#B42318] focus:ring-[#B42318]/20',
+            className
+          )}
+          {...props}
+        />
+        {error && <span className="text-xs text-[#B42318] font-medium">{error}</span>}
+      </div>
+    );
+  }
+);
+Input.displayName = 'Input';
+
+// ================= MODAL / DIALOG =================
+export interface ModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title: string;
+  children: React.ReactNode;
+  footer?: React.ReactNode;
+  maxWidth?: string;
+  className?: string;
+}
+
+export function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  footer,
+  maxWidth = 'max-w-[460px]',
+  className = ''
+}: ModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        onCloseRef.current();
+      }
+    }
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = '';
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 bg-[#142E27]/50 dark:bg-black/70 backdrop-blur-sm animate-in fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={modalRef}
+        className={cn(
+          'w-full max-h-[90vh] overflow-y-auto scrollbar-none no-scrollbar bg-white dark:bg-[#14201A] rounded-2xl sm:rounded-[24px] p-5 sm:p-6 shadow-2xl border border-[#DCE5DF] dark:border-[#22332C] flex flex-col gap-4 text-[#172C28] dark:text-[#E8F2EC]',
+          maxWidth,
+          className
+        )}
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        <div className="flex items-center justify-between pb-3 border-b border-[#DCE5DF] dark:border-[#22332C] gap-2">
+          <h2 className="text-base sm:text-lg md:text-xl font-bold tracking-tight text-[#172C28] dark:text-[#E8F2EC] truncate">
+            {title}
+          </h2>
+          <button
+            onClick={onClose}
+            aria-label="Yopish"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-[#566A63] dark:text-[#8B9E95] hover:bg-[#F3F6F3] dark:hover:bg-[#1A2822] text-base sm:text-lg font-bold shrink-0 cursor-pointer"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="py-1 px-1 min-w-0">{children}</div>
+        {footer && <div className="pt-3 border-t border-[#DCE5DF] dark:border-[#22332C] flex justify-end gap-3">{footer}</div>}
+      </div>
+    </div>
+  );
+}
+
+// ================= CARD =================
+export function Card({ className, children, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div
+      className={cn('bg-white dark:bg-[#14201A] border border-[#DCE5DF] dark:border-[#22332C] rounded-[16px] p-5 shadow-sm text-[#172C28] dark:text-[#E8F2EC]', className)}
+      {...props}
+    >
+      {children}
+    </div>
+  );
+}
+
+// ================= STAR RATING =================
+export function StarRating({ rating, count }: { rating: number; count?: number }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-sm font-semibold text-[#172C28] dark:text-[#E8F2EC]">
+      <span className="text-[#F5A623]">★</span>
+      <span>{rating.toFixed(1)}</span>
+      {count !== undefined && <span className="text-xs text-[#566A63] dark:text-[#8B9E95] font-normal">({count} ta sharh)</span>}
+    </span>
+  );
+}
+
+// ================= YAQINTOP BRAND LOGO =================
+export interface YaqinTopLogoProps extends React.SVGProps<SVGSVGElement> {
+  size?: number | string;
+  className?: string;
+  rounded?: boolean;
+}
+
+export function YaqinTopLogo({
+  size = 32,
+  className = '',
+  rounded = true,
+  ...props
+}: YaqinTopLogoProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 1024 1024"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+      role="img"
+      aria-label="YaqinTop"
+      {...props}
+    >
+      <defs>
+        <linearGradient id="yaqinTopBrandGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#0FB165" />
+          <stop offset="100%" stopColor="#077D5B" />
+        </linearGradient>
+      </defs>
+      <rect
+        x="65"
+        y="76"
+        width="892"
+        height="878"
+        rx={rounded ? "240" : "0"}
+        ry={rounded ? "240" : "0"}
+        fill="url(#yaqinTopBrandGradient)"
+      />
+      <path
+        d="M 327,360 L 451,360 L 511.5,489 L 573,360 L 695,360 L 567,580 L 567,741 L 453,741 L 453,580 Z"
+        fill="#FFFFFF"
+      />
+    </svg>
+  );
+}
+

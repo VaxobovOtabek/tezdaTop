@@ -1,0 +1,37 @@
+# Root vercel ignore
+scratch/
+.agents/
+.github/
+node_modules/
+*.log
+.env
+.env.*
+!.env.example
+docs/
+*.md
+!README.md
+tezdaTop/scratch/
+tezdaTop/docs/
+tezdaTop/infra/
+tezdaTop/**/test/
+tezdaTop/**/tests/
+tezdaTop/data/
+tezdaTop/apps/api/data/
+tezdaTop/apps/api/apps/
+
+# Never upload operational backups or credentials
+**/yaqintop_db.json*
+**/supabase_sync_meta.json*
+**/database-backups/
+**/database-snapshots/
+**/*.dump
+**/*.bak
+**/*.sqlite*
+**/*.db
+**/*.db-*
+**/.local/
+**/*.enc
+**/*.enc.key
+**/.env
+**/.env.*
+!**/.env.example

@@ -1,0 +1,27 @@
+# Exclude tests and internal data from Serverless Function bundle
+test/
+tests/
+/data/
+/apps/
+SUPABASE-MONITORING.md
+*.md
+tsconfig.tsbuildinfo
+vitest.config.ts
+*.log
+
+# Never upload operational backups or credentials
+**/yaqintop_db.json*
+**/supabase_sync_meta.json*
+**/database-backups/
+**/database-snapshots/
+**/*.dump
+**/*.bak
+**/*.sqlite*
+**/*.db
+**/*.db-*
+**/.local/
+**/*.enc
+**/*.enc.key
+**/.env
+**/.env.*
+!**/.env.example
