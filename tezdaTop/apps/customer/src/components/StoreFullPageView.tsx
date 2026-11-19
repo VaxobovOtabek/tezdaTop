@@ -1693,6 +1693,11 @@ export function StoreFullPageView({
                                 <img
                                   src={productPhoto}
                                   alt={off.variant.title}
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    e.currentTarget.src = DEFAULT_PRODUCT_THUMBNAIL;
+                                  }}
                                   className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                                 />
                                 <button

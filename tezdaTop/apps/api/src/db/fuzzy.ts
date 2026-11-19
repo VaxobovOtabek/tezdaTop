@@ -90,8 +90,58 @@ export function matchProductQuery(
   if (titleNorm === qNorm) {
     return { isMatch: true, score: 0.98, matchType: 'exact' };
   }
-  if (titleNorm.startsWith(qNorm) || titleNorm.includes(qNorm)) {
-    return { isMatch: true, score: 0.9, matchType: 'prefix' };
+
+  const isShort = qNorm.length <= 3;
+  const titleWords = titleNorm.split(/[\s,()\-./]+/);
+
+  const isWordMatch = (w: string) => {
+    if (qNorm.length <= 2) {
+      return w === qNorm || w === qNorm + 'i' || w === qNorm + 'lar' || (w.length <= 4 && w.startsWith(qNorm));
+    }
+    return w === qNorm || w.startsWith(qNorm);
+  };
+
+  if (isShort) {
+    const wordPrefixMatch = titleWords.some(isWordMatch);
+    const startsDirectly = qNorm.length <= 2
+      ? (titleNorm === qNorm || titleWords[0] === qNorm || titleWords[0] === qNorm + 'i' || (titleWords[0].length <= 4 && titleWords[0].startsWith(qNorm)))
+      : titleNorm.startsWith(qNorm);
+    if (startsDirectly || wordPrefixMatch) {
+      return { isMatch: true, score: 0.9, matchType: 'prefix' };
+    }
+  } else {
+    if (titleNorm.startsWith(qNorm) || titleNorm.includes(qNorm)) {
+      return { isMatch: true, score: 0.9, matchType: 'prefix' };
+    }
+  }
+
+  // 2b. Brand and category match
+  const brandNorm = target.brand ? normalizeUzbekText(target.brand) : '';
+  if (brandNorm) {
+    if (isShort) {
+      const bWords = brandNorm.split(/[\s,()\-./]+/);
+      if (brandNorm === qNorm || bWords.some(isWordMatch)) {
+        return { isMatch: true, score: 0.88, matchType: 'prefix' };
+      }
+    } else {
+      if (brandNorm === qNorm || brandNorm.includes(qNorm) || qNorm.includes(brandNorm)) {
+        return { isMatch: true, score: 0.88, matchType: 'prefix' };
+      }
+    }
+  }
+
+  const catNorm = target.category ? normalizeUzbekText(target.category) : '';
+  if (catNorm) {
+    if (isShort) {
+      const cWords = catNorm.split(/[\s,()\-./]+/);
+      if (catNorm === qNorm || cWords.some(isWordMatch)) {
+        return { isMatch: true, score: 0.84, matchType: 'prefix' };
+      }
+    } else {
+      if (catNorm === qNorm || catNorm.includes(qNorm) || qNorm.includes(catNorm)) {
+        return { isMatch: true, score: 0.84, matchType: 'prefix' };
+      }
+    }
   }
 
   // 3. Alias dictionary check
@@ -105,21 +155,34 @@ export function matchProductQuery(
 
   for (const alias of allAliases) {
     const aliasNorm = normalizeUzbekText(alias);
-    if (aliasNorm === qNorm || aliasNorm.includes(qNorm) || qNorm.includes(aliasNorm)) {
-      return { isMatch: true, score: 0.85, matchType: 'alias' };
+    if (aliasNorm === qNorm) {
+      return { isMatch: true, score: 0.95, matchType: 'alias' };
+    }
+    if (isShort) {
+      const aWords = aliasNorm.split(/[\s,()\-./]+/);
+      if (aWords.some(isWordMatch)) {
+        return { isMatch: true, score: 0.85, matchType: 'alias' };
+      }
+    } else {
+      if (aliasNorm.includes(qNorm) || qNorm.includes(aliasNorm)) {
+        return { isMatch: true, score: 0.85, matchType: 'alias' };
+      }
     }
   }
 
   // 4. Trigram similarity matching (pg_trgm style, threshold 0.25)
-  const titleSim = calculateTrigramSimilarity(qNorm, titleNorm);
-  if (titleSim >= 0.25) {
-    return { isMatch: true, score: titleSim, matchType: 'fuzzy' };
-  }
+  // Only evaluate trigram similarity on queries > 3 chars to avoid false positive collisions on 2-3 char words
+  if (!isShort) {
+    const titleSim = calculateTrigramSimilarity(qNorm, titleNorm);
+    if (titleSim >= 0.25) {
+      return { isMatch: true, score: titleSim, matchType: 'fuzzy' };
+    }
 
-  for (const alias of allAliases) {
-    const aliasSim = calculateTrigramSimilarity(qNorm, alias);
-    if (aliasSim >= 0.3) {
-      return { isMatch: true, score: aliasSim * 0.9, matchType: 'fuzzy' };
+    for (const alias of allAliases) {
+      const aliasSim = calculateTrigramSimilarity(qNorm, alias);
+      if (aliasSim >= 0.3) {
+        return { isMatch: true, score: aliasSim * 0.9, matchType: 'fuzzy' };
+      }
     }
   }
 

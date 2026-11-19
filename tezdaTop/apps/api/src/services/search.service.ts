@@ -34,12 +34,8 @@ export function checkStoreIsOpenNow(store: Store): boolean {
 }
 
 export function searchProducts(query: SearchQuery): SearchResponse {
-  if (!isValidRadius(query.radiusM)) {
-    throw new Error('Qidiruv radiusi 50 va 3000 metr oralig‘ida bo‘lishi shart');
-  }
-
-  // If query text is empty, return empty results (do not return all stores/prices)
-  if (!query.q || !query.q.trim()) {
+  const qTrimmed = query.q ? query.q.trim() : '';
+  if (!qTrimmed) {
     return {
       items: [],
       totalStores: 0,
@@ -47,6 +43,11 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       nextCursor: null,
       hasMore: false
     };
+  }
+
+  const hasRegionFilter = Boolean(query.region && query.region !== 'Barcha viloyatlar');
+  if (!hasRegionFilter && query.radiusM && !isValidRadius(query.radiusM)) {
+    throw new Error('Qidiruv radiusi 50 va 3000 metr oralig‘ida bo‘lishi shart');
   }
 
   // 1. Gather all active stores within radius whose organization is ACTIVE
@@ -63,12 +64,42 @@ export function searchProducts(query: SearchQuery): SearchResponse {
     }
 
     // Regional restriction filter
-    if (query.region && query.region !== 'Barcha viloyatlar') {
+    if (hasRegionFilter) {
       const sReg = String((store as any).region || (org as any).region || '').toLowerCase();
-      const rLower = query.region.toLowerCase();
-      const matches = rLower === 'toshkent shahri'
-        ? (sReg === 'toshkent shahri' || !sReg || sReg.includes('toshkent') || (store.address || '').toLowerCase().includes('toshkent'))
-        : (sReg === rLower || sReg.includes(rLower.replace(/\s+(viloyati|respublikasi)$/i, '')) || (store.address || '').toLowerCase().includes(rLower.replace(/\s+(viloyati|respublikasi)$/i, '')));
+      const sCity = String((store as any).city || (org as any).city || '').toLowerCase();
+      const sDist = String((store as any).district || (org as any).district || '').toLowerCase();
+      const sAddr = (store.address || '').toLowerCase();
+      const sName = (store.name || '').toLowerCase();
+      const rClean = (query.region || '').toLowerCase().replace(/\s*(viloyati|respublikasi|shahri)\s*/gi, '').trim();
+
+      let matches = false;
+      if (sReg) {
+        matches = rClean === 'toshkent' ? sReg.includes('toshkent') : sReg.includes(rClean);
+      } else {
+        const combined = `${sCity} ${sDist} ${sAddr} ${sName}`;
+        matches = rClean === 'toshkent'
+          ? (combined.includes('toshkent') || !sReg)
+          : combined.includes(rClean);
+      }
+
+      // District-to-region lookup (e.g. Guliston, Yangiyer, Shirin -> Sirdaryo)
+      if (!matches) {
+        const localArea = `${sCity} ${sDist} ${sName}`;
+        if (rClean.includes('sirdaryo') && (localArea.includes('guliston') || localArea.includes('yangiyer') || localArea.includes('shirin') || localArea.includes('sayhun') || localArea.includes('sardoba') || localArea.includes('sirdaryo'))) {
+          if (!sReg || sReg.includes('sirdaryo')) matches = true;
+        } else if (rClean.includes('samarqand') && (localArea.includes('samarqand') || localArea.includes('urgut') || localArea.includes('kattaqo'))) {
+          if (!sReg || sReg.includes('samarqand')) matches = true;
+        } else if (rClean.includes('fargona') && (localArea.includes('fargona') || localArea.includes('qoqon') || localArea.includes('quva') || localArea.includes('margilon'))) {
+          if (!sReg || sReg.includes('fargona')) matches = true;
+        } else if (rClean.includes('andijon') && (localArea.includes('andijon') || localArea.includes('asaka') || localArea.includes('shahrixon'))) {
+          if (!sReg || sReg.includes('andijon')) matches = true;
+        } else if (rClean.includes('namangan') && (localArea.includes('namangan') || localArea.includes('chust') || localArea.includes('pop'))) {
+          if (!sReg || sReg.includes('namangan')) matches = true;
+        } else if (rClean.includes('buxoro') && (localArea.includes('buxoro') || localArea.includes('gijduvon') || localArea.includes('kogon'))) {
+          if (!sReg || sReg.includes('buxoro')) matches = true;
+        }
+      }
+
       if (!matches) continue;
     }
 
@@ -89,9 +120,43 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       store.location.lng
     );
 
-    if (dist <= query.radiusM) {
+    // Strict radius cut-off: when radiusM is specified, ONLY return stores within that radius!
+    if (query.radiusM && query.radiusM > 0 && dist > query.radiusM) {
+      continue;
+    }
+
+    const isOpen = checkStoreIsOpenNow(store);
+    if (query.openNow && !isOpen) continue;
+    candidateStores.push({ store, distanceM: dist, isOpenNow: isOpen });
+  }
+
+  // Fallback: only if radiusM is NOT set or 0 (if user set a radius, strictly respect that radius)
+  if (candidateStores.length === 0 && (!query.radiusM || query.radiusM === 0)) {
+    for (const store of db.stores.values()) {
+      if (store.status !== 'ACTIVE') continue;
+      const org = db.organizations.get(store.organizationId);
+      if (org && org.status !== 'ACTIVE') continue;
+
+      if (hasRegionFilter) {
+        const sReg = String((store as any).region || (org as any).region || '').toLowerCase();
+        const rLower = query.region!.toLowerCase().trim();
+        const rClean = rLower.replace(/\s*(viloyati|respublikasi|shahri)\s*/gi, '').trim();
+        let matches = false;
+        if (sReg) {
+          matches = rClean === 'toshkent' ? sReg.includes('toshkent') : sReg.includes(rClean);
+        } else {
+          matches = (store.address || '').toLowerCase().includes(rClean);
+        }
+        if (!matches) continue;
+      }
+
+      const dist = calculateDistanceMetres(
+        query.lat,
+        query.lng,
+        store.location.lat,
+        store.location.lng
+      );
       const isOpen = checkStoreIsOpenNow(store);
-      if (query.openNow && !isOpen) continue;
       candidateStores.push({ store, distanceM: dist, isOpenNow: isOpen });
     }
   }
@@ -105,7 +170,6 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   }
 
   const storeAggregates: StoreMatchAggregate[] = [];
-  const assignedProducts = new Set<string>();
 
   // Index offers by store for candidate stores in O(N) instead of O(S x N)
   const candidateStoreIdSet = new Set(candidateStores.map(c => c.store.id));
@@ -122,7 +186,6 @@ export function searchProducts(query: SearchQuery): SearchResponse {
 
   candidateStores.sort((a, b) => a.distanceM - b.distanceM || a.store.id.localeCompare(b.store.id));
 
-  const qTrimmed = query.q ? query.q.trim() : '';
   const qLower = qTrimmed.toLowerCase();
   const isPharmacyQuery = Boolean(qLower && ['apteka', 'dorixona', 'dori', 'pharmacy', 'farm', 'shifo'].some(k => qLower.includes(k)));
   const isMarketQuery = Boolean(qLower && ['market', 'supermarket', 'do\'kon', 'dokon', 'savdo', 'baza'].some(k => qLower.includes(k)));
@@ -136,9 +199,13 @@ export function searchProducts(query: SearchQuery): SearchResponse {
     const storeIsPharmacy = cand.store.type === 'PHARMACY' ||
       ['apteka', 'dorixona', 'pharm', 'shifo', 'farm'].some(k => storeNameLower.includes(k));
     const storeIsMarket = cand.store.type === 'RETAIL' || cand.store.type === 'WHOLESALE' || cand.store.type === 'MIXED';
+    const storeWords = storeNameLower.split(/[\s,()\-./]+/);
+    const storeNameMatches = qLower.length <= 2
+      ? storeWords.some(w => w === qLower || (w.length <= 4 && w.startsWith(qLower)))
+      : storeNameLower.includes(qLower);
     const storeMatchesQuery = Boolean(
       qLower && (
-        storeNameLower.includes(qLower) ||
+        storeNameMatches ||
         (isPharmacyQuery && storeIsPharmacy) ||
         (isMarketQuery && storeIsMarket)
       )
@@ -201,21 +268,41 @@ export function searchProducts(query: SearchQuery): SearchResponse {
         return Number(a.offer.price) - Number(b.offer.price);
       });
 
-      const matchingOffers = storeOffers.filter(({ offer }) => {
-        const key = offer.variant.barcode?.trim()
-          ? `barcode:${offer.variant.barcode.trim()}`
-          : `variant:${offer.variantId || offer.variant.id || offer.id}`;
-        if (assignedProducts.has(key)) return false;
-        assignedProducts.add(key);
-        return true;
-      });
-      if (!matchingOffers.length) continue;
-      storeAggregates.push({
-        store: cand.store,
-        distanceM: cand.distanceM,
-        isOpenNow: cand.isOpenNow,
-        matchingOffers
-      });
+      if (!qTrimmed) {
+        // No search query (initial load): return distinct products so customer sees products by default
+        const seenVariantsInStore = new Set<string>();
+        for (const { offer, score } of storeOffers) {
+          const key = offer.variantId || offer.variant?.id || offer.id;
+          if (seenVariantsInStore.has(key)) continue;
+          seenVariantsInStore.add(key);
+
+          storeAggregates.push({
+            store: cand.store,
+            distanceM: cand.distanceM,
+            isOpenNow: cand.isOpenNow,
+            matchingOffers: [{ offer, score }]
+          });
+        }
+      } else {
+        // Search query provided: keep all stores that have matching products (do NOT suppress other stores)
+        // Deduplicate variants within this store only
+        const seenVariantsInStore = new Set<string>();
+        const matchingOffers = storeOffers.filter(({ offer }) => {
+          const key = offer.variantId || offer.variant?.id || offer.id;
+          if (seenVariantsInStore.has(key)) return false;
+          seenVariantsInStore.add(key);
+          return true;
+        });
+
+        if (matchingOffers.length > 0) {
+          storeAggregates.push({
+            store: cand.store,
+            distanceM: cand.distanceM,
+            isOpenNow: cand.isOpenNow,
+            matchingOffers
+          });
+        }
+      }
     }
   }
 
@@ -237,9 +324,10 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   });
 
   // 4. Cursor pagination
+  const limit = Math.max(1, query.limit || 20);
   const startIndex = query.cursor ? parseInt(query.cursor, 10) : 0;
-  const pageItems = storeAggregates.slice(startIndex, startIndex + query.limit);
-  const nextCursor = startIndex + query.limit < storeAggregates.length ? String(startIndex + query.limit) : null;
+  const pageItems = storeAggregates.slice(startIndex, startIndex + limit);
+  const nextCursor = startIndex + limit < storeAggregates.length ? String(startIndex + limit) : null;
 
   // 5. Construct StoreSearchResult items
   const items: StoreSearchResult[] = pageItems.map((agg) => {
@@ -269,7 +357,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   return {
     items,
     totalStores: storeAggregates.length,
-    totalOffers: assignedProducts.size,
+    totalOffers: storeAggregates.reduce((acc, agg) => acc + agg.matchingOffers.length, 0),
     nextCursor,
     hasMore: nextCursor !== null
   };

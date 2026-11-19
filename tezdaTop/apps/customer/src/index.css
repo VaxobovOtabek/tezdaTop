@@ -240,6 +240,14 @@ html, body {
   line-height: 1.4 !important;
 }
 
+/* Completely remove Leaflet attribution label */
+.leaflet-control-attribution {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
 button:focus-visible, input:focus-visible, select:focus-visible {
   outline: 3px solid #d59536;
   outline-offset: 2px;

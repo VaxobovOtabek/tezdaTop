@@ -20,6 +20,7 @@ import { StoreSearchResult, RouteResponse } from '@yaqintop/contracts';
 import { ProductSearchCard } from './ProductSearchCard';
 import { StoreCard } from './StoreCard';
 import { NearbyStoreItem } from './InteractiveMap';
+import { isItemService, isItemProduct } from './MobileBottomSheet';
 
 export interface DesktopSearchSidebarProps {
   selectedLocationName: string;
@@ -51,6 +52,8 @@ export interface DesktopSearchSidebarProps {
   activeCategoryId?: string;
   onSelectCategory?: (id: string) => void;
   searchError?: string | null;
+  searchTab?: 'product' | 'service' | 'store';
+  onSelectSearchTab?: (tab: 'product' | 'service' | 'store') => void;
 }
 
 export interface CategoryItem {
@@ -110,7 +113,9 @@ export const DesktopSearchSidebar: React.FC<DesktopSearchSidebarProps> = ({
   onStopRoute,
   activeCategoryId: controlledCategoryId,
   onSelectCategory,
-  searchError
+  searchError,
+  searchTab = 'product',
+  onSelectSearchTab
 }) => {
   const [internalCategoryId, setInternalCategoryId] = useState<string>('all');
   const activeCategoryId = controlledCategoryId ?? internalCategoryId;
@@ -119,31 +124,41 @@ export const DesktopSearchSidebar: React.FC<DesktopSearchSidebarProps> = ({
   const categoriesScrollRef = useRef<HTMLDivElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
 
-
   const cleanLocation = selectedLocationName ? selectedLocationName.split(',')[0] : 'Barcha tumanlar';
   const hasSearch = Boolean(searchQuery.trim());
 
+  const productsList = useMemo(() => results.filter(isItemProduct), [results]);
+  const servicesList = useMemo(() => {
+    const fromResults = results.filter(isItemService);
+    const fromStores = nearbyStores.filter(isItemService);
+    return [...fromResults, ...fromStores];
+  }, [results, nearbyStores]);
+  const storesList = useMemo(() => nearbyStores, [nearbyStores]);
+
+  const activeItems = useMemo(() => {
+    if (searchTab === 'service') return servicesList;
+    if (searchTab === 'store') return storesList;
+    return productsList;
+  }, [searchTab, productsList, servicesList, storesList]);
+
+  const productsCount = productsList.length;
+  const servicesCount = servicesList.length;
+  const storesCount = storesList.length;
+
   const pageSize = 10;
-  const totalItems = hasSearch ? results.length : nearbyStores.length;
+  const totalItems = activeItems.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const effectivePage = Math.min(Math.max(1, currentPage), totalPages);
 
-  // Reset to first page when query, category or items change
+  // Reset to first page when query, category, tab or items change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeCategoryId, results.length, nearbyStores.length]);
+  }, [searchQuery, activeCategoryId, searchTab, results.length, nearbyStores.length]);
 
-  const paginatedResults = useMemo(() => {
-    if (!hasSearch) return [];
+  const paginatedItems = useMemo(() => {
     const start = (effectivePage - 1) * pageSize;
-    return results.slice(start, start + pageSize);
-  }, [results, hasSearch, effectivePage, pageSize]);
-
-  const paginatedNearbyStores = useMemo(() => {
-    if (hasSearch) return [];
-    const start = (effectivePage - 1) * pageSize;
-    return nearbyStores.slice(start, start + pageSize);
-  }, [nearbyStores, hasSearch, effectivePage, pageSize]);
+    return activeItems.slice(start, start + pageSize);
+  }, [activeItems, effectivePage, pageSize]);
 
   const scrollCategories = (direction: 'left' | 'right') => {
     if (categoriesScrollRef.current) {
@@ -165,6 +180,7 @@ export const DesktopSearchSidebar: React.FC<DesktopSearchSidebarProps> = ({
     onSelectStore(null as any);
     onSelectNearbyStore(null as any);
     if (!cat.query) {
+      onSearchQueryChange('');
       onClearSearch();
     } else {
       onSearchQueryChange(cat.query);
@@ -417,6 +433,46 @@ export const DesktopSearchSidebar: React.FC<DesktopSearchSidebarProps> = ({
                 <RotateCcw className="w-4 h-4" />
               </button>
             </div>
+
+            {/* 4. Search Filter Tabs: Tovar (default) | Xizmat | Do‘kon */}
+            <div className="flex items-center gap-1.5 px-2.5 pb-2.5 pt-0.5 border-t border-[#E2E8F0]/70 dark:border-[#273B32]/70 bg-slate-50/50 dark:bg-[#111A15]/50">
+              <button
+                type="button"
+                onClick={() => onSelectSearchTab?.('product')}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer select-none active:scale-95 ${
+                  searchTab === 'product'
+                    ? 'bg-[#087F5B] text-white shadow-xs'
+                    : 'bg-white dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#CBD5E1] dark:border-[#2E4237] hover:border-[#087F5B]'
+                }`}
+              >
+                <span>🛍️</span>
+                <span>Tovar ({productsCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectSearchTab?.('service')}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer select-none active:scale-95 ${
+                  searchTab === 'service'
+                    ? 'bg-[#087F5B] text-white shadow-xs'
+                    : 'bg-white dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#CBD5E1] dark:border-[#2E4237] hover:border-[#087F5B]'
+                }`}
+              >
+                <span>🛠️</span>
+                <span>Xizmat ({servicesCount})</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => onSelectSearchTab?.('store')}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-xs font-black transition flex items-center justify-center gap-1 cursor-pointer select-none active:scale-95 ${
+                  searchTab === 'store'
+                    ? 'bg-[#087F5B] text-white shadow-xs'
+                    : 'bg-white dark:bg-[#1A2822] text-[#566A63] dark:text-[#8B9E95] border border-[#CBD5E1] dark:border-[#2E4237] hover:border-[#087F5B]'
+                }`}
+              >
+                <span>🏪</span>
+                <span>Do‘kon ({storesCount})</span>
+              </button>
+            </div>
           </div>
 
           {/* Bottom Results Feed Card: Distinctly separated from the top panel */}
@@ -426,9 +482,11 @@ export const DesktopSearchSidebar: React.FC<DesktopSearchSidebarProps> = ({
               <div className="flex items-center gap-1.5 min-w-0">
                 <span className="w-2 h-2 rounded-full bg-[#087F5B]" />
                 <span className="text-xs font-black text-[#172B26] dark:text-white truncate">
-                  {hasSearch
-                    ? `${results.length} ta tovar`
-                    : `${nearbyStores.length} ta do‘kon`}
+                  {searchTab === 'product'
+                    ? `${productsCount} ta tovar`
+                    : searchTab === 'service'
+                    ? `${servicesCount} ta xizmat`
+                    : `${storesCount} ta do‘kon`}
                 </span>
                 {totalPages > 1 && (
                   <span className="text-[11px] font-semibold text-[#566A63] dark:text-[#8B9E95] ml-1 shrink-0">
@@ -473,97 +531,75 @@ export const DesktopSearchSidebar: React.FC<DesktopSearchSidebarProps> = ({
 
             {/* Results Body: Scrollable list with dynamic grid */}
             <div ref={resultsContainerRef} className="flex-1 overflow-y-auto p-3 min-h-0 bg-[#F8FAFC]/40 dark:bg-[#0E1713]/30">
-              {hasSearch ? (
-                results.length > 0 ? (
-                  <div className={gridClass}>
-                    {paginatedResults.map((item, idx) => (
-                      <ProductSearchCard
-                        key={item.bestOffer?.id || `res-${idx}`}
-                        item={item}
-                        isSelected={selectedResult?.bestOffer?.id === item.bestOffer?.id}
-                        onSelect={() => onSelectStore(item)}
+              {paginatedItems.length > 0 ? (
+                <div className={gridClass}>
+                  {paginatedItems.map((item: any, idx: number) => {
+                    if (item.bestOffer) {
+                      return (
+                        <ProductSearchCard
+                          key={item.bestOffer?.id || `res-${idx}`}
+                          item={item}
+                          isSelected={selectedResult?.bestOffer?.id === item.bestOffer?.id}
+                          onSelect={() => onSelectStore(item)}
+                          onOpenStore={onOpenStore}
+                          onGetRoute={onGetRoute}
+                          onOpenProductModal={onOpenProductModal}
+                          viewMode={viewMode}
+                        />
+                      );
+                    }
+                    const storeObj = item.store || item;
+                    return (
+                      <StoreCard
+                        key={storeObj.id || `store-${idx}`}
+                        store={storeObj}
+                        distanceM={item.distanceM}
+                        isSelected={selectedNearbyStore?.store?.id === storeObj.id}
+                        onSelect={() => onSelectNearbyStore(item)}
                         onOpenStore={onOpenStore}
-                        onGetRoute={onGetRoute}
-                        onOpenProductModal={onOpenProductModal}
+                        onGetRoute={(st) => onGetRoute({ store: st, distanceM: item.distanceM })}
                         viewMode={viewMode}
                       />
-                    ))}
+                    );
+                  })}
+                </div>
+              ) : searchError ? (
+                /* Error / Retry State */
+                <div className="h-full flex flex-col items-center justify-center p-6 text-center select-none my-auto">
+                  <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-center text-3xl shadow-sm mb-3">
+                    ⚠️
                   </div>
-                ) : searchError ? (
-                  /* Error / Retry State */
-                  <div className="h-full flex flex-col items-center justify-center p-6 text-center select-none my-auto">
-                    <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-center text-3xl shadow-sm mb-3">
-                      ⚠️
-                    </div>
-                    <h4 className="text-sm font-extrabold text-[#172B26] dark:text-[#E8F2EC] mb-1">
-                      {searchError}
-                    </h4>
-                    <p className="text-xs text-[#566A63] dark:text-[#8B9E95] max-w-[280px] mb-4">
-                      Server vaqtincha ulanishni yangilamoqda. Qaytadan urinib ko‘ring.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => onSearch(searchQuery)}
-                      className="px-4 py-2 rounded-xl bg-[#087F5B] hover:bg-[#066549] text-white text-xs font-bold shadow-md cursor-pointer active:scale-95 transition"
-                    >
-                      🔄 Qayta qidirish
-                    </button>
-                  </div>
-                ) : (
-                  /* Empty Box State matching Tejam screenshot */
-                  <div className="h-full flex flex-col items-center justify-center p-6 text-center select-none my-auto">
-                    <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-center text-3xl shadow-sm mb-3">
-                      📦
-                    </div>
-                    <h4 className="text-sm font-extrabold text-[#172B26] dark:text-[#E8F2EC] mb-1">
-                      Tez orada bu yerda birinchi takliflar paydo bo‘ladi.
-                    </h4>
-                    <p className="text-xs text-[#566A63] dark:text-[#8B9E95] max-w-[280px] mb-4">
-                      Boshqa tovar yoki do‘kon nomini qidirib ko‘ring yoki takliflardan tanlang
-                    </p>
-                    <div className="flex flex-wrap gap-1.5 justify-center max-w-[320px]">
-                      {POPULAR_PILLS.map((pill) => (
-                        <button
-                          key={pill}
-                          type="button"
-                          onClick={() => {
-                            onSearchQueryChange(pill);
-                            onSearch(pill);
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#1E2D25] border border-[#CBD5E1] dark:border-[#2E4237] hover:bg-[#E8F5EE] dark:hover:bg-[#1E362A] text-[#172B26] dark:text-white hover:text-[#087F5B] dark:hover:text-[#4ADE80] text-xs font-semibold transition cursor-pointer shadow-2xs"
-                        >
-                          {pill}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )
-              ) : nearbyStores.length > 0 ? (
-                <div className={gridClass}>
-                  {paginatedNearbyStores.map((item, idx) => (
-                    <StoreCard
-                      key={item.store.id || `store-${idx}`}
-                      store={item.store}
-                      distanceM={item.distanceM}
-                      isSelected={selectedNearbyStore?.store.id === item.store.id}
-                      onSelect={() => onSelectNearbyStore(item)}
-                      onOpenStore={onOpenStore}
-                      onGetRoute={(store) => onGetRoute({ store, distanceM: item.distanceM })}
-                      viewMode={viewMode}
-                    />
-                  ))}
+                  <h4 className="text-sm font-extrabold text-[#172B26] dark:text-[#E8F2EC] mb-1">
+                    {searchError}
+                  </h4>
+                  <p className="text-xs text-[#566A63] dark:text-[#8B9E95] max-w-[280px] mb-4">
+                    Server vaqtincha ulanishni yangilamoqda. Qaytadan urinib ko‘ring.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => onSearch(searchQuery)}
+                    className="px-4 py-2 rounded-xl bg-[#087F5B] hover:bg-[#066549] text-white text-xs font-bold shadow-md cursor-pointer active:scale-95 transition"
+                  >
+                    🔄 Qayta qidirish
+                  </button>
                 </div>
               ) : (
-                /* Initial Empty Box State */
+                /* Empty Box State */
                 <div className="h-full flex flex-col items-center justify-center p-6 text-center select-none my-auto">
                   <div className="w-16 h-16 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/60 flex items-center justify-center text-3xl shadow-sm mb-3">
                     📦
                   </div>
                   <h4 className="text-sm font-extrabold text-[#172B26] dark:text-[#E8F2EC] mb-1">
-                    Tez orada bu yerda birinchi takliflar paydo bo‘ladi.
+                    {searchTab === 'product'
+                      ? (!hasSearch ? 'Qidiruv maydoniga tovar nomini yozing' : 'Ushbu hududda tovarlar topilmadi.')
+                      : searchTab === 'service'
+                      ? 'Ushbu hududda xizmatlar topilmadi.'
+                      : 'Ushbu hududda do‘konlar topilmadi.'}
                   </h4>
                   <p className="text-xs text-[#566A63] dark:text-[#8B9E95] max-w-[280px] mb-4">
-                    Boshqa tovar yoki do‘kon nomini qidirib ko‘ring yoki takliflardan tanlang
+                    {!hasSearch && searchTab === 'product'
+                      ? 'Kerakli tovar nomini yozing yoki pastdagi mashhur mahsulotlardan birini tanlang'
+                      : 'Boshqa tovar yoki do‘kon nomini qidirib ko‘ring yoki takliflardan tanlang'}
                   </p>
                   <div className="flex flex-wrap gap-1.5 justify-center max-w-[320px]">
                     {POPULAR_PILLS.map((pill) => (

@@ -194,7 +194,7 @@ export async function readPublicStore(req: Request, res: Response, next: NextFun
       const ids = rows.slice(offset, offset + 100).map((row) => row.variant_id);
       variants.push(...(await repository.rows('variants', '*', (query) => query.in('id', ids))));
     }
-    const scoped = repository.hydrate({ offers: rows, variants });
+    const scoped = repository.hydrate({ stores, offers: rows, variants });
     const offers = [...scoped.offers.values()];
     const total = result.count ?? offers.length;
     return res.json({
@@ -207,7 +207,7 @@ export async function readPublicStore(req: Request, res: Response, next: NextFun
     });
   } catch (error) {
     console.error('[Public Store Read]', error);
-    return res.status(503).json({ code: 'DATABASE_UNAVAILABLE', message: 'Do‘kon ma’lumotlarini yuklab bo‘lmadi.' });
+    return next();
   }
 }
 

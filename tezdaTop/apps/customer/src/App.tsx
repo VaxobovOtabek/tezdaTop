@@ -227,6 +227,7 @@ export function CustomerApp() {
 
   const [results, setResults] = useState<StoreSearchResult[]>([]);
   const [selectedResult, setSelectedResult] = useState<StoreSearchResult | null>(null);
+  const [searchFilterTab, setSearchFilterTab] = useState<'product' | 'service' | 'store'>('product');
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
   const [selectedProductModalItem, setSelectedProductModalItem] = useState<StoreSearchResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -343,8 +344,9 @@ export function CustomerApp() {
       console.error(e);
     }
 
-    // Immediately load all organizations of the chosen region
+    // Immediately load all products and organizations of the chosen region
     loadNearbyStores({ lat: loc.lat, lng: loc.lng }, '', chosenRegion);
+    doSearch('', { lat: loc.lat, lng: loc.lng });
 
     showToast(`Hudud o‘zgartirildi: ${loc.name}`);
     if (view !== 'search') {
@@ -414,7 +416,11 @@ export function CustomerApp() {
           isOpenNow = closes < opens ? minutes >= opens || minutes < closes : minutes >= opens && minutes <= closes;
         }
         return { ...item, distanceM, isOpenNow };
-      }).filter(item => !openNow || item.isOpenNow);
+      }).filter(item => {
+        if (openNow && !item.isOpenNow) return false;
+        if (radiusM && radiusM > 0 && typeof item.distanceM === 'number' && item.distanceM > radiusM) return false;
+        return true;
+      });
       items.sort((a, b) => {
         const rating = selectedSort === 'relevance' ? (b.store.rating ?? 4.5) - (a.store.rating ?? 4.5) : 0;
         return rating || a.distanceM - b.distanceM;
@@ -773,7 +779,15 @@ export function CustomerApp() {
             uniqueOffers.push(o);
           }
         }
-        setActiveStoreOffers(uniqueOffers);
+        if (uniqueOffers.length > 0) {
+          setActiveStoreOffers(uniqueOffers);
+        } else if (selectedResult?.bestOffer && (selectedResult.store?.id === cleanId || selectedResult.bestOffer.storeId === cleanId)) {
+          setActiveStoreOffers([selectedResult.bestOffer]);
+        } else {
+          setActiveStoreOffers([]);
+        }
+      } else if (selectedResult?.bestOffer && (selectedResult.store?.id === cleanId || selectedResult.bestOffer.storeId === cleanId)) {
+        setActiveStoreOffers([selectedResult.bestOffer]);
       }
     } catch (err) {
       console.error('Error loading store catalog:', err);
@@ -1140,6 +1154,15 @@ export function CustomerApp() {
   const doSearch = async (queryStr?: string, loc?: { lat: number; lng: number }) => {
     const q = (typeof queryStr === 'string' ? queryStr : searchQuery).trim();
 
+    if (!q) {
+      setResults([]);
+      setSelectedResult(null);
+      setSearchError(null);
+      setIsSearching(false);
+      loadNearbyStores(loc);
+      return;
+    }
+
     if (searchCategory === 'organizations') {
       setResults([]);
       setSelectedResult(null);
@@ -1148,13 +1171,8 @@ export function CustomerApp() {
       return;
     }
 
-    if (!q) {
-      setResults([]);
-      setSelectedResult(null);
-      setSearchError(null);
-      loadNearbyStores(loc);
-      return;
-    }
+    // Always keep nearby stores loaded for store tabs and map reference
+    loadNearbyStores(loc);
 
     // Cancel prior in-flight search
     if (searchAbortRef.current) {
@@ -1167,14 +1185,19 @@ export function CustomerApp() {
     setSearchError(null);
 
     const targetLoc = loc || userLocation;
+    const effectiveRegion = userRegion || (selectedLocationName ? selectedLocationName.split(',')[0].trim() : undefined);
+    const effectiveDistrict = (userDistrict && userDistrict !== 'Barcha tumanlar' && userDistrict !== 'Viloyat markazi')
+      ? userDistrict
+      : (selectedLocationName && selectedLocationName.includes(',') ? selectedLocationName.split(',')[1].trim() : undefined);
+
     try {
       const searchBody = JSON.stringify({
         q,
         lat: targetLoc.lat,
         lng: targetLoc.lng,
         radiusM,
-        region: userRegion || undefined,
-        district: (userDistrict && userDistrict !== 'Barcha tumanlar' && userDistrict !== 'Viloyat markazi') ? userDistrict : undefined,
+        region: effectiveRegion,
+        district: effectiveDistrict,
         openNow: openNow || undefined,
         inStock: inStock || undefined,
         freshOnly: freshOnly || undefined,
@@ -1238,9 +1261,9 @@ export function CustomerApp() {
   const handleClearSearch = () => {
     setActiveCategoryId('all');
     setSearchQuery('');
-    setResults([]);
     setSelectedResult(null);
     setSearchError(null);
+    doSearch('');
     loadNearbyStores();
   };
 
@@ -1258,26 +1281,18 @@ export function CustomerApp() {
 
   const isFirstSearchRef = useRef(true);
 
-  // Debounced Search Effect (Load nearby stores on first load if no query, 350ms delay when user types)
+  // Debounced Search Effect (Load products and nearby stores on first load, 350ms delay when user types)
   useEffect(() => {
     if (isFirstSearchRef.current) {
       isFirstSearchRef.current = false;
-      if (searchQuery.trim()) {
-        doSearch();
-      } else {
-        loadNearbyStores();
-      }
+      doSearch();
+      loadNearbyStores();
       return;
     }
 
     const timer = setTimeout(() => {
-      if (searchQuery.trim()) {
-        doSearch();
-      } else {
-        setResults([]);
-        setSelectedResult(null);
-        loadNearbyStores();
-      }
+      doSearch();
+      loadNearbyStores();
     }, 350);
 
     return () => clearTimeout(timer);
@@ -1399,7 +1414,7 @@ export function CustomerApp() {
     }
   };
 
-  const handleSelectStore = (item: StoreSearchResult) => {
+  const handleSelectStore = (item: StoreSearchResult | null) => {
     setSelectedResult(item);
     if (item?.store?.id) {
       setSelectedNearbyStore({
@@ -1410,6 +1425,8 @@ export function CustomerApp() {
         offersCount: (item as any).offersCount
       });
       loadStoreCatalog(item.store.id);
+    } else {
+      setSelectedNearbyStore(null);
     }
   };
 
@@ -1417,6 +1434,8 @@ export function CustomerApp() {
     setSelectedNearbyStore(item);
     if (item?.store?.id) {
       loadStoreCatalog(item.store.id);
+    } else if (!item) {
+      setSelectedResult(null);
     }
   };
 
@@ -1667,6 +1686,8 @@ export function CustomerApp() {
                 selectedNearbyStore={selectedNearbyStore}
                 onSelectStore={handleSelectStore}
                 onSelectNearbyStore={handleSelectNearbyStore}
+                searchTab={searchFilterTab}
+                onSelectSearchTab={setSearchFilterTab}
                 onOpenStore={(storeId) => {
                   loadStoreCatalog(storeId);
                   navigateTo(`/dokon/${storeId}`);
@@ -1843,10 +1864,11 @@ export function CustomerApp() {
                   locationName={selectedLocationName}
                   userRegion={userRegion}
                   userDistrict={userDistrict}
-                  results={results}
+                  results={searchFilterTab === 'store' ? [] : results}
                   nearbyStores={nearbyStores}
                   selectedResult={selectedResult}
                   selectedNearbyStore={selectedNearbyStore}
+                  searchQuery={searchQuery}
                   routeTargetName={selectedResult?.store?.name || selectedNearbyStore?.store?.name || activeStoreDetail?.name}
                   routeTargetAddress={selectedResult?.store?.address || selectedNearbyStore?.store?.address || activeStoreDetail?.address}
                   onSelectStore={handleSelectStore}
@@ -1913,6 +1935,8 @@ export function CustomerApp() {
                     }}
                     onOpenProductModal={(item) => setSelectedProductModalItem(item)}
                     locationName={selectedLocationName}
+                    searchTab={searchFilterTab}
+                    onSelectSearchTab={setSearchFilterTab}
                   />
                 )}
               </div>

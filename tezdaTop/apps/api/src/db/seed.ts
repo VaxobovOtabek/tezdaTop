@@ -316,6 +316,123 @@ export async function seedDatabase() {
       photoUrl: 'https://images.unsplash.com/photo-1579722821273-0f6c7d44362f?w=120&auto=format&fit=crop&q=80',
       aliases: ['nesquik', 'neskvik', 'kakao', 'несквик']
     },
+    {
+      id: SEED_IDS.nonVariantId,
+      productId: uuidv4(),
+      title: 'Tandir non (Issiq patir)',
+      brand: 'Nonvoyxona',
+      category: 'Non mahsulotlari',
+      packSize: '1 dona',
+      packUnit: 'dona',
+      barcode: '47800011',
+      sku: 'NON-001',
+      photoUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=120&auto=format&fit=crop&q=80',
+      aliases: ['non', 'tandir non', 'patir', 'nonvoy', 'хлеб', 'лепешка']
+    },
+    {
+      id: SEED_IDS.sutVariantId,
+      productId: uuidv4(),
+      title: 'Musaffo Sut 3.2% 1 L',
+      brand: 'Musaffo',
+      category: 'Sut mahsulotlari',
+      packSize: '1 l',
+      packUnit: 'dona',
+      barcode: '47800012',
+      sku: 'SUT-001',
+      photoUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=120&auto=format&fit=crop&q=80',
+      aliases: ['sut', 'musaffo', 'молоко', 'sut 3.2']
+    },
+    {
+      id: SEED_IDS.yogVariantId,
+      productId: uuidv4(),
+      title: 'Oila Tanlovi Pista yog‘i 1 L',
+      brand: 'Oila Tanlovi',
+      category: 'Oziq-ovqat',
+      packSize: '1 l',
+      packUnit: 'dona',
+      barcode: '47800013',
+      sku: 'YOG-001',
+      photoUrl: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=120&auto=format&fit=crop&q=80',
+      aliases: ['yog', 'yog‘', 'pista yogi', 'oila tanlovi', 'масло']
+    },
+    {
+      id: SEED_IDS.shakarVariantId,
+      productId: uuidv4(),
+      title: 'Shakar 1 kg',
+      brand: 'Xorazm Shakar',
+      category: 'Oziq-ovqat',
+      packSize: '1 kg',
+      packUnit: 'kg',
+      barcode: '47800014',
+      sku: 'SHK-001',
+      photoUrl: 'https://images.unsplash.com/photo-1581441363689-1f3c3c414635?w=120&auto=format&fit=crop&q=80',
+      aliases: ['shakar', 'shakar 1kg', 'saxar', 'сахар']
+    },
+    {
+      id: SEED_IDS.choyVariantId,
+      productId: uuidv4(),
+      title: 'Ahmad Tea Qora choy 100 g',
+      brand: 'Ahmad Tea',
+      category: 'Choy va Kofe',
+      packSize: '100 g',
+      packUnit: 'quti',
+      barcode: '47800015',
+      sku: 'CHY-001',
+      photoUrl: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=120&auto=format&fit=crop&q=80',
+      aliases: ['choy', 'qora choy', 'ahmad tea', 'чай']
+    },
+    {
+      id: SEED_IDS.tuxumVariantId,
+      productId: uuidv4(),
+      title: 'Tuxum S1 10 dona',
+      brand: 'Parranda Fayz',
+      category: 'Oziq-ovqat',
+      packSize: '10 dona',
+      packUnit: 'qadoq',
+      barcode: '47800016',
+      sku: 'TXM-010',
+      photoUrl: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=120&auto=format&fit=crop&q=80',
+      aliases: ['tuxum', 'tuxum 10 dona', 'яйца', 'parranda']
+    },
+    {
+      id: SEED_IDS.unVariantId,
+      productId: uuidv4(),
+      title: "Oliy navli bug'doy uni (Oltin Don, 1 kg)",
+      brand: 'Oltin Don',
+      category: 'Oziq-ovqat',
+      packSize: '1 kg',
+      packUnit: 'kg',
+      barcode: '47800017',
+      sku: 'UN-001',
+      photoUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=120&auto=format&fit=crop&q=80',
+      aliases: ['un', "bug'doy uni", 'un 1kg', 'oliy nav un', 'мука']
+    },
+    {
+      id: SEED_IDS.unMakfaVariantId,
+      productId: uuidv4(),
+      title: "Makfa oliy navli bug'doy uni (2 kg)",
+      brand: 'Makfa',
+      category: 'Oziq-ovqat',
+      packSize: '2 kg',
+      packUnit: 'qadoq',
+      barcode: '47800018',
+      sku: 'UN-MAK-002',
+      photoUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=120&auto=format&fit=crop&q=80',
+      aliases: ['un', 'makfa', 'makfa un', 'мука макфа']
+    },
+    {
+      id: SEED_IDS.unQozoqVariantId,
+      productId: uuidv4(),
+      title: "Qozog'iston 1-nav bug'doy uni (50 kg qop)",
+      brand: 'Qozoq Un',
+      category: 'Oziq-ovqat',
+      packSize: '50 kg',
+      packUnit: 'qop',
+      barcode: '47800019',
+      sku: 'UN-QOZ-050',
+      photoUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=120&auto=format&fit=crop&q=80',
+      aliases: ['un', 'qop un', 'qozoq un', '50 kg un', 'мука 50кг']
+    },
     // Dori-darmon (Dorixona & Apteka tovarlari)
     {
       id: SEED_IDS.tsitramonVariantId,
@@ -946,6 +1063,168 @@ export async function seedDatabase() {
       stockOnHand: 40,
       stockVerifiedAt: tenMinutesAgo,
       status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.nonVariantId,
+      price: '3500.00',
+      stockOnHand: 100,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.sutVariantId,
+      price: '11500.00',
+      stockOnHand: 60,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.yogVariantId,
+      price: '16000.00',
+      stockOnHand: 45,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.shakarVariantId,
+      price: '12000.00',
+      stockOnHand: 80,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.choyVariantId,
+      price: '18000.00',
+      stockOnHand: 35,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.tuxumVariantId,
+      price: '14000.00',
+      stockOnHand: 50,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.unVariantId,
+      price: '7500.00',
+      stockOnHand: 150,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.unMakfaVariantId,
+      price: '19000.00',
+      stockOnHand: 60,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.gulistonMarketStoreId,
+      variantId: SEED_IDS.unQozoqVariantId,
+      price: '340000.00',
+      stockOnHand: 25,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.nonVariantId,
+      price: '3000.00',
+      stockOnHand: 120,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.sutVariantId,
+      price: '11000.00',
+      stockOnHand: 70,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.yogVariantId,
+      price: '15500.00',
+      stockOnHand: 50,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.shakarVariantId,
+      price: '11800.00',
+      stockOnHand: 90,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.choyVariantId,
+      price: '17500.00',
+      stockOnHand: 40,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.tuxumVariantId,
+      price: '13500.00',
+      stockOnHand: 60,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.unVariantId,
+      price: '7000.00',
+      stockOnHand: 180,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.unMakfaVariantId,
+      price: '18500.00',
+      stockOnHand: 75,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
+    },
+    {
+      id: uuidv4(),
+      storeId: SEED_IDS.navbahorStoreId,
+      variantId: SEED_IDS.unQozoqVariantId,
+      price: '335000.00',
+      stockOnHand: 30,
+      stockVerifiedAt: tenMinutesAgo,
+      status: 'ACTIVE'
     }
   ];
 
@@ -1376,12 +1655,7 @@ export async function seedDatabase() {
 }
 
 export async function bootstrapSirdaryoPilotData(database = db): Promise<boolean> {
-  // If Sirdaryo pharmacy already exists in database, skip
-  if (database.stores.has(SEED_IDS.sirdaryoPharmStoreId)) {
-    return false;
-  }
-
-  console.log('[Pilot Bootstrap] Sirdaryo / Guliston dorixona va mahsulotlari yuklanmoqda...');
+  console.log('[Pilot Bootstrap] Sirdaryo / Guliston do‘kon va mahsulotlari yuklanmoqda...');
 
   // 1. Organizations
   const orgs = [
@@ -1547,6 +1821,132 @@ export async function bootstrapSirdaryoPilotData(database = db): Promise<boolean
       sku: 'COLA-150',
       photoUrl: 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?w=120&auto=format&fit=crop&q=80',
       aliases: ['cola', 'kola', 'coca cola', 'кока кола']
+    },
+    {
+      id: SEED_IDS.nonVariantId,
+      productId: '5ce54a7c-e49f-4799-bd6d-ab29f95f2f3e',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: 'Tandir non (Issiq patir)',
+      brand: 'Nonvoyxona',
+      category: 'Non mahsulotlari',
+      packSize: '1 dona',
+      packUnit: 'dona',
+      barcode: '47800011',
+      sku: 'NON-001',
+      photoUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=120&auto=format&fit=crop&q=80',
+      aliases: ['non', 'tandir non', 'patir', 'nonvoy', 'хлеб', 'лепешка']
+    },
+    {
+      id: SEED_IDS.sutVariantId,
+      productId: '6ce54a7c-e49f-4799-bd6d-ab29f95f2f3f',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: 'Musaffo Sut 3.2% 1 L',
+      brand: 'Musaffo',
+      category: 'Sut mahsulotlari',
+      packSize: '1 l',
+      packUnit: 'dona',
+      barcode: '47800012',
+      sku: 'SUT-001',
+      photoUrl: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=120&auto=format&fit=crop&q=80',
+      aliases: ['sut', 'musaffo', 'молоко', 'sut 3.2']
+    },
+    {
+      id: SEED_IDS.yogVariantId,
+      productId: '7ce54a7c-e49f-4799-bd6d-ab29f95f2f40',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: 'Oila Tanlovi Pista yog‘i 1 L',
+      brand: 'Oila Tanlovi',
+      category: 'Oziq-ovqat',
+      packSize: '1 l',
+      packUnit: 'dona',
+      barcode: '47800013',
+      sku: 'YOG-001',
+      photoUrl: 'https://images.unsplash.com/photo-1474979266404-7eaacbcd87c5?w=120&auto=format&fit=crop&q=80',
+      aliases: ['yog', 'yog‘', 'pista yogi', 'oila tanlovi', 'масло']
+    },
+    {
+      id: SEED_IDS.shakarVariantId,
+      productId: '8ce54a7c-e49f-4799-bd6d-ab29f95f2f41',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: 'Shakar 1 kg',
+      brand: 'Xorazm Shakar',
+      category: 'Oziq-ovqat',
+      packSize: '1 kg',
+      packUnit: 'kg',
+      barcode: '47800014',
+      sku: 'SHK-001',
+      photoUrl: 'https://images.unsplash.com/photo-1581441363689-1f3c3c414635?w=120&auto=format&fit=crop&q=80',
+      aliases: ['shakar', 'shakar 1kg', 'saxar', 'сахар']
+    },
+    {
+      id: SEED_IDS.choyVariantId,
+      productId: '9ce54a7c-e49f-4799-bd6d-ab29f95f2f42',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: 'Ahmad Tea Qora choy 100 g',
+      brand: 'Ahmad Tea',
+      category: 'Choy va Kofe',
+      packSize: '100 g',
+      packUnit: 'quti',
+      barcode: '47800015',
+      sku: 'CHY-001',
+      photoUrl: 'https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=120&auto=format&fit=crop&q=80',
+      aliases: ['choy', 'qora choy', 'ahmad tea', 'чай']
+    },
+    {
+      id: SEED_IDS.tuxumVariantId,
+      productId: 'ace54a7c-e49f-4799-bd6d-ab29f95f2f43',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: 'Tuxum S1 10 dona',
+      brand: 'Parranda Fayz',
+      category: 'Oziq-ovqat',
+      packSize: '10 dona',
+      packUnit: 'qadoq',
+      barcode: '47800016',
+      sku: 'TXM-010',
+      photoUrl: 'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=120&auto=format&fit=crop&q=80',
+      aliases: ['tuxum', 'tuxum 10 dona', 'яйца', 'parranda']
+    },
+    {
+      id: SEED_IDS.unVariantId,
+      productId: 'bce54a7c-e49f-4799-bd6d-ab29f95f2f44',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: "Oliy navli bug'doy uni (Oltin Don, 1 kg)",
+      brand: 'Oltin Don',
+      category: 'Oziq-ovqat',
+      packSize: '1 kg',
+      packUnit: 'kg',
+      barcode: '47800017',
+      sku: 'UN-001',
+      photoUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=120&auto=format&fit=crop&q=80',
+      aliases: ['un', "bug'doy uni", 'un 1kg', 'oliy nav un', 'мука']
+    },
+    {
+      id: SEED_IDS.unMakfaVariantId,
+      productId: 'cce54a7c-e49f-4799-bd6d-ab29f95f2f45',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: "Makfa oliy navli bug'doy uni (2 kg)",
+      brand: 'Makfa',
+      category: 'Oziq-ovqat',
+      packSize: '2 kg',
+      packUnit: 'qadoq',
+      barcode: '47800018',
+      sku: 'UN-MAK-002',
+      photoUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=120&auto=format&fit=crop&q=80',
+      aliases: ['un', 'makfa', 'makfa un', 'мука макфа']
+    },
+    {
+      id: SEED_IDS.unQozoqVariantId,
+      productId: 'dce54a7c-e49f-4799-bd6d-ab29f95f2f46',
+      organizationId: SEED_IDS.gulistonMarketOrgId,
+      title: "Qozog'iston 1-nav bug'doy uni (50 kg qop)",
+      brand: 'Qozoq Un',
+      category: 'Oziq-ovqat',
+      packSize: '50 kg',
+      packUnit: 'qop',
+      barcode: '47800019',
+      sku: 'UN-QOZ-050',
+      photoUrl: 'https://images.unsplash.com/photo-1509440159596-0249088772ff?w=120&auto=format&fit=crop&q=80',
+      aliases: ['un', 'qop un', 'qozoq un', '50 kg un', 'мука 50кг']
     }
   ];
   for (const v of variants) {
@@ -1685,7 +2085,16 @@ export async function bootstrapSirdaryoPilotData(database = db): Promise<boolean
 
     // Guliston Supermarket
     { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.snickers50gVariantId, price: '8500.00', stockOnHand: 50 },
-    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.cola15lVariantId, price: '14000.00', stockOnHand: 40 }
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.cola15lVariantId, price: '14000.00', stockOnHand: 40 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.nonVariantId, price: '3500.00', stockOnHand: 100 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.sutVariantId, price: '11500.00', stockOnHand: 60 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.yogVariantId, price: '16000.00', stockOnHand: 45 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.shakarVariantId, price: '12000.00', stockOnHand: 80 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.choyVariantId, price: '18000.00', stockOnHand: 35 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.tuxumVariantId, price: '14000.00', stockOnHand: 50 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.unVariantId, price: '7500.00', stockOnHand: 150 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.unMakfaVariantId, price: '19000.00', stockOnHand: 60 },
+    { storeId: SEED_IDS.gulistonMarketStoreId, variantId: SEED_IDS.unQozoqVariantId, price: '340000.00', stockOnHand: 25 }
   ];
 
   for (const item of offersList) {

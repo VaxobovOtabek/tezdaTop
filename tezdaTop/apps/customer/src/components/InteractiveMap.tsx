@@ -4,7 +4,7 @@ import 'leaflet/dist/leaflet.css';
 import { StoreSearchResult, RouteResponse, Store } from '@yaqintop/contracts';
 import { UZBEKISTAN_REGIONS } from '@yaqintop/ui';
 import { getProductThumbnail, DEFAULT_PRODUCT_THUMBNAIL } from '../utils/product-thumbnails';
-import { Navigation, MapPin, Maximize2, Store as StoreIcon, Crosshair, CircleDot, XCircle, X, ExternalLink } from 'lucide-react';
+import { Maximize2, Crosshair, CircleDot, XCircle, ExternalLink } from 'lucide-react';
 import { loadMapCatalog, getMemoryCachedCatalog } from '../utils/map-cache';
 import uzumMapLogo from '../assets/uzum/map-logo.png';
 
@@ -339,8 +339,8 @@ interface InteractiveMapProps {
   nearbyStores?: NearbyStoreItem[];
   selectedResult: StoreSearchResult | null;
   selectedNearbyStore?: NearbyStoreItem | null;
-  onSelectStore: (store: StoreSearchResult) => void;
-  onSelectNearbyStore?: (store: NearbyStoreItem) => void;
+  onSelectStore: (store: StoreSearchResult | null) => void;
+  onSelectNearbyStore?: (store: NearbyStoreItem | null) => void;
   onOpenDetail: (store: StoreSearchResult) => void;
   onOpenNearbyDetail?: (store: NearbyStoreItem) => void;
   onNavigate: (store: StoreSearchResult | { store: any; distanceM?: number }) => void;
@@ -360,11 +360,18 @@ interface InteractiveMapProps {
   onLocationChange?: (lat: number, lng: number) => void;
   onToast?: (msg: string) => void;
   recenterTrigger?: number;
+  searchQuery?: string;
 }
 
-type PlacePopupActions = Pick<InteractiveMapProps, 'onOpenNearbyDetail' | 'onNavigate' | 'onSelectNearbyStore'>;
+type PlacePopupActions = Pick<InteractiveMapProps, 'onOpenNearbyDetail' | 'onNavigate' | 'onSelectNearbyStore' | 'onSelectStore'>;
 
-function bindPlacePopup(marker: L.Marker, html: string, item: NearbyStoreItem, actions: { current: PlacePopupActions }) {
+function bindPlacePopup(
+  marker: L.Marker,
+  html: string,
+  item: NearbyStoreItem,
+  actions: { current: PlacePopupActions },
+  isOpeningMarkerPopupRef?: React.MutableRefObject<boolean>
+) {
   const content = document.createElement('div');
   content.innerHTML = html;
   content.querySelector('[data-popup-action="detail"]')?.addEventListener('click', (event) => {
@@ -377,6 +384,16 @@ function bindPlacePopup(marker: L.Marker, html: string, item: NearbyStoreItem, a
   });
   marker.bindPopup(content, { offset: [0, -18], autoPan: false });
   marker.on('popupopen', () => {
+    actions.current.onSelectNearbyStore?.(item);
+  });
+  marker.on('click', (e) => {
+    L.DomEvent.stopPropagation(e);
+    if (isOpeningMarkerPopupRef) {
+      isOpeningMarkerPopupRef.current = true;
+      setTimeout(() => {
+        isOpeningMarkerPopupRef.current = false;
+      }, 150);
+    }
     actions.current.onSelectNearbyStore?.(item);
   });
 }
@@ -408,7 +425,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   userDistrict,
   onLocationChange,
   onToast,
-  recenterTrigger
+  recenterTrigger,
+  searchQuery
 }) => {
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -435,11 +453,12 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const uzumPointsRef = useRef<any[]>([]);
   const gameClubsRef = useRef<any[]>([]);
   const korzinkaStoresRef = useRef<any[]>([]);
-  const popupActions = useRef({ onOpenNearbyDetail, onNavigate, onSelectNearbyStore });
+  const isOpeningMarkerPopupRef = useRef(false);
+  const popupActions = useRef<PlacePopupActions>({ onOpenNearbyDetail, onNavigate, onSelectNearbyStore, onSelectStore });
 
   useEffect(() => {
-    popupActions.current = { onOpenNearbyDetail, onNavigate, onSelectNearbyStore };
-  }, [onOpenNearbyDetail, onNavigate, onSelectNearbyStore]);
+    popupActions.current = { onOpenNearbyDetail, onNavigate, onSelectNearbyStore, onSelectStore };
+  }, [onOpenNearbyDetail, onNavigate, onSelectNearbyStore, onSelectStore]);
 
   useEffect(() => {
     uzumPointsRef.current = uzumPoints;
@@ -480,6 +499,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
   const activeKorzinkaInRegion = useMemo(() => {
     return korzinkaStores.filter((k) => matchesLocationFilter(k, userRegion, userDistrict, userLocation));
   }, [korzinkaStores, userRegion, userDistrict, userLocation]);
+
+  const isProductSearchActive = Boolean((searchQuery || '').trim() && results.length > 0);
 
   // Global handlers for Leaflet popups
   useEffect(() => {
@@ -614,11 +635,14 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
     let map: L.Map;
+    const containerElem = mapContainerRef.current;
+    let handleContainerClick: ((e: MouseEvent) => void) | undefined;
     try {
       map = L.map(mapContainerRef.current, {
         center: [userLat, userLng],
         zoom: isMobile ? 16 : 15,
-        zoomControl: false
+        zoomControl: false,
+        attributionControl: false
       });
 
       // Fast, resilient OpenStreetMap tiles with keepBuffer & fast update settings
@@ -628,7 +652,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         keepBuffer: 12,
         updateWhenIdle: false,
         updateInterval: 100,
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>',
+        attribution: '',
         crossOrigin: true
       }).addTo(map);
 
@@ -637,11 +661,41 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       });
       setCurrentZoom(map.getZoom());
 
-      map.on('click', () => {
-        if (window.innerWidth < 768) {
-          onSelectNearbyStore?.(null as any);
-        }
+      const handleEmptyMapClick = () => {
+        if (isOpeningMarkerPopupRef.current) return;
+        try {
+          map.closePopup();
+        } catch {}
+        popupActions.current.onSelectStore?.(null);
+        popupActions.current.onSelectNearbyStore?.(null);
+      };
+
+      map.on('click', handleEmptyMapClick);
+
+      map.on('popupclose', () => {
+        if (isOpeningMarkerPopupRef.current) return;
+        setTimeout(() => {
+          if (isOpeningMarkerPopupRef.current) return;
+          popupActions.current.onSelectStore?.(null);
+          popupActions.current.onSelectNearbyStore?.(null);
+        }, 50);
       });
+
+      handleContainerClick = (e: MouseEvent) => {
+        const target = e.target as HTMLElement | null;
+        if (!target) return;
+        if (
+          target.closest('.leaflet-popup') ||
+          target.closest('.custom-store-pin') ||
+          target.closest('.leaflet-marker-icon') ||
+          target.closest('.leaflet-control') ||
+          target.closest('button')
+        ) {
+          return;
+        }
+        handleEmptyMapClick();
+      };
+      containerElem?.addEventListener('click', handleContainerClick);
 
       const markersLayer = L.layerGroup().addTo(map);
       const routeMarkersLayer = L.layerGroup().addTo(map);
@@ -690,6 +744,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       clearTimeout(timer3);
       window.removeEventListener('resize', handleWindowResize);
       resizeObserver.disconnect();
+      if (containerElem && handleContainerClick) {
+        containerElem.removeEventListener('click', handleContainerClick);
+      }
       if (mapInstanceRef.current) {
         try {
           mapInstanceRef.current.remove();
@@ -892,8 +949,8 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     const isZoomedIn = currentZoom >= 16;
     const placedBadgePositions: { x: number; y: number }[] = [];
 
-    // Case 1: Product search active
-    if (results.length > 0) {
+    // Case 1: Product search active (ONLY when search input has text and matching products found)
+    if (Boolean(searchQuery?.trim()) && results.length > 0) {
       // Prioritize selected item so its badge is always placed and on top
       const sortedResults = [...results].sort((a, b) => {
         if (selectedResult?.store?.id === a.store?.id) return -1;
@@ -901,9 +958,16 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         return 0;
       });
 
+      const placedStoreIds = new Set<string>();
+
       sortedResults.forEach((item) => {
+        if (!item?.store?.id) return;
+        if (placedStoreIds.has(item.store.id)) return;
+        placedStoreIds.add(item.store.id);
+
         const latLng = getStoreLatLng(item?.store);
         if (!latLng) return;
+        if (radiusM && radiusM > 0 && typeof item.distanceM === 'number' && item.distanceM > radiusM) return;
 
         const isSelected = selectedResult?.store?.id === item.store?.id;
         const pt = map.latLngToContainerPoint(latLng);
@@ -924,59 +988,26 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         }
         const formattedPrice = Number(item.bestOffer?.price || 0).toLocaleString('uz-UZ');
 
-        let markerIcon: L.DivIcon;
-
-        const isGameClub = item.store?.type === 'GAME_CLUB' || item.store?.id?.startsWith('gameclub-');
-        if (isGameClub && !showGameClubs) {
-          return;
-        }
-
         const poi = getPoiTheme({ ...item.store, type: item.store?.type }, isDarkMode);
-        if (poi.category === 'KORZINKA' && !showKorzinka) return;
-        const isPharmacy = poi.category === 'PHARMACY' || item.store?.type === 'PHARMACY';
-        if (isPharmacy && !showPharmacies) {
-          return;
-        }
 
-        if (!showFullName) {
-          // Compact POI disc when zoomed out
-          markerIcon = L.divIcon({
-            className: 'custom-store-pin',
-            html: `
-              <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, -50%); display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; cursor: pointer; pointer-events: auto;">
-                <div style="width: 18px; height: 18px; border-radius: 9999px; background: ${poi.discBg}; border: 1.5px solid ${poi.discBorder}; box-shadow: 0 2px 5px ${poi.shadow}; display: flex; align-items: center; justify-content: center; font-size: 10px;">
-                  ${poi.icon}
-                </div>
+        // Prominent green price pill with store name underneath for all searched products
+        const markerIcon = L.divIcon({
+          className: 'custom-store-pin',
+          html: `
+            <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none; width: max-content;">
+              <div style="display: flex; align-items: center; gap: 4px; background: #087F5B; color: #ffffff; padding: 3px 8px; border-radius: 9999px; border: 1.5px solid #ffffff; box-shadow: 0 3px 8px rgba(8, 127, 91, 0.45), 0 0 0 ${isSelected ? '3.5px #10B981' : '0px transparent'}; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11.5px; font-weight: 800; white-space: nowrap; transform: ${isSelected ? 'scale(1.12)' : 'scale(1)'}; transition: transform 0.15s ease-out;">
+                <span style="font-size: 11px; line-height: 1;">${poi.icon}</span>
+                <span>${formattedPrice} so‘m</span>
               </div>
-            `,
-            iconSize: [0, 0],
-            iconAnchor: [0, 0],
-            popupAnchor: [0, -14]
-          });
-        } else {
-          // Native POI style: circular icon disc + crystal-clear store name & price pill
-          markerIcon = L.divIcon({
-            className: 'custom-store-pin',
-            html: `
-              <div style="position: absolute; left: 0; bottom: 0; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; pointer-events: auto; cursor: pointer; user-select: none; width: max-content;">
-                <div style="position: relative; width: 26px; height: 26px; border-radius: 9999px; background: ${poi.discBg}; border: 2px solid ${poi.discBorder}; box-shadow: 0 2px 6px ${poi.shadow}, 0 0 0 ${isSelected ? '3.5px #10B981' : '1.5px rgba(255,255,255,0.95)'}; display: flex; align-items: center; justify-content: center; font-size: 13px; line-height: 1; transform: ${isSelected ? 'scale(1.15)' : 'scale(1)'}; transition: transform 0.15s ease-out;">
-                  ${poi.icon}
-                </div>
-                <div style="margin-top: 3px; display: flex; flex-direction: column; align-items: center; width: max-content; background: ${isDarkMode ? 'rgba(15, 23, 42, 0.94)' : 'rgba(255, 255, 255, 0.96)'}; padding: 2.5px 8px; border-radius: 6px; border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.1)'}; box-shadow: 0 2px 6px rgba(0,0,0,0.22);">
-                  <div style="white-space: nowrap; max-width: 170px; overflow: hidden; text-overflow: ellipsis; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 11.5px; font-weight: 800; color: ${poi.color}; text-align: center; line-height: 1.25; letter-spacing: -0.15px;">
-                    ${item.store.name}
-                  </div>
-                  <div style="font-size: 10.5px; font-weight: 800; color: #116B50; margin-top: 1px; white-space: nowrap;">
-                    ${formattedPrice} so‘m
-                  </div>
-                </div>
+              <div style="margin-top: 2px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 10px; font-weight: 700; color: ${isDarkMode ? '#E2E8F0' : '#1E293B'}; background: ${isDarkMode ? 'rgba(15, 23, 42, 0.9)' : 'rgba(255, 255, 255, 0.95)'}; padding: 1.5px 6px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.18); border: 1px solid ${isDarkMode ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'}; text-align: center;">
+                ${item.store.name}
               </div>
-            `,
-            iconSize: [0, 0],
-            iconAnchor: [0, 0],
-            popupAnchor: [0, -22]
-          });
-        }
+            </div>
+          `,
+          iconSize: [0, 0],
+          iconAnchor: [0, 0],
+          popupAnchor: [0, -22]
+        });
 
         const marker = L.marker(latLng, {
           icon: markerIcon,
@@ -1008,7 +1039,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
               </span>
             </div>
             <div id="btn-popup-prod-box-${item.store.id}" onclick="window.__yaqintop_open_product_modal && window.__yaqintop_open_product_modal('${item.store.id}')" style="background: ${popupCardBg}; border: 1px solid ${popupBorder}; border-radius: 8px; padding: 6px 8px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; cursor: pointer;" title="Tovar ma‘lumotlari va muqobillarini ko‘rish">
-              <img id="btn-popup-thumb-${item.store.id}" src="${productThumb}" alt="${item.bestOffer?.variant?.title || 'Mahsulot'}" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; background: #fff; flex-shrink: 0; border: 1px solid ${popupBorder}; cursor: pointer;" />
+              <img id="btn-popup-thumb-${item.store.id}" src="${productThumb}" alt="${item.bestOffer?.variant?.title || 'Mahsulot'}" onerror="this.onerror=null;this.src='${DEFAULT_PRODUCT_THUMBNAIL}';" style="width: 38px; height: 38px; border-radius: 6px; object-fit: cover; background: #fff; flex-shrink: 0; border: 1px solid ${popupBorder}; cursor: pointer;" />
               <div style="min-width: 0; flex: 1;">
                 <div id="btn-prod-${item.store.id}" onclick="window.__yaqintop_open_product_modal && window.__yaqintop_open_product_modal('${item.store.id}')" style="font-size: 12px; font-weight: 700; color: #116B50; cursor: pointer; text-decoration: underline; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                   ${item.bestOffer?.variant?.title || 'Mahsulot'} ↗
@@ -1063,6 +1094,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
         marker.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
+          isOpeningMarkerPopupRef.current = true;
+          setTimeout(() => {
+            isOpeningMarkerPopupRef.current = false;
+          }, 150);
           onSelectStore(item);
           try {
             marker.openPopup();
@@ -1079,6 +1114,9 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
           }, 40);
         }
       });
+    } else if ((searchQuery || '').trim()) {
+      // Product search active, 0 matches found in this region: do not show unrelated stores
+      return;
     } else {
       // Case 2: Nearby stores browse mode
       // Prioritize selected item so its badge is always placed and on top
@@ -1091,6 +1129,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
       sortedNearby.forEach(item => {
         const latLng = getStoreLatLng(item.store);
         if (!latLng) return;
+        if (radiusM && radiusM > 0 && typeof item.distanceM === 'number' && item.distanceM > radiusM) return;
         const isSelected = selectedNearbyStore?.store?.id === item.store?.id;
         const pt = map.latLngToContainerPoint(latLng);
 
@@ -1228,6 +1267,10 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
 
         marker.on('click', (e) => {
           L.DomEvent.stopPropagation(e);
+          isOpeningMarkerPopupRef.current = true;
+          setTimeout(() => {
+            isOpeningMarkerPopupRef.current = false;
+          }, 150);
           onSelectNearbyStore?.(item);
           try {
             marker.openPopup();
@@ -1245,7 +1288,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         }
       });
     }
-  }, [results, nearbyStores, selectedResult, selectedNearbyStore, currentZoom, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail, onSelectStore, showGameClubs, showPharmacies, showKorzinka]);
+  }, [results, nearbyStores, selectedResult, selectedNearbyStore, currentZoom, view, isDarkMode, mapReady, onSelectNearbyStore, onOpenNearbyDetail, onSelectStore, showGameClubs, showPharmacies, showKorzinka, searchQuery, radiusM]);
 
   // Render Uzum Market Points (active in all environments including production deploy)
   useEffect(() => {
@@ -1254,13 +1297,20 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     if (!map || !layer) return;
 
     layer.clearLayers();
-    if (!showUzumPoints || view === 'route' || !activeUzumInRegion.length) return;
+    if (isProductSearchActive || !showUzumPoints || view === 'route' || !activeUzumInRegion.length) return;
 
     const bounds = map.getBounds().pad(0.15);
     const visiblePoints = activeUzumInRegion.filter((p) => {
       const lat = p.location?.lat;
       const lng = p.location?.lng;
-      return lat && lng && bounds.contains([lat, lng]);
+      if (!lat || !lng || !bounds.contains([lat, lng])) return false;
+      if (radiusM && radiusM > 0 && userLocation?.lat && userLocation?.lng) {
+        const dLat = (lat - userLocation.lat) * 111320;
+        const dLng = (lng - userLocation.lng) * 111320 * Math.cos((userLocation.lat * Math.PI) / 180);
+        const distM = Math.sqrt(dLat * dLat + dLng * dLng);
+        if (distM > radiusM) return false;
+      }
+      return true;
     });
 
     // Render up to 120 visible points for silky smooth rendering
@@ -1323,11 +1373,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         distanceM: 0,
         isOpenNow: true,
         offersCount: 2
-      }, popupActions);
+      }, popupActions, isOpeningMarkerPopupRef);
 
       layer.addLayer(marker);
     });
-  }, [activeUzumInRegion, showUzumPoints, mapViewportKey, view, isDarkMode]);
+  }, [activeUzumInRegion, showUzumPoints, mapViewportKey, view, isDarkMode, isProductSearchActive]);
 
   // Render Game Clubs (active in all environments including production deploy)
   useEffect(() => {
@@ -1336,7 +1386,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     if (!map || !layer) return;
 
     layer.clearLayers();
-    if (!showGameClubs || view === 'route' || !activeClubsInRegion.length) return;
+    if (isProductSearchActive || !showGameClubs || view === 'route' || !activeClubsInRegion.length) return;
 
     const bounds = map.getBounds().pad(0.15);
     const visibleClubs = activeClubsInRegion.filter((p) => {
@@ -1431,11 +1481,11 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         distanceM: 0,
         isOpenNow: true,
         offersCount: 6
-      }, popupActions);
+      }, popupActions, isOpeningMarkerPopupRef);
 
       layer.addLayer(marker);
     });
-  }, [activeClubsInRegion, showGameClubs, mapViewportKey, currentZoom, view, isDarkMode]);
+  }, [activeClubsInRegion, showGameClubs, mapViewportKey, currentZoom, view, isDarkMode, isProductSearchActive]);
 
   // Render Korzinka Supermarkets (Active across Uzbekistan)
   useEffect(() => {
@@ -1444,7 +1494,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
     if (!map || !layer) return;
 
     layer.clearLayers();
-    if (!showKorzinka || view === 'route' || !activeKorzinkaInRegion.length) return;
+    if (isProductSearchActive || !showKorzinka || view === 'route' || !activeKorzinkaInRegion.length) return;
 
     const bounds = map.getBounds().pad(0.15);
     const visibleStores = activeKorzinkaInRegion.filter((p) => {
@@ -1539,16 +1589,36 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         distanceM: 0,
         isOpenNow: true,
         offersCount: 269
-      }, popupActions);
+      }, popupActions, isOpeningMarkerPopupRef);
 
       layer.addLayer(marker);
     });
-  }, [activeKorzinkaInRegion, showKorzinka, mapViewportKey, currentZoom, view, isDarkMode]);
+  }, [activeKorzinkaInRegion, showKorzinka, mapViewportKey, currentZoom, view, isDarkMode, isProductSearchActive]);
 
   // Clear the popup when selection is cleared without changing the map viewport.
   useEffect(() => {
     if (view !== 'route' && !selectedResult && !selectedNearbyStore) mapInstanceRef.current?.closePopup();
   }, [selectedResult, selectedNearbyStore, view]);
+
+  // Auto-fit map bounds to matching stores carrying the searched product
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map || !mapReady || view === 'route') return;
+    if (!searchQuery?.trim() || !results.length) return;
+
+    const validPoints: [number, number][] = results
+      .map((r) => getStoreLatLng(r?.store))
+      .filter((pt): pt is [number, number] => pt !== null);
+
+    if (validPoints.length === 1) {
+      map.setView(validPoints[0], Math.max(map.getZoom(), 15), { animate: true });
+    } else if (validPoints.length > 1) {
+      const bounds = L.latLngBounds(validPoints);
+      map.fitBounds(bounds, { padding: [60, 60], maxZoom: 16, animate: true });
+    }
+  }, [results, searchQuery, mapReady, view]);
+
+
 
   // Update Route Polyline & Destination Marker
   useEffect(() => {
@@ -1901,60 +1971,7 @@ export const InteractiveMap: React.FC<InteractiveMapProps> = ({
         </div>
       </div>
 
-      {/* Mobile Floating Card for Selected Nearby Store (when user taps store pin on map) */}
-      {!results.length && selectedNearbyStore && view !== 'route' && (
-        <div className="absolute bottom-[140px] md:hidden left-3 right-3 z-30 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-200">
-          <div className="bg-white/95 dark:bg-[#14201A]/95 backdrop-blur-md border border-[#116B50]/30 dark:border-[#4ADE80]/30 rounded-2xl p-3.5 sm:p-4 shadow-xl pointer-events-auto flex flex-col gap-2.5">
-            <div className="flex items-start justify-between gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="px-2 py-0.5 rounded-md bg-[#E0EFE7] dark:bg-[#1E362A] text-[#116B50] dark:text-[#4ADE80] text-[11px] font-black uppercase tracking-wider">
-                    {selectedNearbyStore.store?.type === 'WHOLESALE' ? 'Ulgurji' : 'Do‘kon'}
-                  </span>
-                  <span className={selectedNearbyStore.isOpenNow ? 'text-[#116B50] dark:text-[#4ADE80] text-xs font-bold' : 'text-red-500 text-xs font-bold'}>
-                    {selectedNearbyStore.isOpenNow ? '● Ochiq' : '○ Yopiq'}
-                  </span>
-                </div>
-                <h3 className="font-extrabold text-base text-[#172C28] dark:text-[#E8F2EC] truncate">
-                  {selectedNearbyStore.store?.name || selectedNearbyStore.organization?.name}
-                </h3>
-                <p className="text-xs text-[#566A63] dark:text-[#8B9E95] mt-0.5 truncate">
-                  📍 {selectedNearbyStore.store?.address || 'Toshkent shahri'}
-                  {selectedNearbyStore.distanceM && (
-                    <span className="font-bold text-[#116B50] dark:text-[#4ADE80] ml-1">
-                      · {selectedNearbyStore.distanceM >= 1000 ? `${(selectedNearbyStore.distanceM / 1000).toFixed(1)} km` : `${selectedNearbyStore.distanceM} m`}
-                    </span>
-                  )}
-                </p>
-              </div>
-              <button
-                onClick={() => onSelectNearbyStore?.(null as any)}
-                className="text-[#8B9E95] hover:text-[#172C28] dark:hover:text-white p-1.5 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-800 transition"
-                title="Yopish"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
 
-            <div className="flex items-center gap-2 pt-2 border-t border-[#DCE5DF]/60 dark:border-[#273B32]">
-              <button
-                onClick={() => onOpenNearbyDetail?.(selectedNearbyStore)}
-                className="flex-1 min-h-[44px] py-2.5 px-3 rounded-xl bg-[#116B50] active:scale-95 text-white text-xs sm:text-sm font-bold transition flex items-center justify-center gap-1.5 shadow-xs"
-              >
-                <StoreIcon className="w-4 h-4" />
-                <span>Sahifasiga o‘tish</span>
-              </button>
-              <button
-                onClick={() => onNavigate?.({ store: selectedNearbyStore.store, distanceM: selectedNearbyStore.distanceM || 0 })}
-                className="min-h-[44px] py-2.5 px-3.5 rounded-xl bg-[#E0EFE7] dark:bg-[#1E362A] active:scale-95 text-[#116B50] dark:text-[#4ADE80] text-xs sm:text-sm font-bold transition flex items-center gap-1.5"
-              >
-                <Navigation className="w-4 h-4" />
-                <span>Marshrut</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
           </div>
   );

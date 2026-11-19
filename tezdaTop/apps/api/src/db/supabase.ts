@@ -215,12 +215,19 @@ export function hydrateDatabase(db: InMemoryDatabase, rows: Rows) {
   for (const r of rows.application_records || []) if (extras.includes(r.collection)) state[r.collection].push([r.record_id,r.payload]);
   const storeIds = new Set(state.stores.map(([id]: [string, unknown]) => id));
   const variantIds = new Set(state.variants.map(([id]: [string, unknown]) => id));
-  for (const [, offer] of state.offers) {
-    if (!storeIds.has(offer.storeId) || !variantIds.has(offer.variantId)) throw new Error('Snapshot contains an offer without a store or variant');
+  if (state.stores.length > 0) {
+    state.offers = state.offers.filter(([, offer]: any) => storeIds.has(offer.storeId) && variantIds.has(offer.variantId));
+  } else {
+    state.offers = state.offers.filter(([, offer]: any) => variantIds.has(offer.variantId));
   }
   db.restoreSnapshot(state);
   for (const store of db.stores.values()) store.type=store.type || db.organizations.get(store.organizationId)?.type || 'RETAIL';
-  for (const offer of db.offers.values()) { const variant=db.variants.get(offer.variantId); if (!variant) throw new Error(`Offer ${offer.id} has no variant`); offer.variant=variant; offer.freshness=db.computeFreshness(offer.stockVerifiedAt); }
+  for (const offer of db.offers.values()) {
+    const variant = db.variants.get(offer.variantId);
+    if (!variant) continue;
+    offer.variant = variant;
+    offer.freshness = db.computeFreshness(offer.stockVerifiedAt);
+  }
 }
 
 export async function syncAllFromSupabase(db: InMemoryDatabase, force = false, requireRemote = false): Promise<boolean> {

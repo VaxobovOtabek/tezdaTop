@@ -84,7 +84,9 @@ export async function ensureDbInitialized() {
         } else if (demo && !localLoaded && process.env.ALLOW_DEMO_SEED === 'true') {
           await demo.seedDatabase();
           db.saveToFile();
-        } else if (demo && process.env.NODE_ENV !== 'test') {
+        }
+
+        if (demo && process.env.NODE_ENV !== 'test') {
           try {
             await demo.bootstrapSirdaryoPilotData(db);
             if (demo.bootstrapSurxondaryoStores) {

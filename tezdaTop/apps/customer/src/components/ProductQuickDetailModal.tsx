@@ -394,6 +394,10 @@ export const ProductQuickDetailModal: React.FC<ProductQuickDetailModalProps> = (
                       <img
                         src={getProductThumbnail({ title: altName })}
                         alt=""
+                        onError={(e) => {
+                          e.currentTarget.onerror = null;
+                          e.currentTarget.src = DEFAULT_PRODUCT_THUMBNAIL;
+                        }}
                         className="w-full h-full object-cover rounded-xs"
                       />
                     </div>

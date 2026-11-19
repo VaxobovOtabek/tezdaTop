@@ -26,6 +26,8 @@ export interface MobileBottomSheetProps {
   onOpenProductModal?: (item: any) => void;
   searchQuery: string;
   locationName: string;
+  searchTab?: 'product' | 'service' | 'store';
+  onSelectSearchTab?: (tab: 'product' | 'service' | 'store') => void;
 }
 
 const POPULAR_SEARCH_PILLS = [
@@ -97,34 +99,41 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
   onSearchQuery,
   onOpenProductModal,
   searchQuery,
-  locationName
+  locationName,
+  searchTab,
+  onSelectSearchTab
 }) => {
   const [sheetState, setSheetState] = useState<'collapsed' | 'open'>('collapsed');
-  const [filterType, setFilterType] = useState<'all' | 'product' | 'service'>('all');
+  const [internalFilterType, setInternalFilterType] = useState<'product' | 'service' | 'store'>('product');
+  const filterType = searchTab ?? internalFilterType;
+  const setFilterType = (tab: 'product' | 'service' | 'store') => {
+    setInternalFilterType(tab);
+    onSelectSearchTab?.(tab);
+  };
 
-  const hasActiveSearch = Boolean(searchQuery.trim());
   const cleanLocation = locationName ? locationName.split(',')[0] : 'Guliston';
+  const hasActiveSearch = Boolean(searchQuery.trim());
 
-  // Choose primary dataset: search results if available/searched, else nearby stores/services
-  const baseList = useMemo(() => {
-    if (hasActiveSearch || items.length > 0) {
-      return items;
-    }
-    return nearbyStores;
-  }, [hasActiveSearch, items, nearbyStores]);
+  const productList = useMemo(() => items.filter(isItemProduct), [items]);
+  const serviceList = useMemo(() => {
+    const fromItems = items.filter(isItemService);
+    const fromStores = nearbyStores.filter(isItemService);
+    return [...fromItems, ...fromStores];
+  }, [items, nearbyStores]);
+  const storeList = useMemo(() => nearbyStores, [nearbyStores]);
 
   // Overall counts for filter tabs
-  const totalCount = baseList.length;
-  const productCount = useMemo(() => baseList.filter(isItemProduct).length, [baseList]);
-  const serviceCount = useMemo(() => baseList.filter(isItemService).length, [baseList]);
+  const productCount = productList.length;
+  const serviceCount = serviceList.length;
+  const storeCount = storeList.length;
 
   // Filtered dataset
   const filteredList = useMemo(() => {
-    let list = baseList;
+    let list: any[] = productList;
     if (filterType === 'service') {
-      list = baseList.filter(isItemService);
-    } else if (filterType === 'product') {
-      list = baseList.filter(isItemProduct);
+      list = serviceList;
+    } else if (filterType === 'store') {
+      list = storeList;
     }
 
     if (!selectedItem) return list;
@@ -136,7 +145,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
       if (bId === targetId) return 1;
       return 0;
     });
-  }, [baseList, filterType, selectedItem]);
+  }, [filterType, productList, serviceList, storeList, selectedItem]);
 
   const toggleExpand = () => {
     setSheetState((prev) => (prev === 'collapsed' ? 'open' : 'collapsed'));
@@ -157,7 +166,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
         <div className="w-full flex items-center justify-between px-2">
           <div className="flex items-center gap-2 min-w-0">
             <span className="font-extrabold text-sm text-[#172B26] dark:text-white shrink-0">
-              {hasActiveSearch ? 'Topilgan tovarlar' : 'Tovar va xizmatlar'}
+              {filterType === 'product' ? 'Topilgan tovarlar' : filterType === 'service' ? 'Xizmatlar' : 'Do‘konlar'}
             </span>
             <span className="bg-[#E8F5EE] dark:bg-[#1E362A] text-[#087F5B] dark:text-[#4ADE80] text-xs font-black px-2 py-0.5 rounded-full shrink-0">
               {filteredList.length} ta
@@ -169,11 +178,11 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
               </span>
             ) : (
               <span className="text-xs text-[#64748B] dark:text-[#8B9E95] truncate">
-                {hasActiveSearch ? `"${searchQuery}"` : cleanLocation}
+                {searchQuery.trim() ? `"${searchQuery}"` : cleanLocation}
               </span>
             )}
 
-            {hasActiveSearch && onClearSearch && (
+            {searchQuery.trim() && onClearSearch && (
               <button
                 type="button"
                 onClick={(e) => {
@@ -198,24 +207,8 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
         </div>
       </div>
 
-      {/* Filter Tabs: Hammasi | Tovar | Xizmat */}
+      {/* Filter Tabs: Tovar (default) | Xizmat | Do‘kon */}
       <div className="flex items-center gap-1.5 px-3 py-2 overflow-x-auto no-scrollbar border-b border-[#E2E8F0]/70 dark:border-[#273B32]/70 bg-slate-50/70 dark:bg-[#111A15]/70 shrink-0">
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            setFilterType('all');
-            if (sheetState === 'collapsed') setSheetState('open');
-          }}
-          className={`px-3 py-1 rounded-full text-xs font-black transition cursor-pointer shrink-0 ${
-            filterType === 'all'
-              ? 'bg-[#087F5B] text-white shadow-xs'
-              : 'bg-white dark:bg-[#1A2822] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#273B32]'
-          }`}
-        >
-          Hammasi ({totalCount})
-        </button>
-
         <button
           type="button"
           onClick={(e) => {
@@ -223,7 +216,7 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
             setFilterType('product');
             if (sheetState === 'collapsed') setSheetState('open');
           }}
-          className={`px-3 py-1 rounded-full text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1 ${
+          className={`px-3 py-1 rounded-full text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1 select-none active:scale-95 ${
             filterType === 'product'
               ? 'bg-[#087F5B] text-white shadow-xs'
               : 'bg-white dark:bg-[#1A2822] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#273B32]'
@@ -240,14 +233,31 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
             setFilterType('service');
             if (sheetState === 'collapsed') setSheetState('open');
           }}
-          className={`px-3 py-1 rounded-full text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1 ${
+          className={`px-3 py-1 rounded-full text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1 select-none active:scale-95 ${
             filterType === 'service'
               ? 'bg-[#087F5B] text-white shadow-xs'
               : 'bg-white dark:bg-[#1A2822] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#273B32]'
           }`}
         >
-          <span>✂️</span>
+          <span>🛠️</span>
           <span>Xizmat ({serviceCount})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setFilterType('store');
+            if (sheetState === 'collapsed') setSheetState('open');
+          }}
+          className={`px-3 py-1 rounded-full text-xs font-black transition cursor-pointer shrink-0 flex items-center gap-1 select-none active:scale-95 ${
+            filterType === 'store'
+              ? 'bg-[#087F5B] text-white shadow-xs'
+              : 'bg-white dark:bg-[#1A2822] text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-[#273B32]'
+          }`}
+        >
+          <span>🏪</span>
+          <span>Do‘kon ({storeCount})</span>
         </button>
       </div>
 
@@ -281,19 +291,21 @@ export const MobileBottomSheet: React.FC<MobileBottomSheetProps> = ({
               {filterType === 'service'
                 ? 'Hozircha hech qanday xizmat topilmadi'
                 : filterType === 'product'
-                ? 'Hozircha hech qanday tovar topilmadi'
-                : 'Hech qanday ma’lumot topilmadi'}
+                ? (!hasActiveSearch ? 'Qidiruv maydoniga tovar nomini yozing' : 'Hozircha hech qanday tovar topilmadi')
+                : 'Hozircha hech qanday do‘kon topilmadi'}
             </span>
             <p className="text-[11px] text-slate-400">
-              Boshqa toifa yoki so‘rov bilan qidirib ko‘ring
+              {!hasActiveSearch && filterType === 'product'
+                ? 'Kerakli tovar nomini yozing yoki takliflardan birini tanlang'
+                : 'Boshqa toifa yoki so‘rov bilan qidirib ko‘ring'}
             </p>
-            {filterType !== 'all' && (
+            {filterType !== 'product' && (
               <button
                 type="button"
-                onClick={() => setFilterType('all')}
+                onClick={() => setFilterType('product')}
                 className="mt-1 px-3 py-1.5 bg-[#087F5B] text-white rounded-xl text-xs font-bold"
               >
-                Barchasini ko‘rsatish
+                Tovarlarni ko‘rsatish
               </button>
             )}
             {hasActiveSearch && onClearSearch && (

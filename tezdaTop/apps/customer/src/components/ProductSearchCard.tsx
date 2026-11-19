@@ -11,7 +11,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { StoreSearchResult } from '@yaqintop/contracts';
-import { getProductThumbnail } from '../utils/product-thumbnails';
+import { getProductThumbnail, DEFAULT_PRODUCT_THUMBNAIL } from '../utils/product-thumbnails';
 
 export interface ProductSearchCardProps {
   item: StoreSearchResult;
@@ -65,7 +65,8 @@ export const ProductSearchCard = React.memo<ProductSearchCardProps>(({
             decoding="async"
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = DEFAULT_PRODUCT_THUMBNAIL;
             }}
           />
           <Package className="w-7 h-7 text-[#087F5B]/30 absolute" />
@@ -135,7 +136,8 @@ export const ProductSearchCard = React.memo<ProductSearchCardProps>(({
             decoding="async"
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.target as HTMLElement).style.display = 'none';
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = DEFAULT_PRODUCT_THUMBNAIL;
             }}
           />
           <Package className="w-7 h-7 text-[#087F5B]/40 absolute" />
