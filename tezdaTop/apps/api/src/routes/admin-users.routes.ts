@@ -178,6 +178,7 @@ adminUsersRouter.post('/users', requireStaffRole(['ADMIN', 'SUPERADMIN', 'MODERA
   const { passwordHash, ...safeUser } = newUser;
   delete (safeUser as any).plainPassword;
   delete (safeUser as any).verificationCode;
+  db.scheduleSave();
   res.status(201).json({
     user: safeUser,
     verificationCode: isVerified ? undefined : verificationCode,

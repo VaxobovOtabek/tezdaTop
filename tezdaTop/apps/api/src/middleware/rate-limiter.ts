@@ -61,3 +61,17 @@ export const userVerifyLimiter = createRateLimiter({
   message: 'Tasdiqlash kodi kiritish urinishlari ko‘payib ketdi.',
   keyPrefix: 'verify'
 });
+
+export const reportLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+  message: 'Shikoyat yuborish urinishlari ko‘payib ketdi. Iltimos, birozdan so‘ng urinib ko‘ring.',
+  keyPrefix: 'report'
+});
+
+export const reviewLimiter = createRateLimiter({
+  windowMs: 60 * 1000,
+  max: 15,
+  message: 'Sharh qoldirish urinishlari ko‘payib ketdi. Iltimos, birozdan so‘ng urinib ko‘ring.',
+  keyPrefix: 'review'
+});

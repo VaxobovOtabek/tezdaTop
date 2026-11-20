@@ -10,9 +10,14 @@ export default defineConfig(({ command }) => ({
     chunkSizeWarningLimit: 800,
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom'],
-          'vendor-icons': ['lucide-react']
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('leaflet')) return 'vendor-leaflet';
+            if (id.includes('lucide-react')) return 'vendor-icons';
+            if (id.includes('react') || id.includes('scheduler')) return 'vendor-react';
+            if (id.includes('decimal.js') || id.includes('zod')) return 'vendor-core';
+            return 'vendor-libs';
+          }
         }
       }
     }

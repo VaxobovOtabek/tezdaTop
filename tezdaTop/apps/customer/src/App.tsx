@@ -217,7 +217,7 @@ export function CustomerApp() {
     }
     return '';
   });
-  const [radiusM, setRadiusM] = useState(1000);
+  const [radiusM, setRadiusM] = useState(1500);
   const [openNow, setOpenNow] = useState(false);
   const [inStock, setInStock] = useState(false);
   const [freshOnly, setFreshOnly] = useState(false);
@@ -2218,7 +2218,7 @@ export function CustomerApp() {
               variant="secondary"
               fullWidth
               onClick={() => {
-                setRadiusM(1000);
+                setRadiusM(1500);
                 setOpenNow(false);
                 setInStock(false);
                 setFreshOnly(false);
@@ -2269,7 +2269,7 @@ export function CustomerApp() {
               className="w-full accent-[#116B50] dark:accent-[#4ADE80] cursor-pointer"
             />
             <div className="flex justify-between gap-1 mt-2">
-              {[100, 500, 1000, 3000].map((r) => (
+              {[500, 1000, 1500, 3000].map((r) => (
                 <button
                   key={r}
                   type="button"

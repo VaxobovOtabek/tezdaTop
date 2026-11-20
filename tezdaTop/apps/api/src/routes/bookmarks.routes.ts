@@ -23,6 +23,20 @@ bookmarksRouter.post('/', (req, res) => {
     return;
   }
   const { storeId, offerId } = req.body;
+  if (!storeId && !offerId) {
+    res.status(400).json({ code: 'INVALID_REQUEST', message: 'storeId yoki offerId kiritilishi shart' });
+    return;
+  }
+
+  // Idempotent: prevent duplicate bookmarks
+  const existing = Array.from(db.bookmarks.values()).find(
+    (b) => b.userId === user.id && b.storeId === storeId && b.offerId === offerId
+  );
+  if (existing) {
+    res.status(200).json({ bookmark: existing });
+    return;
+  }
+
   const bm = {
     id: uuidv4(),
     userId: user.id,
@@ -31,6 +45,7 @@ bookmarksRouter.post('/', (req, res) => {
     createdAt: new Date().toISOString()
   };
   db.bookmarks.set(bm.id, bm);
+  db.scheduleSave();
   res.status(201).json({ bookmark: bm });
 });
 
@@ -46,5 +61,6 @@ bookmarksRouter.delete('/:id', (req, res) => {
     return;
   }
   db.bookmarks.delete(req.params.id);
+  db.scheduleSave();
   res.json({ success: true });
 });

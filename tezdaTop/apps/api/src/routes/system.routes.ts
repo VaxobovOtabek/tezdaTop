@@ -13,7 +13,7 @@ systemRouter.post('/sync-supabase', async (req: Request, res: Response) => {
   const isAuthorizedAdmin = Boolean(user && ['ADMIN', 'SUPERADMIN'].includes(user.role));
 
   let isAuthorizedSecret = false;
-  if (process.env.SYNC_SECRET && secretKey) {
+  if (process.env.SYNC_SECRET && process.env.SYNC_SECRET.length >= 32 && secretKey) {
     const expected = Buffer.from(process.env.SYNC_SECRET, 'utf8');
     const actual = Buffer.from(secretKey, 'utf8');
     if (expected.length === actual.length && crypto.timingSafeEqual(expected, actual)) {

@@ -103,6 +103,7 @@ merchantRouter.use('/merchant', (req: Request, res: Response, next: NextFunction
           status: 'ACTIVE'
         };
         db.memberships.set(membership.id, membership);
+        db.scheduleSave();
       }
     }
   }

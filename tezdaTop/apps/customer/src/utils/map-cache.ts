@@ -192,6 +192,8 @@ const isLocalEnv = typeof window !== 'undefined' && (
 
 export function loadMapCatalog(catalog: keyof typeof catalogSources, refresh = false): Promise<any[]> {
   const { endpoint, filename } = catalogSources[catalog];
+  const fallbackCustomerUrl = ((import.meta as any).env?.VITE_CUSTOMER_FALLBACK_URL || 'https://tezda-customer.vercel.app').replace(/\/+$/, '');
+  const fallbackApiUrl = ((import.meta as any).env?.VITE_API_FALLBACK_URL || 'https://tez-api.vercel.app').replace(/\/+$/, '');
   return loadMapList(
     catalog,
     async () => {
@@ -200,13 +202,13 @@ export function loadMapCatalog(catalog: keyof typeof catalogSources, refresh = f
             '/api/local/' + endpoint,
             import.meta.env.BASE_URL + filename,
             '/' + filename,
-            'https://tezda-customer.vercel.app/' + filename,
+            `${fallbackCustomerUrl}/${filename}`,
           ]
         : [
             import.meta.env.BASE_URL + filename,
             '/' + filename,
-            'https://tezda-customer.vercel.app/' + filename,
-            'https://tez-api.vercel.app/api/local/' + endpoint,
+            `${fallbackCustomerUrl}/${filename}`,
+            `${fallbackApiUrl}/api/local/${endpoint}`,
           ];
       for (const url of new Set(urls)) {
         try {

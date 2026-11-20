@@ -47,7 +47,7 @@ export function listPublicStores(req: Request, res: Response, database: typeof d
   const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
   const radiusM = req.query.radiusM ? parseInt(req.query.radiusM as string, 10) : 0;
   const openNow = req.query.openNow === 'true';
-  const query = (req.query.q || req.query.query || '').toString().trim().toLowerCase();
+  const query = (req.query.q || req.query.query || '').toString().trim().toLowerCase().slice(0, 200);
   const region = (req.query.region || '').toString().trim();
   const district = (req.query.district || req.query.city || '').toString().trim();
 
@@ -116,6 +116,10 @@ export function listPublicStores(req: Request, res: Response, database: typeof d
       if (!matchesStore) {
         continue;
       }
+    }
+
+    if (!store.location || typeof store.location.lat !== 'number' || typeof store.location.lng !== 'number') {
+      continue;
     }
 
     const dist = calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng);

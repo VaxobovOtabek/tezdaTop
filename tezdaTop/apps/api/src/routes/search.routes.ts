@@ -60,7 +60,11 @@ searchRouter.post('/products', (req, res) => {
         query: parsed.data.q.trim(),
         userType: user ? 'CUSTOMER' : 'GUEST',
         userName: user ? user.fullName : `Mehmon foydalanuvchi #${Math.floor(100 + Math.random() * 900)}`,
-        locationName: 'Toshkent shahri (Pilot)',
+        locationName:
+          (req.body as any)?.locationName ||
+          (parsed.data.region
+            ? `${parsed.data.region}${parsed.data.district ? ', ' + parsed.data.district : ''}`
+            : 'Toshkent shahri (Pilot)'),
         radiusM: parsed.data.radiusM || 1000,
         resultsCount: result.totalOffers || result.items.length,
         timestamp: new Date().toISOString()

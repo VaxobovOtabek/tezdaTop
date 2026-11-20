@@ -109,7 +109,7 @@ authRouter.post('/login', authLoginLimiter, async (req, res) => {
 
 // Local Development ONLY: Instant passwordless dev login for Admin and Moderator
 authRouter.post('/dev-login', (req: Request, res: Response) => {
-  if (process.env.VERCEL) {
+  if (isProduction || process.env.NODE_ENV === 'production' || process.env.VERCEL) {
     res.status(403).json({ code: 'FORBIDDEN', message: 'Dev login production (deploy) muhitida o‘chirilgan' });
     return;
   }
@@ -285,10 +285,11 @@ authRouter.post('/token-login', async (req, res) => {
     return;
   }
 
+  const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
   res.cookie('session_token', cleanToken, {
     httpOnly: true,
-    secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    secure: Boolean(isHttps && isProduction),
+    sameSite: isHttps && isProduction ? 'none' : 'lax',
     maxAge: SESSION_TTL_MS
   });
 

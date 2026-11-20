@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { v4 as uuidv4 } from 'uuid';
 import { db } from '../db/in-memory-db.js';
 import { getCurrentUser } from '../middleware/auth.middleware.js';
+import { reviewLimiter } from '../middleware/rate-limiter.js';
 
 export const reviewsRouter = Router();
 
@@ -12,7 +13,7 @@ reviewsRouter.get('/api/v1/stores/:id/reviews', (req, res) => {
   res.json({ reviews: storeReviews });
 });
 
-reviewsRouter.post('/api/v1/stores/:id/reviews', (req, res) => {
+reviewsRouter.post('/api/v1/stores/:id/reviews', reviewLimiter, (req, res) => {
   const user = getCurrentUser(req);
   if (!user) {
     res.status(401).json({ code: 'UNAUTHORIZED', message: 'Sharh qoldirish uchun tizimga kiring' });
@@ -65,6 +66,7 @@ reviewsRouter.post('/api/v1/stores/:id/reviews', (req, res) => {
   };
 
   db.reviews.set(review.id, review);
+  db.scheduleSave();
 
   // Recalculate store rating
   const pubReviews = Array.from(db.reviews.values()).filter((r) => r.storeId === storeId && r.status === 'PUBLISHED');
@@ -111,6 +113,7 @@ reviewsRouter.post('/api/v1/stores/:id/reviews/:reviewId/reply', (req, res) => {
   review.merchantReply = req.body.reply?.trim();
   review.merchantRepliedAt = new Date().toISOString();
   review.updatedAt = new Date().toISOString();
+  db.scheduleSave();
 
   res.json({ review });
 });

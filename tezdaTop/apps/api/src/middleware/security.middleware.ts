@@ -35,14 +35,16 @@ export function isAllowedOrigin(origin: string): boolean {
     const parsed = new URL(origin);
     const host = parsed.hostname.toLowerCase();
 
-    // Allow localhost and loopbacks on any port
-    if (
-      host === 'localhost' ||
-      host === '127.0.0.1' ||
-      host === '::1' ||
-      host.endsWith('.localhost')
-    ) {
-      return true;
+    // Allow localhost and loopbacks on any port only in non-production development
+    if (!isProduction) {
+      if (
+        host === 'localhost' ||
+        host === '127.0.0.1' ||
+        host === '::1' ||
+        host.endsWith('.localhost')
+      ) {
+        return true;
+      }
     }
 
     // Allow private LAN IPs only in non-production development

@@ -99,6 +99,18 @@ export function searchProducts(query: SearchQuery): SearchResponse {
           if (!sReg || sReg.includes('namangan')) matches = true;
         } else if (rClean.includes('buxoro') && (localArea.includes('buxoro') || localArea.includes('gijduvon') || localArea.includes('kogon'))) {
           if (!sReg || sReg.includes('buxoro')) matches = true;
+        } else if (rClean.includes('surxondaryo') && (localArea.includes('termiz') || localArea.includes('denov') || localArea.includes('shorchi') || localArea.includes('angor') || localArea.includes('surxondaryo'))) {
+          if (!sReg || sReg.includes('surxondaryo')) matches = true;
+        } else if (rClean.includes('qashqadaryo') && (localArea.includes('qarshi') || localArea.includes('shahrisabz') || localArea.includes('kitob') || localArea.includes('koson') || localArea.includes('qashqadaryo'))) {
+          if (!sReg || sReg.includes('qashqadaryo')) matches = true;
+        } else if (rClean.includes('xorazm') && (localArea.includes('urganch') || localArea.includes('xiva') || localArea.includes('xonqa') || localArea.includes('xorazm'))) {
+          if (!sReg || sReg.includes('xorazm')) matches = true;
+        } else if (rClean.includes('navoiy') && (localArea.includes('navoiy') || localArea.includes('zarafshon') || localArea.includes('karmana') || localArea.includes('qiziltepa'))) {
+          if (!sReg || sReg.includes('navoiy')) matches = true;
+        } else if (rClean.includes('jizzax') && (localArea.includes('jizzax') || localArea.includes('zomin') || localArea.includes('paxtakor') || localArea.includes('gallaorol'))) {
+          if (!sReg || sReg.includes('jizzax')) matches = true;
+        } else if (rClean.includes('qoraqalpog') && (localArea.includes('nukus') || localArea.includes('xojayli') || localArea.includes('qongirot') || localArea.includes('qoraqalpog'))) {
+          if (!sReg || sReg.includes('qoraqalpog')) matches = true;
         }
       }
 
@@ -114,6 +126,10 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       if (hasExplicitDistrict && !sDist.includes(dClean) && !sAddr.includes(dClean)) {
         continue;
       }
+    }
+
+    if (!store.location || typeof store.location.lat !== 'number' || typeof store.location.lng !== 'number') {
+      continue;
     }
 
     const dist = calculateDistanceMetres(
@@ -147,6 +163,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       for (const store of db.stores.values()) {
         if (store.status !== 'ACTIVE') continue;
         if (store.organizationId === KORZINKA_ORG_ID || (store.name || '').toLowerCase().includes('korzinka')) {
+          if (!store.location || typeof store.location.lat !== 'number' || typeof store.location.lng !== 'number') continue;
           const isOpen = checkStoreIsOpenNow(store);
           if (query.openNow && !isOpen) continue;
           const dist = calculateDistanceMetres(query.lat, query.lng, store.location.lat, store.location.lng);
@@ -178,6 +195,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
         if (!matches) continue;
       }
 
+      if (!store.location || typeof store.location.lat !== 'number' || typeof store.location.lng !== 'number') continue;
       const dist = calculateDistanceMetres(
         query.lat,
         query.lng,
