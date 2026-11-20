@@ -1,0 +1,200 @@
+name: CI / CD Verification Pipeline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+# Least-privilege permissions
+permissions:
+  contents: read
+
+# Concurrency group ensures parallel release attempts are serialized or superseded
+concurrency:
+  group: ci-pipeline-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # =========================================================================
+  # 1. Typecheck: Verify TypeScript across all workspace packages and apps
+  # =========================================================================
+  typecheck:
+    name: Typecheck (tsc)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tezdaTop
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm (Matching packageManager pnpm@12.9.1)
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+
+      - name: Setup Node.js (v22 Active LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: 'tezdaTop/pnpm-lock.yaml'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run Monorepo Typecheck
+        run: pnpm run typecheck
+
+  # =========================================================================
+  # 2. Existing Tests: Run Vitest test suite in strictly isolated test sandbox
+  # =========================================================================
+  test:
+    name: Run Existing Tests
+    runs-on: ubuntu-latest
+    needs: [typecheck]
+    defaults:
+      run:
+        working-directory: tezdaTop
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: 'tezdaTop/pnpm-lock.yaml'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build Contracts for Tests
+        run: pnpm --filter @yaqintop/contracts build
+
+      - name: Execute Existing Tests
+        # Strict isolation prevents touching external/production databases
+        env:
+          NODE_ENV: test
+          SUPABASE_URL: ""
+          SUPABASE_SERVICE_ROLE_KEY: ""
+          SESSION_SECRET: "ci-test-session-signing-secret-at-least-32-chars-long"
+        run: pnpm run test
+
+  # =========================================================================
+  # 3. Build: Compile Backend API & All 6 Frontend SPAs
+  # =========================================================================
+  build:
+    name: Build Packages & SPAs
+    runs-on: ubuntu-latest
+    needs: [test]
+    defaults:
+      run:
+        working-directory: tezdaTop
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: 'tezdaTop/pnpm-lock.yaml'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build All Monorepo Projects
+        run: pnpm run build
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: yaqintop-build-artifacts
+          path: |
+            tezdaTop/apps/api/dist
+            tezdaTop/apps/landing/dist
+            tezdaTop/apps/customer/dist
+            tezdaTop/apps/merchant/dist
+            tezdaTop/apps/admin/dist
+            tezdaTop/apps/moderator/dist
+            tezdaTop/apps/dealer/dist
+          retention-days: 7
+
+  # =========================================================================
+  # 4. Preview Smoke: Health, Routing & Asset Validation
+  # =========================================================================
+  preview-smoke:
+    name: Preview Smoke Verification
+    runs-on: ubuntu-latest
+    needs: [build]
+    defaults:
+      run:
+        working-directory: tezdaTop
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.9.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'pnpm'
+          cache-dependency-path: 'tezdaTop/pnpm-lock.yaml'
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download Build Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: yaqintop-build-artifacts
+          path: tezdaTop/apps
+
+      - name: Validate Docker Compose Configuration
+        run: |
+          docker compose -f infra/docker-compose.yml config
+        env:
+          SUPABASE_URL: "https://example.supabase.co"
+          SUPABASE_SERVICE_ROLE_KEY: "dummy-key-for-config-validation"
+          SESSION_SECRET: "dummy-session-secret-min-32-chars-long"
+
+      - name: Run Preview Smoke Check Script
+        run: pnpm run preview:smoke
+
+  # =========================================================================
+  # 5. Production Release Gate (Strictly main branch, no PRs/forks)
+  # =========================================================================
+  production-release:
+    name: Production Release Gate
+    runs-on: ubuntu-latest
+    needs: [preview-smoke]
+    # Restrict to verified pushes to main branch; untrusted PRs/forks cannot access release
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request' && !github.event.repository.fork
+    environment:
+      name: production
+    steps:
+      - name: Verify Release Ready
+        run: |
+          echo "Production release gate passed successfully."
+          echo "Commit SHA: ${{ github.sha }}"
+          echo "Artifacts verified: Typecheck -> Tests -> Builds -> Preview Smoke -> Release"

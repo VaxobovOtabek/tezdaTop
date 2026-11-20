@@ -12,6 +12,46 @@ export function normalizeUzbekText(text: string): string {
     .trim();
 }
 
+export interface ParsedSearchIntent {
+  original: string;
+  isStoreQuery: boolean;
+  storeTerm: string | null;
+  productTerm: string;
+  isCatalogOnly: boolean;
+}
+
+const FILLER_WORDS_REGEX = /\b(tovarlarini|tovarlarim|tovarlarni|tovarlari|tovarlar|tovari|tovar|mahsulotlarini|mahsulotlarni|mahsulotlari|mahsulotlar|mahsuloti|mahsulot|narsalarni|narsalari|narsalar|narsa|katalogini|katalogi|katalog|narxlarini|narxlari|narxlar|narxi|izlamayapti|izlamaydi|chiqmayapti|chiqmaydi|qidiruvga|qidiruvda|yozganda|qidirganda|qidirish|izlash|bormi|bor)\b/gi;
+const KORZINKA_REGEX = /\b(korzinkadagi|korzinkada|korzinkaning|korzinkadan|korzinkaga|korzinkani|korzinkalar|korzinka|корзинка|корзинке|корзинки)\b/gi;
+const UZUM_REGEX = /\b(uzumdagi|uzumda|uzumning|uzumdan|uzumga|uzumni|uzum|узум)\b/gi;
+
+/**
+ * Parses user search query to detect store-specific intent (e.g. Korzinka, Uzum)
+ * and distinguishes product terms from store/catalog filler words.
+ */
+export function parseSearchIntent(query: string): ParsedSearchIntent {
+  const norm = normalizeUzbekText(query);
+  let storeTerm: string | null = null;
+
+  if (KORZINKA_REGEX.test(norm)) {
+    storeTerm = 'korzinka';
+  } else if (UZUM_REGEX.test(norm)) {
+    storeTerm = 'uzum';
+  }
+
+  let cleaned = norm;
+  if (storeTerm === 'korzinka') cleaned = cleaned.replace(KORZINKA_REGEX, ' ');
+  if (storeTerm === 'uzum') cleaned = cleaned.replace(UZUM_REGEX, ' ');
+  cleaned = cleaned.replace(FILLER_WORDS_REGEX, ' ').replace(/\s+/g, ' ').trim();
+
+  return {
+    original: query,
+    isStoreQuery: Boolean(storeTerm),
+    storeTerm,
+    productTerm: cleaned,
+    isCatalogOnly: Boolean(storeTerm) && !cleaned
+  };
+}
+
 /**
  * Canonical dictionary mapping common search queries/aliases to canonical forms
  */
@@ -112,6 +152,10 @@ export function matchProductQuery(
   } else {
     if (titleNorm.startsWith(qNorm) || titleNorm.includes(qNorm)) {
       return { isMatch: true, score: 0.9, matchType: 'prefix' };
+    }
+    const qWords = qNorm.split(/[\s,()\-./]+/).filter((w) => w.length >= 2);
+    if (qWords.length > 1 && qWords.every((qw) => titleWords.some((tw) => tw.startsWith(qw) || qw.startsWith(tw)))) {
+      return { isMatch: true, score: 0.92, matchType: 'exact' };
     }
   }
 

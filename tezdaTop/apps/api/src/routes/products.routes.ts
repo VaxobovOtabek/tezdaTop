@@ -2,6 +2,7 @@ import { Router, Request, Response } from 'express';
 import { db } from '../db/in-memory-db.js';
 import { calculateDistanceMetres } from '../db/spatial.js';
 import { checkStoreIsOpenNow } from '../services/search.service.js';
+import { parseSearchIntent } from '../db/fuzzy.js';
 
 export const productsRouter = Router();
 
@@ -33,26 +34,54 @@ function getProductImage(title: string, cat?: string) {
 
 productsRouter.get('/', (req: Request, res: Response) => {
   try {
-    const q = ((req.query.q as string) || '').trim().toLowerCase();
+    const qRaw = ((req.query.q as string) || '').trim();
+    const parsedIntent = parseSearchIntent(qRaw);
     const category = ((req.query.category as string) || '').trim();
     const lat = req.query.lat ? parseFloat(req.query.lat as string) : 41.311081;
     const lng = req.query.lng ? parseFloat(req.query.lng as string) : 69.240562;
 
     const productList = [];
 
+    // Pre-determine which variant IDs have Korzinka offers if needed
+    const korzinkaOrgId = '07916afb-54bf-5551-b8dd-6e88d56c3fae';
+    const korzinkaVariantIds = new Set<string>();
+    if (parsedIntent.isStoreQuery && parsedIntent.storeTerm === 'korzinka') {
+      for (const off of db.offers.values()) {
+        if (off.status === 'INACTIVE' || off.stockOnHand <= 0) continue;
+        if (off.storeId === 'korzinka-main' || db.stores.get(off.storeId)?.organizationId === korzinkaOrgId) {
+          korzinkaVariantIds.add(off.variantId);
+        }
+      }
+    }
+
     for (const variant of db.variants.values()) {
       if (category && category !== 'Barchasi' && variant.category !== category) {
         continue;
       }
 
-      if (q) {
-        const matchTitle = variant.title.toLowerCase().includes(q);
-        const matchBrand = variant.brand ? variant.brand.toLowerCase().includes(q) : false;
-        const matchCat = variant.category ? variant.category.toLowerCase().includes(q) : false;
-        const matchBarcode = variant.barcode ? variant.barcode.includes(q) : false;
-        const matchAliases = (variant.aliases || []).some((a: string) => a.toLowerCase().includes(q));
-        if (!matchTitle && !matchBrand && !matchCat && !matchBarcode && !matchAliases) {
-          continue;
+      if (qRaw) {
+        if (parsedIntent.isStoreQuery && parsedIntent.storeTerm === 'korzinka') {
+          const isKorzinka = korzinkaVariantIds.has(variant.id) ||
+            (variant as any).organizationId === korzinkaOrgId ||
+            (variant.brand || '').toLowerCase().includes('korzinka');
+          if (!isKorzinka) continue;
+          if (parsedIntent.productTerm) {
+            const pTerm = parsedIntent.productTerm.toLowerCase();
+            const matchTitle = variant.title.toLowerCase().includes(pTerm);
+            const matchCat = variant.category ? variant.category.toLowerCase().includes(pTerm) : false;
+            const matchAliases = (variant.aliases || []).some((a: string) => a.toLowerCase().includes(pTerm));
+            if (!matchTitle && !matchCat && !matchAliases) continue;
+          }
+        } else {
+          const term = (parsedIntent.productTerm || qRaw).toLowerCase();
+          const matchTitle = variant.title.toLowerCase().includes(term);
+          const matchBrand = variant.brand ? variant.brand.toLowerCase().includes(term) : false;
+          const matchCat = variant.category ? variant.category.toLowerCase().includes(term) : false;
+          const matchBarcode = variant.barcode ? variant.barcode.includes(term) : false;
+          const matchAliases = (variant.aliases || []).some((a: string) => a.toLowerCase().includes(term));
+          if (!matchTitle && !matchBrand && !matchCat && !matchBarcode && !matchAliases) {
+            continue;
+          }
         }
       }
 

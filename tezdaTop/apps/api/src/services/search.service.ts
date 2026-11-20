@@ -1,6 +1,6 @@
 import { db } from '../db/in-memory-db.js';
 import { calculateDistanceMetres, isWithinDistance, isValidRadius } from '../db/spatial.js';
-import { matchProductQuery } from '../db/fuzzy.js';
+import { matchProductQuery, parseSearchIntent } from '../db/fuzzy.js';
 import {
   SearchQuery,
   SearchResponse,
@@ -34,6 +34,11 @@ export function checkStoreIsOpenNow(store: Store): boolean {
 }
 
 export function searchProducts(query: SearchQuery): SearchResponse {
+  const hasRegionFilter = Boolean(query.region && query.region !== 'Barcha viloyatlar');
+  if (!hasRegionFilter && query.radiusM && !isValidRadius(query.radiusM)) {
+    throw new Error('Qidiruv radiusi 50 va 3000 metr oralig‘ida bo‘lishi shart');
+  }
+
   const qTrimmed = query.q ? query.q.trim() : '';
   if (!qTrimmed) {
     return {
@@ -45,10 +50,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
     };
   }
 
-  const hasRegionFilter = Boolean(query.region && query.region !== 'Barcha viloyatlar');
-  if (!hasRegionFilter && query.radiusM && !isValidRadius(query.radiusM)) {
-    throw new Error('Qidiruv radiusi 50 va 3000 metr oralig‘ida bo‘lishi shart');
-  }
+  const parsedIntent = parseSearchIntent(qTrimmed);
 
   // 1. Gather all active stores within radius whose organization is ACTIVE
   const candidateStores: { store: Store; distanceM: number; isOpenNow: boolean }[] = [];
@@ -108,7 +110,8 @@ export function searchProducts(query: SearchQuery): SearchResponse {
       const sDist = String((store as any).district || (store as any).city || (org as any).district || (org as any).city || '').toLowerCase();
       const dClean = query.district.toLowerCase().replace(/\s*(tumani|shahri|\(.*?\))\s*/gi, '').trim();
       const sAddr = (store.address || '').toLowerCase();
-      if (!sDist.includes(dClean) && !sAddr.includes(dClean)) {
+      const hasExplicitDistrict = Boolean((store as any).district);
+      if (hasExplicitDistrict && !sDist.includes(dClean) && !sAddr.includes(dClean)) {
         continue;
       }
     }
@@ -128,6 +131,31 @@ export function searchProducts(query: SearchQuery): SearchResponse {
     const isOpen = checkStoreIsOpenNow(store);
     if (query.openNow && !isOpen) continue;
     candidateStores.push({ store, distanceM: dist, isOpenNow: isOpen });
+  }
+
+  const KORZINKA_ORG_ID = '07916afb-54bf-5551-b8dd-6e88d56c3fae';
+  const KORZINKA_MAIN_STORE_ID = 'korzinka-main';
+
+  // If user explicitly searched for a specific store/brand (e.g. Korzinka) and no branch was within strict radius,
+  // pull the closest branches in the region so the targeted store search returns results!
+  if (parsedIntent.isStoreQuery && parsedIntent.storeTerm === 'korzinka') {
+    const hasKorzinka = candidateStores.some(
+      (c) => c.store.organizationId === KORZINKA_ORG_ID || (c.store.name || '').toLowerCase().includes('korzinka')
+    );
+    if (!hasKorzinka) {
+      const nearestKorzinka: { store: Store; distanceM: number; isOpenNow: boolean }[] = [];
+      for (const store of db.stores.values()) {
+        if (store.status !== 'ACTIVE') continue;
+        if (store.organizationId === KORZINKA_ORG_ID || (store.name || '').toLowerCase().includes('korzinka')) {
+          const isOpen = checkStoreIsOpenNow(store);
+          if (query.openNow && !isOpen) continue;
+          const dist = calculateDistanceMetres(query.lat, query.lng, store.location.lat, store.location.lng);
+          nearestKorzinka.push({ store, distanceM: dist, isOpenNow: isOpen });
+        }
+      }
+      nearestKorzinka.sort((a, b) => a.distanceM - b.distanceM);
+      candidateStores.push(...nearestKorzinka.slice(0, 10));
+    }
   }
 
   // Fallback: only if radiusM is NOT set or 0 (if user set a radius, strictly respect that radius)
@@ -174,8 +202,6 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   // Index offers by store for candidate stores in O(N) instead of O(S x N)
   const candidateStoreIdSet = new Set(candidateStores.map(c => c.store.id));
   const offersByStore = new Map<string, Offer[]>();
-  const KORZINKA_ORG_ID = '07916afb-54bf-5551-b8dd-6e88d56c3fae';
-  const KORZINKA_MAIN_STORE_ID = 'korzinka-main';
   const sharedKorzinkaOffers: Offer[] = [];
 
   for (const off of db.offers.values()) {
@@ -196,11 +222,17 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   const qLower = qTrimmed.toLowerCase();
   const isPharmacyQuery = Boolean(qLower && ['apteka', 'dorixona', 'dori', 'pharmacy', 'farm', 'shifo'].some(k => qLower.includes(k)));
   const isMarketQuery = Boolean(qLower && ['market', 'supermarket', 'do\'kon', 'dokon', 'savdo', 'baza'].some(k => qLower.includes(k)));
+  const globallyAssignedVariants = new Set<string>();
 
   for (const cand of candidateStores) {
     const storeOffers: { offer: Offer; score: number }[] = [];
     let offersInStore = offersByStore.get(cand.store.id) || [];
-    if (offersInStore.length === 0 && (cand.store.organizationId === KORZINKA_ORG_ID || cand.store.id === KORZINKA_MAIN_STORE_ID)) {
+    const isCandKorzinka =
+      cand.store.organizationId === KORZINKA_ORG_ID ||
+      cand.store.id === KORZINKA_MAIN_STORE_ID ||
+      (cand.store.name || '').toLowerCase().includes('korzinka');
+
+    if (offersInStore.length === 0 && isCandKorzinka) {
       offersInStore = sharedKorzinkaOffers;
     }
 
@@ -212,7 +244,7 @@ export function searchProducts(query: SearchQuery): SearchResponse {
     const storeWords = storeNameLower.split(/[\s,()\-./]+/);
     const storeNameMatches = qLower.length <= 2
       ? storeWords.some(w => w === qLower || (w.length <= 4 && w.startsWith(qLower)))
-      : storeNameLower.includes(qLower);
+      : (storeNameLower.includes(qLower) || (parsedIntent.storeTerm ? storeNameLower.includes(parsedIntent.storeTerm) : false));
     const storeMatchesQuery = Boolean(
       qLower && (
         storeNameMatches ||
@@ -252,19 +284,51 @@ export function searchProducts(query: SearchQuery): SearchResponse {
 
       // Check text / query match
       if (qTrimmed) {
-        const matchResult = matchProductQuery(query.q!, {
-          title: off.variant.title,
-          barcode: off.variant.barcode,
-          aliases: (off.variant as any).aliases,
-          category: off.variant.category,
-          brand: off.variant.brand
-        });
-
         const candOffer = off.storeId === cand.store.id ? off : { ...off, storeId: cand.store.id };
-        if (matchResult.isMatch) {
-          storeOffers.push({ offer: candOffer, score: matchResult.score });
-        } else if (storeMatchesQuery) {
-          storeOffers.push({ offer: candOffer, score: 0.85 });
+
+        if (parsedIntent.isStoreQuery && parsedIntent.storeTerm === 'korzinka') {
+          if (isCandKorzinka) {
+            if (parsedIntent.isCatalogOnly) {
+              storeOffers.push({ offer: candOffer, score: 0.95 });
+            } else if (parsedIntent.productTerm) {
+              const matchResult = matchProductQuery(parsedIntent.productTerm, {
+                title: off.variant.title,
+                barcode: off.variant.barcode,
+                aliases: (off.variant as any).aliases,
+                category: off.variant.category,
+                brand: off.variant.brand
+              });
+              if (matchResult.isMatch) {
+                storeOffers.push({ offer: candOffer, score: Math.min(1.0, matchResult.score + 0.05) });
+              }
+            }
+          } else if (!parsedIntent.isCatalogOnly && parsedIntent.productTerm) {
+            const matchResult = matchProductQuery(parsedIntent.productTerm, {
+              title: off.variant.title,
+              barcode: off.variant.barcode,
+              aliases: (off.variant as any).aliases,
+              category: off.variant.category,
+              brand: off.variant.brand
+            });
+            if (matchResult.isMatch) {
+              storeOffers.push({ offer: candOffer, score: matchResult.score * 0.9 });
+            }
+          }
+        } else {
+          const queryTerm = parsedIntent.productTerm || query.q!;
+          const matchResult = matchProductQuery(queryTerm, {
+            title: off.variant.title,
+            barcode: off.variant.barcode,
+            aliases: (off.variant as any).aliases,
+            category: off.variant.category,
+            brand: off.variant.brand
+          });
+
+          if (matchResult.isMatch) {
+            storeOffers.push({ offer: candOffer, score: matchResult.score });
+          } else if (storeMatchesQuery) {
+            storeOffers.push({ offer: candOffer, score: 0.85 });
+          }
         }
       } else {
         // No query: all active offers in store match
@@ -280,8 +344,9 @@ export function searchProducts(query: SearchQuery): SearchResponse {
         return Number(a.offer.price) - Number(b.offer.price);
       });
 
-      if (!qTrimmed) {
-        // No search query (initial load): return distinct products so customer sees products by default
+      if (!qTrimmed || (parsedIntent.isStoreQuery && parsedIntent.isCatalogOnly)) {
+        // No search query (initial load) or full store catalog query:
+        // return distinct products so customer sees products by default
         const seenVariantsInStore = new Set<string>();
         for (const { offer, score } of storeOffers) {
           const key = offer.variantId || offer.variant?.id || offer.id;
@@ -296,15 +361,14 @@ export function searchProducts(query: SearchQuery): SearchResponse {
           });
         }
       } else {
-        // Search query provided: keep all stores that have matching products (do NOT suppress other stores)
-        // Deduplicate variants within this store only
-        const seenVariantsInStore = new Set<string>();
-        const matchingOffers = storeOffers.filter(({ offer }) => {
+        // Search query provided: assign each matching variant to the nearest eligible store
+        const matchingOffers: { offer: Offer; score: number }[] = [];
+        for (const { offer, score } of storeOffers) {
           const key = offer.variantId || offer.variant?.id || offer.id;
-          if (seenVariantsInStore.has(key)) return false;
-          seenVariantsInStore.add(key);
-          return true;
-        });
+          if (globallyAssignedVariants.has(key)) continue;
+          globallyAssignedVariants.add(key);
+          matchingOffers.push({ offer, score });
+        }
 
         if (matchingOffers.length > 0) {
           storeAggregates.push({

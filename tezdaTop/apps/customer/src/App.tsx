@@ -679,11 +679,21 @@ export function CustomerApp() {
         return;
       }
 
-      if (cleanId.startsWith('korzinka-') || cleanId.includes('korzinka')) {
+      const isKorzinka =
+        cleanId.startsWith('korzinka-') ||
+        cleanId.includes('korzinka') ||
+        activeStoreDetail?.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae' ||
+        activeStoreDetail?.name?.toLowerCase().includes('korzinka') ||
+        selectedNearbyStore?.store?.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae' ||
+        selectedNearbyStore?.store?.name?.toLowerCase().includes('korzinka') ||
+        selectedResult?.store?.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae' ||
+        selectedResult?.store?.name?.toLowerCase().includes('korzinka');
+
+      if (isKorzinka) {
         if (!activeStoreDetail || activeStoreDetail.id !== cleanId) {
           try {
             const stores = await loadMapCatalog('korzinka');
-            const found = stores.find((p: any) => p.id === cleanId) ?? stores.find((p: any) => cleanId.includes(p.id) || cleanId.includes(p.originalId));
+            const found = stores.find((p: any) => p.id === cleanId) ?? stores.find((p: any) => cleanId.includes(p.id) || (p.originalId && cleanId.includes(p.originalId)));
             if (found) {
               setActiveStoreDetail(found);
               setSelectedNearbyStore({
@@ -781,6 +791,37 @@ export function CustomerApp() {
         }
         if (uniqueOffers.length > 0) {
           setActiveStoreOffers(uniqueOffers);
+        } else if (
+          activeStoreDetail?.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae' ||
+          activeStoreDetail?.name?.toLowerCase().includes('korzinka')
+        ) {
+          try {
+            const products = await loadMapCatalog('korzinkaProducts');
+            if (Array.isArray(products) && products.length > 0) {
+              const offers = products.map((prod: any, idx: number) => ({
+                id: `off-korzinka-${idx}-${prod.id}`,
+                storeId: cleanId,
+                price: String(prod.price),
+                originalPrice: String(prod.originalPrice),
+                stockOnHand: 50,
+                freshness: 'FRESH',
+                status: 'ACTIVE',
+                variant: {
+                  id: `v-korzinka-${prod.id}`,
+                  title: prod.title,
+                  brand: 'Korzinka',
+                  category: prod.category || 'Supermarket',
+                  packSize: prod.packSize,
+                  packUnit: prod.packUnit || 'dona',
+                  photoUrl: prod.photoUrl,
+                  description: prod.description
+                }
+              }));
+              setActiveStoreOffers(offers as any);
+            }
+          } catch (e) {
+            console.error('Fallback korzinkaProducts load failed:', e);
+          }
         } else if (selectedResult?.bestOffer && (selectedResult.store?.id === cleanId || selectedResult.bestOffer.storeId === cleanId)) {
           setActiveStoreOffers([selectedResult.bestOffer]);
         } else {

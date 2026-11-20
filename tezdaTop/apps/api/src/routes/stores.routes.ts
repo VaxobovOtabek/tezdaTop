@@ -140,6 +140,9 @@ export function listPublicStores(req: Request, res: Response, database: typeof d
   res.json({ items: results, total: results.length });
 }
 
+const KORZINKA_ORG_ID = '07916afb-54bf-5551-b8dd-6e88d56c3fae';
+const KORZINKA_MAIN_STORE_ID = 'korzinka-main';
+
 export async function readPublicStore(req: Request, res: Response, next: NextFunction) {
   const client = supabase;
   if (!client || process.env.NODE_ENV === 'test') return next();
@@ -165,8 +168,15 @@ export async function readPublicStore(req: Request, res: Response, next: NextFun
     if (!organizations.length) {
       return res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     }
-    const offersForStore = () =>
-      client.from('offers').select('*', { count: 'exact' }).eq('store_id', store.id).eq('is_available', true).order('id');
+
+    const isKorzinka = store.organizationId === KORZINKA_ORG_ID || store.id === KORZINKA_MAIN_STORE_ID;
+    const storeIds = isKorzinka ? [store.id, KORZINKA_MAIN_STORE_ID] : [store.id];
+
+    const offersForStore = () => {
+      const q = client.from('offers').select('*', { count: 'exact' }).eq('is_available', true).order('id');
+      return isKorzinka ? q.in('store_id', storeIds) : q.eq('store_id', store.id);
+    };
+
     if (!/\/offers\/?$/.test(req.path)) {
       const result = await offersForStore().limit(1);
       if (result.error) throw result.error;
@@ -181,14 +191,18 @@ export async function readPublicStore(req: Request, res: Response, next: NextFun
     const result = limit
       ? await offersForStore().range(start, start + limit - 1)
       : {
-          data: await repository.rows('offers', '*', (query) =>
-            query.eq('store_id', store.id).eq('is_available', true)
-          ),
+          data: await repository.rows('offers', '*', (query) => {
+            const q = query.eq('is_available', true);
+            return isKorzinka ? q.in('store_id', storeIds) : q.eq('store_id', store.id);
+          }),
           count: null,
           error: null
         };
     if (result.error) throw result.error;
-    const rows = result.data || [];
+    const rows = (result.data || []).map((row) => ({
+      ...row,
+      store_id: store.id
+    }));
     const variants: Record<string, any>[] = [];
     for (let offset = 0; offset < rows.length; offset += 100) {
       const ids = rows.slice(offset, offset + 100).map((row) => row.variant_id);
@@ -228,9 +242,6 @@ storesRouter.get('/', async (req, res, next) => {
     return res.status(503).json({ code: 'DATABASE_UNAVAILABLE', message: 'Do‘konlar ro‘yxatini yuklab bo‘lmadi.' });
   }
 });
-
-const KORZINKA_ORG_ID = '07916afb-54bf-5551-b8dd-6e88d56c3fae';
-const KORZINKA_MAIN_STORE_ID = 'korzinka-main';
 
 function getStoreOffersWithFallback(storeId: string): any[] {
   const store = db.stores.get(storeId);
