@@ -21,6 +21,7 @@ import {
   RefreshCw,
   SlidersHorizontal,
   ChevronRight,
+  ChevronLeft,
   FileEdit,
   ExternalLink,
   DollarSign
@@ -89,6 +90,19 @@ const COMMON_UNITS_SERVICE = [
   'kishi',
   'kun'
 ];
+
+function getPageNumbers(currentPage: number, totalPages: number): (number | string)[] {
+  if (totalPages <= 7) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+  if (currentPage <= 4) {
+    return [1, 2, 3, 4, 5, '...', totalPages];
+  }
+  if (currentPage >= totalPages - 3) {
+    return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+  return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+}
 
 export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
   isDarkMode,
@@ -262,6 +276,46 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
     }
     return result;
   }, [products, productTypeFilter]);
+
+  // Category pagination state
+  const [categoryPage, setCategoryPage] = useState<number>(1);
+  const [categoryPerPage, setCategoryPerPage] = useState<number>(10);
+
+  useEffect(() => {
+    setCategoryPage(1);
+  }, [categorySearchQuery, categoryTypeFilter]);
+
+  const totalCategoryPages = Math.max(1, Math.ceil(filteredCategories.length / categoryPerPage));
+  useEffect(() => {
+    if (categoryPage > totalCategoryPages) {
+      setCategoryPage(totalCategoryPages);
+    }
+  }, [totalCategoryPages, categoryPage]);
+
+  const paginatedCategories = useMemo(() => {
+    const start = (categoryPage - 1) * categoryPerPage;
+    return filteredCategories.slice(start, start + categoryPerPage);
+  }, [filteredCategories, categoryPage, categoryPerPage]);
+
+  // Product pagination state
+  const [productPage, setProductPage] = useState<number>(1);
+  const [productPerPage, setProductPerPage] = useState<number>(20);
+
+  useEffect(() => {
+    setProductPage(1);
+  }, [selectedCategoryFilter, productSearchQuery, productTypeFilter]);
+
+  const totalProductPages = Math.max(1, Math.ceil(filteredProducts.length / productPerPage));
+  useEffect(() => {
+    if (productPage > totalProductPages) {
+      setProductPage(totalProductPages);
+    }
+  }, [totalProductPages, productPage]);
+
+  const paginatedProducts = useMemo(() => {
+    const start = (productPage - 1) * productPerPage;
+    return filteredProducts.slice(start, start + productPerPage);
+  }, [filteredProducts, productPage, productPerPage]);
 
   // Overall Statistics
   const stats = useMemo(() => {
@@ -823,7 +877,7 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
               </div>
             ) : (
               <div className="divide-y divide-[#DCE5DF]/60 dark:divide-[#22332C]">
-                {filteredCategories.map((cat) => (
+                {paginatedCategories.map((cat) => (
                   <div
                     key={cat.name}
                     className="p-3.5 sm:p-4 hover:bg-[#F8FAF9] dark:hover:bg-[#182620]/60 transition flex flex-col lg:flex-row lg:items-center justify-between gap-3 sm:gap-4"
@@ -916,6 +970,82 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+
+            {/* Category Pagination Bar */}
+            {!isLoadingCategories && filteredCategories.length > 0 && (
+              <div className="p-3.5 sm:p-4 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#566A63] dark:text-[#8B9E95] bg-[#F8FAF9]/50 dark:bg-[#14201A]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span>
+                    Ko‘rsatilmoqda:{' '}
+                    <strong className="text-[#172C28] dark:text-white">
+                      {(categoryPage - 1) * categoryPerPage + 1} -{' '}
+                      {Math.min(categoryPage * categoryPerPage, filteredCategories.length)}
+                    </strong>{' '}
+                    /{' '}
+                    <strong className="text-[#172C28] dark:text-white">{filteredCategories.length}</strong> ta kategoriya
+                  </span>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <label className="flex items-center gap-1.5">
+                    <span>Har sahifada:</span>
+                    <select
+                      value={categoryPerPage}
+                      onChange={(e) => {
+                        setCategoryPerPage(Number(e.target.value));
+                        setCategoryPage(1);
+                      }}
+                      className="px-2 py-1 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#182620] text-[#172C28] dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#116B50]"
+                    >
+                      <option value={10}>10</option>
+                      <option value={20}>20</option>
+                      <option value={50}>50</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setCategoryPage(p => Math.max(1, p - 1))}
+                    disabled={categoryPage === 1}
+                    className="px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#182620] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328] font-semibold transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Oldingi</span>
+                  </button>
+
+                  {getPageNumbers(categoryPage, totalCategoryPages).map((item, idx) =>
+                    item === '...' ? (
+                      <span key={`cat-dots-${idx}`} className="px-1 text-gray-400">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setCategoryPage(item as number)}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          categoryPage === item
+                            ? 'bg-[#116B50] text-white shadow-xs'
+                            : 'border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#182620] text-[#172C28] dark:text-white hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328]'
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setCategoryPage(p => Math.min(totalCategoryPages, p + 1))}
+                    disabled={categoryPage === totalCategoryPages}
+                    className="px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#182620] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328] font-semibold transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Keyingi</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -1060,7 +1190,7 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
               </div>
             ) : (
               <div className="divide-y divide-[#DCE5DF]/60 dark:divide-[#22332C]">
-                {filteredProducts.map((item) => {
+                {paginatedProducts.map((item) => {
                   const v = item.variant || ({} as any);
                   const isSvc = v.type === 'SERVICE';
                   return (
@@ -1149,6 +1279,83 @@ export const AdminCategoriesHub: React.FC<AdminCategoriesHubProps> = ({
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Product Pagination Bar */}
+            {!isLoadingProducts && filteredProducts.length > 0 && (
+              <div className="p-3.5 sm:p-4 border-t border-[#DCE5DF]/60 dark:border-[#22332C] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-[#566A63] dark:text-[#8B9E95] bg-[#F8FAF9]/50 dark:bg-[#14201A]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span>
+                    Ko‘rsatilmoqda:{' '}
+                    <strong className="text-[#172C28] dark:text-white">
+                      {(productPage - 1) * productPerPage + 1} -{' '}
+                      {Math.min(productPage * productPerPage, filteredProducts.length)}
+                    </strong>{' '}
+                    /{' '}
+                    <strong className="text-[#172C28] dark:text-white">{filteredProducts.length}</strong> ta tovar va xizmat
+                  </span>
+                  <span className="text-gray-300 dark:text-gray-600">|</span>
+                  <label className="flex items-center gap-1.5">
+                    <span>Har sahifada:</span>
+                    <select
+                      value={productPerPage}
+                      onChange={(e) => {
+                        setProductPerPage(Number(e.target.value));
+                        setProductPage(1);
+                      }}
+                      className="px-2 py-1 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#182620] text-[#172C28] dark:text-white text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-[#116B50]"
+                    >
+                      <option value={15}>15</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setProductPage(p => Math.max(1, p - 1))}
+                    disabled={productPage === 1}
+                    className="px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#182620] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328] font-semibold transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Oldingi</span>
+                  </button>
+
+                  {getPageNumbers(productPage, totalProductPages).map((item, idx) =>
+                    item === '...' ? (
+                      <span key={`prod-dots-${idx}`} className="px-1 text-gray-400">
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={item}
+                        type="button"
+                        onClick={() => setProductPage(item as number)}
+                        className={`w-8 h-8 rounded-lg text-xs font-bold transition cursor-pointer ${
+                          productPage === item
+                            ? 'bg-[#116B50] text-white shadow-xs'
+                            : 'border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#182620] text-[#172C28] dark:text-white hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328]'
+                        }`}
+                      >
+                        {item}
+                      </button>
+                    )
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setProductPage(p => Math.min(totalProductPages, p + 1))}
+                    disabled={productPage === totalProductPages}
+                    className="px-3 py-1.5 rounded-lg border border-[#DCE5DF] dark:border-[#273B32] bg-white dark:bg-[#182620] disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[#F3F6F3] dark:hover:bg-[#1E3328] font-semibold transition flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Keyingi</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             )}
           </div>

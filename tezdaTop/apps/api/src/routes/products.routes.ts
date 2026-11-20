@@ -68,28 +68,48 @@ productsRouter.get('/', (req: Request, res: Response) => {
         const org = db.organizations.get(store.organizationId);
         if (!org || org.status !== 'ACTIVE') continue;
 
-        const priceNum = Number(off.price);
-        const existing = storeOfferMap.get(store.id);
-        if (!existing || priceNum < existing.price) {
-          const dist = store.location
+        let targetStore = store;
+        let dist = 0;
+        if (off.storeId === 'korzinka-main' || store.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae') {
+          let closest = store;
+          let minDist = Infinity;
+          for (const s of db.stores.values()) {
+            if (s.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae' && s.status === 'ACTIVE' && s.location) {
+              const d = Math.round(calculateDistanceMetres(lat, lng, s.location.lat, s.location.lng));
+              if (d < minDist) {
+                minDist = d;
+                closest = s;
+              }
+            }
+          }
+          if (closest) {
+            targetStore = closest;
+            dist = minDist;
+          }
+        } else {
+          dist = store.location
             ? Math.round(calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng))
             : 0;
+        }
 
-          storeOfferMap.set(store.id, {
+        const priceNum = Number(off.price);
+        const existing = storeOfferMap.get(targetStore.id);
+        if (!existing || priceNum < existing.price) {
+          storeOfferMap.set(targetStore.id, {
             offerId: off.id,
-            storeId: store.id,
-            storeName: store.name,
-            storeAddress: store.address,
-            storeDistrict: store.district,
-            storePhone: store.phone,
-            storeType: store.type,
-            storeRating: store.rating || 4.5,
-            location: store.location,
+            storeId: targetStore.id,
+            storeName: targetStore.name,
+            storeAddress: targetStore.address,
+            storeDistrict: targetStore.district,
+            storePhone: targetStore.phone,
+            storeType: targetStore.type,
+            storeRating: targetStore.rating || 4.5,
+            location: targetStore.location,
             price: priceNum,
             stockOnHand: off.stockOnHand,
             wholesaleTiers: off.wholesaleTiers || [],
             distanceM: dist,
-            isOpenNow: checkStoreIsOpenNow(store),
+            isOpenNow: checkStoreIsOpenNow(targetStore),
             stockVerifiedAt: off.stockVerifiedAt
           });
         }
@@ -173,28 +193,48 @@ productsRouter.get('/:id', (req: Request, res: Response) => {
       const org = db.organizations.get(store.organizationId);
       if (!org || org.status !== 'ACTIVE') continue;
 
-      const priceNum = Number(off.price);
-      const existing = storeOfferMap.get(store.id);
-      if (!existing || priceNum < existing.price) {
-        const dist = store.location
+      let targetStore = store;
+      let dist = 0;
+      if (off.storeId === 'korzinka-main' || store.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae') {
+        let closest = store;
+        let minDist = Infinity;
+        for (const s of db.stores.values()) {
+          if (s.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae' && s.status === 'ACTIVE' && s.location) {
+            const d = Math.round(calculateDistanceMetres(lat, lng, s.location.lat, s.location.lng));
+            if (d < minDist) {
+              minDist = d;
+              closest = s;
+            }
+          }
+        }
+        if (closest) {
+          targetStore = closest;
+          dist = minDist;
+        }
+      } else {
+        dist = store.location
           ? Math.round(calculateDistanceMetres(lat, lng, store.location.lat, store.location.lng))
           : 0;
+      }
 
-        storeOfferMap.set(store.id, {
+      const priceNum = Number(off.price);
+      const existing = storeOfferMap.get(targetStore.id);
+      if (!existing || priceNum < existing.price) {
+        storeOfferMap.set(targetStore.id, {
           offerId: off.id,
-          storeId: store.id,
-          storeName: store.name,
-          storeAddress: store.address,
-          storeDistrict: store.district,
-          storePhone: store.phone,
-          storeType: store.type,
-          storeRating: store.rating || 4.5,
-          location: store.location,
+          storeId: targetStore.id,
+          storeName: targetStore.name,
+          storeAddress: targetStore.address,
+          storeDistrict: targetStore.district,
+          storePhone: targetStore.phone,
+          storeType: targetStore.type,
+          storeRating: targetStore.rating || 4.5,
+          location: targetStore.location,
           price: priceNum,
           stockOnHand: off.stockOnHand,
           wholesaleTiers: off.wholesaleTiers || [],
           distanceM: dist,
-          isOpenNow: checkStoreIsOpenNow(store),
+          isOpenNow: checkStoreIsOpenNow(targetStore),
           stockVerifiedAt: off.stockVerifiedAt
         });
       }

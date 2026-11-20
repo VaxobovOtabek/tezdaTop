@@ -229,6 +229,24 @@ storesRouter.get('/', async (req, res, next) => {
   }
 });
 
+const KORZINKA_ORG_ID = '07916afb-54bf-5551-b8dd-6e88d56c3fae';
+const KORZINKA_MAIN_STORE_ID = 'korzinka-main';
+
+function getStoreOffersWithFallback(storeId: string): any[] {
+  const store = db.stores.get(storeId);
+  const isKorzinka = store?.organizationId === KORZINKA_ORG_ID || storeId === KORZINKA_MAIN_STORE_ID;
+  const directOffers = Array.from(db.offers.values()).filter(o => o.storeId === storeId && o.status !== 'INACTIVE');
+  if (directOffers.length > 0) return directOffers;
+  if (isKorzinka) {
+    const shared = Array.from(db.offers.values()).filter(o => 
+      (o.storeId === KORZINKA_MAIN_STORE_ID || db.stores.get(o.storeId)?.organizationId === KORZINKA_ORG_ID) &&
+      o.status !== 'INACTIVE'
+    );
+    return shared.map(o => ({ ...o, storeId }));
+  }
+  return [];
+}
+
 // 2. Multi-segment slug and coordinates
 storesRouter.get('/:slug/@:lat,:lng', readPublicStore, (req: any, res: any) => {
   const param = `@${req.params.lat},${req.params.lng}`;
@@ -242,9 +260,7 @@ storesRouter.get('/:slug/@:lat,:lng', readPublicStore, (req: any, res: any) => {
     res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
     return;
   }
-  const offersCount = Array.from(db.offers.values()).filter(
-    (o) => o.storeId === store.id && o.status !== 'INACTIVE'
-  ).length;
+  const offersCount = getStoreOffersWithFallback(store.id).length;
   res.json({
     store,
     organization: org,
@@ -263,9 +279,7 @@ storesRouter.get('/:slug/@:lat,:lng/offers', readPublicStore, (req: any, res: an
   )
     return res.status(404).json({ code: 'NOT_FOUND', message: 'Do‘kon topilmadi' });
   const storeId = matchedStore.id;
-  const storeOffers = Array.from(db.offers.values()).filter(
-    (o) => o.storeId === storeId && o.status !== 'INACTIVE'
-  );
+  const storeOffers = getStoreOffersWithFallback(storeId);
   res.json({ offers: storeOffers });
 });
 
@@ -282,9 +296,7 @@ storesRouter.get('/:id', readPublicStore, (req, res) => {
     return;
   }
 
-  const offersCount = Array.from(db.offers.values()).filter(
-    (o) => o.storeId === store.id && o.status !== 'INACTIVE'
-  ).length;
+  const offersCount = getStoreOffersWithFallback(store.id).length;
 
   res.json({
     store,
@@ -307,13 +319,12 @@ storesRouter.get('/:id/offers', readPublicStore, (req, res) => {
   // Deduplicate offers by variantId so store catalog never returns duplicates
   const seenVariants = new Set<string>();
   const uniqueOffers: any[] = [];
-  for (const o of db.offers.values()) {
-    if (o.storeId === storeId && o.status !== 'INACTIVE') {
-      const vKey = o.variantId || o.variant?.id || o.id;
-      if (vKey && !seenVariants.has(vKey)) {
-        seenVariants.add(vKey);
-        uniqueOffers.push(o);
-      }
+  const rawOffers = getStoreOffersWithFallback(storeId);
+  for (const o of rawOffers) {
+    const vKey = o.variantId || o.variant?.id || o.id;
+    if (vKey && !seenVariants.has(vKey)) {
+      seenVariants.add(vKey);
+      uniqueOffers.push(o);
     }
   }
 

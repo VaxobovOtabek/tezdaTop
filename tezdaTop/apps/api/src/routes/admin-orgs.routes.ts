@@ -649,7 +649,16 @@ adminOrgsRouter.get('/categories', (req, res) => {
       stat.productCount++;
     }
     if (offer.storeId) {
-      stat.stores.add(offer.storeId);
+      const store = db.stores.get(offer.storeId);
+      if (store?.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae' || offer.storeId === 'korzinka-main') {
+        for (const s of db.stores.values()) {
+          if (s.organizationId === '07916afb-54bf-5551-b8dd-6e88d56c3fae') {
+            stat.stores.add(s.id);
+          }
+        }
+      } else {
+        stat.stores.add(offer.storeId);
+      }
     }
   }
 
@@ -928,9 +937,21 @@ adminOrgsRouter.get('/categories/products', requireStaffRole(['ADMIN', 'SUPERADM
   const q = search ? String(search).trim().toLowerCase() : null;
   const targetStoreId = storeId ? String(storeId).trim() : null;
 
+  const KORZINKA_ORG_ID = '07916afb-54bf-5551-b8dd-6e88d56c3fae';
+  const KORZINKA_MAIN_STORE_ID = 'korzinka-main';
+
   const results: any[] = [];
   for (const offer of db.offers.values()) {
-    if (targetStoreId && offer.storeId !== targetStoreId) continue;
+    const isOfferKorzinka = offer.storeId === KORZINKA_MAIN_STORE_ID || db.stores.get(offer.storeId)?.organizationId === KORZINKA_ORG_ID;
+
+    if (targetStoreId) {
+      const isTargetKorzinka = targetStoreId === KORZINKA_MAIN_STORE_ID || db.stores.get(targetStoreId)?.organizationId === KORZINKA_ORG_ID;
+      if (isTargetKorzinka) {
+        if (!isOfferKorzinka) continue;
+      } else if (offer.storeId !== targetStoreId) {
+        continue;
+      }
+    }
 
     const store = db.stores.get(offer.storeId);
     const org = store ? db.organizations.get(store.organizationId) : null;
@@ -951,9 +972,9 @@ adminOrgsRouter.get('/categories/products', requireStaffRole(['ADMIN', 'SUPERADM
 
     results.push({
       ...offer,
-      storeName: store?.name || 'Do‘kon',
+      storeName: isOfferKorzinka ? 'Korzinka (Asosiy)' : (store?.name || 'Do‘kon'),
       storeAddress: store?.address || '',
-      organizationName: org?.name || '',
+      organizationName: org?.name || (isOfferKorzinka ? 'Korzinka' : ''),
       variant: variant || offer.variant
     });
   }

@@ -174,7 +174,14 @@ export function searchProducts(query: SearchQuery): SearchResponse {
   // Index offers by store for candidate stores in O(N) instead of O(S x N)
   const candidateStoreIdSet = new Set(candidateStores.map(c => c.store.id));
   const offersByStore = new Map<string, Offer[]>();
+  const KORZINKA_ORG_ID = '07916afb-54bf-5551-b8dd-6e88d56c3fae';
+  const KORZINKA_MAIN_STORE_ID = 'korzinka-main';
+  const sharedKorzinkaOffers: Offer[] = [];
+
   for (const off of db.offers.values()) {
+    if (off.storeId === KORZINKA_MAIN_STORE_ID || db.stores.get(off.storeId)?.organizationId === KORZINKA_ORG_ID) {
+      sharedKorzinkaOffers.push(off);
+    }
     if (!candidateStoreIdSet.has(off.storeId)) continue;
     let list = offersByStore.get(off.storeId);
     if (!list) {
@@ -192,7 +199,10 @@ export function searchProducts(query: SearchQuery): SearchResponse {
 
   for (const cand of candidateStores) {
     const storeOffers: { offer: Offer; score: number }[] = [];
-    const offersInStore = offersByStore.get(cand.store.id) || [];
+    let offersInStore = offersByStore.get(cand.store.id) || [];
+    if (offersInStore.length === 0 && (cand.store.organizationId === KORZINKA_ORG_ID || cand.store.id === KORZINKA_MAIN_STORE_ID)) {
+      offersInStore = sharedKorzinkaOffers;
+    }
 
     // Pre-compute store-level match once per store instead of repeating in inner offers loop
     const storeNameLower = (cand.store.name || '').toLowerCase();
@@ -250,14 +260,16 @@ export function searchProducts(query: SearchQuery): SearchResponse {
           brand: off.variant.brand
         });
 
+        const candOffer = off.storeId === cand.store.id ? off : { ...off, storeId: cand.store.id };
         if (matchResult.isMatch) {
-          storeOffers.push({ offer: off, score: matchResult.score });
+          storeOffers.push({ offer: candOffer, score: matchResult.score });
         } else if (storeMatchesQuery) {
-          storeOffers.push({ offer: off, score: 0.85 });
+          storeOffers.push({ offer: candOffer, score: 0.85 });
         }
       } else {
         // No query: all active offers in store match
-        storeOffers.push({ offer: off, score: 1.0 });
+        const candOffer = off.storeId === cand.store.id ? off : { ...off, storeId: cand.store.id };
+        storeOffers.push({ offer: candOffer, score: 1.0 });
       }
     }
 

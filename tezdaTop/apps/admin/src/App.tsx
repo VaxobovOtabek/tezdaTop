@@ -1691,19 +1691,10 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                   </div>
                   {item.badge ? (
                     <div className="flex items-center gap-1.5">
-                      {item.isSpecial && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-[#116B50] text-white">
-                          LIVE
-                        </span>
-                      )}
                       <span className="min-w-[22px] h-[22px] px-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black rounded-full flex items-center justify-center shadow-md shadow-amber-500/25 ring-2 ring-amber-400/50 animate-pulse">
                         {item.badge}
                       </span>
                     </div>
-                  ) : item.isSpecial ? (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-[#116B50] text-white">
-                      LIVE
-                    </span>
                   ) : item.count !== undefined ? (
                     <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-[#DCE5DF] dark:bg-[#22332C] text-[#566A63] dark:text-[#8B9E95]">
                       {item.count}
@@ -1796,19 +1787,10 @@ export function AdminPortalApp({ portalMode = 'admin', initialTab }: AdminPortal
                   </div>
                   {item.badge ? (
                     <div className="flex items-center gap-1.5">
-                      {item.isSpecial && (
-                        <span className="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-[#116B50] text-white">
-                          LIVE
-                        </span>
-                      )}
                       <span className="min-w-[22px] h-[22px] px-1.5 bg-amber-500 hover:bg-amber-600 text-white text-[11px] font-black rounded-full flex items-center justify-center shadow-md shadow-amber-500/25 ring-2 ring-amber-400/50 animate-pulse">
                         {item.badge}
                       </span>
                     </div>
-                  ) : item.isSpecial ? (
-                    <span className="text-[9px] px-1.5 py-0.5 rounded font-extrabold bg-[#116B50] text-white">
-                      LIVE
-                    </span>
                   ) : item.count !== undefined ? (
                     <span className="text-[11px] px-1.5 py-0.5 rounded-md bg-[#DCE5DF] dark:bg-[#22332C] text-[#566A63] dark:text-[#8B9E95]">
                       {item.count}
